@@ -358,22 +358,28 @@ func (r *Relay) Gateway(req GatewayRequest) ([][]byte, int64) {
 		if len(out) >= req.Limit {
 			break
 		}
-		include := false
+		include, stop := false, false
 		switch {
 		case it.Type == packet.TypeReceipt:
 			include = true
 		case serve[it.Dest]:
 			include = true
-		case req.Carrier && quota >= len(it.Raw):
+		case req.Carrier && it.Type == packet.TypeData:
 			_, ann, ok := r.announceFor(it.Dest)
-			home := ""
-			if ok {
-				home = ann.Region
+			if home := ann.Region; ok && home != "" && home != r.cfg.Region {
+				break // belongs to another region's carriers
 			}
-			if home == r.cfg.Region || (home == "" && now.Sub(it.Received) >= r.cfg.CarrierMinAge) {
-				include = true
-				quota -= len(it.Raw)
+			// Give online recipients time to fetch directly first, and stop
+			// at the quota; both cases are retried on the next call.
+			if now.Sub(it.Received) < r.cfg.CarrierMinAge || quota < len(it.Raw) {
+				stop = true
+				break
 			}
+			include = true
+			quota -= len(it.Raw)
+		}
+		if stop {
+			break // retry this and later packets on the next call
 		}
 		if include {
 			out = append(out, it.Raw)
@@ -396,3 +402,4 @@ func (r *Relay) Stats() Stats {
 	defer r.mu.Unlock()
 	return r.stats
 }
+

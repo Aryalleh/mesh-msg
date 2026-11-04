@@ -85,7 +85,7 @@ func TestTamper(t *testing.T) {
 
 func TestSingleLoRaFrameBudget(t *testing.T) {
 	budget := packet.LoRaMTU - packet.HeaderSize - OverheadK - InnerHeader
-	if budget != 176 {
+	if budget != 175 {
 		t.Fatalf("content budget per LoRa frame = %d", budget)
 	}
 }

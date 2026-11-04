@@ -27,7 +27,7 @@ type testRelay struct {
 func startRelay(t *testing.T, name, region string, tokens ...string) *testRelay {
 	t.Helper()
 	key, _ := identity.Generate()
-	r := relay.New(relay.Config{Name: name, Region: region})
+	r := relay.New(relay.Config{Name: name, Region: region, CarrierMinAge: time.Nanosecond})
 	h := api.New(api.Config{
 		Relay: r, Identity: key, PowBits: 8, SyncTokens: tokens, RateLimit: 1000,
 		Relays: []wire.RelayEntry{{Name: name, Region: region, URLs: []string{"https://" + name}}},

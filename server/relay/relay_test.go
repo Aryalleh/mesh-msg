@@ -107,6 +107,11 @@ func TestGatewayTargetedAndCarrier(t *testing.T) {
 		t.Fatalf("targeted: want only delegated Sara's packet, got %d", len(got))
 	}
 	got, _ = r.Gateway(GatewayRequest{Origin: "gw", Carrier: true, QuotaBytes: 10_000})
+	if len(got) != 0 {
+		t.Fatal("carrier must wait CarrierMinAge so online recipients fetch directly")
+	}
+	*now = now.Add(11 * time.Minute)
+	got, _ = r.Gateway(GatewayRequest{Origin: "gw", Carrier: true, QuotaBytes: 10_000})
 	if len(got) != 2 {
 		t.Fatalf("carrier: home region ir → both, got %d", len(got))
 	}

@@ -13,9 +13,14 @@ import (
 const (
 	Version    = 1
 	HeaderSize = 26
-	// LoRaMTU is the SX126x maximum payload and the hard limit for any packet
-	// that may cross the LoRa layer.
-	LoRaMTU = 255
+	// LoRaRadioMax is the SX126x maximum radio payload.
+	LoRaRadioMax = 255
+	// LoRaLinkHeader is the per-frame LoRa link header: one byte with the
+	// transmitting node's random short ID, so nodes learn their neighbours
+	// and know whose rebroadcast acknowledges a frame (docs/firmware.md §5).
+	LoRaLinkHeader = 1
+	// LoRaMTU is the hard limit for any packet that may cross the LoRa layer.
+	LoRaMTU = LoRaRadioMax - LoRaLinkHeader
 	// MaxFragments is the number of fragments one packet may be split into.
 	MaxFragments = 16
 	// FragBodySize is the body bytes available per fragment on LoRa
