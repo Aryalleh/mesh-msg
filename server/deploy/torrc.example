@@ -1,0 +1,5 @@
+# Publish the relay as a Tor onion service (append to /etc/tor/torrc).
+HiddenServiceDir /var/lib/tor/meshmsg-relay/
+HiddenServicePort 80 127.0.0.1:8080
+# The onion address is in /var/lib/tor/meshmsg-relay/hostname;
+# add it to "relays" in relay.json so clients learn it.

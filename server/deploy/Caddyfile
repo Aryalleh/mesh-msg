@@ -1,0 +1,12 @@
+# TLS in front of the relay. Replace the domain; pick something boring.
+relay.example.org {
+	reverse_proxy 127.0.0.1:8080 {
+		# long-poll requests wait up to 30 s
+		transport http {
+			read_timeout 60s
+		}
+	}
+	log {
+		output discard
+	}
+}

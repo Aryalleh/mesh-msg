@@ -1,0 +1,17 @@
+{
+  "name": "eu-1",
+  "region": "global",
+  "listen": "127.0.0.1:8080",
+  "data_dir": "/var/lib/meshmsg-relay",
+  "pow_bits": 16,
+  "ttl_hours": 168,
+  "sync_tokens": ["REPLACE-with-output-of: relay -gen-token"],
+  "peers": [
+    { "name": "us-1", "url": "https://us-1.example.org", "token": "TOKEN-THAT-us-1-ACCEPTS", "via": "direct" }
+  ],
+  "relays": [
+    { "name": "eu-1", "region": "global", "urls": ["https://eu-1.example.org", "http://exampleonionaddress.onion"] },
+    { "name": "us-1", "region": "global", "urls": ["https://us-1.example.org"] }
+  ],
+  "log": false
+}
