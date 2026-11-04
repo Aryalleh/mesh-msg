@@ -14,6 +14,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/packet"
 	"github.com/Aryalleh/mesh-msg/core/store"
+	"github.com/Aryalleh/mesh-msg/core/wire"
 )
 
 // Config configures a relay.
@@ -85,28 +86,11 @@ func (r *Relay) notify() {
 // relay or bridge name, or "client:<addr>"); region is the home region to
 // record for announces arriving this way ("" = unknown).
 func (r *Relay) Ingest(raws [][]byte, origin, region string) (accepted int) {
-	now := r.cfg.Now()
-	for _, raw := range raws {
-		switch r.ingestOne(raw, origin, region, now) {
-		case resAccepted:
-			accepted++
-		case resDuplicate:
-			r.mu.Lock()
-			r.stats.Duplicate++
-			r.mu.Unlock()
-		case resRejected:
-			r.mu.Lock()
-			r.stats.Rejected++
-			r.mu.Unlock()
-		}
+	items := make([]wire.SyncItem, len(raws))
+	for i, raw := range raws {
+		items[i] = wire.SyncItem{Raw: raw, Region: region}
 	}
-	if accepted > 0 {
-		r.mu.Lock()
-		r.stats.Accepted += accepted
-		r.mu.Unlock()
-		r.notify()
-	}
-	return accepted
+	return r.IngestSync(items, origin)
 }
 
 type result int
@@ -197,6 +181,12 @@ func (r *Relay) publicFor(dest packet.Hash) (pub identity.Public, ok bool) {
 	return a.Public, ok
 }
 
+// HomeRegion returns the region where dest's announces enter the network.
+func (r *Relay) HomeRegion(dest packet.Hash) (string, bool) {
+	_, it, ok := r.announceFor(dest)
+	return it.Region, ok
+}
+
 // Delegated reports whether dest allows any gateway to fetch its packets.
 func (r *Relay) Delegated(dest packet.Hash) bool {
 	a, _, ok := r.announceFor(dest)
@@ -251,9 +241,36 @@ func (r *Relay) Mailbox(dest packet.Hash, after int64, limit int) ([][]byte, int
 	return raws(items, after)
 }
 
+// IngestSync accepts items from a peer relay or bridge, keeping the home
+// region each item carries.
+func (r *Relay) IngestSync(items []wire.SyncItem, origin string) (accepted int) {
+	now := r.cfg.Now()
+	for _, it := range items {
+		switch r.ingestOne(it.Raw, origin, it.Region, now) {
+		case resAccepted:
+			accepted++
+		case resDuplicate:
+			r.mu.Lock()
+			r.stats.Duplicate++
+			r.mu.Unlock()
+		case resRejected:
+			r.mu.Lock()
+			r.stats.Rejected++
+			r.mu.Unlock()
+		}
+	}
+	if accepted > 0 {
+		r.mu.Lock()
+		r.stats.Accepted += accepted
+		r.mu.Unlock()
+		r.notify()
+	}
+	return accepted
+}
+
 // Pull returns everything after cursor not originating from excludeOrigin
 // (federation / bridge sync), the new cursor and whether more is pending.
-func (r *Relay) Pull(after int64, limit int, excludeOrigin string) ([][]byte, int64, bool) {
+func (r *Relay) Pull(after int64, limit int, excludeOrigin string) ([]wire.SyncItem, int64, bool) {
 	if limit <= 0 {
 		limit = 500
 	}
@@ -268,7 +285,12 @@ func (r *Relay) Pull(after int64, limit int, excludeOrigin string) ([][]byte, in
 	if more {
 		items = items[:limit]
 	}
-	out, cur := raws(items, after)
+	out := make([]wire.SyncItem, len(items))
+	cur := after
+	for i, it := range items {
+		out[i] = wire.SyncItem{Raw: it.Raw, Region: it.Region}
+		cur = it.Seq
+	}
 	if !more && maxBefore > cur {
 		// Skip past excluded items too, so the cursor doesn't stall.
 		cur = maxBefore
