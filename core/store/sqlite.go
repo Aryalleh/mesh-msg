@@ -104,6 +104,18 @@ func (s *SQLite) Has(k packet.Key) (bool, error) {
 	return err == nil, err
 }
 
+func (s *SQLite) Get(k packet.Key) (Item, bool, error) {
+	rows, err := s.db.Query(`SELECT `+cols+` FROM items WHERE pid=? AND frag=?`, k.ID[:], k.Frag)
+	if err != nil {
+		return Item{}, false, err
+	}
+	items, err := scanItems(rows)
+	if err != nil || len(items) == 0 {
+		return Item{}, false, err
+	}
+	return items[0], true, nil
+}
+
 const cols = `seq,pid,frag,type,dest,raw,origin,region,received,expires`
 
 func scanItems(rows *sql.Rows) ([]Item, error) {

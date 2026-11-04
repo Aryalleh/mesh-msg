@@ -61,6 +61,7 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("GET /v1/info", s.info)
 	s.mux.HandleFunc("GET /v1/relays", s.relays)
 	s.mux.HandleFunc("POST /v1/packets", s.packets)
+	s.mux.HandleFunc("POST /v1/receipts/query", s.receiptsQuery)
 	s.mux.HandleFunc("GET /v1/challenge", s.challenge)
 	s.mux.HandleFunc("GET /v1/mailbox/{dest}", s.mailbox)
 	s.mux.HandleFunc("POST /v1/gateway", s.gateway)
@@ -174,6 +175,23 @@ func (s *Server) packets(w http.ResponseWriter, r *http.Request) {
 	}
 	n := s.cfg.Relay.Ingest(raws, origin(r, "client:"), s.cfg.Relay.Region())
 	writeJSON(w, wire.Accepted{Accepted: n})
+}
+
+// receiptsQuery: body = concatenated 8-byte packet IDs (max 1000).
+func (s *Server) receiptsQuery(w http.ResponseWriter, r *http.Request) {
+	body, ok := readBody(w, r)
+	if !ok {
+		return
+	}
+	if len(body)%8 != 0 || len(body)/8 > 1000 {
+		http.Error(w, "body must be up to 1000 packet IDs", http.StatusBadRequest)
+		return
+	}
+	ids := make([]packet.ID, len(body)/8)
+	for i := range ids {
+		copy(ids[i][:], body[i*8:])
+	}
+	writeFrames(w, packet.EncodeFrames(s.cfg.Relay.Receipts(ids)), 0, false)
 }
 
 func (s *Server) challenge(w http.ResponseWriter, r *http.Request) {

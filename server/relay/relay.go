@@ -241,6 +241,19 @@ func (r *Relay) Mailbox(dest packet.Hash, after int64, limit int) ([][]byte, int
 	return raws(items, after)
 }
 
+// Receipts returns the stored receipts for the given packet IDs. Senders use
+// it to learn about delivery (receipts are addressed to the recipient, so
+// they never appear in the sender's mailbox).
+func (r *Relay) Receipts(ids []packet.ID) [][]byte {
+	var out [][]byte
+	for _, id := range ids {
+		if it, ok, _ := r.cfg.Store.Get(packet.Key{ID: announce.ReceiptID(id)}); ok {
+			out = append(out, it.Raw)
+		}
+	}
+	return out
+}
+
 // IngestSync accepts items from a peer relay or bridge, keeping the home
 // region each item carries.
 func (r *Relay) IngestSync(items []wire.SyncItem, origin string) (accepted int) {

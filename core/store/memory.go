@@ -44,6 +44,15 @@ func (m *Memory) Has(k packet.Key) (bool, error) {
 	return ok, nil
 }
 
+func (m *Memory) Get(k packet.Key) (Item, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if it, ok := m.items[k]; ok {
+		return *it, true, nil
+	}
+	return Item{}, false, nil
+}
+
 func (m *Memory) sorted(match func(*Item) bool, after int64, limit int) []Item {
 	var out []Item
 	for _, it := range m.items {

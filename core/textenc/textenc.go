@@ -26,13 +26,13 @@ func buildTable() []rune {
 			t = append(t, r)
 		}
 	}
-	span(0x0621, 0x063A)                                                 // ء … غ
-	span(0x0641, 0x064A)                                                 // ف … ي
-	span(0x064B, 0x0652)                                                 // harakat
-	t = append(t, 0x0654, 0x0670)                                        // hamza above, superscript alef
+	span(0x0621, 0x063A)                                                  // ء … غ
+	span(0x0641, 0x064A)                                                  // ف … ي
+	span(0x064B, 0x0652)                                                  // harakat
+	t = append(t, 0x0654, 0x0670)                                         // hamza above, superscript alef
 	t = append(t, 0x067E, 0x0686, 0x0698, 0x06A9, 0x06AF, 0x06CC, 0x06C0) // پ چ ژ ک گ ی ۀ
-	span(0x0660, 0x0669)                                                 // Arabic-Indic digits
-	span(0x06F0, 0x06F9)                                                 // Persian digits
+	span(0x0660, 0x0669)                                                  // Arabic-Indic digits
+	span(0x06F0, 0x06F9)                                                  // Persian digits
 	t = append(t, 0x060C, 0x061B, 0x061F, 0x0640, 0x066A, 0x066B, 0x066C) // ، ؛ ؟ ـ ٪ ٫ ٬
 	t = append(t, 0x00AB, 0x00BB, 0x200C, 0x200D, 0x200E, 0x200F)         // « » ZWNJ ZWJ LRM RLM
 	t = append(t, 0x2026, 0x2013, 0x2014, 0x201C, 0x201D, 0x2018, 0x2019, 0x00A0)

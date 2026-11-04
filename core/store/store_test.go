@@ -45,6 +45,12 @@ func TestStore(t *testing.T) {
 		if ok, _ := s.Has(packet.Key{ID: packet.ID{1}, Frag: 1}); !ok {
 			t.Fatal("Has failed")
 		}
+		if it, ok, _ := s.Get(packet.Key{ID: packet.ID{1}, Frag: 1}); !ok || it.Origin != "b" || it.Raw[1] != 1 {
+			t.Fatal("Get failed")
+		}
+		if _, ok, _ := s.Get(packet.Key{ID: packet.ID{99}}); ok {
+			t.Fatal("Get found missing item")
+		}
 		all, _ := s.Since(0, 0, Filter{})
 		if len(all) != 4 || all[0].Seq >= all[3].Seq {
 			t.Fatalf("since: %d", len(all))

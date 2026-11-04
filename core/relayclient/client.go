@@ -220,6 +220,22 @@ func (c *Client) Mailbox(ctx context.Context, id *identity.Identity, after int64
 	return raws, cursorOf(resp, after), err
 }
 
+// Receipts asks for delivery receipts of packets we sent.
+func (c *Client) Receipts(ctx context.Context, ids []packet.ID) ([][]byte, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	body := make([]byte, 0, 8*len(ids))
+	for _, id := range ids[:min(len(ids), 1000)] {
+		body = append(body, id[:]...)
+	}
+	_, b, err := c.do(ctx, "POST", "/v1/receipts/query", nil, body, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+	return packet.DecodeFrames(b)
+}
+
 // GatewayRequest is one gateway exchange.
 type GatewayRequest struct {
 	Serve      []packet.Hash

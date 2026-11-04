@@ -49,6 +49,7 @@ type Store interface {
 	// older announces for the same destination are replaced.
 	Put(it Item) (seq int64, added bool, err error)
 	Has(k packet.Key) (bool, error)
+	Get(k packet.Key) (Item, bool, error)
 	// Since returns items with Seq > after in Seq order (at most limit).
 	Since(after int64, limit int, f Filter) ([]Item, error)
 	// ByDest returns DATA items for dest with Seq > after.
