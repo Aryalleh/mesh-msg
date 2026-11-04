@@ -21,9 +21,57 @@ power: 10 km between cities needs line of sight from elevated sites.
 |---|---|---|---|---|
 | CLIENT | BLE / USB | yes (low priority) | no | battery |
 | REPEATER | none (config only) | yes | no | solar, deep sleep between RX |
-| GATEWAY | optional | yes | yes → relay server | mains |
+| GATEWAY | optional | yes | yes → relay server (own Wi-Fi, or through its host: `meshd` over USB, phone over BLE) | mains |
 
 Role is a runtime config value, not a different build.
+
+## 2a. Broadcast model
+
+**LoRa is a broadcast medium and we use it that way.** Every transmission is heard by every
+node in range; there is no unicast on the air.
+
+```
+ relay A ──► GATEWAY node A ))) ((( repeater ))) ((( node B ──► phone(s) via BLE   (offline users)
+ (has the packet)   broadcast        rebroadcast       │
+                                                       └──► GATEWAY node B ──► relay B
+                                                            (relay B can't reach relay A)
+```
+
+What a GATEWAY node does:
+
+1. **Server → air:** holds a gateway session with its relay (server.md §4, mode `lora`) and
+   receives packets selected for broadcast; transmits them.
+2. **Air → server:** everything it hears on air that its relay doesn't have yet is uploaded.
+   So **LoRa links relays that cannot reach each other** — e.g. two cities' regional relays
+   isolated from each other, or an isolated relay and one that still has internet.
+3. **Air → local:** CLIENT nodes hand received packets to their paired phone, which delivers
+   them or spreads them in the Tier 0 phone mesh.
+
+Every node (repeater, client, gateway) **rebroadcasts each new packet once** (managed flood):
+
+- Dedup by `packet_id(+fragment)` in a seen-cache (~24 h) — this also stops loops between
+  air and relays: a gateway never re-transmits a packet it has already heard on air.
+- `hop_count` incremented; dropped at `max_hops` (default 3 on LoRa).
+- **SNR-ordered delay:** nodes that heard the packet weakly (likely farthest away) wait less
+  before rebroadcasting; a node that hears enough neighbours rebroadcast it first cancels its
+  own copy. Hearing a rebroadcast is the implicit ACK.
+- RECEIPTs are broadcast the same way and purge copies queued in every node that hears them.
+
+### Airtime budget — the real limit
+
+At BALANCED (SF9/125 kHz) a full 255 B frame takes ≈ 1 s on air. With a 1 % duty cycle that is
+**≈ 36 full frames per hour per node**; ≈ 360/hour in a 10 % sub-band where allowed. The
+whole LoRa layer therefore carries **text only, selected by priority**, never bulk sync:
+
+1. RECEIPTs (small, free up everyone's queues)
+2. DATA whose destination has no internet path (home region unreachable / not online) and
+   is announced on this side of the air (cluster SUMMARY match)
+3. PRIORITY-flagged DATA
+4. Other DATA, oldest-first, until the budget is spent
+5. ANNOUNCE / SUMMARY (rate-limited)
+
+Packets are never broadcast if the relay already has a RECEIPT for them, if they are
+`NO_LORA`, or if they were heard on air already.
 
 ## 3. Software architecture
 
@@ -65,7 +113,8 @@ with EU-868-style limits (1% duty cycle in most sub-bands) enforced by `mac/Airt
 ## 5. MAC behaviour
 
 - Listen-before-talk using SX1262 Channel Activity Detection, random backoff.
-- Hop-level ACK (LINK type) for unicast forwards, up to 3 retries with jittered backoff.
+- All forwarding is broadcast + managed flood (§2a). Implicit ACK = hearing a neighbour
+  rebroadcast; if none is heard, the originating node retransmits up to 2 times with backoff.
 - Announce rate limit: own announce ≤ 1 / 30 min; forwarded announces ≤ 10 % airtime.
 - SUMMARY broadcast every 15 min or on significant change.
 - Priority queue: RECEIPT > DATA(PRIORITY) > DATA > SUMMARY > ANNOUNCE.
@@ -88,7 +137,7 @@ config and node identity.
 ## 7. Milestones
 
 1. Two boards exchange raw packets; serial console shows decoded headers.
-2. Router + store + hop ACKs across 3 boards (A → repeater → B).
-3. BLE phone link; Android app sends text through 2 nodes.
-4. Gateway Wi-Fi uplink to relay server.
+2. Managed flood + dedup + airtime budget across 3 boards (A → repeater → B).
+3. Gateway role: relay A → air → relay B (via Wi-Fi or USB host `meshd`).
+4. BLE phone link; Android app sends/receives text through nodes.
 5. Low-power repeater build on RAK4631 with solar; field range test.

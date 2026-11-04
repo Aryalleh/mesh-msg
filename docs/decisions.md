@@ -11,4 +11,5 @@
 | D7 | Monorepo | Separate repos | Spec, vectors and implementations change together. |
 | D8 | Regional relays + global federation joined by volunteer bridges | Only foreign relays reached via VPN | A country's domestic network often survives an international blackout; in-region relays connect everyone on it, and only a few bridges need a way out. |
 | D9 | Relay federation = full replication (v1) | DHT / selective routing | Small text volume; maximises survival when relays are blocked or seized. Selective sync in v2. |
+| D11 | LoRa is broadcast-only (managed flood, dedup, SNR-ordered rebroadcast); LoRa gateways move packets relay ↔ air | Next-hop unicast routing with hop ACKs | Matches the medium (every transmission is heard by all in range), no route state to go stale, and lets LoRa bridge relays that can't reach each other. Cost: airtime, handled by strict priority selection. |
 | D10 | Desktop: Linux first, daemon + CLI + localhost web UI | Native GUI per OS | Linux is easiest to run as a service for gateway/bridge operators; web UI covers all three OSes without a GUI toolkit. |

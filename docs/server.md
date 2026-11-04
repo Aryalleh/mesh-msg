@@ -62,6 +62,15 @@ Modes:
 | `targeted` | only packets for dest hashes it serves (delegations / summary match) |
 | `carrier` | also up to `quota` KB/h of undelivered packets whose home region = this relay's region, to spray into its local mesh |
 
+| `lora` | a LoRa GATEWAY node (directly over Wi-Fi, or via its host `meshd` / phone): the relay selects packets for **broadcast on air** within the node's airtime budget (firmware.md §2a); everything the node hears on air is uploaded |
+
+**LoRa as a bridge between relays.** Two relays that cannot reach each other (two cities'
+isolated regional relays, or an isolated relay and an internet-connected one) each have a
+`lora` gateway in radio range of the same LoRa mesh. Relay A's packets are broadcast, heard by
+B's gateway, and uploaded to relay B — and vice versa. Capacity is a few dozen text packets per
+hour per node, so relays select for LoRa only what has **no other path**: destinations whose
+home region is on the far side, not currently online, and without a receipt.
+
 Gateways keep a long-lived WebSocket when possible; on flaky links they fall back to
 periodic HTTPS sync. Phones that are online are also ordinary clients: they get their own
 messages pushed live.

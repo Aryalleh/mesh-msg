@@ -123,18 +123,20 @@ seen        : packet_id(+frag) → time            # dedup, ~24 h
 Forwarding decision for a packet with `dest_hash`:
 
 1. Destination is me → deliver, emit RECEIPT.
-2. Known route → unicast to next hop (LoRa: with hop ACK and retries).
-3. Unknown → keep in store and
+2. Known route on a point-to-point interface (BLE link, relay) → send to next hop.
+3. Otherwise keep in store and
    - Tier 0: epidemic exchange with neighbours (summary-vector inventory, then pull missing),
      bounded by `max_hops` and store quotas.
-   - Tier 1: if a cluster SUMMARY matches → forward toward it; else limited managed flood
-     (`max_hops` ≤ 3 on LoRa, PRIORITY packets only) or PATH_REQ.
-   - Tier 2: if any internet interface is up → upload to relay.
+   - Tier 1 (LoRa, **always broadcast**): queue for broadcast under the airtime priority rules
+     in firmware.md §2a; every node rebroadcasts once (managed flood, `max_hops` ≤ 3, dedup,
+     SNR-ordered delay). Cluster SUMMARY matches raise priority; they don't select a next hop.
+   - Tier 2: if any relay is reachable → upload.
 4. Drop on RECEIPT seen or expiry (default 7 days text, 1 day media).
 
 **SUMMARY:** each LoRa node periodically broadcasts a 128-byte Bloom filter of dest hashes
 announced by phones in its local cluster in the last N hours (k=3, ~1% FP at ~100 entries).
-Backbone nodes route toward the cluster whose filter matches.
+Gateway nodes report heard summaries to their relay, so a relay knows which destinations are
+reachable over its LoRa side and prioritises those packets for broadcast.
 
 ## 7. Link layers (framing per interface)
 

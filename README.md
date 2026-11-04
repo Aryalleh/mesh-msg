@@ -1,5 +1,7 @@
 # mesh-msg
 
+English | [فارسی](README.fa.md)
+
 An off-grid, censorship-resistant messenger built as a **mesh of meshes**.
 
 Messages travel over whatever path exists:
@@ -7,7 +9,7 @@ Messages travel over whatever path exists:
 | Tier | Transport | Range | Payload |
 |---|---|---|---|
 | 0 — Local | BLE, Wi-Fi Direct, Wi-Fi Aware (phone ↔ phone) | 10–100 m per hop | Text + small media |
-| 1 — Backbone | LoRa nodes (ESP32 + SX1262), paired to phones via BLE | 2–15 km per hop | Text only (~200 B packets) |
+| 1 — LoRa | LoRa nodes **broadcast**: gateway nodes take packets from a relay and broadcast them to every node in range — offline users, or other relays with no connection to the origin | 2–15 km per hop | Text only (~200 B packets) |
 | 2a — Regional | Phones/PCs on a country's domestic network → in-region relay | One country, even during an international blackout | Anything |
 | 2b — Global | Federated relays (EU, US, Asia, AU); regions joined by volunteer **bridges** (VPN, Starlink, unfiltered SIM) | Global | Anything |
 

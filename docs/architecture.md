@@ -81,6 +81,19 @@ by `spec/test-vectors/`.
 7. **Every server and bridge is untrusted and replaceable.** Losing all relays leaves Tiers 0
    and 1; losing all bridges leaves each region working internally.
 
+## 5a. LoRa = broadcast layer
+
+LoRa modules don't route point-to-point; they **broadcast**. A LoRa gateway node takes
+packets from its relay and broadcasts them; every node in range hears them and rebroadcasts
+once (hop-limited). On the far side:
+
+- **client nodes** hand them to paired phones of offline users, and
+- **gateway nodes** upload them to *their* relay — which may be a relay with no connection to
+  the origin relay. So LoRa also joins otherwise isolated relays and regions.
+
+Airtime is tiny (≈ tens of text packets per hour per node), so relays only put on the air what
+has no other path. Details: firmware.md §2a.
+
 ## 6. Message paths (example)
 
 Ali is in Tehran during an international blackout, offline except BLE.
