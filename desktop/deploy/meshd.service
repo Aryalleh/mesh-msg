@@ -1,0 +1,15 @@
+# systemd *user* unit:  ~/.config/systemd/user/meshd.service
+#   systemctl --user daemon-reload && systemctl --user enable --now meshd
+# Keep it running when logged out (gateway / bridge PCs):
+#   sudo loginctl enable-linger $USER
+[Unit]
+Description=mesh-msg daemon
+After=network-online.target
+
+[Service]
+ExecStart=%h/.local/bin/meshd
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

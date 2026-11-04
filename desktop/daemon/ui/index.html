@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mesh-msg</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2024; --muted: #6b7280; --line: #e3e6ea;
+    --accent: #0f766e; --accent-ink: #ffffff; --mine: #d9f2ee; --theirs: #ffffff; --warn: #b45309;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111416; --panel: #181c1f; --ink: #e6e8ea; --muted: #9aa3ab; --line: #2a3035;
+      --accent: #2dd4bf; --accent-ink: #062b27; --mine: #123d38; --theirs: #1f2427; --warn: #f59e0b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Vazirmatn, Tahoma, sans-serif;
+         background: var(--bg); color: var(--ink); height: 100vh; display: flex; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px;
+           padding: 8px 14px; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  input, textarea { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+  aside { width: 300px; min-width: 240px; background: var(--panel); border-right: 1px solid var(--line);
+          display: flex; flex-direction: column; }
+  aside header { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+  aside header h1 { font-size: 17px; margin: 0; flex: 1; }
+  #contacts { flex: 1; overflow-y: auto; list-style: none; margin: 0; padding: 6px; }
+  #contacts li { padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; }
+  #contacts li:hover { background: var(--bg); }
+  #contacts li.active { background: var(--mine); }
+  #contacts .hash { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
+  #contacts .unread { color: var(--accent); font-weight: 600; }
+  #status { padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  #status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: 6px; background: var(--muted); }
+  #status .ok { background: #16a34a; } #status .bad { background: var(--warn); }
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  main header { padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  main header h2 { margin: 0; font-size: 16px; }
+  main header .hash { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
+  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { align-self: flex-start; max-width: min(560px, 80%); padding: 8px 12px; border-radius: 12px; background: var(--theirs);
+         border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+  .msg.mine { align-self: flex-end; background: var(--mine); border-color: transparent; }
+  .msg .meta { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; text-align: end; }
+  form#compose { display: flex; gap: 8px; padding: 12px 20px; background: var(--panel); border-top: 1px solid var(--line); }
+  form#compose textarea { resize: none; height: 44px; unicode-bidi: plaintext; }
+  .empty { margin: auto; color: var(--muted); text-align: center; max-width: 420px; padding: 20px; }
+  dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); width: min(520px, 92vw); }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  dialog h3 { margin-top: 0; }
+  dialog .row { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+  code.uri { display: block; padding: 10px; background: var(--bg); border-radius: 8px; word-break: break-all; font-size: 12px; }
+  .err { color: var(--warn); font-size: 13px; min-height: 1em; }
+  @media (max-width: 700px) {
+    body { flex-direction: column; }
+    aside { width: 100%; height: 40vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<aside>
+  <header>
+    <h1>mesh-msg</h1>
+    <button class="ghost" id="btnMe" title="My contact link">Me</button>
+    <button id="btnAdd" title="Add contact">+</button>
+  </header>
+  <ul id="contacts"></ul>
+  <div id="status">…</div>
+</aside>
+<main>
+  <header id="chatHead"><h2>No chat selected</h2></header>
+  <div id="messages"><div class="empty">Add a contact with their <b>meshmsg:</b> link, or share yours with <b>Me</b>.<br>Messages travel over whatever path exists: LAN, LoRa, regional relays, bridges.</div></div>
+  <form id="compose" hidden>
+    <textarea id="text" placeholder="Message… / پیام…" dir="auto" autocomplete="off"></textarea>
+    <button type="submit">Send</button>
+  </form>
+</main>
+
+<dialog id="dlgAdd">
+  <h3>Add contact</h3>
+  <label>Contact link<input id="addUri" placeholder="meshmsg:…" dir="ltr"></label>
+  <label style="display:block;margin-top:8px">Name<input id="addName" dir="auto"></label>
+  <div class="err" id="addErr"></div>
+  <div class="row"><button class="ghost" value="cancel" formmethod="dialog" onclick="dlgAdd.close()">Cancel</button><button id="addOk">Add</button></div>
+</dialog>
+
+<dialog id="dlgMe">
+  <h3>My contact link</h3>
+  <p>Share this with people so they can message you. It contains only public keys.</p>
+  <code class="uri" id="myUri"></code>
+  <div class="row"><button class="ghost" onclick="dlgMe.close()">Close</button><button id="copyUri">Copy</button></div>
+</dialog>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+let contacts = [], current = null, unread = {};
+
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({"X-Meshd": "1", "Content-Type": "application/json"}, opts.headers || {});
+  const r = await fetch("/api" + path, opts);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || r.statusText);
+  return body;
+}
+
+function label(c) { return c.name || c.hash.slice(0, 12); }
+
+function renderContacts() {
+  const ul = $("contacts");
+  ul.replaceChildren();
+  for (const c of contacts) {
+    const li = document.createElement("li");
+    if (current && current.hash === c.hash) li.className = "active";
+    const n = document.createElement("span");
+    n.textContent = label(c) + (unread[c.hash] ? ` (${unread[c.hash]})` : "");
+    n.dir = "auto";
+    if (unread[c.hash]) n.className = "unread";
+    const h = document.createElement("span");
+    h.className = "hash"; h.textContent = c.hash.slice(0, 16);
+    li.append(n, h);
+    li.onclick = () => openChat(c);
+    ul.append(li);
+  }
+}
+
+function fmtTime(s) {
+  const d = new Date(s);
+  return d.toLocaleString([], {hour: "2-digit", minute: "2-digit", month: "short", day: "numeric"});
+}
+
+function addMessage(m) {
+  const box = $("messages");
+  const div = document.createElement("div");
+  div.className = "msg" + (m.outgoing ? " mine" : "");
+  div.dataset.id = m.id;
+  div.dir = "auto";
+  const t = document.createElement("span");
+  t.textContent = m.text;
+  const meta = document.createElement("span");
+  meta.className = "meta";
+  meta.textContent = fmtTime(m.outgoing ? m.sent : m.received) + (m.outgoing ? (m.delivered ? " ✓✓" : " ✓") : "");
+  div.append(t, meta);
+  box.append(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function openChat(c) {
+  current = c; unread[c.hash] = 0;
+  const head = $("chatHead");
+  head.replaceChildren();
+  const h2 = document.createElement("h2"); h2.textContent = label(c); h2.dir = "auto";
+  const hs = document.createElement("div"); hs.className = "hash"; hs.textContent = c.hash;
+  head.append(h2, hs);
+  $("compose").hidden = false;
+  $("messages").replaceChildren();
+  renderContacts();
+  for (const m of await api("/messages?with=" + c.hash + "&limit=200")) addMessage(m);
+  $("text").focus();
+}
+
+async function loadContacts() {
+  contacts = await api("/contacts") || [];
+  renderContacts();
+}
+
+async function loadStatus() {
+  try {
+    const s = await api("/status");
+    const el = $("status");
+    el.replaceChildren();
+    const links = Object.entries(s.links || {});
+    if (!links.length) el.textContent = "No links configured — edit config.toml";
+    for (const [name, st] of links) {
+      const row = document.createElement("div");
+      const dot = document.createElement("span");
+      dot.className = "dot " + (/connected|peers|syncing|listening/.test(st) && !/^0 peers/.test(st) ? "ok" : "bad");
+      row.append(dot, document.createTextNode(name + " — " + st));
+      el.append(row);
+    }
+    const sum = document.createElement("div");
+    sum.textContent = `${s.stored} stored · ${s.routes} known nodes · up ${s.uptime}`;
+    el.append(sum);
+  } catch (e) { $("status").textContent = "meshd unreachable"; }
+}
+
+$("compose").onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $("text").value;
+  if (!text.trim() || !current) return;
+  try {
+    const m = await api("/send", {method: "POST", body: JSON.stringify({to: current.hash, text})});
+    $("text").value = "";
+    addMessage(m);
+  } catch (err) { alert(err.message); }
+};
+$("text").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("compose").requestSubmit(); } };
+
+$("btnAdd").onclick = () => { $("addErr").textContent = ""; $("addUri").value = ""; $("addName").value = ""; $("dlgAdd").showModal(); };
+$("addOk").onclick = async () => {
+  try {
+    const c = await api("/contacts", {method: "POST", body: JSON.stringify({uri: $("addUri").value.trim(), name: $("addName").value.trim()})});
+    $("dlgAdd").close();
+    await loadContacts();
+    openChat(contacts.find((x) => x.hash === c.hash) || c);
+  } catch (err) { $("addErr").textContent = err.message; }
+};
+$("btnMe").onclick = async () => { $("myUri").textContent = (await api("/id")).uri; $("dlgMe").showModal(); };
+$("copyUri").onclick = () => navigator.clipboard.writeText($("myUri").textContent);
+
+function listen() {
+  const es = new EventSource("/api/events");
+  es.onmessage = async (ev) => {
+    const e = JSON.parse(ev.data);
+    if (e.type === "message") {
+      if (!contacts.some((c) => c.hash === e.message.peer)) await loadContacts();
+      if (current && current.hash === e.message.peer) addMessage(e.message);
+      else { unread[e.message.peer] = (unread[e.message.peer] || 0) + 1; renderContacts(); }
+    } else if (e.type === "delivered") {
+      const el = document.querySelector(`.msg[data-id="${e.info}"] .meta`);
+      if (el && !el.textContent.endsWith("✓✓")) el.textContent = el.textContent.replace(/ ✓$/, " ✓✓");
+    } else if (e.type === "contact") { loadContacts(); }
+    else if (e.type === "link") { loadStatus(); }
+  };
+  es.onerror = () => { es.close(); setTimeout(listen, 3000); };
+}
+
+loadContacts(); loadStatus(); listen();
+setInterval(loadStatus, 15000);
+</script>
+</body>
+</html>
