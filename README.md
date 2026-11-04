@@ -31,18 +31,29 @@ Messages travel over whatever path exists:
 ## Threat model highlights
 
 Designed with internet shutdowns (e.g. Iran) in mind: radio direction-finding, device seizure,
-blocked servers, no app-store access. See `docs/` (to come).
+blocked servers, no app-store access. See [docs/threat-model.md](docs/threat-model.md).
+
+## Design docs
+
+- [Architecture](docs/architecture.md) — tiers, components, message path
+- [Protocol](docs/protocol.md) — identity, packet format, encryption, routing
+- [Firmware](docs/firmware.md) — LoRa node hardware framework
+- [Android](docs/android.md) — app, phone-to-phone mesh
+- [Server](docs/server.md) — relay / gateway
+- [Threat model](docs/threat-model.md)
+- [Decisions](docs/decisions.md) · [Roadmap](docs/roadmap.md)
 
 ## Status
 
-Early design. Candidate foundation: [Reticulum](https://reticulum.network) / LXMF.
+Design phase (M0).
 
-## Planned layout
+## Layout
 
 ```
-docs/        design docs, protocol, threat model
+docs/        design docs
+spec/        protocol test vectors
 sim/         Python simulator of the three-tier network
-firmware/    LoRa node firmware
-android/     Android client
-gateway/     internet relay / propagation node
+firmware/    LoRa node firmware (C++ / PlatformIO)
+android/     Android app (Kotlin)
+server/      relay server (Go)
 ```
