@@ -3,86 +3,106 @@
 ## 1. Goal
 
 Deliver short, end-to-end-encrypted messages between people **with no working internet**,
-using whatever links exist: phones near each other, long-range LoRa radios, and — when anyone
-anywhere has connectivity — internet relays. The system degrades gracefully: each tier works
-alone; together they form one network.
+using whatever links exist: phones near each other, long-range LoRa radios, a country's
+domestic network during an international blackout, and — when anyone anywhere has a way
+out (VPN, Starlink, unfiltered SIM) — the global internet. Each layer works alone; together
+they form one network: a mesh of meshes.
 
-## 2. The three tiers
+## 2. Layers
 
 ```
-            ┌──────────────────────── Tier 2: WAN ─────────────────────────┐
-            │      Relay servers (federated, untrusted, store-and-forward) │
-            └──────▲──────────────────────────────────────────────▲────────┘
-                   │ HTTPS / CDN-fronted / Tor                   │
-   City A          │                                             │          City B
- ┌─────────────────┼───────────┐                     ┌───────────┼─────────────────┐
- │  📱 online ─────┘           │                     │           └───── 📱 online   │
- │   │  Tier 0: BLE/Wi-Fi mesh │                     │ Tier 0: BLE/Wi-Fi mesh │     │
- │  📱 ── 📱 ── 📱 ── 📱       │                     │      📱 ── 📱 ── 📱 ── 📱     │
- │               │ BLE         │                     │         BLE │               │
- │              📡 client node │   Tier 1: LoRa      │  client node 📡              │
- └──────────────┼──────────────┘     backbone        └─────────────┼────────────────┘
-                └───── 📡 rooftop ~~~~~ 📡 repeater ~~~~~ 📡 gateway ┘
-                                                          │ Wi-Fi (optional)
-                                                          └──► Tier 2
+                       Tier 2b: Global relay federation
+       ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+       │ EU relay │◄──►│ US relay │◄──►│Asia relay│◄──►│ AU relay │
+       └────▲─────┘    └──────────┘    └──────────┘    └────▲─────┘
+            │ international internet (cut during blackout)   │
+   ┌────────┴──────────────────┐                     📱💻 users abroad
+   │ BRIDGES                   │  devices with a way out: VPN, Starlink,
+   │ desktop daemon / phone in │  unfiltered SIM. They tunnel relay sync
+   │ bridge mode               │  across the cut, in both directions.
+   └────────▲──────────────────┘
+            │ domestic network (usually still up during blackout)
+   ┌────────┴──────────────────────────┐
+   │ Tier 2a: Regional relays (e.g. IR) │  several, small, disposable
+   └───▲──────────────▲────────────▲───┘
+       │ GATEWAYS: any phone / PC that can reach a relay registers
+       │ "I'm online, send me traffic for the mesh around me"
+      📱gw            💻gw          📱gw
+       │ BLE           │ USB         │ BLE
+  ┌────┴──────┐   ┌────┴───┐   ┌─────┴─────┐
+  │ Tier 0    │   │ 📡 LoRa │~~~│ 📡 LoRa    │  Tier 1 backbone
+  │ phone mesh│   │  node   │   │  node     │  (city ↔ city)
+  └───────────┘   └────────┘   └───────────┘
 ```
 
-| Tier | Links | Typical hop | Payload | Who runs it |
-|---|---|---|---|---|
-| 0 Local | BLE, Wi-Fi Direct, Wi-Fi Aware | 10–100 m | text + small media | every phone with the app |
-| 1 Backbone | LoRa (SX1262, 433/868 MHz) | 1–15 km | text only, ≤255 B frames | client, repeater, gateway nodes |
-| 2 WAN | HTTPS/WebSocket via direct, fronted, or Tor paths | global | anything | relay servers + any online phone |
+| Layer | Links | Reach | Who runs it |
+|---|---|---|---|
+| Tier 0 local | BLE, Wi-Fi Direct, LAN | 10–100 m / one LAN | every phone & PC with the app |
+| Tier 1 backbone | LoRa (SX1262) | 1–15 km per hop | client, repeater, gateway nodes |
+| Tier 2a regional | HTTPS/WebSocket to an in-region relay | one country's domestic network | volunteers inside the region |
+| Tier 2b global | HTTPS/WebSocket, CDN-fronted, Tor | worldwide | volunteers anywhere |
 
-## 3. Components
+## 3. Roles (any device can hold several)
+
+| Role | What it does | Runs on |
+|---|---|---|
+| **Client** | owns an identity, sends/receives messages | Android, Linux/Windows/macOS |
+| **Gateway** | has relay access; registers with a relay and moves packets between relay and its local mesh (Tier 0 / Tier 1) | Android, desktop, LoRa gateway node |
+| **Bridge** | has access to *two* relays that can't reach each other (e.g. IR regional + EU global); syncs them | desktop daemon (primary), Android (bridge mode) |
+| **Relay** | server: stores and forwards ciphertext, federates with peer relays | Linux server |
+| **LoRa repeater** | forwards LoRa only | LoRa node |
+
+## 4. Components
 
 | Component | Dir | Tech | Doc |
 |---|---|---|---|
 | Wire protocol + test vectors | `spec/` | language-neutral spec, JSON vectors | [protocol.md](protocol.md) |
-| LoRa node firmware ("hardware framework") | `firmware/` | C++17, PlatformIO, Arduino, RadioLib | [firmware.md](firmware.md) |
-| Android app | `android/` | Kotlin, Jetpack Compose, foreground service | [android.md](android.md) |
-| Relay server | `server/` | Go, single static binary, SQLite/Postgres | [server.md](server.md) |
-| Network simulator | `sim/` | Python | [roadmap.md](roadmap.md) |
+| Shared core | `core/` | Go: codec, Noise crypto, router, store, relay client | [core.md](core.md) |
+| Relay server | `server/` | Go, single static binary | [server.md](server.md) |
+| Desktop client / gateway / bridge | `desktop/` | Go daemon `meshd` + CLI + local web UI; **Linux first** | [desktop.md](desktop.md) |
+| Android app | `android/` | Kotlin UI + transports, `core/` via gomobile | [android.md](android.md) |
+| LoRa firmware | `firmware/` | C++17, PlatformIO, RadioLib | [firmware.md](firmware.md) |
+| Simulator | `sim/` | Go, drives the real `core/` router | [roadmap.md](roadmap.md) |
 
-Three independent implementations (C++, Kotlin, Go) of the **outer** packet format are
-kept compatible by shared test vectors in `spec/test-vectors/`. Only Android implements the
-full end-to-end crypto; nodes and servers only handle the outer header, announces and receipts.
+One Go core is shared by server, desktop, Android and the simulator. Firmware is the only
+second implementation (outer header, announces, receipts — no E2E crypto), kept compatible
+by `spec/test-vectors/`.
 
-## 4. Core design decisions
+## 5. Core design decisions
 
-1. **One packet format across all tiers.** A packet created on a phone can traverse
-   BLE → LoRa → internet → BLE unchanged. Tiers are just *interfaces* to the router.
-2. **Identity = keypair.** Address = 16-byte hash of public keys. No phone numbers, no accounts,
-   no server-side registration.
-3. **End-to-end encryption with Noise** (standard patterns, no custom crypto). Relays, nodes and
-   servers see only: destination hash, packet ID, hop count, size.
-4. **Sender is hidden from the network.** The sender's identity is inside the ciphertext only.
-5. **Delay-tolerant store-and-forward.** Every phone, node and server holds packets until they
-   are delivered (receipt seen) or expire.
-6. **LoRa-first sizing.** Text messages are always encoded to fit LoRa frames. Packets that
-   can't (media) are flagged `NO_LORA` and never offered to the backbone.
-7. **Untrusted, replaceable servers.** Losing every server removes Tier 2 only; Tier 0 + 1
-   keep working. Anyone can run a relay.
+1. **One packet format everywhere.** A packet crosses BLE → LoRa → regional relay → bridge →
+   global relay → phone unchanged. Every link is just an *interface* to the router.
+2. **Identity = keypair.** Address = 16-byte hash of public keys. No accounts, no phone numbers.
+3. **End-to-end Noise encryption.** Gateways, bridges and relays see only destination hash,
+   packet ID, hop count, size.
+4. **Sender hidden** inside the ciphertext.
+5. **Store-and-forward everywhere**, purged by signed receipts or expiry.
+6. **LoRa-first sizing** for text; `NO_LORA` flag for anything bigger.
+7. **Every server and bridge is untrusted and replaceable.** Losing all relays leaves Tiers 0
+   and 1; losing all bridges leaves each region working internally.
 
-## 5. Message path (example)
+## 6. Message paths (example)
 
-Ali (City A, offline) → Sara (City B, offline), 10 km apart:
+Ali is in Tehran during an international blackout, offline except BLE.
+Sara is in Berlin with normal internet.
 
-1. Ali's app encrypts for Sara's key, builds a packet `dest = H(Sara)`.
-2. Router has no direct route → spreads it in the local BLE mesh (epidemic, TTL-limited).
-3. A phone paired with a LoRa client node receives it; the node's routing table says
-   `H(Sara)` is in the cluster behind the City B gateway (learned from cluster summaries).
-4. Backbone forwards hop-by-hop with link-level ACKs: client → rooftop → City B node.
-5. City B node hands it to its paired phone, which spreads it in City B's BLE mesh to Sara.
-6. Sara's app decrypts and emits a signed **receipt**; it travels the reverse path and lets every
-   holder purge its copy.
-7. In parallel, if any phone in City A got internet (VPN), it uploaded the packet to a relay;
-   any online phone in City B fetching for nearby identities brings it down. Whichever arrives
-   first wins; duplicates are dropped by packet ID.
+1. Ali's app encrypts for Sara, packet `dest = H(Sara)`, spreads it in the BLE mesh.
+2. Reza's phone nearby has domestic mobile data → it is a **gateway** registered with the IR
+   regional relay; it uploads the packet.
+3. A **bridge** (a PC in Tehran with Starlink, running `meshd --bridge`) syncs the IR relay
+   with the EU relay; the packet crosses.
+4. The EU relay federates it to all global relays; Sara's client, connected to the US relay,
+   receives it via live push.
+5. Sara's signed receipt travels back the same way; every holder purges its copy.
 
-## 6. Relationship to existing projects
+Reverse direction: Sara's reply reaches the IR relay through the bridge. The relay knows
+Ali's **home region** (his announces arrive via IR gateways) and pushes the packet to IR
+gateways that registered "Ali is near me" — or, if none, to **carrier** gateways that
+accept a quota of undelivered traffic to spray into their local mesh.
 
-Ideas are borrowed from Reticulum/LXMF (hash addresses, announces, reverse-path proofs,
-propagation nodes), Meshtastic (cheap LoRa hardware, BLE phone pairing) and Briar
-(Bluetooth/Wi-Fi/Tor transports). We build our own stack because Tier 0 phone-to-phone
-meshing and shutdown-oriented UX are the core of this project; see
+## 7. Relationship to existing projects
+
+Ideas borrowed from Reticulum/LXMF (hash addresses, announces, reverse-path proofs,
+propagation nodes), Meshtastic (cheap LoRa hardware, BLE pairing), Briar (Bluetooth/Wi-Fi/Tor)
+and Psiphon/Tor bridges (volunteer-run paths across censorship boundaries). See
 [decisions.md](decisions.md).

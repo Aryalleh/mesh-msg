@@ -20,6 +20,10 @@ control of national ISPs, mobile networks, app stores in-country, and police pow
 | Spam / flooding the mesh | DoS of scarce LoRa airtime | per-source rate limits, airtime budgets, PoW on relays, priority queue, hop limits |
 | Fake announces / route poisoning | misdirect traffic | announces signed; routes are hints only — store-and-forward copies continue via other paths |
 | Replay | duplicate messages | packet_id dedup cache + timestamp window |
+| Seize / compel an **in-country regional relay** | logs of connecting IPs (domestic IPs map to registered SIMs), shutdown | relay is untrusted & disposable; no logs, in-memory gateway state, short retention; several relays on different providers; addresses rotate via signed relay lists over the mesh |
+| DPI on domestic network flags connections to a known relay | identify gateways | relay traffic is plain HTTPS on an innocuous domain; rotate addresses; gateway role is opt-in and its risk is explained in the UI |
+| Detect bridge operators (VPN / Starlink / unfiltered SIM traffic patterns) | arrest of bridge operators | bridges are opt-in with clear risk warning; data budgets keep traffic small; batching + jitter; operators decide their own exposure |
+| Malicious relay or bridge | drop / delay / inject packets | E2E auth stops injection; store-and-forward over many paths survives dropping; receipts reveal non-delivery |
 
 ## Explicit non-goals (v0)
 

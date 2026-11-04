@@ -15,33 +15,20 @@ relay servers when the internet is reachable (Tier 2).
 
 ```
 android/
-  core-protocol/        pure Kotlin/JVM: packet codec, Noise K/X, announces, receipts,
-                        Bloom filter, router logic. No Android deps → unit tested on JVM.
-  core-data/            Room + SQLCipher: identities, contacts, messages, packet store, routes
-  transport-api/        Interface abstraction (see §3)
+  core/                 AAR built from Go `core/` via gomobile: codec, Noise, router, store,
+                        relay client (client / gateway / bridge sessions). See core.md.
+  data/                 Room + SQLCipher: contacts, messages, UI state
   transport-ble/        phone↔phone BLE mesh (GATT server + client)
   transport-wifi/       Wi-Fi Direct (+ Wi-Fi Aware where supported) for bulk transfer
   transport-lora/       link to LoRa node over BLE GATT or USB-OTG serial
-  transport-internet/   relay client: HTTPS/WebSocket, fallback paths (fronted, Tor)
   app/                  Compose UI, MeshService, onboarding, settings
 ```
 
 ## 3. Transport abstraction
 
-```kotlin
-interface MeshInterface {
-    val id: String
-    val kind: Kind              // BLE, WIFI_DIRECT, LORA, INTERNET
-    val maxPacketSize: Int      // LoRa = 255
-    val state: StateFlow<State>
-    val neighbours: StateFlow<Set<PeerId>>
-    suspend fun send(peer: PeerId?, packet: ByteArray)   // null = broadcast
-    val incoming: Flow<Received>
-}
-```
-
-The `Router` (in core-protocol) knows nothing about Android; it consumes `MeshInterface`s and
-applies the rules in protocol.md §6. This lets the same router run in `sim/`-style JVM tests.
+Android-only links (BLE, Wi-Fi Direct, LoRa-over-BLE) are written in Kotlin and registered
+with the Go router through the core's callback API (core.md "Interface contract"). The relay
+interface lives inside the Go core, identical to desktop.
 
 ## 4. Tier 0: phone-to-phone mesh
 
@@ -62,10 +49,14 @@ applies the rules in protocol.md §6. This lets the same router run in `sim/`-st
   the node receives for local destinations or for spreading into Tier 0.
 - Node configuration UI: role, preset, frequency, status, wipe.
 
-## 6. Tier 2: internet
+## 6. Tier 2: relays (gateway & bridge)
 
-- Opportunistic: when connectivity is detected, sync with relay(s): upload store, fetch
-  mailboxes for own identity and for nearby identities that set `gateway_delegation`.
+- Whenever a relay is reachable (domestic network, VPN, Starlink, unfiltered SIM), the phone
+  connects and — if the user enabled it — **registers as a gateway** (server.md §4): it serves
+  nearby identities (delegations + local summary), receives packets for them, and uploads
+  its store. Modes `targeted` / `carrier`, with a data quota.
+- **Bridge mode** (advanced): a phone that can reach two relays that can't reach each other
+  (e.g. IR regional directly + EU through a VPN app) syncs them, within a data budget.
 - Path fallback order configurable: direct HTTPS → CDN-fronted → Tor (via Orbot or embedded).
 - Relay list ships with the app and is updated by **signed relay-list announces** that spread
   over the mesh itself, so new relay addresses reach people who are offline.

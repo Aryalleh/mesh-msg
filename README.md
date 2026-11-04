@@ -8,7 +8,12 @@ Messages travel over whatever path exists:
 |---|---|---|---|
 | 0 — Local | BLE, Wi-Fi Direct, Wi-Fi Aware (phone ↔ phone) | 10–100 m per hop | Text + small media |
 | 1 — Backbone | LoRa nodes (ESP32 + SX1262), paired to phones via BLE | 2–15 km per hop | Text only (~200 B packets) |
-| 2 — WAN | Any phone with internet (VPN/Tor) → relay servers | Global | Anything |
+| 2a — Regional | Phones/PCs on a country's domestic network → in-region relay | One country, even during an international blackout | Anything |
+| 2b — Global | Federated relays (EU, US, Asia, AU); regions joined by volunteer **bridges** (VPN, Starlink, unfiltered SIM) | Global | Anything |
+
+Any phone or PC that can reach a relay can register as a **gateway** ("I'm online — send me
+traffic for the mesh around me"). Clients: Android, and desktop (Linux first, then Windows
+and macOS).
 
 ```
    City A                          ~10 km                         City B
@@ -37,9 +42,11 @@ blocked servers, no app-store access. See [docs/threat-model.md](docs/threat-mod
 
 - [Architecture](docs/architecture.md) — tiers, components, message path
 - [Protocol](docs/protocol.md) — identity, packet format, encryption, routing
-- [Firmware](docs/firmware.md) — LoRa node hardware framework
+- [Core](docs/core.md) — shared Go core (protocol, crypto, router)
+- [Server](docs/server.md) — regional & global relays, gateways, bridges
+- [Desktop](docs/desktop.md) — `meshd` client / gateway / bridge (Linux first)
 - [Android](docs/android.md) — app, phone-to-phone mesh
-- [Server](docs/server.md) — relay / gateway
+- [Firmware](docs/firmware.md) — LoRa node hardware framework
 - [Threat model](docs/threat-model.md)
 - [Decisions](docs/decisions.md) · [Roadmap](docs/roadmap.md)
 
@@ -52,8 +59,10 @@ Design phase (M0).
 ```
 docs/        design docs
 spec/        protocol test vectors
-sim/         Python simulator of the three-tier network
-firmware/    LoRa node firmware (C++ / PlatformIO)
-android/     Android app (Kotlin)
+core/        shared Go core: protocol, crypto, router, store, relay client
 server/      relay server (Go)
+desktop/     meshd daemon + CLI + web UI (Go; Linux first)
+android/     Android app (Kotlin + Go core via gomobile)
+firmware/    LoRa node firmware (C++ / PlatformIO)
+sim/         network simulator (Go, uses core/)
 ```
