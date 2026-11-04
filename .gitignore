@@ -1,0 +1,31 @@
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Python (simulator, gateway)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Android
+*.apk
+*.aab
+.gradle/
+build/
+local.properties
+*.keystore
+*.jks
+
+# Firmware (PlatformIO)
+.pio/
+
+# Secrets / identities — never commit keys
+*.key
+*.pem
+.env
+identities/
