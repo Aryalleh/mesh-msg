@@ -88,6 +88,9 @@ type Hash [16]byte
 
 func (h Hash) String() string { return hex.EncodeToString(h[:]) }
 
+// Bytes returns a copy of the hash as a slice.
+func (h Hash) Bytes() []byte { return append([]byte(nil), h[:]...) }
+
 // IsZero reports whether h is the broadcast/zero hash.
 func (h Hash) IsZero() bool { return h == Hash{} }
 
