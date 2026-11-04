@@ -64,6 +64,11 @@ Modes:
 
 | `lora` | a LoRa GATEWAY node (directly over Wi-Fi, or via its host `meshd` / phone): the relay selects packets for **broadcast on air** within the node's airtime budget (firmware.md §2a); everything the node hears on air is uploaded |
 
+A `lora` gateway session is authenticated by the **node's** key, whether the node connects
+directly (Wi-Fi / Ethernet / LTE) or through a phone or PC tunnel. Several live connections
+for the same node key are one gateway: each packet is pushed once, on any live connection
+(firmware.md §2b).
+
 **LoRa as a bridge between relays.** Two relays that cannot reach each other (two cities'
 isolated regional relays, or an isolated relay and an internet-connected one) each have a
 `lora` gateway in radio range of the same LoRa mesh. Relay A's packets are broadcast, heard by

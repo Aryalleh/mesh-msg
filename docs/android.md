@@ -48,6 +48,9 @@ interface lives inside the Go core, identical to desktop.
 - Phone pushes LoRa-eligible packets (no `NO_LORA` flag) to the node and receives everything
   the node receives for local destinations or for spreading into Tier 0.
 - Node configuration UI: role, preset, frequency, status, wipe.
+- **Share my internet with my LoRa node:** if the paired node is a gateway and the phone can
+  reach a relay, the app automatically tunnels the node's gateway session over BLE
+  (firmware.md §2b), within a user-set data quota.
 
 ## 6. Tier 2: relays (gateway & bridge)
 

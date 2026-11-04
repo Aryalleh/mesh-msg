@@ -73,6 +73,45 @@ whole LoRa layer therefore carries **text only, selected by priority**, never bu
 Packets are never broadcast if the relay already has a RECEIPT for them, if they are
 `NO_LORA`, or if they were heard on air already.
 
+## 2b. Gateway uplink — direct or through a phone, automatically
+
+A GATEWAY is **two-way** (relay → air and air → relay) and can reach its relay over **any**
+of these uplinks. It uses whatever is available, several at once, with no manual switching:
+
+| Uplink | How | Good for |
+|---|---|---|
+| **Direct Wi-Fi** | ESP32 built-in Wi-Fi → relay over HTTPS/WebSocket | rooftop node near a building with internet |
+| **Direct Ethernet** | W5500 SPI module | fixed installs with a cable |
+| **Direct cellular** | external LTE modem over UART (SIM card; domestic data reaches regional relays during blackouts) | remote sites, no Wi-Fi |
+| **Phone over BLE** | paired phone with any relay access (domestic data, VPN, Starlink…) carries the session | handheld / portable gateway, cheap boards |
+| **PC over USB** | `meshd` on a Linux PC carries the session | PC with VPN / Starlink / LAN |
+
+Design that keeps it seamless:
+
+1. **The node owns the gateway identity.** Each node has an Ed25519 key. Every gateway
+   session — direct or through a phone/PC — is authenticated by the node signing the relay's
+   challenge (the phone/PC only forwards it over BLE/USB). The relay sees one gateway, not
+   "a phone" or "a Wi-Fi client".
+2. **Multiple uplinks at once are fine.** The relay groups connections by node key and
+   pushes each packet once on whichever connection is alive; uploads are deduplicated by
+   `packet_id`. If the phone walks away, the Wi-Fi/LTE link keeps going, and vice versa.
+3. **The node owns the airtime budget.** All packets for broadcast land in the node's own
+   priority queue, whatever uplink delivered them, so two uplinks can never double the
+   on-air traffic.
+4. **No uplink → still useful.** The node keeps working as a client/repeater and stores
+   what it hears; when an uplink returns it uploads the backlog.
+5. **Phone side is automatic:** when the app is paired with a gateway-capable node and the
+   phone can reach a relay, it opens the tunnelled session in the background (user setting:
+   *Share my internet with my LoRa node* — on/off + data quota).
+
+Uplink priority for *outbound* work (uploading what was heard): wired > Wi-Fi > phone/PC >
+cellular (cost). Inbound pushes arrive on all live sessions and are deduplicated by the node.
+
+### Tunnel framing (BLE / USB)
+
+Uses the same phone-link frame (§6) with `kind = 3 UPLINK`: the payload is the raw
+gateway-session bytes. The phone/PC is a dumb pipe; it never needs to parse them.
+
 ## 3. Software architecture
 
 ```
@@ -90,7 +129,11 @@ firmware/
     mac/Airtime             listen-before-talk (CAD), random backoff, duty-cycle budget
     link/PhoneLinkBle       GATT service (RX/TX characteristics) + framing
     link/PhoneLinkSerial    USB-CDC framing (same protocol as BLE)
-    link/WifiUplink         HTTPS client to relay (GATEWAY role)
+    uplink/UplinkManager    picks/merges uplinks, groups by session, dedup (§2b)
+    uplink/WifiUplink       direct HTTPS/WS to relay
+    uplink/EthUplink        W5500
+    uplink/CellUplink       LTE modem (AT commands over UART)
+    uplink/TunnelUplink     gateway session tunnelled via phone (BLE) or PC (USB)
     config/Config           NVS/flash config, BLE/serial config commands
   test/                     native unit tests (PlatformIO `native` env)
 ```
@@ -127,7 +170,8 @@ Service  6e6d0001-...           (UUID to be generated)
   TX  (notify)              node → phone: framed packets / events
 ```
 
-Frame: `kind(1) | len(2) | payload`. `kind`: 0 = mesh packet, 1 = command, 2 = event.
+Frame: `kind(1) | len(2) | payload`. `kind`: 0 = mesh packet, 1 = command, 2 = event,
+3 = uplink tunnel (gateway session bytes, §2b).
 Commands: get status, set role/preset/frequency, list stored packets, reboot, wipe.
 Pairing: BLE passkey (shown on display, or printed on device label for headless boards).
 
