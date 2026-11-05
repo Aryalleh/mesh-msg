@@ -12,16 +12,15 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store, node app, meshd USB link done; native node sim + boards next |
+| M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store, node app, meshd USB link, native node sim done; e2e script + boards next |
 | M5–M8 | not started |
 
 ## Next step
 
 Firmware, board-independent modules with host tests (`make -C firmware test`):
-1. Native node simulator (`firmware/sim`, host build): N real C++ `node::Node`s on a simulated
-   radio (reuse test/net_test radio model), each exposing a pty → `meshd` attaches with
-   `[lora] port = /dev/pts/N`: true end-to-end PC → firmware → air → firmware → PC with no
-   hardware (roadmap M4 "done when", simulated).
+1. `scripts/e2e-lora.sh`: `make -C firmware sim`, start `build/meshnode-sim -n 3 -topology line`,
+   two meshd (LAN off, `[lora] port = <pts of node 0 / node 2>`), exchange contacts, send, wait
+   for delivered. The simulator is built and starts but has **not yet been run against meshd**.
 2. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
    radio layer → firmware milestone 1 (two boards exchange raw packets).
 
@@ -108,3 +107,9 @@ Firmware, board-independent modules with host tests (`make -C firmware test`):
 - **Disk ran out mid-step (0 MB)**: truncated `desktop/daemon/daemon.go` to 0 bytes;
   restored from git and reapplied. Now `go clean -cache` + `rm -rf firmware/build` after
   each commit until the user extends the LV.
+- `5ee734c` meshd LoRa link (above). Next commit: `firmware/sim/meshsim.cpp` + `make sim`:
+  N real `node::Node`s on a simulated radio (airtime, half-duplex, collisions, CAD), line/full
+  topology, one pty per node (slave held open in raw mode), `-region/-preset/-v`. Smoke-run
+  only: prints pts paths and stops cleanly.
+- Session stopped at the usage limit. Still blocked on disk: user must run
+  `sudo lvextend -r -l +100%FREE /dev/ubuntu-vg/ubuntu-lv` before Android / PlatformIO work.

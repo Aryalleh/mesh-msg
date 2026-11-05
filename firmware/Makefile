@@ -1,5 +1,6 @@
 # Host build of the board-independent firmware libraries.
 #   make test     build and run the tests (ASan + UBSan) against spec/test-vectors
+#   make sim      build build/meshnode-sim (real nodes on a simulated radio, ptys for meshd)
 
 CC ?= cc
 CXX ?= c++
@@ -15,11 +16,17 @@ TEST_CXX := $(wildcard test/*.cpp)
 OBJS := $(LIB_C:%.c=$(BUILD)/%.o) $(LIB_CXX:%.cpp=$(BUILD)/%.o) $(TEST_CXX:%.cpp=$(BUILD)/%.o)
 HDRS := $(wildcard lib/meshproto/src/*.h lib/meshroute/src/*.h lib/meshnode/src/*.h test/*.h)
 
-.PHONY: test clean
+.PHONY: test sim clean
 test: $(BUILD)/host_tests
 	./$(BUILD)/host_tests ../spec/test-vectors/vectors.json
 
 $(BUILD)/host_tests: $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+# Native node simulator (real nodes on a simulated radio, one pty per node).
+LIB_OBJS := $(LIB_C:%.c=$(BUILD)/%.o) $(LIB_CXX:%.cpp=$(BUILD)/%.o)
+sim: $(BUILD)/meshnode-sim
+$(BUILD)/meshnode-sim: $(LIB_OBJS) $(BUILD)/sim/meshsim.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 $(BUILD)/%.o: %.c
