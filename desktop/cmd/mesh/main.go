@@ -37,6 +37,11 @@ Usage:
   mesh read [contact] [-n N]     show messages
   mesh watch                     stream incoming messages and events
   mesh ui                        open the web UI in your browser
+  mesh lora                      attached LoRa node(s): status and config
+  mesh lora set key=value…       configure the node: role=client|repeater|gateway
+                                 region=EU_868… preset=FAST|BALANCED|LONG
+                                 freq=869.525 (MHz) power=14 (dBm) name=… announce=30 (min)
+  mesh lora plans                region frequency plans and presets
 
 <contact> is a name, a hash or a hash prefix (6+ chars).
 Flags: -data <dir> (default ~/.local/share/meshd)
@@ -111,6 +116,8 @@ func run(args []string) error {
 		for _, b := range s.Bridges {
 			fmt.Printf("bridge    %s\n", b)
 		}
+	case "lora":
+		return loraCmd(rest)
 	case "id":
 		var id map[string]string
 		if err := call("GET", "/id", nil, &id); err != nil {

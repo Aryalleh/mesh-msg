@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -67,6 +68,7 @@ type Config struct {
 	Gateway         GatewayConfig                    `toml:"gateway" json:"gateway"`
 	Bridges         []BridgeConfig                   `toml:"bridge" json:"bridges"`
 	LAN             LANConfig                        `toml:"lan" json:"lan"`
+	LoRa            LoRaConfig                       `toml:"lora" json:"lora"`
 	Logf            func(format string, args ...any) `toml:"-" json:"-"`
 }
 
@@ -92,6 +94,7 @@ type Node struct {
 	relays  map[string]*relayLink
 	bridges []*bridge
 	lan     *lanLink
+	loras   map[string]*hostLinkLink
 }
 
 // Open loads or creates the node's identity and databases in cfg.DataDir.
@@ -123,7 +126,7 @@ func Open(cfg Config) (*Node, error) {
 	}
 	n := &Node{
 		cfg: cfg, id: id, store: st, db: db, start: time.Now(),
-		subs: map[chan Event]struct{}{}, links: map[string]string{}, relays: map[string]*relayLink{},
+		subs: map[chan Event]struct{}{}, links: map[string]string{}, relays: map[string]*relayLink{}, loras: map[string]*hostLinkLink{},
 	}
 	var flags byte
 	if cfg.Delegate {
@@ -368,6 +371,7 @@ type Status struct {
 	Gateway  bool              `json:"gateway"`
 	Bridges  []string          `json:"bridges"`
 	Contacts int               `json:"contacts"`
+	LoRa     []LoRaState       `json:"lora,omitempty"`
 }
 
 // Status returns a snapshot.
@@ -389,6 +393,7 @@ func (n *Node) Status() Status {
 		Uptime: time.Since(n.start).Round(time.Second).String(),
 		Links:  links, Routes: len(n.router.Routes()), Stored: stored,
 		Router: n.router.Stats(), Gateway: n.cfg.Gateway.Enabled, Bridges: br, Contacts: len(cs),
+		LoRa: n.LoRa(),
 	}
 }
 
@@ -421,6 +426,14 @@ func (n *Node) Run(ctx context.Context) error {
 	if n.lan != nil {
 		wg.Add(1)
 		go func() { defer wg.Done(); n.lan.run(ctx) }()
+	}
+	if n.cfg.LoRa.Enabled && n.cfg.LoRa.Port != "" {
+		port := n.cfg.LoRa.Port
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			n.AttachLoRa(ctx, "lora", func() (io.ReadWriteCloser, error) { return OpenSerial(port) })
+		}()
 	}
 
 	n.router.Announce()

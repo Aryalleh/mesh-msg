@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Aryalleh/mesh-msg/core/hostlink"
 	"net"
 	"net/http"
 	"os"
@@ -114,6 +115,24 @@ func (d *Daemon) apiHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /status", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, n.Status())
+	})
+	mux.HandleFunc("GET /lora", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, n.LoRa())
+	})
+	mux.HandleFunc("GET /lora/plans", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, map[string]any{"regions": hostlink.Regions, "presets": hostlink.Presets})
+	})
+	mux.HandleFunc("POST /lora/{name}/config", func(w http.ResponseWriter, r *http.Request) {
+		var p node.LoRaPatch
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		if err := n.LoRaConfigure(r.PathValue("name"), p); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
 	})
 	mux.HandleFunc("GET /id", func(w http.ResponseWriter, r *http.Request) {
 		id := n.Identity()

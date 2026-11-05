@@ -50,11 +50,33 @@ url  = "https://..."
 via  = "socks5://127.0.0.1:1080"   # e.g. through the user's VPN / proxy
 
 [lora]
-serial = "/dev/ttyUSB0"
+enabled = true
+port = "/dev/ttyACM0"
 ```
 
 `via` per relay matters for bridges: one side goes direct over the domestic network, the
 other goes through the VPN / Starlink path.
+
+### LoRa node over USB (as built)
+
+With `[lora] enabled = true`, meshd opens the port (raw 8N1, reopened every 5 s if the board
+is unplugged), speaks the host link of docs/firmware.md §2b, and registers the node as a
+broadcast link in its router. Everything the router would broadcast goes to the node,
+receipts first, paced to the region's duty-cycle budget so the node's queue never
+overflows; everything the node heard (including what it stored while the PC was away)
+comes back into the router. With relays configured this makes the PC a LoRa gateway; with
+none, two PCs chat over LoRa alone.
+
+```
+mesh lora                      node identity, region/frequency/preset/power, neighbours,
+                               airtime used this hour, battery
+mesh lora set region=EU_868 preset=LONG power=14 role=gateway name=roof
+mesh lora plans                region frequency plans (check local rules)
+```
+
+The same API is on the local socket / web UI: `GET /lora`, `GET /lora/plans`,
+`POST /lora/{name}/config` (JSON patch). Android uses the same link over BLE
+(`node.AttachLoRa` with its own byte stream).
 
 ## 5. Packaging
 
@@ -67,5 +89,5 @@ other goes through the VPN / Starlink path.
 1. `meshd` + `mesh` CLI: identity, contacts, send/receive via one relay.
 2. Gateway role + LAN interface.
 3. Bridge role with per-relay `via` paths and data budget.
-4. LoRa node over USB serial.
+4. LoRa node over USB serial. ✅ (tested against a fake node; real boards next)
 5. Local web UI. 6. Windows / macOS builds.

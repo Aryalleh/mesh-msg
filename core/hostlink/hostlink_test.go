@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math/rand"
 	"testing"
+	"time"
 )
 
 func TestCRC16(t *testing.T) {
@@ -164,5 +165,29 @@ func TestStatus(t *testing.T) {
 	}
 	if _, err := ParseMessage([]byte{1}); err == nil {
 		t.Fatal("short message accepted")
+	}
+}
+
+func TestAirtime(t *testing.T) {
+	// Same reference points as firmware/test/mac_test.cpp (exact integer µs).
+	for _, c := range []struct {
+		p  Preset
+		n  int
+		us int64
+	}{
+		{Presets[PresetBalanced], 1, 103424}, {Presets[PresetBalanced], 255, 1250304},
+		{Presets[PresetFast], 200, 158848}, {Presets[PresetLong], 255, 7802880},
+	} {
+		if got := c.p.Airtime(c.n).Microseconds(); got < c.us-1 || got > c.us+1 {
+			t.Errorf("%s n=%d: %d µs, want %d", c.p.Name, c.n, got, c.us)
+		}
+	}
+	c := DefaultNodeConfig() // BALANCED, EU_868 10 %
+	if d := SendInterval(c, 100); d < 5*time.Second || d > 6*time.Second {
+		t.Errorf("interval %v", d)
+	}
+	c.Region = 3 // US_915, no duty cycle
+	if d := SendInterval(c, 100); d != Presets[PresetBalanced].Airtime(101) {
+		t.Errorf("us interval %v", d)
 	}
 }

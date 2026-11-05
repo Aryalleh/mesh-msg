@@ -12,15 +12,16 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store, node app done; meshd USB link + boards next |
+| M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store, node app, meshd USB link done; native node sim + boards next |
 | M5–M8 | not started |
 
 ## Next step
 
 Firmware, board-independent modules with host tests (`make -C firmware test`):
-1. `meshd` LoRa node over USB serial: open the serial port, speak `core/hostlink`, register
-   the node as a `router.Broadcast` link (MTU = LoRa MTU), Hello with time, status/config in
-   CLI + web UI. Config `[lora] port = "/dev/ttyACM0"`. Test with a pty pair + a Go fake node.
+1. Native node simulator (`firmware/sim`, host build): N real C++ `node::Node`s on a simulated
+   radio (reuse test/net_test radio model), each exposing a pty → `meshd` attaches with
+   `[lora] port = /dev/pts/N`: true end-to-end PC → firmware → air → firmware → PC with no
+   hardware (roadmap M4 "done when", simulated).
 2. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
    radio layer → firmware milestone 1 (two boards exchange raw packets).
 
@@ -96,3 +97,14 @@ Firmware, board-independent modules with host tests (`make -C firmware test`):
   receipt purge of store, restore from flash). Router gained `set_role`, `next_due`; store
   gained `unmark`. Lesson: mutation harness must check build exit status, a compile error
   shows 0 FAIL lines.
+- `59700d4` host link + node app (above). Next commit: meshd ↔ LoRa node. `core/node`
+  `hostLinkLink` (router.Broadcast over any byte stream; priority queue paced by
+  `hostlink.SendInterval` = airtime/duty; Hello with time, identity/config/status, reconnect),
+  `OpenSerial` (Linux termios raw, non-blocking), `Node.AttachLoRa/LoRa/LoRaConfigure`,
+  config `[lora]`. Daemon `GET /lora`, `GET /lora/plans`, `POST /lora/{name}/config`; CLI
+  `mesh lora`, `mesh lora set k=v…`, `mesh lora plans`. Go tests with fake firmware nodes:
+  chat over LoRa only, configure + reconnect, store-and-forward. `hostlink.Preset.Airtime`
+  (same integer formula as firmware).
+- **Disk ran out mid-step (0 MB)**: truncated `desktop/daemon/daemon.go` to 0 bytes;
+  restored from git and reapplied. Now `go clean -cache` + `rm -rf firmware/build` after
+  each commit until the user extends the LV.

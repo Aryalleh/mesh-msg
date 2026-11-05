@@ -58,6 +58,13 @@ quota_kb_per_hour = 512
 # b = "eu-1"
 # budget_mb_per_day = 50
 
+# A LoRa node (Heltec V3, T-Beam S3, RAK4631, T-Echo with mesh-msg firmware)
+# on USB: this PC carries its traffic to relays and to your chats. Configure
+# the node itself (region, preset, power, role) with:  mesh lora set …
+[lora]
+enabled = false
+port = "/dev/ttyACM0"
+
 # Mesh with other meshd nodes on your local / private network.
 [lan]
 enabled = true
