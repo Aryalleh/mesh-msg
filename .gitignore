@@ -29,3 +29,6 @@ local.properties
 *.pem
 .env
 identities/
+
+# Claude Code personal settings
+.claude/settings.local.json
