@@ -139,7 +139,10 @@ firmware/
 ```
 
 The `proto/` and `route/` modules are pure C++ with no Arduino dependencies so they run in
-the `native` test env and can be fuzzed.
+the `native` test env and can be fuzzed. As built, the protocol layer lives in
+`lib/meshproto/` (packet codec, SHA-256, identity, announce/receipt) with Monocypher vendored
+in `lib/monocypher/`; `make -C firmware test` checks it against `spec/test-vectors/` on the
+host.
 
 ## 4. Radio presets
 

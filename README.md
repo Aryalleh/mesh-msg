@@ -54,7 +54,10 @@ blocked servers, no app-store access. See [docs/threat-model.md](docs/threat-mod
 
 ## Status
 
-Design phase (M0).
+M0–M3 implemented: Go core, simulator, relay and Linux desktop (`meshd` + `mesh`),
+with language-neutral test vectors. M4 (LoRa firmware) started: the board-independent
+protocol library in `firmware/lib/meshproto` passes the same vectors (`make -C firmware test`).
+See [roadmap](docs/roadmap.md).
 
 ## Layout
 
