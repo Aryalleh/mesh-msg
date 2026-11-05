@@ -111,10 +111,34 @@ Design that keeps it seamless:
 Uplink priority for *outbound* work (uploading what was heard): wired > Wi-Fi > phone/PC >
 cellular (cost). Inbound pushes arrive on all live sessions and are deduplicated by the node.
 
-### Tunnel framing (BLE / USB)
+### Host link framing (BLE / USB)
 
-Uses the same phone-link frame (§6) with `kind = 3 UPLINK`: the payload is the raw
-gateway-session bytes. The phone/PC is a dumb pipe; it never needs to parse them.
+Phone (BLE) and PC (USB serial) speak the same byte stream to the node, implemented in
+`core/hostlink` (Go) and `firmware/lib/meshnode/src/hostlink` (C++), kept identical by the
+`hostlink` section of `spec/test-vectors/vectors.json`:
+
+```
+COBS( kind(1) | len(2, BE) | payload | crc16(2, BE) ) 0x00        CRC-16/CCITT-FALSE
+kind: 0 mesh packet · 1 command (host → node) · 2 event (node → host) · 3 gateway tunnel
+command / event payload: op(1) | req(1) | data        (req echoed in the reply)
+```
+
+COBS removes zero bytes, so `0x00` delimits frames and a receiver resynchronises after
+noise or a mid-stream start. Commands: `HELLO [unix_time]` (status reply, then the stored
+backlog streams), `GET_STATUS`, `GET_CONFIG`, `SET_CONFIG` (TLVs: role, region, preset,
+frequency, power, name, announce interval — validated against the region plan, persisted,
+radio retuned live), `GET_IDENTITY`, `RESYNC` (resend everything stored), `REBOOT`,
+`WIPE "WIPE"`. Events: `STATUS` (36-byte block), `CONFIG`, `IDENTITY`, `ACK`, `LOG`.
+
+Mesh packets from the host are transmitted as is (the host's router has already handled the
+hop count). Packets the node hears are stored and streamed to the host; a packet counts as
+delivered only once its bytes left the node's output buffer, so a host that disconnects
+mid-stream gets it again on the next `HELLO`. A node announces itself only after a host has
+told it the time (boards have no RTC; relays keep the newest announce per identity).
+
+Region plans (`core/hostlink.Regions`, firmware table checked against it): EU_868
+(869.525 MHz, 10 %), EU_868_1PCT (868.1 MHz, 1 %), EU_433, US_915, AU_915, IN_865, AS_923.
+They are starting points, not legal advice: **check local rules before transmitting.**
 
 ## 3. Software architecture
 
@@ -145,7 +169,8 @@ firmware/
 The `proto/` and `route/` modules are pure C++ with no Arduino dependencies so they run in
 the `native` test env and can be fuzzed. As built, the protocol layer lives in
 `lib/meshproto/` (packet codec, SHA-256, identity, announce/receipt) and the managed-flood
-router in `lib/meshroute/` (§2a, §5), with Monocypher vendored in `lib/monocypher/`; `make -C firmware test` checks it against `spec/test-vectors/` on the
+router, MAC and store in `lib/meshroute/` (§2a, §5), the node application and host link in
+`lib/meshnode/`, with Monocypher vendored in `lib/monocypher/`; `make -C firmware test` checks it against `spec/test-vectors/` on the
 host.
 
 ## 4. Radio presets
@@ -158,7 +183,8 @@ host.
 
 Frequency plan is configurable (433 / 868 / 915 bands). **Check local regulations before
 transmitting** — band, power and duty-cycle limits vary by country; the default build ships
-with EU-868-style limits (1% duty cycle in most sub-bands) enforced by `mac/Airtime`.
+with the EU_868 plan (869.525 MHz, the 869.4–869.65 MHz sub-band with 10 % duty cycle)
+enforced by `mac/Airtime`; EU_868_1PCT and other regions are a config setting.
 
 ## 5. MAC behaviour
 

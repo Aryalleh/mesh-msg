@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/announce"
+	"github.com/Aryalleh/mesh-msg/core/hostlink"
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/packet"
 	"github.com/Aryalleh/mesh-msg/core/textenc"
@@ -27,6 +28,38 @@ type Vectors struct {
 	Announces []SignedVector   `json:"announces"`
 	Receipts  []SignedVector   `json:"receipts"`
 	Text      []TextVector     `json:"text"`
+	HostLink  HostLinkVectors  `json:"hostlink"`
+}
+
+// HostLinkVectors cover the node ↔ phone/PC byte stream (core/hostlink).
+type HostLinkVectors struct {
+	Frames  []HostFrameVector `json:"frames"`
+	Configs []ConfigVector    `json:"configs"`
+	Status  StatusVector      `json:"status"`
+	Presets []hostlink.Preset `json:"presets"`
+	Regions []hostlink.Region `json:"regions"`
+}
+
+type HostFrameVector struct {
+	Kind    byte   `json:"kind"`
+	Payload string `json:"payload"`
+	Encoded string `json:"encoded"` // including the trailing 0x00
+}
+
+type ConfigVector struct {
+	Role        byte   `json:"role"`
+	Region      byte   `json:"region"`
+	Preset      byte   `json:"preset"`
+	FreqHz      uint32 `json:"freq_hz"`
+	TxDBm       int8   `json:"tx_dbm"`
+	Name        string `json:"name"`
+	AnnounceMin uint16 `json:"announce_min"`
+	TLV         string `json:"tlv"`
+}
+
+type StatusVector struct {
+	Status  hostlink.Status `json:"status"`
+	Encoded string          `json:"encoded"`
 }
 
 type HeaderVector struct {
@@ -179,5 +212,40 @@ func Generate() Vectors {
 		ct, b := textenc.Encode(s)
 		v.Text = append(v.Text, TextVector{Text: s, ContentType: ct, Encoded: h(b)})
 	}
+	v.HostLink = hostLinkVectors()
 	return v
+}
+
+func hostLinkVectors() HostLinkVectors {
+	var hv HostLinkVectors
+	add := func(kind byte, payload []byte) {
+		e, err := hostlink.Encode(kind, payload)
+		if err != nil {
+			panic(err)
+		}
+		hv.Frames = append(hv.Frames, HostFrameVector{Kind: kind, Payload: h(payload), Encoded: h(e)})
+	}
+	add(hostlink.KindCommand, hostlink.Command(hostlink.OpHello, 1, nil))
+	add(hostlink.KindPacket, []byte{0, 0, 1, 0})
+	long := make([]byte, 300) // crosses a 254-byte COBS block
+	for i := range long {
+		long[i] = byte(i%253 + 1)
+	}
+	add(hostlink.KindPacket, long)
+	zeros := make([]byte, 260)
+	add(hostlink.KindTunnel, zeros)
+	add(hostlink.KindEvent, []byte{})
+	for _, c := range []hostlink.NodeConfig{
+		hostlink.DefaultNodeConfig(),
+		{Role: hostlink.RoleGateway, Region: 3, Preset: hostlink.PresetLong, FreqHz: 915000000, TxDBm: -3, Name: "سقف-۱ roof", AnnounceMin: 0},
+	} {
+		hv.Configs = append(hv.Configs, ConfigVector{c.Role, c.Region, c.Preset, c.FreqHz, c.TxDBm, c.Name, c.AnnounceMin, h(c.EncodeTLV())})
+	}
+	st := hostlink.Status{FirmwareVersion: 1, Role: hostlink.RoleRepeater, Region: 0, Preset: hostlink.PresetBalanced,
+		FreqHz: 869525000, TxDBm: 14, ShortID: 0x5a, UptimeS: 86400, Stored: 12, Queued: 2, Neighbours: 4,
+		AirUsedMs: 12345, AirBudgetMs: 360000, RxFrames: 1000, TxFrames: 400, BatteryMv: 3950}
+	hv.Status = StatusVector{Status: st, Encoded: h(st.Encode())}
+	hv.Presets = hostlink.Presets
+	hv.Regions = hostlink.Regions
+	return hv
 }

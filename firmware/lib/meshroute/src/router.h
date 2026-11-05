@@ -186,6 +186,9 @@ class Router {
   void on_transmitted(const Key& k, Millis now);
 
   void tick(Millis now);
+  void set_role(Role r) { cfg_.role = r; }
+  // Earliest time a frame will be due for poll(), or kNever.
+  Millis next_due() const;
 
   const Stats& stats() const { return stats_; }
   size_t pending() const;

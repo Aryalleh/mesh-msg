@@ -12,15 +12,15 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store done; node app, boards next |
+| M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store, node app done; meshd USB link + boards next |
 | M5–M8 | not started |
 
 ## Next step
 
 Firmware, board-independent modules with host tests (`make -C firmware test`):
-1. Node application core (pure, host-tested): wires Router + Mac + Store, phone/USB link
-   framing (docs/firmware.md §2b tunnel framing, §6), role behaviour (CLIENT/REPEATER/GATEWAY),
-   region frequency plans + default config ("seed data").
+1. `meshd` LoRa node over USB serial: open the serial port, speak `core/hostlink`, register
+   the node as a `router.Broadcast` link (MTU = LoRa MTU), Hello with time, status/config in
+   CLI + web UI. Config `[lora] port = "/dev/ttyACM0"`. Test with a pty pair + a Go fake node.
 2. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
    radio layer → firmware milestone 1 (two boards exchange raw packets).
 
@@ -87,3 +87,12 @@ Firmware, board-independent modules with host tests (`make -C firmware test`):
 - User asked to "seed all needed data we don't have": interpreted as region frequency plans,
   default configs, fixtures, demo data — added alongside the step that uses each. Not baking
   the user's EU server IP into defaults without asking.
+- `5008d8d` store (above). Next commit: host link + node app. `core/hostlink` (Go): COBS
+  framing + CRC-16, commands/events, NodeConfig TLV, Status, presets and **region frequency
+  plans (seed data: EU_868 10 %, EU_868_1PCT, EU_433, US_915, AU_915, IN_865, AS_923)**;
+  vectors in `spec` (`hostlink` section). Firmware `lib/meshnode`: C++ hostlink (conforms to
+  vectors incl. region table) and `node::Node` (router + MAC + store + host link, config
+  commands, own announces after host gives time, backlog with inflight hand-back on detach,
+  receipt purge of store, restore from flash). Router gained `set_role`, `next_due`; store
+  gained `unmark`. Lesson: mutation harness must check build exit status, a compile error
+  shows 0 FAIL lines.

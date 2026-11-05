@@ -5,15 +5,15 @@ CC ?= cc
 CXX ?= c++
 BUILD := build
 SAN := -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all
-INC := -Ilib/meshproto/src -Ilib/meshroute/src -Ilib/monocypher/src
+INC := -Ilib/meshproto/src -Ilib/meshroute/src -Ilib/meshnode/src -Ilib/monocypher/src
 CFLAGS := -std=c99 -O1 -g $(SAN) $(INC)
 CXXFLAGS := -std=c++17 -O1 -g -Wall -Wextra -Wpedantic -Wshadow -Werror $(SAN) $(INC)
 
 LIB_C := lib/monocypher/src/monocypher.c lib/monocypher/src/monocypher-ed25519.c
-LIB_CXX := $(wildcard lib/meshproto/src/*.cpp lib/meshroute/src/*.cpp)
+LIB_CXX := $(wildcard lib/meshproto/src/*.cpp lib/meshroute/src/*.cpp lib/meshnode/src/*.cpp)
 TEST_CXX := $(wildcard test/*.cpp)
 OBJS := $(LIB_C:%.c=$(BUILD)/%.o) $(LIB_CXX:%.cpp=$(BUILD)/%.o) $(TEST_CXX:%.cpp=$(BUILD)/%.o)
-HDRS := $(wildcard lib/meshproto/src/*.h lib/meshroute/src/*.h test/*.h)
+HDRS := $(wildcard lib/meshproto/src/*.h lib/meshroute/src/*.h lib/meshnode/src/*.h test/*.h)
 
 .PHONY: test clean
 test: $(BUILD)/host_tests

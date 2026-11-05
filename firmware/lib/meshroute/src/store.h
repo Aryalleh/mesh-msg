@@ -97,6 +97,7 @@ class Store {
   // then priority DATA, DATA, ANNOUNCE, SUMMARY; oldest first within each.
   bool next_for(uint8_t sink, Item& out) const;
   void mark(uint32_t seq, uint8_t sink);
+  void unmark(uint32_t seq, uint8_t sink);
   // A sink disconnected and lost its state (e.g. a new phone paired).
   void reset_sink(uint8_t sink);
 

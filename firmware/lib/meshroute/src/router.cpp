@@ -341,6 +341,13 @@ void Router::tick(Millis now) {
     if (e.state == State::Handed && now - e.due >= cfg_.handed_timeout) e.state = State::Free;
 }
 
+Millis Router::next_due() const {
+  Millis next = kNever;
+  for (const auto& e : pend_)
+    if ((e.state == State::Waiting || e.state == State::AwaitAck) && e.due < next) next = e.due;
+  return next;
+}
+
 size_t Router::pending() const {
   size_t n = 0;
   for (const auto& e : pend_)

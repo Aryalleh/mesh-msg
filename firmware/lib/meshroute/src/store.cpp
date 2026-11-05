@@ -161,6 +161,18 @@ void Store::mark(uint32_t seq, uint8_t sink) {
   }
 }
 
+void Store::unmark(uint32_t seq, uint8_t sink) {
+  for (size_t i = 0; i < kSlots; i++) {
+    if (s_[i].used && s_[i].rec.seq == seq) {
+      if (s_[i].rec.sinks & sink) {
+        s_[i].rec.sinks &= uint8_t(~sink);
+        save(int(i));
+      }
+      return;
+    }
+  }
+}
+
 void Store::reset_sink(uint8_t sink) {
   for (size_t i = 0; i < kSlots; i++) {
     if (s_[i].used && (s_[i].rec.sinks & sink)) {

@@ -1,11 +1,14 @@
 // Conformance against spec/test-vectors/vectors.json: the C++ codec must
 // reproduce every vector the Go core generated, byte for byte.
+#include <algorithm>
 #include <fstream>
+#include <memory>
 #include <sstream>
 
 #include "announce.h"
 #include "check.h"
 #include "identity.h"
+#include "hostlink.h"
 #include "json.h"
 #include "packet.h"
 
@@ -202,6 +205,93 @@ void receipts(const json::Value& vs) {
   }
 }
 
+void hostlink(const json::Value& hv) {
+  using namespace mesh::host;
+  // Frames: byte-identical encoding, and the decoder recovers them from one
+  // concatenated stream fed in odd-sized chunks.
+  Bytes stream;
+  for (const auto& v : hv["frames"].arr) {
+    const Bytes payload = unhex(v["payload"].s());
+    uint8_t out[kMaxEncoded];
+    size_t n = encode(uint8_t(v["kind"].i()), payload.data(), payload.size(), out, sizeof out);
+    CHECK_HEX(hex(out, n), v["encoded"].s(), "hostlink frame");
+    const Bytes e = unhex(v["encoded"].s());
+    stream.insert(stream.end(), e.begin(), e.end());
+  }
+  auto dec = std::make_unique<Decoder>();
+  size_t got = 0, off = 0, chunk = 1;
+  while (off < stream.size()) {
+    size_t n = std::min(chunk, stream.size() - off);
+    size_t used = dec->feed(stream.data() + off, n);
+    off += used;
+    chunk = chunk % 37 + 3;
+    if (dec->frame()) {
+      const auto& v = hv["frames"].arr.at(got++);
+      CHECK(dec->kind() == v["kind"].i());
+      CHECK_HEX(hex(dec->payload(), dec->payload_len()), v["payload"].s(), "hostlink decode");
+    }
+  }
+  CHECK(got == hv["frames"].arr.size() && dec->errors() == 0);
+
+  for (const auto& v : hv["configs"].arr) {
+    NodeConfig c;
+    c.role = uint8_t(v["role"].i());
+    c.region = uint8_t(v["region"].i());
+    c.preset = uint8_t(v["preset"].i());
+    c.freq_hz = uint32_t(v["freq_hz"].i());
+    c.tx_dbm = int8_t(v["tx_dbm"].i());
+    std::snprintf(c.name, sizeof c.name, "%s", v["name"].s().c_str());
+    c.announce_min = uint16_t(v["announce_min"].i());
+    CHECK(c.valid());
+    uint8_t t[kMaxConfigTLV];
+    size_t n = c.encode_tlv(t, sizeof t);
+    CHECK_HEX(hex(t, n), v["tlv"].s(), "config tlv");
+    NodeConfig d;
+    const Bytes tlv = unhex(v["tlv"].s());
+    CHECK(d.apply_tlv(tlv.data(), tlv.size()) && d == c);
+  }
+
+  const auto& sv = hv["status"]["status"];
+  Status s;
+  s.firmware_version = uint8_t(sv["firmware_version"].i());
+  s.role = uint8_t(sv["role"].i());
+  s.region = uint8_t(sv["region"].i());
+  s.preset = uint8_t(sv["preset"].i());
+  s.freq_hz = uint32_t(sv["freq_hz"].i());
+  s.tx_dbm = int8_t(sv["tx_dbm"].i());
+  s.short_id = uint8_t(sv["short_id"].i());
+  s.uptime_s = uint32_t(sv["uptime_s"].i());
+  s.stored = uint16_t(sv["stored"].i());
+  s.queued = uint8_t(sv["queued"].i());
+  s.neighbours = uint8_t(sv["neighbours"].i());
+  s.air_used_ms = uint32_t(sv["air_used_ms"].i());
+  s.air_budget_ms = uint32_t(sv["air_budget_ms"].i());
+  s.rx_frames = uint32_t(sv["rx_frames"].i());
+  s.tx_frames = uint32_t(sv["tx_frames"].i());
+  s.battery_mv = uint16_t(sv["battery_mv"].i());
+  uint8_t st[kStatusSize];
+  s.encode(st);
+  CHECK_HEX(hex(st, sizeof st), hv["status"]["encoded"].s(), "status");
+
+  // The firmware's region and preset tables are the Go ones.
+  CHECK(hv["regions"].arr.size() == kRegionCount && hv["presets"].arr.size() == kPresetCount);
+  for (size_t i = 0; i < kRegionCount && i < hv["regions"].arr.size(); i++) {
+    const auto& r = hv["regions"].arr[i];
+    const RegionInfo& m = kRegions[i];
+    CHECKC(r["id"].i() == m.id && r["name"].s() == m.name && r["freq_hz"].i() == m.freq_hz &&
+               r["min_hz"].i() == m.min_hz && r["max_hz"].i() == m.max_hz && r["max_dbm"].i() == m.max_dbm &&
+               r["duty_ppm"].i() == m.duty_ppm,
+           r["name"].s());
+  }
+  for (size_t i = 0; i < kPresetCount && i < hv["presets"].arr.size(); i++) {
+    const auto& p = hv["presets"].arr[i];
+    const PresetInfo& m = kPresets[i];
+    CHECKC(p["id"].i() == m.id && p["name"].s() == m.name && p["sf"].i() == m.sf && p["bw_hz"].i() == m.bw_hz &&
+               p["cr"].i() == m.cr,
+           p["name"].s());
+  }
+}
+
 }  // namespace
 
 int run_vectors(const char* path) {
@@ -223,6 +313,7 @@ int run_vectors(const char* path) {
   identities(v["identities"]);
   announces(v["announces"]);
   receipts(v["receipts"]);
+  hostlink(v["hostlink"]);
   // "text" (compact Persian encoding) is end-to-end payload: nodes forward
   // ciphertext and never see it, so the firmware does not implement it.
   std::printf("vectors: %zu headers, %zu inc_hop, %zu fragment sets, %zu frames, %zu identities, %zu announces, "

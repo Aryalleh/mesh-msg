@@ -8,6 +8,7 @@ void run_route();
 void run_mac();
 void run_net();
 void run_store();
+void run_node();
 
 int main(int argc, char** argv) {
   const char* vectors = argc > 1 ? argv[1] : "../spec/test-vectors/vectors.json";
@@ -17,6 +18,7 @@ int main(int argc, char** argv) {
   run_mac();
   run_net();
   run_store();
+  run_node();
   if (check::failures() != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", check::failures());
     return 1;
