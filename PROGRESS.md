@@ -12,13 +12,15 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — `lib/meshproto`, router + MAC done; store, node app, boards next |
+| M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store done; node app, boards next |
 | M5–M8 | not started |
 
 ## Next step
 
 Firmware, board-independent modules with host tests (`make -C firmware test`):
-1. `store/` — bounded ring-buffer packet store with expiry/quotas (flash backend later).
+1. Node application core (pure, host-tested): wires Router + Mac + Store, phone/USB link
+   framing (docs/firmware.md §2b tunnel framing, §6), role behaviour (CLIENT/REPEATER/GATEWAY),
+   region frequency plans + default config ("seed data").
 2. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
    radio layer → firmware milestone 1 (two boards exchange raw packets).
 
@@ -77,3 +79,11 @@ Firmware, board-independent modules with host tests (`make -C firmware test`):
   `sudo lvextend -r -l +100%FREE /dev/ubuntu-vg/ubuntu-lv` (needs their password). Android
   toolchain already present: JDK 17, SDK 35, build-tools 35, Gradle 8.14.3 in
   `~/.local/share/android-toolchain`; NDK (for gomobile) not yet installed.
+- `eb31327` MAC (above). Next commit: firmware `store` (in `lib/meshroute`): fixed slots,
+  per-sink backlog (phone/uplink bits, receipts first), eviction expired → announce/summary
+  → data → receipts last (never displaces more valuable items), per-destination DATA quota,
+  `Persist` hook with fixed-size `Record` + `restore()` (TTL restarts at restore). Tests incl.
+  flash-mirror fuzz.
+- User asked to "seed all needed data we don't have": interpreted as region frequency plans,
+  default configs, fixtures, demo data — added alongside the step that uses each. Not baking
+  the user's EU server IP into defaults without asking.
