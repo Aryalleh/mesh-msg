@@ -14,9 +14,12 @@ lib/meshroute/src/   LoRa managed-flood router: seen-cache (packet ID + fragment
                      SNR-ordered rebroadcast delay, cancel after hearing N copies, hop
                      limit / NO_LORA, implicit-ACK retries for own packets, public keys
                      learned from announces so verified receipts purge queued copies
+  mac                exact LoRa time on air, sliding-hour duty-cycle budget (1-minute
+                     buckets, announce share cap), priority queue, CAD + exponential backoff
 lib/monocypher/      Monocypher 4.0.2 (X25519, Ed25519), vendored unmodified, CC0/BSD-2
 test/                host tests: spec/test-vectors conformance, edge cases, random-input
-                     round-trip fuzz, router behaviour + router fuzz
+                     round-trip fuzz, router behaviour + router fuzz, MAC, and a multi-node
+                     radio network (real Router + Mac, half-duplex, collisions, CAD)
 ```
 
 ## Tests
@@ -33,6 +36,5 @@ that nodes never see, so the firmware does not implement them.
 
 ## Next
 
-`mac/Airtime` (LoRa airtime, duty-cycle budget, priority queue, CAD backoff) and `store/`
-as pure modules with host tests, then `platformio.ini` with the
+`store/` (bounded packet store) as a pure module with host tests, then `platformio.ini` with the
 board environments and the RadioLib radio layer (docs/firmware.md §7, milestone 1).

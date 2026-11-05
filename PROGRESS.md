@@ -12,19 +12,14 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — `lib/meshproto` + `lib/meshroute` done; MAC/store next |
+| M4 LoRa link | **in progress** — `lib/meshproto`, router + MAC done; store, node app, boards next |
 | M5–M8 | not started |
 
 ## Next step
 
 Firmware, board-independent modules with host tests (`make -C firmware test`):
-1. `mac/Airtime` — LoRa airtime calculation (Semtech formula, presets of docs/firmware.md §4),
-   duty-cycle budget over a sliding hour, priority queue
-   RECEIPT > DATA(PRIORITY) > DATA > SUMMARY > ANNOUNCE (use `route::Priority`), announce
-   airtime share ≤ 10 %, CAD backoff hooks. Consumes `route::Router::poll()` frames and
-   calls `on_transmitted()`; mirror `sim/lora.go` budget logic.
-2. `store/` — bounded ring-buffer packet store with expiry/quotas (flash backend later).
-3. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
+1. `store/` — bounded ring-buffer packet store with expiry/quotas (flash backend later).
+2. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
    radio layer → firmware milestone 1 (two boards exchange raw packets).
 
 ## Resuming in a fresh container
@@ -70,3 +65,15 @@ Firmware, board-independent modules with host tests (`make -C firmware test`):
   data. Fixed-size, no heap (~16 KB seen + ~4 KB pending + ~6 KB keys). Host tests incl.
   50k-step fuzz; mutation-checked (disabling purge, hop increment, cancellation, SNR clamp or
   ack handling each fails tests). docs/firmware.md §2a/§3 and firmware/README updated.
+- `e95c4bd` router (above). Next commit: firmware `mac` (in `lib/meshroute`): exact integer
+  airtime (matches `sim` Go formula ±1 µs), DutyCycle (61 one-minute buckets, conservative),
+  announce share cap (excess dropped), priority queue (drop least urgent when full), CAD with
+  capped exponential backoff, drop frames that can never fit the budget. Router no longer
+  retries own announces or own packets at their hop limit (as `sim/lora.go`).
+  `test/net_test.cpp`: multi-node network on the host with the real Router + Mac (half-duplex,
+  collisions, CAD): 5-node chain (one tx per node, implicit ACK), hop limit, lone-node retries,
+  5×5 grid 144/144 delivered with 109 tx vs 150 for plain flood.
+- Disk is 99 % full (266 MB free); root LV uses 27.6 of 55 GB. Asked the user to run
+  `sudo lvextend -r -l +100%FREE /dev/ubuntu-vg/ubuntu-lv` (needs their password). Android
+  toolchain already present: JDK 17, SDK 35, build-tools 35, Gradle 8.14.3 in
+  `~/.local/share/android-toolchain`; NDK (for gomobile) not yet installed.

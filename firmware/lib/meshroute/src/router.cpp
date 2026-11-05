@@ -147,7 +147,10 @@ bool Router::schedule(const uint8_t* raw, size_t n, const Packet& p, bool own, M
   e->state = State::Waiting;
   e->own = own;
   e->heard = 0;
-  e->retries_left = own ? cfg_.retries : 0;
+  // Announces are best-effort, and nobody rebroadcasts a packet at its hop
+  // limit, so neither waits for an implicit ACK (as sim/lora.go).
+  bool acked = own && p.type != Type::Announce && p.hop_count < p.max_hops;
+  e->retries_left = acked ? cfg_.retries : 0;
   e->prio = priority_of(p);
   e->key = Key::of(p);
   e->due = due;
