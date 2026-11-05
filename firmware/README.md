@@ -10,9 +10,13 @@ lib/meshproto/src/   pure C++17, no heap, no Arduino (runs on boards and on the 
   sha256             destination hashes and receipt IDs
   identity           X25519/Ed25519 keys from a seed, destination hash, domain signatures
   announce           verify/build ANNOUNCE and RECEIPT packets
+lib/meshroute/src/   LoRa managed-flood router: seen-cache (packet ID + fragment, 24 h),
+                     SNR-ordered rebroadcast delay, cancel after hearing N copies, hop
+                     limit / NO_LORA, implicit-ACK retries for own packets, public keys
+                     learned from announces so verified receipts purge queued copies
 lib/monocypher/      Monocypher 4.0.2 (X25519, Ed25519), vendored unmodified, CC0/BSD-2
 test/                host tests: spec/test-vectors conformance, edge cases, random-input
-                     round-trip fuzz
+                     round-trip fuzz, router behaviour + router fuzz
 ```
 
 ## Tests
@@ -29,6 +33,6 @@ that nodes never see, so the firmware does not implement them.
 
 ## Next
 
-`route/` (dedup cache, managed-flood forwarding decision), `mac/Airtime` (duty-cycle budget,
-priority queue) and `store/` as pure modules with host tests, then `platformio.ini` with the
+`mac/Airtime` (LoRa airtime, duty-cycle budget, priority queue, CAD backoff) and `store/`
+as pure modules with host tests, then `platformio.ini` with the
 board environments and the RadioLib radio layer (docs/firmware.md §7, milestone 1).

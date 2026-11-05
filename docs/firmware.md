@@ -56,6 +56,10 @@ Every node (repeater, client, gateway) **rebroadcasts each new packet once** (ma
   before rebroadcasting; a node that hears enough neighbours rebroadcast it first cancels its
   own copy. Hearing a rebroadcast is the implicit ACK.
 - RECEIPTs are broadcast the same way and purge copies queued in every node that hears them.
+  A node only purges on a receipt it can verify, using public keys it learned from announces
+  it heard (a bounded cache); unverifiable receipts are still forwarded. Announces and
+  receipts that fail verification are dropped before they enter the seen-cache, so a forged
+  copy cannot shadow the real one.
 
 ### Airtime budget — the real limit
 
@@ -140,8 +144,8 @@ firmware/
 
 The `proto/` and `route/` modules are pure C++ with no Arduino dependencies so they run in
 the `native` test env and can be fuzzed. As built, the protocol layer lives in
-`lib/meshproto/` (packet codec, SHA-256, identity, announce/receipt) with Monocypher vendored
-in `lib/monocypher/`; `make -C firmware test` checks it against `spec/test-vectors/` on the
+`lib/meshproto/` (packet codec, SHA-256, identity, announce/receipt) and the managed-flood
+router in `lib/meshroute/` (§2a, §5), with Monocypher vendored in `lib/monocypher/`; `make -C firmware test` checks it against `spec/test-vectors/` on the
 host.
 
 ## 4. Radio presets

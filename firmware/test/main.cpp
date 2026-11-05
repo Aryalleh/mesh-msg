@@ -4,11 +4,13 @@
 
 int run_vectors(const char* path);
 void run_units();
+void run_route();
 
 int main(int argc, char** argv) {
   const char* vectors = argc > 1 ? argv[1] : "../spec/test-vectors/vectors.json";
   if (run_vectors(vectors) != 0) return 1;
   run_units();
+  run_route();
   if (check::failures() != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", check::failures());
     return 1;

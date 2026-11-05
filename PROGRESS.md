@@ -12,18 +12,19 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — `firmware/lib/meshproto` done; routing/MAC/store next |
+| M4 LoRa link | **in progress** — `lib/meshproto` + `lib/meshroute` done; MAC/store next |
 | M5–M8 | not started |
 
 ## Next step
 
 Firmware, board-independent modules with host tests (`make -C firmware test`):
-1. `route/` — dedup cache keyed by (packet ID, fragment), managed-flood forwarding
-   decision, hop handling (docs/firmware.md §2a, §5; mirror `core/router` LoRa behaviour).
-2. `mac/Airtime` — LoRa airtime calculation, duty-cycle budget, priority queue
-   RECEIPT > DATA(PRIORITY) > DATA > SUMMARY > ANNOUNCE, CAD backoff hooks.
-3. `store/` — bounded ring-buffer packet store with expiry/quotas (flash backend later).
-4. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
+1. `mac/Airtime` — LoRa airtime calculation (Semtech formula, presets of docs/firmware.md §4),
+   duty-cycle budget over a sliding hour, priority queue
+   RECEIPT > DATA(PRIORITY) > DATA > SUMMARY > ANNOUNCE (use `route::Priority`), announce
+   airtime share ≤ 10 %, CAD backoff hooks. Consumes `route::Router::poll()` frames and
+   calls `on_transmitted()`; mirror `sim/lora.go` budget logic.
+2. `store/` — bounded ring-buffer packet store with expiry/quotas (flash backend later).
+3. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
    radio layer → firmware milestone 1 (two boards exchange raw packets).
 
 ## Resuming in a fresh container
@@ -58,3 +59,14 @@ Firmware, board-independent modules with host tests (`make -C firmware test`):
 - Set this container's Claude Code permission mode to bypass via
   `.claude/settings.local.json` (gitignored, container-local); `e174293` gitignore entry.
 - Added this PROGRESS.md and CLAUDE.md (resume instructions).
+- Remote Control: the user wants to follow this session from their phone; that is started
+  from the terminal with `/remote-control` (needs no server).
+- firmware `lib/meshroute` (`route::Router`): seen-cache (ID + fragment, 24 h, 1024 entries,
+  FIFO eviction), SNR-ordered rebroadcast delay (+ extra delay for CLIENT role), cancel after
+  hearing `cancel_after` (2) copies, hop limit / NO_LORA / LINK handling, SUMMARY + PATH_REQ
+  left to caller, implicit-ACK retries (2) for own packets driven by MAC `on_transmitted()`,
+  key cache from verified announces so verified receipts purge queued copies and mark the ID
+  acked. Unlike `core/router`, an *unverified* receipt neither purges nor suppresses later
+  data. Fixed-size, no heap (~16 KB seen + ~4 KB pending + ~6 KB keys). Host tests incl.
+  50k-step fuzz; mutation-checked (disabling purge, hop increment, cancellation, SNR clamp or
+  ack handling each fails tests). docs/firmware.md §2a/§3 and firmware/README updated.
