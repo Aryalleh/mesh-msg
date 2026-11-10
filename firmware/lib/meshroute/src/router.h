@@ -124,6 +124,12 @@ struct Config {
   uint8_t cancel_after = 2;
   // Originated packets: retransmissions while no implicit ACK is heard.
   uint8_t retries = 2;
+  // ANNOUNCEs handed to send() wait a random 0..announce_jitter first, so
+  // nodes that announce at the same moment (two PCs started together, a
+  // power cut ending) do not collide at a repeater that hears both but that
+  // they cannot hear (hidden terminals: CAD cannot help). DATA and RECEIPT
+  // are sent immediately.
+  Millis announce_jitter = 10000;
   Millis ack_timeout = 20000;  // after the frame went on air
   Millis ack_jitter = 10000;
   // A frame handed to the MAC that never went on air (dropped for budget) is

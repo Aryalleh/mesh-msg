@@ -94,6 +94,7 @@ class Node {
   uint32_t unix_time(Millis now) const;
 
  private:
+  Millis first_announce(Millis now);  // 5–30 s from now
   static route::Config router_config(const host::NodeConfig& c, uint8_t short_id, uint32_t random);
   static mac::Config mac_config(const host::NodeConfig& c, uint32_t random);
   void command(const uint8_t* p, size_t n, Millis now);

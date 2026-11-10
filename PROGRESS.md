@@ -12,23 +12,21 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store, node app, meshd USB link, native node sim done; e2e script + boards next |
+| M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`: PC → node → repeater → node → PC with real firmware nodes); board layer next |
 | M5–M8 | not started |
 
 ## Next step
 
-Firmware, board-independent modules with host tests (`make -C firmware test`):
-1. `scripts/e2e-lora.sh`: `make -C firmware sim`, start `build/meshnode-sim -n 3 -topology line`,
-   two meshd (LAN off, `[lora] port = <pts of node 0 / node 2>`), exchange contacts, send, wait
-   for delivered. The simulator is built and starts but has **not yet been run against meshd**.
-2. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
-   radio layer → firmware milestone 1 (two boards exchange raw packets).
+Board layer (docs/firmware.md §7, milestone 1): `firmware/platformio.ini` (heltec_v3, tbeam_s3,
+rak4631, techo), `src/` with the RadioLib radio driver, USB-serial host link, flash config +
+identity + store persistence, then build all envs with PlatformIO.
 
 ## Resuming in a fresh container
 
 - Go is not preinstalled: download the latest from `https://go.dev/VERSION?m=text` into
   `~/sdk/go` and use `export PATH=$HOME/sdk/go/bin:$PATH` (go.mod needs ≥ 1.26).
-- Checks: `go build ./... && go test ./...`; `make -C firmware test` (g++ with ASan/UBSan).
+- Checks: `go build ./... && go test ./...`; `make -C firmware test` (g++ with ASan/UBSan);
+  end-to-end over simulated LoRa: `scripts/e2e-lora.sh` (~30 s; `NODES=5 SIMFLAGS="-region 0"`).
 - Vectors are regenerated with `go run ./spec/cmd/genvectors > spec/test-vectors/vectors.json`;
   `spec` has a staleness test.
 - Conventions: commit + push to `origin main` after each change; no Claude attribution
@@ -113,3 +111,18 @@ Firmware, board-independent modules with host tests (`make -C firmware test`):
   only: prints pts paths and stops cleanly.
 - Session stopped at the usage limit. Still blocked on disk: user must run
   `sudo lvextend -r -l +100%FREE /dev/ubuntu-vg/ubuntu-lv` before Android / PlatformIO work.
+
+### 2026-11-10
+- Cloud container: Go 1.26 at `/usr/local/go` (auto-downloads toolchain), 30 GB free. Suites green.
+- `scripts/e2e-lora.sh`: builds `meshnode-sim` + meshd/mesh, 3 real firmware nodes on a line
+  (node 1 repeater), two meshd with LAN off on node 0 / node 2, exchange contacts, alice → bob,
+  wait for ✓✓, bob → alice; asserts every repeater transmitted DATA and RECEIPT. Passes
+  (~6 s delivery, ~10 s round trip); 5-node EU_868 chain passes too. **M4 exit criterion met in
+  simulation.**
+- Bug found by it: the node's first announce came exactly 5 s after the host's Hello, so two
+  PCs started together announced simultaneously and collided at the repeater (hidden terminals,
+  CAD cannot help); announces were lost every run. Fix: router delays every ANNOUNCE handed to
+  `send()` by random 0..`announce_jitter` (10 s); node's first announce 5–30 s after Hello,
+  then period ±10 %. Router test (mutation-checked) + node test updated.
+- `meshnode-sim`: `-roles crg…` (default: line interior nodes are repeaters), `-seed` (default
+  from the clock, printed) so each run exercises different timing.

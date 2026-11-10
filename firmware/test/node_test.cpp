@@ -257,12 +257,15 @@ void announces() {
   air.run(one, 60000);
   CHECK(air.frames == 0 && n.stats().announces == 0);  // no clock yet: no announce
 
-  // The host tells the time: announce a few seconds later, then every 30 min.
+  // The host tells the time: announce 5–30 s later (random, so nodes started
+  // together do not collide), queued for up to 10 s more, then every 30 min ±10 %.
   r.host.cmd(n, host::kOpHello, 1, be32(1767225600), air.now);
   Rig rx(4);
   std::vector<mesh::node::Node*> two = {&n, rx.node.get()};
-  air.run(two, air.now + 20000);
-  CHECK(n.stats().announces == 1 && n.unix_time(air.now) >= 1767225600 + 19);
+  air.run(two, air.now + 4000);
+  CHECK(n.stats().announces == 0 && air.frames == 0);
+  air.run(two, air.now + 41000);
+  CHECK(n.stats().announces == 1 && air.frames >= 1 && n.unix_time(air.now) >= 1767225600 + 44);
   // The receiver stored the announce; it verifies and comes from n.
   rx.host.cmd(*rx.node, host::kOpHello, 1, {}, air.now);
   rx.host.drain(*rx.node);
@@ -273,7 +276,9 @@ void announces() {
   CHECK(mesh::decode(pk[0].data(), pk[0].size(), p) == mesh::Err::Ok && p.type == mesh::Type::Announce);
   CHECK(mesh::parse_announce(p, a) == mesh::AnnounceErr::Ok);
   CHECK(std::memcmp(a.pub.ed, n.pub().ed, 32) == 0 && (a.app.flags & mesh::kFlagNode) && a.time >= 1767225600);
-  air.run(two, air.now + 31 * 60000);
+  air.run(two, air.now + 26 * 60000);
+  CHECK(n.stats().announces == 1);
+  air.run(two, air.now + 8 * 60000);
   CHECK(n.stats().announces == 2);
   // Announces off.
   r.host.cmd(n, host::kOpSetConfig, 2, {host::kTagAnnounceMin, 2, 0, 0}, air.now);

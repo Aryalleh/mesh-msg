@@ -259,7 +259,7 @@ void Node::command(const uint8_t* p, size_t n, Millis now) {
           bool first = unix_at_ == 0;
           unix_at_ = t;
           unix_given_ = now;
-          if (first && cfg_.announce_min) next_announce_ = now + 5000;
+          if (first && cfg_.announce_min) next_announce_ = first_announce(now);
         }
       } else if (an != 0) {
         ack(op, req, host::kAckBadArgs);
@@ -300,7 +300,7 @@ void Node::command(const uint8_t* p, size_t n, Millis now) {
       if (cfg_.announce_min == 0)
         next_announce_ = 0;
       else if (unix_at_ && next_announce_ == 0)
-        next_announce_ = now + 5000;
+        next_announce_ = first_announce(now);
       ack(op, req, host::kAckOk);
       return;
     }
@@ -334,6 +334,8 @@ void Node::command(const uint8_t* p, size_t n, Millis now) {
   }
 }
 
+Millis Node::first_announce(Millis now) { return now + 5000 + rand32() % 25000; }
+
 void Node::announce(Millis now) {
   uint32_t t = unix_time(now);
   if (t == 0) return;
@@ -360,7 +362,9 @@ void Node::tick(Millis now) {
   last_tick_ = now;
   if (next_announce_ != 0 && now >= next_announce_ && cfg_.announce_min) {
     announce(now);
-    next_announce_ = now + Millis(cfg_.announce_min) * 60000;
+    // ±10 % so nodes that booted together drift apart.
+    Millis period = Millis(cfg_.announce_min) * 60000;
+    next_announce_ = now + period - period / 10 + rand32() % (period / 5 + 1);
   }
   pump();
 }

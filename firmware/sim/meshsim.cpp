@@ -92,9 +92,13 @@ bool open_pty(SimNode& n) {
 
 void usage() {
   std::fprintf(stderr,
-               "usage: meshnode-sim [-n N] [-topology line|full] [-region ID] [-preset 0|1|2] [-v]\n"
+               "usage: meshnode-sim [-n N] [-topology line|full] [-roles crg…] [-region ID] [-preset 0|1|2] [-seed S] [-v]\n"
                "  -n         number of nodes (default 3)\n"
                "  -topology  line: 0-1-2-… each hears only its neighbours (default); full: all hear all\n"
+               "  -roles     one letter per node: c client, r repeater, g gateway (default: line ends\n"
+               "             are clients, interior nodes repeaters; full: all clients)\n"
+               "  -seed      random seed for the nodes' timing (default: from the clock; printed)\n"
+               "  -v         log every transmission\n"
                "  -region    frequency plan ID (default 3 = US_915, no duty cycle; 0 = EU_868 10 %%)\n"
                "  -preset    0 FAST (default), 1 BALANCED, 2 LONG\n");
 }
@@ -103,7 +107,8 @@ void usage() {
 
 int main(int argc, char** argv) {
   int count = 3, region = 3, preset = 0;
-  std::string topology = "line";
+  uint32_t seed = uint32_t(std::chrono::steady_clock::now().time_since_epoch().count()) ^ uint32_t(getpid()) << 16;
+  std::string topology = "line", roles;
   for (int i = 1; i < argc; i++) {
     std::string a = argv[i];
     auto next = [&]() -> const char* {
@@ -117,6 +122,10 @@ int main(int argc, char** argv) {
       count = std::atoi(next());
     else if (a == "-topology")
       topology = next();
+    else if (a == "-seed")
+      seed = uint32_t(std::strtoul(next(), nullptr, 0));
+    else if (a == "-roles")
+      roles = next();
     else if (a == "-region")
       region = std::atoi(next());
     else if (a == "-preset")
@@ -133,6 +142,12 @@ int main(int argc, char** argv) {
     usage();
     return 2;
   }
+  if (roles.empty())
+    for (int i = 0; i < count; i++) roles += (topology == "line" && i > 0 && i < count - 1) ? 'r' : 'c';
+  if (roles.size() != size_t(count) || roles.find_first_not_of("crg") != std::string::npos) {
+    usage();
+    return 2;
+  }
   std::signal(SIGINT, [](int) { g_stop = 1; });
   std::signal(SIGTERM, [](int) { g_stop = 1; });
   std::setvbuf(stdout, nullptr, _IOLBF, 0);
@@ -145,10 +160,13 @@ int main(int argc, char** argv) {
     cfg.region = uint8_t(region);
     cfg.preset = uint8_t(preset);
     cfg.tx_dbm = 10;
+    cfg.role = roles[i] == 'r' ? mesh::host::kRoleRepeater
+               : roles[i] == 'g' ? mesh::host::kRoleGateway
+                                 : mesh::host::kRoleClient;
     std::snprintf(cfg.name, sizeof cfg.name, "sim-%d", i);
-    uint8_t seed[64];
-    for (int k = 0; k < 64; k++) seed[k] = uint8_t(0x5e + i * 17 + k * 3);
-    n->node = std::make_unique<mesh::node::Node>(cfg, seed, n->board, nullptr, uint32_t(0xc0ffee + i));
+    uint8_t idseed[64];
+    for (int k = 0; k < 64; k++) idseed[k] = uint8_t(0x5e + i * 17 + k * 3);
+    n->node = std::make_unique<mesh::node::Node>(cfg, idseed, n->board, nullptr, seed * 2654435761u + uint32_t(i) + 1);
     if (!open_pty(*n)) {
       std::perror("pty");
       return 1;
@@ -159,10 +177,11 @@ int main(int argc, char** argv) {
     for (int j = 0; j < count; j++)
       if (i != j && (topology == "full" || j == i - 1 || j == i + 1)) nodes[i]->nbrs.push_back(j);
 
-  std::printf("meshnode-sim: %d nodes, %s topology, %s, %s\n", count, topology.c_str(),
-              mesh::host::kRegions[region].name, mesh::host::kPresets[preset].name);
+  std::printf("meshnode-sim: %d nodes, %s topology, %s, %s, seed %u\n", count, topology.c_str(),
+              mesh::host::kRegions[region].name, mesh::host::kPresets[preset].name, seed);
   for (int i = 0; i < count; i++)
-    std::printf("node %d: %s  (short id 0x%02x)\n", i, nodes[i]->path.c_str(), nodes[i]->node->short_id());
+    std::printf("node %d: %s  (short id 0x%02x, %s)\n", i, nodes[i]->path.c_str(), nodes[i]->node->short_id(),
+                roles[i] == 'r' ? "repeater" : roles[i] == 'g' ? "gateway" : "client");
   std::printf("ready\n");
 
   std::vector<Tx> log;
