@@ -114,7 +114,7 @@ identity + store persistence, then build all envs with PlatformIO.
 
 ### 2026-11-10
 - Cloud container: Go 1.26 at `/usr/local/go` (auto-downloads toolchain), 30 GB free. Suites green.
-- `scripts/e2e-lora.sh`: builds `meshnode-sim` + meshd/mesh, 3 real firmware nodes on a line
+- `ddd1340` `scripts/e2e-lora.sh`: builds `meshnode-sim` + meshd/mesh, 3 real firmware nodes on a line
   (node 1 repeater), two meshd with LAN off on node 0 / node 2, exchange contacts, alice → bob,
   wait for ✓✓, bob → alice; asserts every repeater transmitted DATA and RECEIPT. Passes
   (~6 s delivery, ~10 s round trip); 5-node EU_868 chain passes too. **M4 exit criterion met in
