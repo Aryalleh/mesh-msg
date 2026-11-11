@@ -134,7 +134,7 @@ BLE mesh, LoRa-over-BLE which also needs the firmware's BLE host link, §6).
   then period ±10 %. Router test (mutation-checked) + node test updated.
 - `meshnode-sim`: `-roles crg…` (default: line interior nodes are repeaters), `-seed` (default
   from the clock, printed) so each run exercises different timing.
-- Board layer: `firmware/platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo; pins as build
+- `a02f36c` Board layer: `firmware/platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo; pins as build
   flags, nRF boards on the `nrf52840_dk_adafruit` definition since this platform has no
   RAK/T-Echo boards, pca10056 pin map is identity), `src/main.cpp` (boot from LittleFS, loop,
   bench logging until a host attaches), `src/radio.cpp` (RadioLib 7.8 SX1262, private sync
