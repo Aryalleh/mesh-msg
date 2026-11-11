@@ -172,7 +172,7 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   privacy dark palette, Compose + a11y rules; its generic landing-page output was not used),
   `scripts/build-android-core.sh` (gomobile → AAR, 3 ABIs). Firmware fix: Heltec V3's USB is a
   CP2102 on UART0, so no `ARDUINO_USB_CDC_ON_BOOT` there (was wrong in `a02f36c`).
-- Android app (`android/`, one Gradle module, Kotlin 2.1 / Compose / Material 3, minSdk 26):
+- `2f6cba1` Android app (`android/`, one Gradle module, Kotlin 2.1 / Compose / Material 3, minSdk 26):
   screens Onboarding, Chats, Chat, Add contact (QR of own link, paste/share), Network (path
   cards in plain words), Settings (stealth, gateway, battery mode, relays, typed-confirm wipe);
   en + fa strings; `MeshBackend` interface so screens render without the core; `CoreBackend`
