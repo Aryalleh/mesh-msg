@@ -10,7 +10,7 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 |---|---|
 | M0 Spec | done — Go core and C++ firmware library both pass `spec/test-vectors/vectors.json` |
 | M1 Core + sim | done |
-| M2 Relay | done |
+| M2 Relay | done — first relay `eu-1` deployed on the user's EU server (plain HTTP on its IP, no domain yet) |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
 | M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store, node app, meshd USB link, native node sim done; e2e script + boards next |
 | M5–M8 | not started |
@@ -113,3 +113,12 @@ Firmware, board-independent modules with host tests (`make -C firmware test`):
   only: prints pts paths and stops cleanly.
 - Session stopped at the usage limit. Still blocked on disk: user must run
   `sudo lvextend -r -l +100%FREE /dev/ubuntu-vg/ubuntu-lv` before Android / PlatformIO work.
+
+### 2026-11-11
+- Deployed relay `eu-1` (region global) to the user's EU server (address kept out of the
+  repo; in Claude's memory): binary built locally, installed with
+  `server/deploy/meshmsg-relay.service`, `/etc/meshmsg/relay.json` with a fresh sync token,
+  behind the server's existing Caddy as plain HTTP on the IP (Caddy 2.6.2 cannot issue IP
+  certificates). `GET /v1/info` answers from outside. No code changes.
+- Open: a domain for HTTPS (then switch Caddy block + `relays` URL), optional onion service,
+  peers. M4 next step below is unchanged.
