@@ -55,8 +55,11 @@ blocked servers, no app-store access. See [docs/threat-model.md](docs/threat-mod
 ## Status
 
 M0–M3 implemented: Go core, simulator, relay and Linux desktop (`meshd` + `mesh`),
-with language-neutral test vectors. M4 (LoRa firmware) started: the board-independent
-protocol library in `firmware/lib/meshproto` passes the same vectors (`make -C firmware test`).
+with language-neutral test vectors. M4 (LoRa firmware): the whole node
+(protocol, router, MAC, store, host link) is board-independent and host-tested against the same
+vectors (`make -C firmware test`); `scripts/e2e-lora.sh` sends a text PC → node → repeater →
+node → PC with real firmware nodes on a simulated radio; PlatformIO builds for Heltec V3,
+T-Beam S3, RAK4631 and T-Echo exist but are not yet verified on hardware.
 See [roadmap](docs/roadmap.md).
 
 ## Layout

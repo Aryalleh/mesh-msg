@@ -12,21 +12,29 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`: PC → node → repeater → node → PC with real firmware nodes); board layer next |
+| M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`); board layer builds for all four boards (`pio run`), **not yet run on hardware** |
 | M5–M8 | not started |
 
 ## Next step
 
-Board layer (docs/firmware.md §7, milestone 1): `firmware/platformio.ini` (heltec_v3, tbeam_s3,
-rak4631, techo), `src/` with the RadioLib radio driver, USB-serial host link, flash config +
-identity + store persistence, then build all envs with PlatformIO.
+Hardware. Nothing more can be verified without boards: flash two (`pio run -e heltec_v3 -t
+upload`), check the serial monitor shows each other's headers (milestone 1), fix pin tables
+if a board is silent, then meshd on both ports (milestone 2/3, the e2e script's scenario).
+Until boards are available the next *software* milestone is **M5 Android** (gomobile core,
+BLE mesh, LoRa-over-BLE which also needs the firmware's BLE host link, §6).
 
 ## Resuming in a fresh container
 
 - Go is not preinstalled: download the latest from `https://go.dev/VERSION?m=text` into
   `~/sdk/go` and use `export PATH=$HOME/sdk/go/bin:$PATH` (go.mod needs ≥ 1.26).
 - Checks: `go build ./... && go test ./...`; `make -C firmware test` (g++ with ASan/UBSan);
-  end-to-end over simulated LoRa: `scripts/e2e-lora.sh` (~30 s; `NODES=5 SIMFLAGS="-region 0"`).
+  end-to-end over simulated LoRa: `scripts/e2e-lora.sh` (~30 s; `NODES=5 SIMFLAGS="-region 0"`);
+  boards: `cd firmware && pio run` (needs `pip install platformio`; the registry hosts
+  `api.registry.platformio.org`, `dl.registry.platformio.org`, `dl.platformio.org`,
+  `github.com`, `objects.githubusercontent.com` must be reachable — the cloud environment
+  "mesh-msg" allows them; first build downloads ~1 GB of toolchains).
+- Never pipe a `pio run` through `head`: the build hangs when the pipe closes. Redirect to a
+  file and grep it.
 - Vectors are regenerated with `go run ./spec/cmd/genvectors > spec/test-vectors/vectors.json`;
   `spec` has a staleness test.
 - Conventions: commit + push to `origin main` after each change; no Claude attribution
@@ -126,3 +134,12 @@ identity + store persistence, then build all envs with PlatformIO.
   then period ±10 %. Router test (mutation-checked) + node test updated.
 - `meshnode-sim`: `-roles crg…` (default: line interior nodes are repeaters), `-seed` (default
   from the clock, printed) so each run exercises different timing.
+- Board layer: `firmware/platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo; pins as build
+  flags, nRF boards on the `nrf52840_dk_adafruit` definition since this platform has no
+  RAK/T-Echo boards, pca10056 pin map is identity), `src/main.cpp` (boot from LittleFS, loop,
+  bench logging until a host attaches), `src/radio.cpp` (RadioLib 7.8 SX1262, private sync
+  word 0x12, 8-symbol preamble, explicit header, CRC, auto LDRO), `src/board.cpp` (RNG,
+  LittleFS on both MCU families, battery ADC / AXP2101, LED, reboot). All four build:
+  ~80 KB RAM / 540–610 KB flash on ESP32-S3, 70 KB / 170 KB on nRF52840. Pin tables and PMU
+  rails are from memory of the vendors' maps — **verify on hardware**. Created cloud
+  environment "mesh-msg" with the PlatformIO registry hosts allowed.

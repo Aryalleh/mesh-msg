@@ -25,6 +25,15 @@ lib/meshnode/src/    the node application, still pure and host-tested
   node               wires router + MAC + store to a radio and the host link: config,
                      own announces once the host gives the time, backlog to the host
 lib/monocypher/      Monocypher 4.0.2 (X25519, Ed25519), vendored unmodified, CC0/BSD-2
+src/                 the board layer (Arduino / PlatformIO), nothing that decides anything:
+  main                boots the node from flash (identity, config, stored packets) and runs
+                      the radio / host / timer loop; prints decoded headers of every packet
+                      heard until a host attaches over USB serial
+  radio               SX1262 through RadioLib: TX, RX, CAD, presets (8-symbol preamble,
+                      explicit header, CRC, auto LDRO — what the MAC's airtime assumes)
+  board               MCU/board glue: hardware RNG, LittleFS files, battery, LED, PMU
+                      rails (T-Beam), reboot; pins are build flags in platformio.ini
+sim/                 meshnode-sim: real nodes on a simulated radio, one pty per node
 test/                host tests: spec/test-vectors conformance, edge cases, random-input
                      round-trip fuzz, router behaviour + router fuzz, MAC, and a multi-node
                      radio network (real Router + Mac, half-duplex, collisions, CAD), store,
@@ -43,7 +52,32 @@ increments, fragment sets, link frames, identities, announces and receipts, incl
 rebuilding signed packets from their seeds. The compact-text vectors are end-to-end payload
 that nodes never see, so the firmware does not implement them.
 
+## Boards
+
+```
+pio run                          # all four: heltec_v3, tbeam_s3, rak4631, techo
+pio run -e heltec_v3 -t upload   # ESP32-S3 boards: esptool over USB
+pio run -e rak4631 -t upload     # nRF52 boards: double-tap reset, then nrfutil DFU
+pio device monitor               # decoded headers of everything heard
+```
+
+| env | board | notes |
+|---|---|---|
+| `heltec_v3` | Heltec WiFi LoRa 32 V3 | battery ADC on GPIO1 |
+| `tbeam_s3` | LilyGO T-Beam Supreme (ESP32-S3) | AXP2101 PMU powers the radio rail |
+| `rak4631` | RAKwireless RAK4631 (WisBlock) | radio power enable on P1.05 |
+| `techo` | LilyGO T-Echo | e-ink / GPS not driven yet |
+
+The pin tables in `platformio.ini` follow the vendors' schematics and the usual open-source
+pin maps; they are **not yet verified on hardware** (no boards in the build container).
+The default config is EU_868 / BALANCED / 14 dBm / client; change it with
+`mesh lora set …` from meshd. Check local rules before transmitting.
+
+The node identity, config and stored packets live in LittleFS (`/id`, `/cfg`,
+`/s00`–`/s63`); `mesh lora set` persists, `WIPE` formats the file system.
+
 ## Next
 
-The board layer: `platformio.ini` with the
-board environments and the RadioLib radio layer (docs/firmware.md §7, milestone 1).
+Flash two boards and run milestone 1 (docs/firmware.md §7): both print each other's
+headers on the serial monitor. Then meshd on each board's port and `scripts/e2e-lora.sh`'s
+scenario on real radios.
