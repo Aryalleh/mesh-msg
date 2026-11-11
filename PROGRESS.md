@@ -13,15 +13,20 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
 | M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`); board layer builds for all four boards (`pio run`), **not yet run on hardware** |
-| M5–M8 | not started |
+| M5 Android | **in progress** — gomobile binding `mobile/` (package `meshcore`) done and tested in Go incl. the exit scenario; Android app next |
+| M6–M8 | not started |
 
 ## Next step
 
-Hardware. Nothing more can be verified without boards: flash two (`pio run -e heltec_v3 -t
-upload`), check the serial monitor shows each other's headers (milestone 1), fix pin tables
-if a board is silent, then meshd on both ports (milestone 2/3, the e2e script's scenario).
-Until boards are available the next *software* milestone is **M5 Android** (gomobile core,
-BLE mesh, LoRa-over-BLE which also needs the firmware's BLE host link, §6).
+M5 Android (docs/android.md). Done: `mobile/` binding. Next, in order:
+1. Android toolchain in the container (SDK 35, build-tools, NDK; `gomobile bind` → AAR). Needs
+   the user's OK for the Android SDK licence (the auto-accept was blocked).
+2. `android/` Gradle project: Compose UI from the design system (`android/DESIGN.md`),
+   `MeshService` (foreground), BLE mesh transport (GATT server + client → `Core.AddTransport`),
+   LoRa node over USB-OTG serial (`Core.AttachLoRa`); BLE host link needs firmware work (§6).
+3. Build the APK; screenshot tests for the UI (no emulator: the container has no KVM).
+
+M4 hardware bring-up is still open (flash two boards, verify pin tables) — needs boards.
 
 ## Resuming in a fresh container
 
@@ -143,3 +148,18 @@ BLE mesh, LoRa-over-BLE which also needs the firmware's BLE host link, §6).
   ~80 KB RAM / 540–610 KB flash on ESP32-S3, 70 KB / 170 KB on nRF52840. Pin tables and PMU
   rails are from memory of the vendors' maps — **verify on hardware**. Created cloud
   environment "mesh-msg" with the PlatformIO registry hosts allowed.
+
+### 2026-11-11 — M5 start
+- User asked for M5 using the ui-ux-pro-max skill (design system for the app UI).
+- `mobile/` (Go package `meshcore`, for `gomobile bind`): `Open(dataDir, configJSON)`, `Start`,
+  `Stop`, `Wipe` (zero + remove files), `URI`, `Hash`, `Status`, `Chats`, `MarkRead`,
+  `AddContact`/`RenameContact`/`RemoveContact`, `Send`, `Messages` (lists as JSON, as meshd's
+  API), `Listener.OnEvent(json)`; `AddTransport(name, chunk, Transport)` + `PeerUp`/`PeerDown`/
+  `Receive` — a point-to-point router link where Go frames packets (3-byte length) into
+  chunks that fit a GATT write, so Kotlin only moves opaque chunks; `AttachLoRa(name,
+  StreamOpener)` runs the same host link meshd uses over any Kotlin byte stream.
+- `core/node`: `Chats()` (contact + newest message + unread), `MarkRead`, `SetLinkStatus`.
+- Tests (`go test ./mobile`, race-clean): chat between two cores over a fake BLE link with
+  20-byte chunks; **the M5 exit scenario** — offline phone → BLE → gateway phone → relay →
+  desktop and the reply back (negative-checked: fails without the gateway's relay); chunk
+  framing incl. corrupt lengths and reconnect; wipe; bad input.
