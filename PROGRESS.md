@@ -212,4 +212,5 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 - CI workflow `android.yml` (AAR → lint, JVM tests, debug APKs per ABI + universal,
   SHA256SUMS; release on tag). `android/debug.keystore` is a committed public test key so CI
   builds install over each other — a real release key is still M6.
-- Tagged `v0.1.0-alpha1` for the first APK release.
+- Tagged `v0.1.0-alpha2` for the first APK release (`v0.1.0-alpha1` was pushed before the
+  keystore, which the root `.gitignore` excluded; its build fails).

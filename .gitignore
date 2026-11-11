@@ -19,6 +19,7 @@ venv/
 build/
 local.properties
 *.keystore
+!android/debug.keystore
 *.jks
 
 # Firmware (PlatformIO)
