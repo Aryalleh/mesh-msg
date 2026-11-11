@@ -282,7 +282,9 @@ bool Router::send(const uint8_t* raw, size_t n, bool own, Millis now) {
     stats_.hop_limit++;
     return false;
   }
-  if (!schedule(buf, n, p, own, now)) return false;
+  Millis due = now;
+  if (p.type == Type::Announce && cfg_.announce_jitter > 0) due += rand() % cfg_.announce_jitter;
+  if (!schedule(buf, n, p, own, due)) return false;
   seen_.insert(k, now);
   return true;
 }

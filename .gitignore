@@ -32,3 +32,6 @@ identities/
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Android: Go core built by scripts/build-android-core.sh
+android/app/libs/

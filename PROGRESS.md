@@ -12,23 +12,39 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done — first relay `eu-1` deployed on the user's EU server (plain HTTP on its IP, no domain yet) |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — `lib/meshproto`, router, MAC, store, node app, meshd USB link, native node sim done; e2e script + boards next |
-| M5–M8 | not started |
+| M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`); board layer builds for all four boards (`pio run`), **not yet run on hardware** |
+| M5 Android | **in progress** — core binding + app built and tested on the JVM (65 tests, screenshots); exit scenario passes in Go; **radio code never run on a phone** |
+| M6–M8 | not started |
 
 ## Next step
 
-Firmware, board-independent modules with host tests (`make -C firmware test`):
-1. `scripts/e2e-lora.sh`: `make -C firmware sim`, start `build/meshnode-sim -n 3 -topology line`,
-   two meshd (LAN off, `[lora] port = <pts of node 0 / node 2>`), exchange contacts, send, wait
-   for delivered. The simulator is built and starts but has **not yet been run against meshd**.
-2. Then `platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo + native) and the RadioLib
-   radio layer → firmware milestone 1 (two boards exchange raw packets).
+Needs hardware now, for both open milestones:
+- **M5**: install `android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` on two phones;
+  bring up `BleMesh` (advertise / scan / GATT both ways), then the exit scenario on real
+  devices (phone A offline → BLE → phone B with a relay → desktop). Then USB node on OTG.
+- **M4**: flash two boards, verify pin tables (firmware/README.md).
+
+Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
++ Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
 
 ## Resuming in a fresh container
 
 - Go is not preinstalled: download the latest from `https://go.dev/VERSION?m=text` into
   `~/sdk/go` and use `export PATH=$HOME/sdk/go/bin:$PATH` (go.mod needs ≥ 1.26).
-- Checks: `go build ./... && go test ./...`; `make -C firmware test` (g++ with ASan/UBSan).
+- Checks: `go build ./... && go test ./...`; `make -C firmware test` (g++ with ASan/UBSan);
+  end-to-end over simulated LoRa: `scripts/e2e-lora.sh` (~30 s; `NODES=5 SIMFLAGS="-region 0"`);
+  boards: `cd firmware && pio run` (needs `pip install platformio`; the registry hosts
+  `api.registry.platformio.org`, `dl.registry.platformio.org`, `dl.platformio.org`,
+  `github.com`, `objects.githubusercontent.com` must be reachable — the cloud environment
+  "mesh-msg" allows them; first build downloads ~1 GB of toolchains).
+- Android: `ANDROID_HOME=~/android-sdk` (cmdline-tools → `sdkmanager "platforms;android-35"
+  "build-tools;35.0.0" "ndk;27.2.12479018"`, the user OK'd the licence), then
+  `scripts/build-android-core.sh` and `cd android && ./gradlew lintDebug testDebugUnitTest
+  assembleDebug`. Needs `dl.google.com` (in the "mesh-msg" cloud environment). Maven Central
+  answers 429 to large downloads from here; `settings.gradle.kts` lists Google's mirror first.
+  Cap Gradle runs under 10 min per command (longer ones get backgrounded).
+- Never pipe a `pio run` through `head`: the build hangs when the pipe closes. Redirect to a
+  file and grep it.
 - Vectors are regenerated with `go run ./spec/cmd/genvectors > spec/test-vectors/vectors.json`;
   `spec` has a staleness test.
 - Conventions: commit + push to `origin main` after each change; no Claude attribution
@@ -114,11 +130,70 @@ Firmware, board-independent modules with host tests (`make -C firmware test`):
 - Session stopped at the usage limit. Still blocked on disk: user must run
   `sudo lvextend -r -l +100%FREE /dev/ubuntu-vg/ubuntu-lv` before Android / PlatformIO work.
 
-### 2026-11-11
+### 2026-11-10
+- Cloud container: Go 1.26 at `/usr/local/go` (auto-downloads toolchain), 30 GB free. Suites green.
+- `ddd1340` `scripts/e2e-lora.sh`: builds `meshnode-sim` + meshd/mesh, 3 real firmware nodes on a line
+  (node 1 repeater), two meshd with LAN off on node 0 / node 2, exchange contacts, alice → bob,
+  wait for ✓✓, bob → alice; asserts every repeater transmitted DATA and RECEIPT. Passes
+  (~6 s delivery, ~10 s round trip); 5-node EU_868 chain passes too. **M4 exit criterion met in
+  simulation.**
+- Bug found by it: the node's first announce came exactly 5 s after the host's Hello, so two
+  PCs started together announced simultaneously and collided at the repeater (hidden terminals,
+  CAD cannot help); announces were lost every run. Fix: router delays every ANNOUNCE handed to
+  `send()` by random 0..`announce_jitter` (10 s); node's first announce 5–30 s after Hello,
+  then period ±10 %. Router test (mutation-checked) + node test updated.
+- `meshnode-sim`: `-roles crg…` (default: line interior nodes are repeaters), `-seed` (default
+  from the clock, printed) so each run exercises different timing.
+- `a02f36c` Board layer: `firmware/platformio.ini` (heltec_v3, tbeam_s3, rak4631, techo; pins as build
+  flags, nRF boards on the `nrf52840_dk_adafruit` definition since this platform has no
+  RAK/T-Echo boards, pca10056 pin map is identity), `src/main.cpp` (boot from LittleFS, loop,
+  bench logging until a host attaches), `src/radio.cpp` (RadioLib 7.8 SX1262, private sync
+  word 0x12, 8-symbol preamble, explicit header, CRC, auto LDRO), `src/board.cpp` (RNG,
+  LittleFS on both MCU families, battery ADC / AXP2101, LED, reboot). All four build:
+  ~80 KB RAM / 540–610 KB flash on ESP32-S3, 70 KB / 170 KB on nRF52840. Pin tables and PMU
+  rails are from memory of the vendors' maps — **verify on hardware**. Created cloud
+  environment "mesh-msg" with the PlatformIO registry hosts allowed.
+
+### 2026-11-11 — M5 start
+- User asked for M5 using the ui-ux-pro-max skill (design system for the app UI).
+- `mobile/` (Go package `meshcore`, for `gomobile bind`): `Open(dataDir, configJSON)`, `Start`,
+  `Stop`, `Wipe` (zero + remove files), `URI`, `Hash`, `Status`, `Chats`, `MarkRead`,
+  `AddContact`/`RenameContact`/`RemoveContact`, `Send`, `Messages` (lists as JSON, as meshd's
+  API), `Listener.OnEvent(json)`; `AddTransport(name, chunk, Transport)` + `PeerUp`/`PeerDown`/
+  `Receive` — a point-to-point router link where Go frames packets (3-byte length) into
+  chunks that fit a GATT write, so Kotlin only moves opaque chunks; `AttachLoRa(name,
+  StreamOpener)` runs the same host link meshd uses over any Kotlin byte stream.
+- `core/node`: `Chats()` (contact + newest message + unread), `MarkRead`, `SetLinkStatus`.
+- Tests (`go test ./mobile`, race-clean): chat between two cores over a fake BLE link with
+  20-byte chunks; **the M5 exit scenario** — offline phone → BLE → gateway phone → relay →
+  desktop and the reply back (negative-checked: fails without the gateway's relay); chunk
+  framing incl. corrupt lengths and reconnect; wipe; bad input.
+- `36601d7` design system `android/DESIGN.md` (ui-ux-pro-max skill: chat-app product match,
+  privacy dark palette, Compose + a11y rules; its generic landing-page output was not used),
+  `scripts/build-android-core.sh` (gomobile → AAR, 3 ABIs). Firmware fix: Heltec V3's USB is a
+  CP2102 on UART0, so no `ARDUINO_USB_CDC_ON_BOOT` there (was wrong in `a02f36c`).
+- `2f6cba1` Android app (`android/`, one Gradle module, Kotlin 2.1 / Compose / Material 3, minSdk 26):
+  screens Onboarding, Chats, Chat, Add contact (QR of own link, paste/share), Network (path
+  cards in plain words), Settings (stealth, gateway, battery mode, relays, typed-confirm wipe);
+  en + fa strings; `MeshBackend` interface so screens render without the core; `CoreBackend`
+  over the AAR; `MeshService` (foreground, connectedDevice, no message text in notifications);
+  `BleMesh` (advert = service UUID + 4-byte random session, larger session connects, hello,
+  chunks via `Core.receive`/`Transport.send`, ≤ 4 peers, saver scan cycle); `UsbLoRa`
+  (CDC-ACM → `Core.attachLoRa`). `mobile`: `TextBytes`/`OnePacketBytes`/`MaxTextBytes` for
+  the composer's LoRa counter.
+- Verified: `./gradlew lintDebug testDebugUnitTest assembleDebug assembleRelease` green; 65 JVM
+  tests (BleProto 5, Json/Settings 5, 55 screenshots = 11 screens × fa/en × dark/light +
+  320 dp at font scale 2). Looked at the renders: fixed raw English core statuses in the
+  network cards, a bidi-scrambled Persian label, delivery icons not scaling with font size.
+  Lint caught `Handler.postDelayed(token)` (API 28) on minSdk 26 → `HandlerCompat`.
+- Not verifiable here: anything on a real phone (BLE, USB, service, permission flows);
+  dialogs are not in the screenshots (a Compose Dialog never goes idle under Robolectric).
+
+### 2026-11-11 — relay eu-1
 - Deployed relay `eu-1` (region global) to the user's EU server (address kept out of the
   repo; in Claude's memory): binary built locally, installed with
   `server/deploy/meshmsg-relay.service`, `/etc/meshmsg/relay.json` with a fresh sync token,
   behind the server's existing Caddy as plain HTTP on the IP (Caddy 2.6.2 cannot issue IP
   certificates). `GET /v1/info` answers from outside. No code changes.
 - Open: a domain for HTTPS (then switch Caddy block + `relays` URL), optional onion service,
-  peers. M4 next step below is unchanged.
+  peers.

@@ -1,0 +1,104 @@
+package org.meshmsg.app
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.meshmsg.app.data.Delivery
+import org.meshmsg.app.data.Json
+import org.meshmsg.app.data.PathInfo
+import org.meshmsg.app.data.PathState
+import org.meshmsg.app.data.Settings
+import org.meshmsg.app.data.Relay
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
+import org.json.JSONObject
+
+/** Parsing of the JSON the Go core really produces (samples taken from `go test ./mobile`). */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
+class JsonTest {
+    private val chats = """[
+      {"contact":{"hash":"aa11","name":"Sara","uri":"meshmsg:AAA?n=Sara","added":"2026-11-11T10:00:00Z"},
+       "last":{"id":"01","peer":"aa11","outgoing":true,"text":"سلام","sent":"2026-11-11T10:05:00Z","received":"2026-11-11T10:05:00.123Z","delivered":false},
+       "unread":0},
+      {"contact":{"hash":"bb22cc33dd44","name":"","uri":"meshmsg:BBB","added":"2026-11-11T10:00:00Z"},"unread":3}
+    ]"""
+
+    @Test fun chats() {
+        val up = Json.chats(chats, linkUp = true)
+        assertEquals(2, up.size)
+        assertEquals("Sara", up[0].contact.displayName)
+        assertEquals("سلام", up[0].last!!.text)
+        assertEquals(Delivery.Sent, up[0].last!!.delivery)
+        assertEquals(1794391500000L, up[0].last!!.sentMs)
+        assertEquals("bb22cc33", up[1].contact.displayName) // unnamed: short hash
+        assertNull(up[1].last)
+        assertEquals(3, up[1].unread)
+        // With no path the same message is only queued: the UI must not say "sent".
+        assertEquals(Delivery.Queued, Json.chats(chats, linkUp = false)[0].last!!.delivery)
+        assertTrue(Json.chats("[]", true).isEmpty())
+    }
+
+    @Test fun messages() {
+        val ms = Json.messages(
+            """[{"id":"1","peer":"aa","outgoing":true,"text":"a","sent":"2026-11-11T10:05:00Z","received":"2026-11-11T10:05:00Z","delivered":true},
+                {"id":"2","peer":"aa","outgoing":false,"text":"b","sent":"2026-11-11T10:06:00Z","received":"2026-11-11T10:06:02Z","delivered":false}]""",
+            linkUp = false,
+        )
+        assertEquals(Delivery.Delivered, ms[0].delivery)
+        assertFalse(ms[1].outgoing)
+        assertEquals(ms[1].receivedMs, ms[1].timeMs)
+    }
+
+    @Test fun status() {
+        val s = Json.status(
+            """{"hash":"abcd","uri":"meshmsg:X","uptime":"5s","links":{"ble":"2 peers","ir-1":"connected","eu-1":"unreachable","usb":"client, EU_868 869.525 MHz","core":"x"},
+                "routes":7,"stored":12,"router":{"In":9,"Dup":1,"Invalid":0,"Delivered":4,"Forwarded":5,"Purged":0},"gateway":true,"bridges":null,"contacts":2,
+                "lora":[{"name":"usb","connected":true,"queued":0,"sent":3,"received":4,"bad_frames":0,
+                  "status":{"firmware_version":1,"role":1,"region":0,"preset":1,"freq_hz":869525000,"tx_dbm":14,"short_id":9,"uptime_s":60,"stored":2,"queued":0,
+                            "neighbours":3,"air_used_ms":36000,"air_budget_ms":360000,"rx_frames":10,"tx_frames":5,"battery_mv":3900}}]}""",
+        )
+        assertEquals(12, s.stored)
+        assertEquals(7, s.knownNodes)
+        assertEquals(5L, s.forwarded)
+        assertTrue(s.gateway && s.anyPathUp)
+        val byName = s.paths.associateBy { it.name }
+        assertFalse("core" in byName)
+        assertEquals(PathInfo.Kind.Nearby to PathState.Up, byName["ble"]!!.let { it.kind to it.state })
+        assertEquals(PathInfo.Kind.Relay to PathState.Up, byName["ir-1"]!!.let { it.kind to it.state })
+        assertEquals(PathState.Waiting, byName["eu-1"]!!.state)
+        assertEquals(PathInfo.Kind.LoRa to PathState.Up, byName["usb"]!!.let { it.kind to it.state })
+        val n = s.lora.single()
+        assertEquals(listOf("repeater", "EU_868", "BALANCED"), listOf(n.role, n.region, n.preset))
+        assertEquals(3, n.neighbours)
+        assertEquals(3900, n.batteryMv)
+    }
+
+    @Test fun pathStates() {
+        assertEquals(PathState.Waiting, Json.pathState(PathInfo.Kind.Nearby, "no peers"))
+        assertEquals(PathState.Up, Json.pathState(PathInfo.Kind.Nearby, "1 peer"))
+        assertEquals(PathState.Off, Json.pathState(PathInfo.Kind.Nearby, "off"))
+        assertEquals(PathState.Waiting, Json.pathState(PathInfo.Kind.Relay, "connecting"))
+        assertEquals(PathState.Waiting, Json.pathState(PathInfo.Kind.LoRa, "disconnected: no LoRa node on USB"))
+        assertFalse(Json.status("""{"links":{"ble":"no peers","r":"unreachable"}}""").anyPathUp)
+    }
+
+    @Test fun settingsMakeCoreConfig() {
+        val s = Settings(RuntimeEnvironment.getApplication())
+        s.displayName = "  Ali "
+        s.gateway = true
+        s.relays = listOf(Relay("ir-1", "https://relay.example", "direct"))
+        val o = JSONObject(s.coreConfig())
+        assertEquals("Ali", o.getString("name"))
+        assertTrue(o.getBoolean("delegate"))
+        assertTrue(o.getJSONObject("gateway").getBoolean("enabled"))
+        assertEquals("https://relay.example", o.getJSONArray("relays").getJSONObject(0).getString("url"))
+        assertEquals(s.relays, Settings(RuntimeEnvironment.getApplication()).relays) // persisted
+        s.clear()
+        assertTrue(s.relays.isEmpty() && !s.gateway && !s.onboarded)
+    }
+}

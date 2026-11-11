@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">mesh-msg</string>
+
+    <!-- Navigation -->
+    <string name="nav_chats">Chats</string>
+    <string name="nav_network">Network</string>
+    <string name="nav_settings">Settings</string>
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+
+    <!-- Chats -->
+    <string name="chats_empty_title">No chats yet</string>
+    <string name="chats_empty_body">Add someone by their mesh-msg link. They need to add yours too — do it in person if you can.</string>
+    <string name="add_contact">Add contact</string>
+    <string name="chat_no_messages">No messages yet</string>
+    <plurals name="unread_count">
+        <item quantity="one">%1$d unread message</item>
+        <item quantity="other">%1$d unread messages</item>
+    </plurals>
+    <string name="no_path_banner">No path right now. Messages wait on this phone and go out when a phone, a LoRa node or a relay is in reach.</string>
+
+    <!-- Chat -->
+    <string name="message_hint">Message</string>
+    <string name="send">Send</string>
+    <string name="chat_empty">Messages are end-to-end encrypted. Short messages travel further over LoRa.</string>
+    <string name="delivery_queued">Waiting on this phone</string>
+    <string name="delivery_sent">Handed to the mesh</string>
+    <string name="delivery_delivered">Delivered</string>
+    <plurals name="bytes_left">
+        <item quantity="one">%1$d byte left for one LoRa packet</item>
+        <item quantity="other">%1$d bytes left for one LoRa packet</item>
+    </plurals>
+    <string name="bytes_over">Too long for one LoRa packet: it will be split or need another path</string>
+    <string name="send_failed">Could not send: %1$s</string>
+    <string name="more_options">More options</string>
+    <string name="rename">Rename</string>
+    <string name="remove_contact">Remove contact</string>
+    <string name="remove_contact_title">Remove %1$s?</string>
+    <string name="remove_contact_body">You will no longer be able to read messages from this contact. The message history stays on this phone.</string>
+    <string name="remove">Remove</string>
+    <string name="contact_name">Name</string>
+    <string name="today">Today</string>
+    <string name="yesterday">Yesterday</string>
+
+    <!-- Add contact -->
+    <string name="my_link_title">Your link</string>
+    <string name="my_link_body">Show this code or send the link. Anyone who has it can write to you.</string>
+    <string name="qr_description">QR code of your mesh-msg link</string>
+    <string name="copy_link">Copy link</string>
+    <string name="share_link">Share</string>
+    <string name="link_copied">Link copied</string>
+    <string name="their_link_title">Their link</string>
+    <string name="their_link_label">Link (meshmsg:…)</string>
+    <string name="their_link_helper">Paste the link your contact sent you.</string>
+    <string name="paste">Paste</string>
+    <string name="name_optional_label">Name (optional)</string>
+    <string name="name_optional_helper">Only stored on this phone.</string>
+    <string name="link_invalid">This is not a mesh-msg link. It starts with meshmsg: — copy it again in full.</string>
+    <string name="link_is_yours">This is your own link.</string>
+
+    <!-- Network -->
+    <string name="network_summary_up">Messages can travel now</string>
+    <string name="network_summary_down">No path right now</string>
+    <string name="network_summary_down_body">Messages wait on this phone until another phone, a LoRa node or a relay is in reach.</string>
+    <string name="path_nearby">Nearby phones</string>
+    <string name="path_lora">LoRa node</string>
+    <string name="path_relay">Internet relay</string>
+    <string name="path_state_up">Connected</string>
+    <string name="path_state_waiting">Searching</string>
+    <string name="path_state_off">Off</string>
+    <string name="nearby_off_body">Turn on Bluetooth and allow the permission to mesh with phones around you.</string>
+    <string name="relay_none_body">No relay set. Add one in Settings if you have any internet (domestic network, VPN, Starlink).</string>
+    <string name="lora_none_body">No LoRa node. Plug one in with a USB cable to reach people kilometres away.</string>
+    <plurals name="nearby_phones">
+        <item quantity="one">%1$d phone connected</item>
+        <item quantity="other">%1$d phones connected</item>
+    </plurals>
+    <string name="nearby_searching">Looking for phones around you. The other phone needs mesh-msg running too.</string>
+    <string name="relay_up">Reachable</string>
+    <string name="relay_waiting">Can\'t reach it right now. Will keep trying.</string>
+    <string name="lora_waiting">Waiting for the node to answer</string>
+    <string name="connect_usb_node">Connect USB node</string>
+    <string name="allow_bluetooth">Allow Bluetooth</string>
+    <string name="stats_title">This phone</string>
+    <string name="stat_stored">Carried for others</string>
+    <plurals name="stat_stored_value">
+        <item quantity="one">%1$d packet</item>
+        <item quantity="other">%1$d packets</item>
+    </plurals>
+    <string name="stat_known">Known people and nodes</string>
+    <string name="stat_forwarded">Passed on</string>
+    <string name="stat_gateway">Gateway</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="lora_role">Role</string>
+    <string name="lora_region">Region</string>
+    <string name="lora_preset">Speed / range</string>
+    <string name="lora_neighbours">Nodes in range</string>
+    <string name="lora_airtime">Airtime used this hour</string>
+    <string name="lora_battery">Battery</string>
+    <string name="lora_region_warning">Check your local radio rules before you transmit.</string>
+    <string name="percent">%1$d%%</string>
+    <string name="millivolts">%1$d mV</string>
+
+    <!-- Settings -->
+    <string name="settings_identity">Identity</string>
+    <string name="settings_name_label">Display name (optional)</string>
+    <string name="settings_name_helper">Sent with your announces so contacts see it. Leave empty to stay anonymous.</string>
+    <string name="settings_your_id">Your ID</string>
+    <string name="settings_mesh">Mesh</string>
+    <string name="settings_stealth">Stealth mode</string>
+    <string name="settings_stealth_body">This phone stops announcing itself over Bluetooth. It can still find others.</string>
+    <string name="settings_gateway">Share my internet with the mesh</string>
+    <string name="settings_gateway_body">When a relay is in reach, carry messages for people around you. They stay encrypted.</string>
+    <string name="settings_battery">Battery use</string>
+    <string name="battery_active">Active — always meshing</string>
+    <string name="battery_saver">Saver — short scans every few minutes</string>
+    <string name="battery_off">Off — only while the app is open</string>
+    <string name="settings_relays">Relays</string>
+    <string name="settings_relays_empty">No relays. The app works without them over Bluetooth and LoRa.</string>
+    <string name="relay_add">Add relay</string>
+    <string name="relay_name_label">Name</string>
+    <string name="relay_url_label">Address (https://…)</string>
+    <string name="relay_url_invalid">The address must start with https:// or http://</string>
+    <string name="relay_remove">Remove relay %1$s</string>
+    <string name="settings_danger">Danger zone</string>
+    <string name="wipe">Erase everything</string>
+    <string name="wipe_body">Deletes your identity, contacts and messages from this phone. This cannot be undone.</string>
+    <string name="wipe_confirm_title">Erase everything?</string>
+    <string name="wipe_confirm_body">Your identity will be destroyed: nobody can write to this link again, and messages on the way to you are lost. Type ERASE to confirm.</string>
+    <string name="wipe_confirm_word">ERASE</string>
+    <string name="wipe_confirm_label">Type %1$s</string>
+
+    <!-- Onboarding -->
+    <string name="onb_title">Messages without the internet</string>
+    <string name="onb_body">mesh-msg passes encrypted messages from phone to phone over Bluetooth, over LoRa radios, and through relays when any internet exists.</string>
+    <string name="onb_point_identity">No phone number, no account. Your identity is a key that stays on this phone.</string>
+    <string name="onb_point_mesh">Your phone also carries sealed messages for others. It cannot read them.</string>
+    <string name="onb_point_perm">Bluetooth permission is needed to find phones nearby. Location is not used.</string>
+    <string name="onb_start">Create my identity</string>
+
+    <!-- Service notification -->
+    <string name="notif_channel_mesh">Mesh running</string>
+    <string name="notif_channel_messages">Messages</string>
+    <string name="notif_mesh_title">mesh-msg is running</string>
+    <string name="notif_mesh_up">Connected to the mesh</string>
+    <string name="notif_mesh_down">Looking for a path</string>
+    <string name="notif_new_message">New message</string>
+    <string name="usb_no_device">No LoRa node found on USB.</string>
+</resources>

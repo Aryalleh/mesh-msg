@@ -459,6 +459,47 @@ void fuzz() {
   CHECK(r->stats().dup > 1000 && r->stats().sent > 100);
 }
 
+// Announces handed to send() wait a random 0..announce_jitter, so two nodes
+// announcing at the same moment do not collide at a hidden repeater; DATA does
+// not wait.
+void announce_jitter() {
+  Millis first_due = 0;
+  bool differ = false;
+  for (uint32_t seed = 1; seed <= 8; seed++) {
+    auto c = quiet();
+    c.seed = seed;
+    auto r = std::make_unique<Router>(c);
+    Bytes an = packet(mesh::Type::Announce, 0x30);
+    Bytes d = packet(mesh::Type::Data, 0x40);
+    CHECK(r->send(an.data(), an.size(), true, 1000));
+    CHECK(r->send(d.data(), d.size(), true, 1000));
+    Frame f;
+    Millis next = 0;
+    CHECK(r->poll(1000, f, &next) && f.prio == Priority::Data);
+    Millis due = mesh::route::kNever;
+    for (Millis t = 1000; t < 1000 + c.announce_jitter; t += 50)
+      if (r->poll(t, f, &next)) {
+        CHECK(f.prio == Priority::Announce);
+        due = t;
+        break;
+      }
+    CHECK(due != mesh::route::kNever);
+    if (seed == 1)
+      first_due = due;
+    else if (due != first_due)
+      differ = true;
+  }
+  CHECK(differ);
+  // Jitter 0: immediate.
+  auto c = quiet();
+  c.announce_jitter = 0;
+  Router r(c);
+  Bytes an = packet(mesh::Type::Announce, 0x50);
+  CHECK(r.send(an.data(), an.size(), true, 1000));
+  Frame f;
+  CHECK(r.poll(1000, f, nullptr) && f.prio == Priority::Announce);
+}
+
 }  // namespace
 
 void run_route() {
@@ -471,5 +512,6 @@ void run_route() {
   own_packets_and_retries();
   pending_full();
   announces_and_receipts();
+  announce_jitter();
   fuzz();
 }

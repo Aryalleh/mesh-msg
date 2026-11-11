@@ -7,3 +7,5 @@
   "Next step" accurate; append to "Log".
 - No Claude attribution lines (Co-Authored-By etc.) in commits or PRs.
 - Checks before committing: `go build ./... && go test ./...` and `make -C firmware test`.
+- If `android/` or `mobile/` changed: `scripts/build-android-core.sh` then
+  `cd android && ./gradlew lintDebug testDebugUnitTest assembleDebug` (see PROGRESS.md for the toolchain).

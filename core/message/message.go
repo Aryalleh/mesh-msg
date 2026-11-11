@@ -123,3 +123,14 @@ func (r *Reassembler) Add(p *packet.Packet, now time.Time) (*packet.Packet, erro
 	}
 	return packet.Reassemble(list)
 }
+
+// OnePacketTextBytes is how many encoded text bytes fit in a single LoRa
+// frame to a known contact (Noise K); longer texts are fragmented.
+const OnePacketTextBytes = packet.LoRaMTU - packet.HeaderSize - e2e.OverheadK - e2e.InnerHeader
+
+// TextBytes is the encoded size of text (Persian is compacted by textenc),
+// to compare with OnePacketTextBytes and MaxTextBytes.
+func TextBytes(text string) int {
+	_, b := textenc.Encode(text)
+	return len(b)
+}

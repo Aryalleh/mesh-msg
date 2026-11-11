@@ -144,34 +144,25 @@ They are starting points, not legal advice: **check local rules before transmitt
 
 ```
 firmware/
-  platformio.ini            envs: heltec_v3, tbeam_s3, rak4631, techo
-  src/
-    main.cpp                setup + cooperative loop / FreeRTOS tasks
-    hal/                    Board pins, power, LED, display, battery ADC
-    radio/RadioIface        RadioLib SX1262 wrapper: TX, RX, CAD, presets
-    proto/PacketCodec       outer header encode/decode (spec/ test vectors)
-    proto/Announce          sign/verify announces, receipts (Monocypher Ed25519)
-    route/Router            route table, dedup cache, forwarding decision
-    route/Summary           Bloom filter build/merge
-    store/PacketStore       LittleFS ring buffer, expiry, quotas
-    mac/Airtime             listen-before-talk (CAD), random backoff, duty-cycle budget
-    link/PhoneLinkBle       GATT service (RX/TX characteristics) + framing
-    link/PhoneLinkSerial    USB-CDC framing (same protocol as BLE)
-    uplink/UplinkManager    picks/merges uplinks, groups by session, dedup (§2b)
-    uplink/WifiUplink       direct HTTPS/WS to relay
-    uplink/EthUplink        W5500
-    uplink/CellUplink       LTE modem (AT commands over UART)
-    uplink/TunnelUplink     gateway session tunnelled via phone (BLE) or PC (USB)
-    config/Config           NVS/flash config, BLE/serial config commands
-  test/                     native unit tests (PlatformIO `native` env)
+  platformio.ini            envs: heltec_v3, tbeam_s3, rak4631, techo (pins as build flags)
+  src/                      the board layer (Arduino), moves bytes only
+    main.cpp                boot from LittleFS, radio / host / timer loop, bench logging
+    radio                   RadioLib SX1262: TX, RX, CAD, presets, retune
+    board                   RNG, LittleFS files, battery, LED, PMU rails, reboot
+  lib/meshproto/            pure C++17, no heap, no Arduino: packet codec, SHA-256,
+                            identity, announce/receipt (spec/test-vectors conformance)
+  lib/meshroute/            managed-flood router, MAC (airtime, duty cycle, CAD), store
+  lib/meshnode/             host link (COBS stream shared with core/hostlink) + node::Node
+  lib/monocypher/           X25519 / Ed25519
+  sim/                      meshnode-sim: real nodes on a simulated radio, ptys for meshd
+  test/                     host tests (`make test`, ASan/UBSan)
 ```
 
-The `proto/` and `route/` modules are pure C++ with no Arduino dependencies so they run in
-the `native` test env and can be fuzzed. As built, the protocol layer lives in
-`lib/meshproto/` (packet codec, SHA-256, identity, announce/receipt) and the managed-flood
-router, MAC and store in `lib/meshroute/` (§2a, §5), the node application and host link in
-`lib/meshnode/`, with Monocypher vendored in `lib/monocypher/`; `make -C firmware test` checks it against `spec/test-vectors/` on the
-host.
+Everything that decides anything is in `lib/` and runs on the host: `node::Node` takes
+received frames, host bytes and the time, and says what to transmit, when to do CAD and what
+to send to the host. `src/` is the only Arduino code. Planned, not yet built: the BLE phone
+link (§6), direct uplinks (§2b: Wi-Fi, Ethernet, cellular), display and GPS, deep sleep for
+the solar repeater.
 
 ## 4. Radio presets
 
