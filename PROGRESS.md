@@ -10,7 +10,7 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 |---|---|
 | M0 Spec | done — Go core and C++ firmware library both pass `spec/test-vectors/vectors.json` |
 | M1 Core + sim | done |
-| M2 Relay | done — first relay `eu-1` deployed on the user's EU server (plain HTTP on its IP, no domain yet) |
+| M2 Relay | done — relay `eu-1` (`http://87.106.5.192`, plain HTTP, no domain yet) runs and is the default relay in meshd and the Android app |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
 | M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`); board layer builds for all four boards (`pio run`), **not yet run on hardware** |
 | M5 Android | **in progress** — core binding + app built and tested on the JVM (65 tests, screenshots); exit scenario passes in Go; **radio code never run on a phone** |
@@ -43,6 +43,9 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   assembleDebug`. Needs `dl.google.com` (in the "mesh-msg" cloud environment). Maven Central
   answers 429 to large downloads from here; `settings.gradle.kts` lists Google's mirror first.
   Cap Gradle runs under 10 min per command (longer ones get backgrounded).
+- CI: `.github/workflows/android.yml` builds the AAR + APKs on every push to main; pushing a
+  tag `v*` publishes the APKs as a GitHub release. The local machine's disk is full, so
+  Android builds happen there.
 - Never pipe a `pio run` through `head`: the build hangs when the pipe closes. Redirect to a
   file and grep it.
 - Vectors are regenerated with `go run ./spec/cmd/genvectors > spec/test-vectors/vectors.json`;
@@ -197,3 +200,16 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   certificates). `GET /v1/info` answers from outside. No code changes.
 - Open: a domain for HTTPS (then switch Caddy block + `relays` URL), optional onion service,
   peers.
+
+### 2026-11-11 — merge, default relay, APK release
+- Merged the cloud branch `ccr-23656715-q9ut0d` (M4 e2e, board layer, M5 app) into main
+  (`e507654`); only conflict was this file's log. Go, firmware suites green after the merge.
+- User asked for the EU server as the default everywhere, so its IP is now in the repo:
+  meshd's generated config has an active `[[relay]] eu-1 http://87.106.5.192` (existing
+  config files are not touched); Android `Settings.relays` returns `DEFAULT_RELAYS` until the
+  user edits the list (removing it sticks); `network_security_config.xml` allows cleartext only
+  to that IP. Tests: `TestDefaultConfigParses`, `JsonTest.settingsMakeCoreConfig`.
+- CI workflow `android.yml` (AAR → lint, JVM tests, debug APKs per ABI + universal,
+  SHA256SUMS; release on tag). `android/debug.keystore` is a committed public test key so CI
+  builds install over each other — a real release key is still M6.
+- Tagged `v0.1.0-alpha1` for the first APK release.

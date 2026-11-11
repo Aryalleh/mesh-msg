@@ -34,6 +34,17 @@ android {
         androidResources.localeFilters += listOf("en", "fa")
     }
 
+    // A shared, public debug key (android/debug.keystore) so test APKs from CI
+    // install over each other. It is NOT a release key: anyone can sign with it.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true

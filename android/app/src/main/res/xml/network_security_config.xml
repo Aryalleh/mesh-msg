@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HTTPS everywhere, except the default relay eu-1, which has no domain (and so no
+     certificate) yet. Its traffic is end-to-end encrypted packets only. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">87.106.5.192</domain>
+    </domain-config>
+</network-security-config>

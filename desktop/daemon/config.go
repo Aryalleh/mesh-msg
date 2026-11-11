@@ -36,15 +36,17 @@ ui = "127.0.0.1:7878"
 
 # Relays you can reach. "via" selects the network path:
 #   "direct", "tor", or a proxy such as "socks5://127.0.0.1:1080" (VPN client).
+# eu-1 is the project's default relay (plain HTTP for now; messages are
+# end-to-end encrypted either way).
+[[relay]]
+name = "eu-1"
+url  = "http://87.106.5.192"
+via  = "direct"
+
 # [[relay]]
 # name = "ir-1"
 # url  = "https://relay-ir.example"
 # via  = "direct"
-#
-# [[relay]]
-# name = "eu-1"
-# url  = "https://relay-eu.example"
-# via  = "socks5://127.0.0.1:1080"
 
 # Gateway: carry relay traffic into your local mesh (LAN / LoRa).
 [gateway]

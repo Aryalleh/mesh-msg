@@ -9,6 +9,9 @@ import org.json.JSONObject
 /** A relay the phone may reach. via: "direct", "tor" or a proxy URL. */
 data class Relay(val name: String, val url: String, val via: String = "direct")
 
+/** The project's default relay, used until the user edits the relay list. */
+val DEFAULT_RELAYS = listOf(Relay("eu-1", "http://87.106.5.192"))
+
 enum class BatteryMode { Active, Saver, Off }
 
 /** User settings (not secret: keys and messages live in the Go core's files). */
@@ -39,10 +42,13 @@ class Settings(context: Context) {
         set(v) = p.edit { putString("battery", v.name) }
 
     var relays: List<Relay>
-        get() = runCatching {
-            val a = JSONArray(p.getString("relays", "[]"))
-            List(a.length()) { a.getJSONObject(it).let { o -> Relay(o.getString("name"), o.getString("url"), o.optString("via", "direct")) } }
-        }.getOrDefault(emptyList())
+        get() {
+            val json = p.getString("relays", null) ?: return DEFAULT_RELAYS
+            return runCatching {
+                val a = JSONArray(json)
+                List(a.length()) { a.getJSONObject(it).let { o -> Relay(o.getString("name"), o.getString("url"), o.optString("via", "direct")) } }
+            }.getOrDefault(emptyList())
+        }
         set(v) {
             val a = JSONArray()
             v.forEach { a.put(JSONObject().put("name", it.name).put("url", it.url).put("via", it.via)) }

@@ -10,6 +10,7 @@ import org.meshmsg.app.data.Delivery
 import org.meshmsg.app.data.Json
 import org.meshmsg.app.data.PathInfo
 import org.meshmsg.app.data.PathState
+import org.meshmsg.app.data.DEFAULT_RELAYS
 import org.meshmsg.app.data.Settings
 import org.meshmsg.app.data.Relay
 import org.robolectric.RobolectricTestRunner
@@ -89,6 +90,7 @@ class JsonTest {
 
     @Test fun settingsMakeCoreConfig() {
         val s = Settings(RuntimeEnvironment.getApplication())
+        assertEquals(listOf(Relay("eu-1", "http://87.106.5.192")), s.relays) // default relay
         s.displayName = "  Ali "
         s.gateway = true
         s.relays = listOf(Relay("ir-1", "https://relay.example", "direct"))
@@ -99,6 +101,8 @@ class JsonTest {
         assertEquals("https://relay.example", o.getJSONArray("relays").getJSONObject(0).getString("url"))
         assertEquals(s.relays, Settings(RuntimeEnvironment.getApplication()).relays) // persisted
         s.clear()
-        assertTrue(s.relays.isEmpty() && !s.gateway && !s.onboarded)
+        assertTrue(s.relays == DEFAULT_RELAYS && !s.gateway && !s.onboarded)
+        s.relays = emptyList() // removing the default sticks
+        assertTrue(Settings(RuntimeEnvironment.getApplication()).relays.isEmpty())
     }
 }
