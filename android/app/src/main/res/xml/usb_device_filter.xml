@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- USB CDC-ACM devices (ESP32-S3 native USB, nRF52 TinyUSB): class 2 = communications. -->
+<resources>
+    <usb-device class="2" />
+</resources>

@@ -27,6 +27,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/Aryalleh/mesh-msg/core/message"
 	"github.com/Aryalleh/mesh-msg/core/node"
 	"github.com/Aryalleh/mesh-msg/core/packet"
 	"github.com/Aryalleh/mesh-msg/core/router"
@@ -488,3 +489,15 @@ func (r *streamRW) Write(p []byte) (int, error) {
 }
 
 func (r *streamRW) Close() error { return r.s.Close() }
+
+// ---- text size (for the composer's counter) ----
+
+// TextBytes is the size of text as it travels (Persian is stored compactly).
+func TextBytes(text string) int { return message.TextBytes(text) }
+
+// OnePacketBytes is how many text bytes fit in one LoRa packet; shorter
+// messages need a single transmission per hop.
+func OnePacketBytes() int { return message.OnePacketTextBytes }
+
+// MaxTextBytes is the longest text Send accepts.
+func MaxTextBytes() int { return message.MaxTextBytes }

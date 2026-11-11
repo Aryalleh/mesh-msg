@@ -1,0 +1,65 @@
+package org.meshmsg.app.data
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.core.content.edit
+import org.json.JSONArray
+import org.json.JSONObject
+
+/** A relay the phone may reach. via: "direct", "tor" or a proxy URL. */
+data class Relay(val name: String, val url: String, val via: String = "direct")
+
+enum class BatteryMode { Active, Saver, Off }
+
+/** User settings (not secret: keys and messages live in the Go core's files). */
+class Settings(context: Context) {
+    private val p: SharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+
+    var onboarded: Boolean
+        get() = p.getBoolean("onboarded", false)
+        set(v) = p.edit { putBoolean("onboarded", v) }
+
+    /** Optional display name sent in announces; empty = anonymous. */
+    var displayName: String
+        get() = p.getString("name", "") ?: ""
+        set(v) = p.edit { putString("name", v.trim()) }
+
+    /** Carry other people's traffic between relays and the mesh around this phone. */
+    var gateway: Boolean
+        get() = p.getBoolean("gateway", false)
+        set(v) = p.edit { putBoolean("gateway", v) }
+
+    /** No BLE advertising: the phone is not discoverable (docs/android.md §8). */
+    var stealth: Boolean
+        get() = p.getBoolean("stealth", false)
+        set(v) = p.edit { putBoolean("stealth", v) }
+
+    var batteryMode: BatteryMode
+        get() = runCatching { BatteryMode.valueOf(p.getString("battery", "") ?: "") }.getOrDefault(BatteryMode.Active)
+        set(v) = p.edit { putString("battery", v.name) }
+
+    var relays: List<Relay>
+        get() = runCatching {
+            val a = JSONArray(p.getString("relays", "[]"))
+            List(a.length()) { a.getJSONObject(it).let { o -> Relay(o.getString("name"), o.getString("url"), o.optString("via", "direct")) } }
+        }.getOrDefault(emptyList())
+        set(v) {
+            val a = JSONArray()
+            v.forEach { a.put(JSONObject().put("name", it.name).put("url", it.url).put("via", it.via)) }
+            p.edit { putString("relays", a.toString()) }
+        }
+
+    /** The node config the Go core is opened with (mobile/meshcore.go Open). */
+    fun coreConfig(): String {
+        val relays = JSONArray()
+        this.relays.forEach { relays.put(JSONObject().put("name", it.name).put("url", it.url).put("via", it.via)) }
+        return JSONObject()
+            .put("name", displayName)
+            .put("delegate", true)
+            .put("relays", relays)
+            .put("gateway", JSONObject().put("enabled", gateway).put("mode", "targeted").put("quota_kb_per_hour", 512))
+            .toString()
+    }
+
+    fun clear() = p.edit { clear() }
+}

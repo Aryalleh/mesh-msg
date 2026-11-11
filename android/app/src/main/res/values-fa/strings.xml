@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">mesh-msg</string>
+
+    <string name="nav_chats">گفتگوها</string>
+    <string name="nav_network">شبکه</string>
+    <string name="nav_settings">تنظیمات</string>
+    <string name="back">بازگشت</string>
+    <string name="cancel">انصراف</string>
+    <string name="save">ذخیره</string>
+
+    <string name="chats_empty_title">هنوز گفتگویی نیست</string>
+    <string name="chats_empty_body">با پیوند mesh-msg کسی را اضافه کنید. او هم باید پیوند شما را اضافه کند؛ اگر می‌شود حضوری این کار را بکنید.</string>
+    <string name="add_contact">افزودن مخاطب</string>
+    <string name="chat_no_messages">هنوز پیامی نیست</string>
+    <plurals name="unread_count">
+        <item quantity="one">%1$d پیام خوانده‌نشده</item>
+        <item quantity="other">%1$d پیام خوانده‌نشده</item>
+    </plurals>
+    <string name="no_path_banner">الان مسیری نیست. پیام‌ها روی همین گوشی می‌مانند و وقتی گوشی دیگر، نود LoRa یا رله‌ای در دسترس باشد فرستاده می‌شوند.</string>
+
+    <string name="message_hint">پیام</string>
+    <string name="send">فرستادن</string>
+    <string name="chat_empty">پیام‌ها سرتاسر رمز می‌شوند. پیام کوتاه روی LoRa دورتر می‌رود.</string>
+    <string name="delivery_queued">در انتظار روی این گوشی</string>
+    <string name="delivery_sent">به شبکه سپرده شد</string>
+    <string name="delivery_delivered">تحویل شد</string>
+    <plurals name="bytes_left">
+        <item quantity="one">%1$d بایت تا پر شدن یک بسته‌ی LoRa</item>
+        <item quantity="other">%1$d بایت تا پر شدن یک بسته‌ی LoRa</item>
+    </plurals>
+    <string name="bytes_over">برای یک بسته‌ی LoRa بلند است: تکه‌تکه می‌شود یا مسیر دیگری لازم دارد</string>
+    <string name="send_failed">فرستاده نشد: %1$s</string>
+    <string name="more_options">گزینه‌های بیشتر</string>
+    <string name="rename">تغییر نام</string>
+    <string name="remove_contact">حذف مخاطب</string>
+    <string name="remove_contact_title">%1$s حذف شود؟</string>
+    <string name="remove_contact_body">دیگر نمی‌توانید پیام‌های این مخاطب را بخوانید. تاریخچه‌ی پیام‌ها روی این گوشی می‌ماند.</string>
+    <string name="remove">حذف</string>
+    <string name="contact_name">نام</string>
+    <string name="today">امروز</string>
+    <string name="yesterday">دیروز</string>
+
+    <string name="my_link_title">پیوند شما</string>
+    <string name="my_link_body">این کد را نشان دهید یا پیوند را بفرستید. هر کس آن را داشته باشد می‌تواند به شما پیام بدهد.</string>
+    <string name="qr_description">کد QR پیوند mesh-msg شما</string>
+    <string name="copy_link">رونوشت پیوند</string>
+    <string name="share_link">هم‌رسانی</string>
+    <string name="link_copied">پیوند رونوشت شد</string>
+    <string name="their_link_title">پیوند مخاطب</string>
+    <string name="their_link_label">پیوند مخاطب</string>
+    <string name="their_link_helper">پیوندی را که مخاطب برایتان فرستاده اینجا بچسبانید.</string>
+    <string name="paste">چسباندن</string>
+    <string name="name_optional_label">نام (اختیاری)</string>
+    <string name="name_optional_helper">فقط روی همین گوشی ذخیره می‌شود.</string>
+    <string name="link_invalid">این پیوند mesh-msg نیست. پیوند با meshmsg: شروع می‌شود؛ دوباره و کامل رونوشت کنید.</string>
+    <string name="link_is_yours">این پیوند خود شماست.</string>
+
+    <string name="network_summary_up">پیام‌ها الان می‌توانند بروند</string>
+    <string name="network_summary_down">الان مسیری نیست</string>
+    <string name="network_summary_down_body">پیام‌ها روی این گوشی می‌مانند تا گوشی دیگر، نود LoRa یا رله‌ای در دسترس باشد.</string>
+    <string name="path_nearby">گوشی‌های نزدیک</string>
+    <string name="path_lora">نود LoRa</string>
+    <string name="path_relay">رله‌ی اینترنتی</string>
+    <string name="path_state_up">وصل</string>
+    <string name="path_state_waiting">در حال جستجو</string>
+    <string name="path_state_off">خاموش</string>
+    <string name="nearby_off_body">بلوتوث را روشن کنید و اجازه بدهید تا با گوشی‌های اطراف شبکه بسازید.</string>
+    <string name="relay_none_body">رله‌ای تنظیم نشده. اگر هر نوع اینترنتی دارید (شبکه‌ی داخلی، VPN، استارلینک) در تنظیمات اضافه کنید.</string>
+    <string name="lora_none_body">نود LoRa وصل نیست. با کابل USB وصل کنید تا به افراد در چند کیلومتری برسید.</string>
+    <plurals name="nearby_phones">
+        <item quantity="one">%1$d گوشی وصل است</item>
+        <item quantity="other">%1$d گوشی وصل است</item>
+    </plurals>
+    <string name="nearby_searching">در جستجوی گوشی‌های اطراف. گوشی دیگر هم باید mesh-msg را باز داشته باشد.</string>
+    <string name="relay_up">در دسترس است</string>
+    <string name="relay_waiting">الان در دسترس نیست. دوباره تلاش می‌شود.</string>
+    <string name="lora_waiting">در انتظار پاسخ نود</string>
+    <string name="connect_usb_node">اتصال نود USB</string>
+    <string name="allow_bluetooth">اجازه‌ی بلوتوث</string>
+    <string name="stats_title">این گوشی</string>
+    <string name="stat_stored">در حال حمل برای دیگران</string>
+    <plurals name="stat_stored_value">
+        <item quantity="one">%1$d بسته</item>
+        <item quantity="other">%1$d بسته</item>
+    </plurals>
+    <string name="stat_known">افراد و نودهای شناخته‌شده</string>
+    <string name="stat_forwarded">رسانده‌شده به دیگران</string>
+    <string name="stat_gateway">دروازه</string>
+    <string name="on">روشن</string>
+    <string name="off">خاموش</string>
+    <string name="lora_role">نقش</string>
+    <string name="lora_region">منطقه</string>
+    <string name="lora_preset">سرعت / برد</string>
+    <string name="lora_neighbours">نودهای در برد</string>
+    <string name="lora_airtime">زمان پخش مصرف‌شده در این ساعت</string>
+    <string name="lora_battery">باتری</string>
+    <string name="lora_region_warning">پیش از ارسال، قوانین رادیویی محل خود را بررسی کنید.</string>
+    <string name="percent">%1$d٪</string>
+    <string name="millivolts">%1$d میلی‌ولت</string>
+
+    <string name="settings_identity">هویت</string>
+    <string name="settings_name_label">نام نمایشی (اختیاری)</string>
+    <string name="settings_name_helper">همراه اعلان‌های شما فرستاده می‌شود تا مخاطبان ببینند. برای ناشناس ماندن خالی بگذارید.</string>
+    <string name="settings_your_id">شناسه‌ی شما</string>
+    <string name="settings_mesh">شبکه</string>
+    <string name="settings_stealth">حالت پنهان</string>
+    <string name="settings_stealth_body">این گوشی دیگر خودش را روی بلوتوث اعلام نمی‌کند. هنوز می‌تواند دیگران را پیدا کند.</string>
+    <string name="settings_gateway">اینترنتم را با شبکه شریک شو</string>
+    <string name="settings_gateway_body">وقتی رله‌ای در دسترس است، پیام‌های اطرافیان را هم جابه‌جا کن. پیام‌ها رمزشده می‌مانند.</string>
+    <string name="settings_battery">مصرف باتری</string>
+    <string name="battery_active">فعال — همیشه در شبکه</string>
+    <string name="battery_saver">کم‌مصرف — جستجوی کوتاه هر چند دقیقه</string>
+    <string name="battery_off">خاموش — فقط وقتی برنامه باز است</string>
+    <string name="settings_relays">رله‌ها</string>
+    <string name="settings_relays_empty">رله‌ای نیست. برنامه بدون رله هم با بلوتوث و LoRa کار می‌کند.</string>
+    <string name="relay_add">افزودن رله</string>
+    <string name="relay_name_label">نام</string>
+    <string name="relay_url_label">نشانی (https://…)</string>
+    <string name="relay_url_invalid">نشانی باید با https:// یا http:// شروع شود</string>
+    <string name="relay_remove">حذف رله‌ی %1$s</string>
+    <string name="settings_danger">منطقه‌ی خطر</string>
+    <string name="wipe">پاک کردن همه‌چیز</string>
+    <string name="wipe_body">هویت، مخاطبان و پیام‌های شما را از این گوشی پاک می‌کند. برگشت‌پذیر نیست.</string>
+    <string name="wipe_confirm_title">همه‌چیز پاک شود؟</string>
+    <string name="wipe_confirm_body">هویت شما نابود می‌شود: دیگر کسی نمی‌تواند به این پیوند پیام بدهد و پیام‌های در راه از بین می‌روند. برای تأیید ERASE را بنویسید.</string>
+    <string name="wipe_confirm_word">ERASE</string>
+    <string name="wipe_confirm_label">بنویسید %1$s</string>
+
+    <string name="onb_title">پیام‌رسانی بدون اینترنت</string>
+    <string name="onb_body">mesh-msg پیام‌های رمزشده را گوشی‌به‌گوشی با بلوتوث، با رادیوهای LoRa و هر جا اینترنتی باشد از راه رله‌ها می‌رساند.</string>
+    <string name="onb_point_identity">نه شماره‌ی تلفن، نه حساب کاربری. هویت شما کلیدی است که روی همین گوشی می‌ماند.</string>
+    <string name="onb_point_mesh">گوشی شما پیام‌های مهروموم‌شده‌ی دیگران را هم جابه‌جا می‌کند، ولی نمی‌تواند آن‌ها را بخواند.</string>
+    <string name="onb_point_perm">برای پیدا کردن گوشی‌های نزدیک اجازه‌ی بلوتوث لازم است. از مکان شما استفاده نمی‌شود.</string>
+    <string name="onb_start">ساختن هویت من</string>
+
+    <string name="notif_channel_mesh">شبکه در حال کار</string>
+    <string name="notif_channel_messages">پیام‌ها</string>
+    <string name="notif_mesh_title">mesh-msg در حال کار است</string>
+    <string name="notif_mesh_up">به شبکه وصل است</string>
+    <string name="notif_mesh_down">در جستجوی مسیر</string>
+    <string name="notif_new_message">پیام تازه</string>
+    <string name="usb_no_device">نود LoRa روی USB پیدا نشد.</string>
+</resources>

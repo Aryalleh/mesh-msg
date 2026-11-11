@@ -339,3 +339,23 @@ func TestBadInput(t *testing.T) {
 		t.Fatalf("messages of unknown contact: %s", s)
 	}
 }
+
+func TestTextSize(t *testing.T) {
+	if OnePacketBytes() < 100 || OnePacketBytes() >= MaxTextBytes() {
+		t.Fatalf("one packet %d, max %d", OnePacketBytes(), MaxTextBytes())
+	}
+	fa, en := "سلام، حالت چطوره؟", "hello, how are you?"
+	if TextBytes(fa) >= len(fa) { // compact Persian beats UTF-8
+		t.Fatalf("persian %d bytes encoded, %d in UTF-8", TextBytes(fa), len(fa))
+	}
+	if TextBytes(en) > len(en) || TextBytes("") != 0 {
+		t.Fatalf("english %d, empty %d", TextBytes(en), TextBytes(""))
+	}
+	// A text of exactly OnePacketBytes is one packet; one more byte is not.
+	a, _ := phone(t, "")
+	other, _ := identity.Generate()
+	mustAdd(t, a, identity.Contact{Public: other.Public}.URI(), "x")
+	if _, err := a.Send("x", strings.Repeat("a", MaxTextBytes()+1)); err == nil {
+		t.Fatal("over-long text accepted")
+	}
+}

@@ -13,20 +13,19 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M2 Relay | done |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
 | M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`); board layer builds for all four boards (`pio run`), **not yet run on hardware** |
-| M5 Android | **in progress** — gomobile binding `mobile/` (package `meshcore`) done and tested in Go incl. the exit scenario; Android app next |
+| M5 Android | **in progress** — core binding + app built and tested on the JVM (65 tests, screenshots); exit scenario passes in Go; **radio code never run on a phone** |
 | M6–M8 | not started |
 
 ## Next step
 
-M5 Android (docs/android.md). Done: `mobile/` binding. Next, in order:
-1. Android toolchain in the container (SDK 35, build-tools, NDK; `gomobile bind` → AAR). Needs
-   the user's OK for the Android SDK licence (the auto-accept was blocked).
-2. `android/` Gradle project: Compose UI from the design system (`android/DESIGN.md`),
-   `MeshService` (foreground), BLE mesh transport (GATT server + client → `Core.AddTransport`),
-   LoRa node over USB-OTG serial (`Core.AttachLoRa`); BLE host link needs firmware work (§6).
-3. Build the APK; screenshot tests for the UI (no emulator: the container has no KVM).
+Needs hardware now, for both open milestones:
+- **M5**: install `android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` on two phones;
+  bring up `BleMesh` (advertise / scan / GATT both ways), then the exit scenario on real
+  devices (phone A offline → BLE → phone B with a relay → desktop). Then USB node on OTG.
+- **M4**: flash two boards, verify pin tables (firmware/README.md).
 
-M4 hardware bring-up is still open (flash two boards, verify pin tables) — needs boards.
+Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
++ Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
 
 ## Resuming in a fresh container
 
@@ -38,6 +37,12 @@ M4 hardware bring-up is still open (flash two boards, verify pin tables) — nee
   `api.registry.platformio.org`, `dl.registry.platformio.org`, `dl.platformio.org`,
   `github.com`, `objects.githubusercontent.com` must be reachable — the cloud environment
   "mesh-msg" allows them; first build downloads ~1 GB of toolchains).
+- Android: `ANDROID_HOME=~/android-sdk` (cmdline-tools → `sdkmanager "platforms;android-35"
+  "build-tools;35.0.0" "ndk;27.2.12479018"`, the user OK'd the licence), then
+  `scripts/build-android-core.sh` and `cd android && ./gradlew lintDebug testDebugUnitTest
+  assembleDebug`. Needs `dl.google.com` (in the "mesh-msg" cloud environment). Maven Central
+  answers 429 to large downloads from here; `settings.gradle.kts` lists Google's mirror first.
+  Cap Gradle runs under 10 min per command (longer ones get backgrounded).
 - Never pipe a `pio run` through `head`: the build hangs when the pipe closes. Redirect to a
   file and grep it.
 - Vectors are regenerated with `go run ./spec/cmd/genvectors > spec/test-vectors/vectors.json`;
@@ -163,3 +168,23 @@ M4 hardware bring-up is still open (flash two boards, verify pin tables) — nee
   20-byte chunks; **the M5 exit scenario** — offline phone → BLE → gateway phone → relay →
   desktop and the reply back (negative-checked: fails without the gateway's relay); chunk
   framing incl. corrupt lengths and reconnect; wipe; bad input.
+- `36601d7` design system `android/DESIGN.md` (ui-ux-pro-max skill: chat-app product match,
+  privacy dark palette, Compose + a11y rules; its generic landing-page output was not used),
+  `scripts/build-android-core.sh` (gomobile → AAR, 3 ABIs). Firmware fix: Heltec V3's USB is a
+  CP2102 on UART0, so no `ARDUINO_USB_CDC_ON_BOOT` there (was wrong in `a02f36c`).
+- Android app (`android/`, one Gradle module, Kotlin 2.1 / Compose / Material 3, minSdk 26):
+  screens Onboarding, Chats, Chat, Add contact (QR of own link, paste/share), Network (path
+  cards in plain words), Settings (stealth, gateway, battery mode, relays, typed-confirm wipe);
+  en + fa strings; `MeshBackend` interface so screens render without the core; `CoreBackend`
+  over the AAR; `MeshService` (foreground, connectedDevice, no message text in notifications);
+  `BleMesh` (advert = service UUID + 4-byte random session, larger session connects, hello,
+  chunks via `Core.receive`/`Transport.send`, ≤ 4 peers, saver scan cycle); `UsbLoRa`
+  (CDC-ACM → `Core.attachLoRa`). `mobile`: `TextBytes`/`OnePacketBytes`/`MaxTextBytes` for
+  the composer's LoRa counter.
+- Verified: `./gradlew lintDebug testDebugUnitTest assembleDebug assembleRelease` green; 65 JVM
+  tests (BleProto 5, Json/Settings 5, 55 screenshots = 11 screens × fa/en × dark/light +
+  320 dp at font scale 2). Looked at the renders: fixed raw English core statuses in the
+  network cards, a bidi-scrambled Persian label, delivery icons not scaling with font size.
+  Lint caught `Handler.postDelayed(token)` (API 28) on minSdk 26 → `HandlerCompat`.
+- Not verifiable here: anything on a real phone (BLE, USB, service, permission flows);
+  dialogs are not in the screenshots (a Compose Dialog never goes idle under Robolectric).
