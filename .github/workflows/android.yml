@@ -14,24 +14,34 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
-
-      - name: SDK packages
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" >/dev/null
+      - name: Android SDK
+        run: |
+          # The runner image ships an SDK; fetch the command-line tools only if absent.
+          export ANDROID_HOME=${ANDROID_HOME:-$HOME/android-sdk}
+          sdkm=$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$sdkm" ]; then
+            mkdir -p "$ANDROID_HOME/cmdline-tools"
+            curl -sSLo /tmp/clt.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q /tmp/clt.zip -d /tmp/clt && mv /tmp/clt/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+            sdkm=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
+          fi
+          yes | "$sdkm" --licenses >/dev/null || true
+          "$sdkm" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" >/dev/null
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
 
       - uses: gradle/actions/setup-gradle@v4
 
