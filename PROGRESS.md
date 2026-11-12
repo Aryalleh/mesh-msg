@@ -347,4 +347,4 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   screenshots (group chat, empty public chat, chat list with groups). Compiles in CI only.
 - Checked against the live relay eu-1: a private group message between two local meshd
   arrived in ~5 s with the relay unchanged.
-- Commit `f2d8c14`. Next: watch CI (Android compiles there), then release when the user asks.
+- Commit `f2d8c14`. CI green (run 43215403809: desktop + Android lint/tests/screenshots/APKs). Next: release when the user asks (v0.1.0-alpha6 still untagged).
