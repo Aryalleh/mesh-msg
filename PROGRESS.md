@@ -270,5 +270,5 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   terminal) instead of a bare socket error; the desktop tarball now ships `meshd.service`
   and `install.sh` (installs to ~/.local/bin, enables + restarts the user service, works
   for updates); README has "Install from a release".
-- `v0.1.0-alpha5` was not tagged: pushing the tag was blocked by the permission classifier;
-  user to push it or allow it. These changes go into the next tag.
+- `v0.1.0-alpha5` tagged at the user's request after main CI was green (`ad5911b`); release run
+  43129249502 published APKs + desktop tarballs (with install.sh).
