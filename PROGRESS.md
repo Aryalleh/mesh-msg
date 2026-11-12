@@ -374,3 +374,4 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   "removed" banner, ✓ n/m marks, en + fa strings, Json/screenshot tests. Compiles in CI only.
 - Tests: node (relay, 3 users: ✓✓ per member, reply between non-contacts, remove/re-add,
   leave; LAN; persistence), CLI/app, mobile BLE chain with a non-member in the middle.
+- Commit `eec822a`. Next: watch CI (Android compiles there); release when the user asks (v0.1.0-alpha6 still untagged).
