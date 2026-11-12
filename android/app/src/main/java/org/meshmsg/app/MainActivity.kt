@@ -104,7 +104,7 @@ class MainActivity : ComponentActivity() {
             vm.finishOnboarding()
             vm.onBluetoothPermission()
         }
-        OnboardingScreen(onStart = { ask.launch(startPermissions()) })
+        OnboardingScreen(onStart = { ask.launch(startPermissions()) }, onRestore = vm::restoreIdentity)
     }
 
     private fun startPermissions(): Array<String> =

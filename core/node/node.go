@@ -111,7 +111,7 @@ func Open(cfg Config) (*Node, error) {
 	if err := os.MkdirAll(cfg.DataDir, 0o700); err != nil {
 		return nil, err
 	}
-	id, err := loadOrCreateIdentity(filepath.Join(cfg.DataDir, "identity.key"))
+	id, err := loadOrCreateIdentity(filepath.Join(cfg.DataDir, IdentityFile))
 	if err != nil {
 		return nil, err
 	}

@@ -121,7 +121,7 @@
     <string name="relay_remove">حذف رله‌ی %1$s</string>
     <string name="settings_danger">منطقه‌ی خطر</string>
     <string name="wipe">پاک کردن همه‌چیز</string>
-    <string name="wipe_body">هویت، مخاطبان و پیام‌های شما را از این گوشی پاک می‌کند. برگشت‌پذیر نیست.</string>
+    <string name="wipe_body">هویت، مخاطبان و پیام‌های شما را از این گوشی پاک می‌کند. برگشت‌پذیر نیست. بدون پشتیبان (پشتیبان‌گیری از حساب، بالاتر) حساب شما بازگرداندنی نیست.</string>
     <string name="wipe_confirm_title">همه‌چیز پاک شود؟</string>
     <string name="wipe_confirm_body">هویت شما نابود می‌شود: دیگر کسی نمی‌تواند به این پیوند پیام بدهد و پیام‌های در راه از بین می‌روند. برای تأیید ERASE را بنویسید.</string>
     <string name="wipe_confirm_word">ERASE</string>
@@ -141,4 +141,28 @@
     <string name="notif_mesh_down">در جستجوی مسیر</string>
     <string name="notif_new_message">پیام تازه</string>
     <string name="usb_no_device">نود LoRa روی USB پیدا نشد.</string>
+
+    <!-- پشتیبان حساب -->
+    <string name="backup_title">پشتیبان‌گیری از حساب</string>
+    <string name="backup_settings_body">حساب شما یک کلید مخفی است که فقط روی همین گوشی است. از آن پشتیبان بگیرید تا اگر گوشی گم، بازنشانی یا پاک شد بتوانید آن را برگردانید.</string>
+    <string name="backup_body">یک گذرواژه انتخاب کنید. پشتیبان بدون آن به کار نمی‌آید، و هر کس هم پشتیبان و هم گذرواژه را داشته باشد می‌تواند پیام‌های شما را بخواند و به نام شما بنویسد. این دو را در جاهای جدا نگه دارید.</string>
+    <string name="backup_pass_label">گذرواژه</string>
+    <string name="backup_pass_helper">دست‌کم %1$d نویسه. قابل بازیابی نیست.</string>
+    <string name="backup_pass_again">تکرار گذرواژه</string>
+    <string name="backup_pass_mismatch">گذرواژه‌ها یکی نیستند</string>
+    <string name="backup_failed">ساختن پشتیبان نشد. دوباره تلاش کنید.</string>
+    <string name="backup_create">ساختن پشتیبان</string>
+    <string name="backup_done_title">پشتیبان شما</string>
+    <string name="backup_done_body">این کد QR یا متن را جایی امن و دور از این گوشی نگه دارید: چاپش کنید یا در یک گذرواژه‌نگهدار بگذارید. برای برگرداندن، هنگام راه‌اندازی برنامه «پشتیبان دارم» را بزنید.</string>
+    <string name="backup_qr_description">کد QR پشتیبان حساب شما</string>
+    <string name="backup_copy">کپی</string>
+    <string name="backup_close">تمام</string>
+    <string name="onb_restore">پشتیبان دارم</string>
+    <string name="restore_title">برگرداندن حساب</string>
+    <string name="restore_body">متن پشتیبان (که با meshkey1: شروع می‌شود) را بچسبانید و گذرواژه‌اش را بنویسید. مخاطبان و پیام‌ها در پشتیبان نیستند؛ پیوند شما همان می‌ماند. حساب را هر بار فقط روی یک دستگاه به کار ببرید.</string>
+    <string name="restore_backup_label">پشتیبان</string>
+    <string name="restore_err_format">این پشتیبان حساب نیست</string>
+    <string name="restore_err_passphrase">گذرواژه نادرست است یا پشتیبان آسیب دیده</string>
+    <string name="restore_err_other">برگرداندن حساب نشد</string>
+    <string name="restore_confirm">برگرداندن</string>
 </resources>

@@ -359,3 +359,52 @@ func TestTextSize(t *testing.T) {
 		t.Fatal("over-long text accepted")
 	}
 }
+
+func TestExportRestoreIdentity(t *testing.T) {
+	old := t.TempDir()
+	c, err := Open(old, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := c.Hash()
+	if _, err := c.ExportIdentity("short"); err == nil {
+		t.Fatal("short passphrase accepted")
+	}
+	backup, err := c.ExportIdentity("correct horse")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Stop()
+
+	// New phone: restore before Open, then the core has the same identity.
+	fresh := t.TempDir()
+	if _, err := RestoreIdentity(fresh, backup, "wrong passphrase", false); err == nil || !strings.HasPrefix(err.Error(), "passphrase:") {
+		t.Fatalf("wrong passphrase: %v", err)
+	}
+	if _, err := RestoreIdentity(fresh, "meshmsg:not-a-backup", "correct horse", false); err == nil || !strings.HasPrefix(err.Error(), "format:") {
+		t.Fatalf("not a backup: %v", err)
+	}
+	got, err := RestoreIdentity(fresh, backup, "correct horse", false)
+	if err != nil || got != hash {
+		t.Fatal(got, err)
+	}
+	c2, err := Open(fresh, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c2.Stop()
+	if c2.Hash() != hash {
+		t.Fatal("restored core has another identity")
+	}
+
+	// A phone that already made its own identity needs replace.
+	other := t.TempDir()
+	c3, _ := Open(other, "")
+	c3.Stop()
+	if _, err := RestoreIdentity(other, backup, "correct horse", false); err == nil {
+		t.Fatal("overwrote an existing identity")
+	}
+	if _, err := RestoreIdentity(other, backup, "correct horse", true); err != nil {
+		t.Fatal(err)
+	}
+}

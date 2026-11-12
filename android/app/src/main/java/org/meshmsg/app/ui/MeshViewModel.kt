@@ -109,6 +109,26 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     override fun setBattery(mode: BatteryMode) { settings.batteryMode = mode; changed() }
     override fun addRelay(relay: Relay) { settings.relays = settings.relays.filter { it.name != relay.name } + relay; changed() }
     override fun removeRelay(relay: Relay) { settings.relays = settings.relays - relay; changed() }
+    override suspend fun exportIdentity(passphrase: String): Result<String> {
+        val b = backend.value ?: return Result.failure(IllegalStateException("core not running"))
+        return withContext(Dispatchers.IO) { runCatching { b.core.exportIdentity(passphrase) } }
+    }
+
+    /** Installs a backed-up identity before the core first opens (onboarding). */
+    suspend fun restoreIdentity(backup: String, passphrase: String): RestoreError? = withContext(Dispatchers.IO) {
+        try {
+            Meshcore.restoreIdentity(app.meshDirPath, backup, passphrase, true)
+            null
+        } catch (e: Exception) {
+            val m = e.message.orEmpty()
+            when {
+                m.startsWith("passphrase:") -> RestoreError.Passphrase
+                m.startsWith("format:") -> RestoreError.Format
+                else -> RestoreError.Other
+            }
+        }
+    }
+
     override fun wipe() {
         app.wipe {
             onboarded.value = false

@@ -216,3 +216,28 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   keystore, which the root `.gitignore` excluded; its build fails). The alpha2 build failed in
   `android-actions/setup-android@v3` (Node 20 action); the workflow now uses the runner's SDK
   (ubuntu-24.04) + sdkmanager directly. Release tag `v0.1.0-alpha3`.
+
+### 2026-11-12 — account backup and restore
+- User asked how not to lose account access, and about multiple sessions. Explained: the
+  account is the 64-byte secret in `identity.key`; running one key on two devices at once is
+  not supported (shared mailbox, no sync, duplicate announces) — linked devices would need a
+  protocol change (left for later; not on the roadmap yet). User chose the encrypted backup.
+- `core/identity/backup.go`: `Backup(passphrase)` / `FromBackup(text, passphrase)`, format
+  `meshkey1:` + base64url(salt16 ‖ nonce24 ‖ XChaCha20-Poly1305(seed, AAD = prefix)), key =
+  Argon2id(t=3, 64 MiB, p=4); ~170 chars (small QR); whitespace ignored on input; passphrase
+  ≥ 8 chars. `core/node/identityfile.go`: `IdentityFile`, `ReadIdentity`, `RestoreIdentity`
+  (refuses a different existing key unless replace; keeps the old one as
+  `identity.key.replaced-<unix>`), `Node.BackupIdentity`.
+- `mesh identity export [-o file]` / `mesh identity import [-replace] [file|-]` (passphrase
+  read from /dev/tty without echo; import refuses while meshd runs). Mobile:
+  `Core.ExportIdentity`, `RestoreIdentity(dataDir, backup, pass, replace)` (errors prefixed
+  `passphrase:` / `format:`).
+- Android: Settings → Identity → "Back up account" (passphrase twice → QR + text, copy marked
+  sensitive, share); onboarding "I have a backup" → paste + passphrase → restore before the
+  core opens; wipe text warns that without a backup the account is gone. en + fa strings.
+- Tests: identity round trip / wrong passphrase / tamper / prefix / garbage; node restore
+  (fresh, same, other, replace); CLI export→import; mobile export → restore → Open has the same
+  hash. Go + firmware suites green. Android compiles and tests in CI only (local disk is full);
+  dialogs are not in screenshots (Robolectric limitation), so they need a look on a phone.
+- Local disk: cleared the Go build cache and pip cache to get the tests to compile; run
+  `go test -p 1 ./...` here while the disk stays full.

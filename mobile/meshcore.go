@@ -27,6 +27,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/message"
 	"github.com/Aryalleh/mesh-msg/core/node"
 	"github.com/Aryalleh/mesh-msg/core/packet"
@@ -194,6 +195,38 @@ func wipeDir(dir string) error {
 
 // URI is this identity's contact link (meshmsg:…), for QR codes and sharing.
 func (c *Core) URI() string { return c.n.Identity().URI() }
+
+// ExportIdentity returns the account key sealed with passphrase
+// (meshkey1:…, fits a QR code). It fails if the passphrase is shorter than
+// MinPassphraseLength characters. Slow (~1 s): call it off the main thread.
+func (c *Core) ExportIdentity(passphrase string) (string, error) {
+	return c.n.BackupIdentity(passphrase)
+}
+
+// MinPassphraseLength is the shortest passphrase ExportIdentity accepts.
+const MinPassphraseLength = identity.MinPassphraseLength
+
+// RestoreIdentity opens a backup made by ExportIdentity and installs it as
+// the identity in dataDir, before Open. A dataDir that already holds a
+// different identity is refused unless replace is set. Returns the restored
+// identity's hash. Errors start with "passphrase:" (wrong passphrase or
+// damaged backup) or "format:" (not a backup) so the UI can explain them.
+// Slow (~1 s): call it off the main thread.
+func RestoreIdentity(dataDir, backup, passphrase string, replace bool) (string, error) {
+	id, err := identity.FromBackup(backup, passphrase)
+	switch {
+	case errors.Is(err, identity.ErrBadPassphrase):
+		return "", fmt.Errorf("passphrase: %w", err)
+	case errors.Is(err, identity.ErrNotBackup):
+		return "", fmt.Errorf("format: %w", err)
+	case err != nil:
+		return "", err
+	}
+	if _, err := node.RestoreIdentity(dataDir, id, replace); err != nil {
+		return "", err
+	}
+	return id.Hash().String(), nil
+}
 
 // Hash is this identity's destination hash (hex).
 func (c *Core) Hash() string { return c.n.Identity().Hash().String() }

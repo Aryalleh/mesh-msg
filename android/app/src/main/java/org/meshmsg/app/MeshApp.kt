@@ -46,6 +46,7 @@ class MeshApp : Application() {
     private var restartJob: Job? = null
 
     private val meshDir: File get() = File(filesDir, "mesh")
+    val meshDirPath: String get() = meshDir.absolutePath
 
     override fun onCreate() {
         super.onCreate()

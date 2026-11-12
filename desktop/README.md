@@ -27,6 +27,21 @@ mesh status                      # links, peers, stored packets
 mesh ui                          # open the web UI
 ```
 
+### Back up and restore your account
+
+Your account is the secret key in `identity.key`. Back it up sealed with a passphrase:
+
+```bash
+mesh identity export -o backup.txt   # asks for a passphrase twice; prints to stdout without -o
+# on the new machine, with meshd stopped:
+mesh identity import backup.txt      # or paste it: mesh identity import
+```
+
+The backup (`meshkey1:…`, one line) also restores on Android ("I have a backup" when
+setting up the app), and Android backups restore here. Contacts and messages are not
+included. Run the account on one device at a time. `import -replace` switches a data
+dir that already has another identity (the old key is kept as `identity.key.replaced-…`).
+
 ## Roles
 
 | Role | Config |
@@ -63,4 +78,5 @@ budget_mb_per_day = 50
 - The control socket is `0600` in your data directory.
 - The web UI listens on loopback only, requires a token (via `mesh ui`),
   checks the Host header and requires a custom header on writes.
-- `identity.key` is your secret key — back it up privately, never share it.
+- `identity.key` is your secret key — never share it; back it up with `mesh identity export`
+  (Argon2id + XChaCha20-Poly1305, so the backup is only as strong as its passphrase).

@@ -19,6 +19,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,7 +34,12 @@ import org.meshmsg.app.R
 import org.meshmsg.app.ui.theme.Space
 
 @Composable
-fun OnboardingScreen(onStart: () -> Unit, modifier: Modifier = Modifier) {
+fun OnboardingScreen(
+    onStart: () -> Unit,
+    modifier: Modifier = Modifier,
+    onRestore: suspend (backup: String, passphrase: String) -> RestoreError? = { _, _ -> RestoreError.Other },
+) {
+    var restoring by rememberSaveable { mutableStateOf(false) }
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().padding(Space.xl)) {
             Column(
@@ -48,7 +58,13 @@ fun OnboardingScreen(onStart: () -> Unit, modifier: Modifier = Modifier) {
             Button(onClick = onStart, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                 Text(stringResource(R.string.onb_start))
             }
+            TextButton(onClick = { restoring = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.onb_restore))
+            }
         }
+    }
+    if (restoring) {
+        RestoreDialog(restore = onRestore, onRestored = { restoring = false; onStart() }, onDismiss = { restoring = false })
     }
 }
 

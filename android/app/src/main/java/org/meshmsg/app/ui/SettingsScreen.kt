@@ -68,6 +68,9 @@ interface SettingsActions {
     fun addRelay(relay: Relay)
     fun removeRelay(relay: Relay)
     fun wipe()
+
+    /** The account key sealed with [passphrase] (meshkey1:…). */
+    suspend fun exportIdentity(passphrase: String): Result<String>
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,6 +79,7 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
     var name by rememberSaveable(state.displayName) { mutableStateOf(state.displayName) }
     var addingRelay by rememberSaveable { mutableStateOf(false) }
     var wiping by rememberSaveable { mutableStateOf(false) }
+    var backingUp by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(modifier = modifier, topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_settings)) }) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).imePadding().verticalScroll(rememberScrollState())) {
@@ -93,6 +97,17 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                 Text(stringResource(R.string.settings_your_id), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(state.myHash, style = MeshTheme.mono)
             }
+            Text(
+                stringResource(R.string.backup_settings_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = Space.l),
+            )
+            OutlinedButton(
+                onClick = { backingUp = true },
+                enabled = state.myHash.isNotEmpty(),
+                modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s).heightIn(min = 48.dp),
+            ) { Text(stringResource(R.string.backup_title)) }
 
             SectionHeader(stringResource(R.string.settings_mesh))
             SwitchRow(stringResource(R.string.settings_stealth), stringResource(R.string.settings_stealth_body), state.stealth, actions::setStealth)
@@ -166,6 +181,7 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
     }
 
     if (addingRelay) RelayDialog(onDismiss = { addingRelay = false }, onAdd = { addingRelay = false; actions.addRelay(it) })
+    if (backingUp) BackupDialog(export = actions::exportIdentity, onDismiss = { backingUp = false })
     if (wiping) WipeDialog(onDismiss = { wiping = false }, onConfirm = { wiping = false; actions.wipe() })
 }
 

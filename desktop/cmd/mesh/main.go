@@ -42,17 +42,23 @@ Usage:
                                  region=EU_868… preset=FAST|BALANCED|LONG
                                  freq=869.525 (MHz) power=14 (dBm) name=… announce=30 (min)
   mesh lora plans                region frequency plans and presets
+  mesh identity export [-o file] back up your account key, sealed with a passphrase
+  mesh identity import [-replace] [file|-]
+                                 restore an account from a backup (meshd must be stopped)
 
 <contact> is a name, a hash or a hash prefix (6+ chars).
 Flags: -data <dir> (default ~/.local/share/meshd)
 `
 
-var client *http.Client
+var (
+	client  *http.Client
+	dataDir string
+)
 
 func main() {
 	_, defData := daemon.DefaultPaths()
 	fs := flag.NewFlagSet("mesh", flag.ExitOnError)
-	dataDir := fs.String("data", defData, "meshd data directory")
+	fs.StringVar(&dataDir, "data", defData, "meshd data directory")
 	fs.Usage = func() { fmt.Fprint(os.Stderr, usage) }
 	fs.Parse(os.Args[1:])
 	args := fs.Args()
@@ -60,7 +66,7 @@ func main() {
 		fs.Usage()
 		os.Exit(2)
 	}
-	sock := daemon.SocketPath(*dataDir)
+	sock := daemon.SocketPath(dataDir)
 	client = &http.Client{Transport: &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			return (&net.Dialer{}).DialContext(ctx, "unix", sock)
@@ -118,6 +124,8 @@ func run(args []string) error {
 		}
 	case "lora":
 		return loraCmd(rest)
+	case "identity":
+		return identityCmd(rest)
 	case "id":
 		var id map[string]string
 		if err := call("GET", "/id", nil, &id); err != nil {

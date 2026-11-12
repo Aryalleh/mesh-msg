@@ -127,7 +127,7 @@
     <string name="relay_remove">Remove relay %1$s</string>
     <string name="settings_danger">Danger zone</string>
     <string name="wipe">Erase everything</string>
-    <string name="wipe_body">Deletes your identity, contacts and messages from this phone. This cannot be undone.</string>
+    <string name="wipe_body">Deletes your identity, contacts and messages from this phone. This cannot be undone. Without a backup (Back up account, above) your account cannot be recovered.</string>
     <string name="wipe_confirm_title">Erase everything?</string>
     <string name="wipe_confirm_body">Your identity will be destroyed: nobody can write to this link again, and messages on the way to you are lost. Type ERASE to confirm.</string>
     <string name="wipe_confirm_word">ERASE</string>
@@ -149,4 +149,28 @@
     <string name="notif_mesh_down">Looking for a path</string>
     <string name="notif_new_message">New message</string>
     <string name="usb_no_device">No LoRa node found on USB.</string>
+
+    <!-- Account backup -->
+    <string name="backup_title">Back up account</string>
+    <string name="backup_settings_body">Your account is a secret key that lives only on this phone. Back it up so you can restore it if the phone is lost, reset or erased.</string>
+    <string name="backup_body">Choose a passphrase. The backup is useless without it, and anyone with both the backup and the passphrase can read your messages and write as you. Keep the two in different places.</string>
+    <string name="backup_pass_label">Passphrase</string>
+    <string name="backup_pass_helper">At least %1$d characters. It cannot be recovered.</string>
+    <string name="backup_pass_again">Passphrase again</string>
+    <string name="backup_pass_mismatch">Passphrases do not match</string>
+    <string name="backup_failed">Could not create the backup. Try again.</string>
+    <string name="backup_create">Create backup</string>
+    <string name="backup_done_title">Your backup</string>
+    <string name="backup_done_body">Save this QR code or text somewhere safe, away from this phone: print it, or keep it in a password manager. To restore, choose \"I have a backup\" when setting up the app.</string>
+    <string name="backup_qr_description">QR code of your account backup</string>
+    <string name="backup_copy">Copy</string>
+    <string name="backup_close">Done</string>
+    <string name="onb_restore">I have a backup</string>
+    <string name="restore_title">Restore account</string>
+    <string name="restore_body">Paste the backup text (it starts with meshkey1:) and type its passphrase. Contacts and messages are not in the backup; your link stays the same. Use the account on one device at a time.</string>
+    <string name="restore_backup_label">Backup</string>
+    <string name="restore_err_format">This is not an account backup</string>
+    <string name="restore_err_passphrase">Wrong passphrase, or the backup is damaged</string>
+    <string name="restore_err_other">Could not restore the account</string>
+    <string name="restore_confirm">Restore</string>
 </resources>

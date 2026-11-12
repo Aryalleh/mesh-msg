@@ -168,6 +168,7 @@ class ScreenshotTest(private val variant: Variant) {
         override fun addRelay(relay: Relay) {}
         override fun removeRelay(relay: Relay) {}
         override fun wipe() {}
+        override suspend fun exportIdentity(passphrase: String) = Result.success("")
     }
 
     private val settingsState
