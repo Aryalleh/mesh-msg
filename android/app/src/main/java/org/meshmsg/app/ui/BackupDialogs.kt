@@ -48,7 +48,7 @@ const val MIN_PASSPHRASE = 8
 /** Why a restore failed; shown in the dialog. */
 enum class RestoreError { Passphrase, Format, Other }
 
-private fun String.chars() = codePointCount(0, length)
+private fun String.letterCount() = codePointCount(0, length)
 
 @Composable
 private fun PassField(value: String, onChange: (String) -> Unit, label: String, supporting: String?, isError: Boolean = false) {
@@ -138,7 +138,7 @@ fun BackupDialog(export: suspend (String) -> Result<String>, onDismiss: () -> Un
                             r.onSuccess { backup = it; pass = ""; again = "" }.onFailure { failed = true }
                         }
                     },
-                    enabled = !working && pass.chars() >= MIN_PASSPHRASE && pass == again,
+                    enabled = !working && pass.letterCount() >= MIN_PASSPHRASE && pass == again,
                 ) { Text(stringResource(R.string.backup_create)) }
             } else {
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.backup_close)) }

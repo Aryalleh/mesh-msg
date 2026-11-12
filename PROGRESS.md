@@ -241,3 +241,6 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   dialogs are not in screenshots (Robolectric limitation), so they need a look on a phone.
 - Local disk: cleared the Go build cache and pip cache to get the tests to compile; run
   `go test -p 1 ./...` here while the disk stays full.
+- CI now prints Gradle/Kotlin/lint errors as annotations (`f713762`): job logs need a login,
+  annotations are public (`/check-runs/<job>/annotations`). First Android build of backup
+  failed on a `String.chars()` extension shadowed by Java's `CharSequence.chars()`; renamed.
