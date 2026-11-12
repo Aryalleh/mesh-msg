@@ -12,8 +12,9 @@ then Windows and macOS from the same Go code base (cross-compiled).
 
 ```
 meshd            daemon (systemd user/system service) — router, store, interfaces, roles
-mesh             CLI: chat, contacts, status, config  (talks to meshd over a local socket)
-web UI           served by meshd on 127.0.0.1 only — chat + network status in the browser
+mesh             terminal app (no arguments: chats, live messages, all settings) and
+                 one-shot commands for scripts (talks to meshd over a local socket)
+web UI           served by meshd on 127.0.0.1 only — chat, status and all settings in the browser
 ```
 
 A local web UI gives one UI for Linux, Windows and macOS without a GUI toolkit; a native

@@ -290,3 +290,25 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   passphrase, restore, phone width).
 - Android: settings already covers relays/gateway/backup; LoRa there waits for LoRa-over-BLE.
 - Commit `a242b8e`. Next: release v0.1.0-alpha6 when the user asks.
+
+### 2026-11-12 — terminal app + full settings in the CLI
+- User: the desktop should have every feature in the UI and in the CLI, and the CLI should be
+  an app that opens and works, not only one-shot commands.
+- `mesh` with no arguments (on a terminal) opens an interactive app (`desktop/cmd/mesh/app.go`,
+  `golang.org/x/term` line editor): chat list (most recent first, unread counts), open a chat
+  by number/name, type to send, live incoming messages and ✓✓ receipts from `/events`
+  (reconnects after settings apply), and `/commands` for everything: add/rename/rm contacts,
+  history, status, id, settings (`/settings`, `/set k=v`), relays, bridges, LoRa, ports,
+  backup (+ to file), restore into the running meshd, web UI, Tab completion. Ctrl+D quits;
+  meshd keeps running.
+- New one-shot commands (same `GET/PUT /config` as the web UI): `mesh config [show|keys]`,
+  `mesh config set key=value…` (name, delegate, announce, gateway(.mode/.quota),
+  lan(.port/.discovery/.peers), lora(.port)), `mesh relay add|rm|list`,
+  `mesh bridge add|rm|list`, `mesh ports`. `mesh identity import` now works while meshd runs
+  (restores via `POST /identity/import`).
+- Fixed a data race found by `-race`: `Daemon.Run` read `d.cfg` unlocked while a settings save
+  replaced it.
+- Tests: `desktop/cmd/mesh/app_test.go` runs a real meshd (config/relay/bridge commands, bad
+  input refused; app flow add → send Persian → list order → open by number/prefix → rename →
+  unread → backup → rm → restore). Also driven in a real pty with two meshd over LAN: live
+  receive, unread prompt, receipts.

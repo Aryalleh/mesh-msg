@@ -26,11 +26,11 @@ func identityCmd(args []string) error {
 	switch args[0] {
 	case "export":
 		fs := flag.NewFlagSet("export", flag.ContinueOnError)
-		out := fs.String("o", "", "write the backup to this file instead of stdout")
+		outFile := fs.String("o", "", "write the backup to this file instead of stdout")
 		if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 {
 			return errors.New(identityUsage)
 		}
-		return exportIdentity(*out, os.Stdout)
+		return exportIdentity(*outFile, out)
 	case "import":
 		fs := flag.NewFlagSet("import", flag.ContinueOnError)
 		replace := fs.Bool("replace", false, "replace a different identity already in the data dir")
@@ -76,9 +76,7 @@ func exportIdentity(outPath string, stdout io.Writer) error {
 }
 
 func importIdentity(src string, replace bool, stdin io.Reader) error {
-	if meshdRunning() {
-		return errors.New("meshd is running: restore from the web UI (mesh ui → ⚙ Settings → Restore from backup), or stop meshd first")
-	}
+	running := meshdRunning()
 	var text string
 	switch src {
 	case "":
@@ -105,6 +103,10 @@ func importIdentity(src string, replace bool, stdin io.Reader) error {
 	if err != nil {
 		return err
 	}
+	if running {
+		// meshd swaps to the restored account itself (its old key is kept).
+		return restoreViaDaemon(text, pass)
+	}
 	id, err := identity.FromBackup(text, pass)
 	if err != nil {
 		return err
@@ -119,6 +121,19 @@ func importIdentity(src string, replace bool, stdin io.Reader) error {
 		fmt.Fprintln(os.Stderr, "previous key kept as", replaced)
 	}
 	fmt.Fprintf(os.Stderr, "restored identity %s — start meshd\n", id.Hash())
+	return nil
+}
+
+// restoreViaDaemon restores an account in the running meshd.
+func restoreViaDaemon(backup, pass string) error {
+	var r struct{ Hash, Replaced string }
+	if err := call("POST", "/identity/import", map[string]string{"backup": strings.TrimSpace(backup), "passphrase": pass}, &r); err != nil {
+		return err
+	}
+	if r.Replaced != "" {
+		fmt.Fprintln(out, "previous key kept as", r.Replaced)
+	}
+	fmt.Fprintf(out, "restored identity %s — meshd now runs as this account\n", r.Hash)
 	return nil
 }
 

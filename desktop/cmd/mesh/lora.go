@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -36,7 +35,7 @@ func loraCmd(args []string) error {
 		return err
 	}
 	if len(nodes) == 0 {
-		fmt.Println("no LoRa node attached (set [lora] enabled = true and port in the meshd config)")
+		fmt.Fprintln(out, "no LoRa node attached (set [lora] enabled = true and port in the meshd config)")
 		return nil
 	}
 	for _, l := range nodes {
@@ -53,7 +52,7 @@ func loraPlans() error {
 	if err := call("GET", "/lora/plans", nil, &plans); err != nil {
 		return err
 	}
-	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	tw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(tw, "REGION\tDEFAULT MHz\tRANGE MHz\tMAX dBm\tDUTY\tNOTE")
 	for _, r := range plans.Regions {
 		fmt.Fprintf(tw, "%s\t%.3f\t%.4f-%.4f\t%d\t%g %%\t%s\n", r.Name, float64(r.FreqHz)/1e6,
@@ -64,7 +63,7 @@ func loraPlans() error {
 		fmt.Fprintf(tw, "%s\t%d\t%d\t4/%d\n", p.Name, p.SF, p.BWHz/1000, p.CR+4)
 	}
 	tw.Flush()
-	fmt.Println("\nThese are starting points, not legal advice: check your local rules before transmitting.")
+	fmt.Fprintln(out, "\nThese are starting points, not legal advice: check your local rules before transmitting.")
 	return nil
 }
 
@@ -76,9 +75,9 @@ func printLoRa(l node.LoRaState) {
 			state += " (" + l.Error + ")"
 		}
 	}
-	fmt.Printf("%s: %s\n", l.Name, state)
+	fmt.Fprintf(out, "%s: %s\n", l.Name, state)
 	if l.Node != "" {
-		fmt.Printf("  node      %s\n", l.Node)
+		fmt.Fprintf(out, "  node      %s\n", l.Node)
 	}
 	if c := l.Config; c != nil {
 		roles := []string{"client", "repeater", "gateway"}
@@ -96,18 +95,18 @@ func printLoRa(l node.LoRaState) {
 		if int(c.Preset) < len(hostlink.Presets) {
 			preset = hostlink.Presets[c.Preset].Name
 		}
-		fmt.Printf("  config    %s, %s %.3f MHz, %s, %d dBm, name %q, announce every %d min\n",
+		fmt.Fprintf(out, "  config    %s, %s %.3f MHz, %s, %d dBm, name %q, announce every %d min\n",
 			role, region, float64(freq)/1e6, preset, c.TxDBm, c.Name, c.AnnounceMin)
 	}
 	if s := l.Status; s != nil {
-		fmt.Printf("  radio     %d neighbours, rx %d, tx %d frames, air %d/%d ms this hour, %d queued, %d stored\n",
+		fmt.Fprintf(out, "  radio     %d neighbours, rx %d, tx %d frames, air %d/%d ms this hour, %d queued, %d stored\n",
 			s.Neighbours, s.RxFrames, s.TxFrames, s.AirUsedMs, s.AirBudgetMs, s.Queued, s.Stored)
 		if s.BatteryMv > 0 {
-			fmt.Printf("  battery   %.2f V\n", float64(s.BatteryMv)/1000)
+			fmt.Fprintf(out, "  battery   %.2f V\n", float64(s.BatteryMv)/1000)
 		}
-		fmt.Printf("  uptime    %s, firmware v%d\n", time.Duration(s.UptimeS)*time.Second, s.FirmwareVersion)
+		fmt.Fprintf(out, "  uptime    %s, firmware v%d\n", time.Duration(s.UptimeS)*time.Second, s.FirmwareVersion)
 	}
-	fmt.Printf("  host link sent %d, received %d, waiting %d, bad frames %d\n", l.Sent, l.Received, l.Queued, l.BadFrames)
+	fmt.Fprintf(out, "  host link sent %d, received %d, waiting %d, bad frames %d\n", l.Sent, l.Received, l.Queued, l.BadFrames)
 }
 
 // parsePatch turns key=value arguments into a node config patch.

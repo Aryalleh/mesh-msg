@@ -27,6 +27,7 @@ import (
 const usage = `mesh — command-line client for meshd
 
 Usage:
+  mesh                           open the interactive app (chats, contacts, settings)
   mesh status                    links, peers, stored packets
   mesh id                        your contact link (share it)
   mesh contacts                  list contacts
@@ -42,6 +43,13 @@ Usage:
                                  region=EU_868… preset=FAST|BALANCED|LONG
                                  freq=869.525 (MHz) power=14 (dBm) name=… announce=30 (min)
   mesh lora plans                region frequency plans and presets
+  mesh config                    show all settings
+  mesh config set key=value…     change settings (mesh config keys lists them)
+  mesh relay add <name> <url> [via] | rm <name>
+                                 relays; via = direct | tor | socks5://host:port
+  mesh bridge add <a> <b> [MB/day] | rm <a> <b>
+                                 sync two relays that can't reach each other
+  mesh ports                     USB serial ports (for the LoRa node)
   mesh version                   print the version
   mesh identity export [-o file] back up your account key, sealed with a passphrase
   mesh identity import [-replace] [file|-]
@@ -52,6 +60,7 @@ Flags: -data <dir> (default ~/.local/share/meshd)
 `
 
 var (
+	out     io.Writer = os.Stdout // command output; the app points it at the terminal
 	client  *http.Client
 	dataDir string
 	version = "0.0.0-dev" // set by the release build (-X main.version=…)
@@ -64,16 +73,19 @@ func main() {
 	fs.Usage = func() { fmt.Fprint(os.Stderr, usage) }
 	fs.Parse(os.Args[1:])
 	args := fs.Args()
-	if len(args) == 0 {
-		fs.Usage()
-		os.Exit(2)
-	}
 	sock := daemon.SocketPath(dataDir)
 	client = &http.Client{Transport: &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			return (&net.Dialer{}).DialContext(ctx, "unix", sock)
 		},
 	}}
+	if len(args) == 0 {
+		if !isTerminal() {
+			fs.Usage()
+			os.Exit(2)
+		}
+		args = []string{"app"}
+	}
 	if err := run(args); err != nil {
 		fmt.Fprintln(os.Stderr, "mesh:", err)
 		os.Exit(1)
@@ -123,34 +135,53 @@ func run(args []string) error {
 		if err := call("GET", "/status", nil, &s); err != nil {
 			return err
 		}
-		fmt.Printf("identity  %s\nuptime    %s\nstored    %d packets\nknown     %d nodes\ncontacts  %d\ngateway   %v\n",
+		fmt.Fprintf(out, "identity  %s\nuptime    %s\nstored    %d packets\nknown     %d nodes\ncontacts  %d\ngateway   %v\n",
 			s.Hash, s.Uptime, s.Stored, s.Routes, s.Contacts, s.Gateway)
-		fmt.Printf("router    in %d, delivered %d, forwarded %d, duplicates %d, purged %d\n",
+		fmt.Fprintf(out, "router    in %d, delivered %d, forwarded %d, duplicates %d, purged %d\n",
 			s.Router.In, s.Router.Delivered, s.Router.Forwarded, s.Router.Dup, s.Router.Purged)
 		for name, st := range s.Links {
-			fmt.Printf("link      %-20s %s\n", name, st)
+			fmt.Fprintf(out, "link      %-20s %s\n", name, st)
 		}
 		for _, b := range s.Bridges {
-			fmt.Printf("bridge    %s\n", b)
+			fmt.Fprintf(out, "bridge    %s\n", b)
+		}
+	case "app":
+		return runApp()
+	case "config":
+		return configCmd(rest)
+	case "relay", "relays":
+		return relayCmd(rest)
+	case "bridge", "bridges":
+		return bridgeCmd(rest)
+	case "ports":
+		var ps []string
+		if err := call("GET", "/serial-ports", nil, &ps); err != nil {
+			return err
+		}
+		if len(ps) == 0 {
+			fmt.Fprintln(out, "no USB serial ports found (plug in the LoRa node)")
+		}
+		for _, p := range ps {
+			fmt.Fprintln(out, p)
 		}
 	case "lora":
 		return loraCmd(rest)
 	case "identity":
 		return identityCmd(rest)
 	case "version":
-		fmt.Println("mesh", version)
+		fmt.Fprintln(out, "mesh", version)
 	case "id":
 		var id map[string]string
 		if err := call("GET", "/id", nil, &id); err != nil {
 			return err
 		}
-		fmt.Println(id["uri"])
+		fmt.Fprintln(out, id["uri"])
 	case "contacts":
 		var cs []node.Contact
 		if err := call("GET", "/contacts", nil, &cs); err != nil {
 			return err
 		}
-		tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		tw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 		for _, c := range cs {
 			name := c.Name
 			if name == "" {
@@ -167,7 +198,7 @@ func run(args []string) error {
 		if err := call("POST", "/contacts", map[string]string{"uri": rest[0], "name": strings.Join(rest[1:], " ")}, &c); err != nil {
 			return err
 		}
-		fmt.Printf("added %s (%s)\n", c.Name, c.Hash)
+		fmt.Fprintf(out, "added %s (%s)\n", c.Name, c.Hash)
 	case "rename":
 		if len(rest) < 2 {
 			return errors.New("usage: mesh rename <contact> <name>")
@@ -194,7 +225,7 @@ func run(args []string) error {
 		if err := call("POST", "/send", map[string]string{"to": rest[0], "text": text}, &m); err != nil {
 			return err
 		}
-		fmt.Println("queued", m.ID)
+		fmt.Fprintln(out, "queued", m.ID)
 	case "read":
 		fs := flag.NewFlagSet("read", flag.ExitOnError)
 		n := fs.Int("n", 50, "number of messages")
@@ -221,7 +252,7 @@ func run(args []string) error {
 		if id["ui"] == "" {
 			return errors.New("web UI disabled (set ui = \"127.0.0.1:7878\" in config.toml)")
 		}
-		fmt.Println(id["ui"])
+		fmt.Fprintln(out, id["ui"])
 		openBrowser(id["ui"])
 	default:
 		fmt.Fprint(os.Stderr, usage)
@@ -256,7 +287,7 @@ func printMessage(m node.Message, names map[string]string) {
 			mark = " ✓✓"
 		}
 	}
-	fmt.Printf("%s %s %s: %s%s\n", ts.Local().Format("01-02 15:04"), arrow, who, m.Text, mark)
+	fmt.Fprintf(out, "%s %s %s: %s%s\n", ts.Local().Format("01-02 15:04"), arrow, who, m.Text, mark)
 }
 
 func watch() error {
@@ -284,7 +315,7 @@ func watch() error {
 			}
 			printMessage(*e.Message, names)
 		default:
-			fmt.Printf("%s [%s] %s\n", time.Now().Format("15:04:05"), e.Type, e.Info)
+			fmt.Fprintf(out, "%s [%s] %s\n", time.Now().Format("15:04:05"), e.Type, e.Info)
 		}
 	}
 	return sc.Err()

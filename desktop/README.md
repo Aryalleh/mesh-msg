@@ -33,6 +33,27 @@ identity in `~/.local/share/meshd/`. Edit the config to add relays, then
 
 ## Use
 
+### The terminal app
+
+Run `mesh` with no arguments to open the interactive app: your chats (most recent
+first, with unread counts), live incoming messages and ✓✓ receipts, and every command
+and setting as a `/command`.
+
+```
+mesh> 1                       open chat 1 (or type a name)
+Sara> سلام                    type and press Enter to send
+Sara> /back                   back to the chat list
+mesh> /add meshmsg:… Reza     add a contact
+mesh> /set gateway=off        change a setting (/settings shows them all, /keys lists keys)
+mesh> /relay add ir-1 https://relay-ir.example
+mesh> /backup                 back up your account   (/restore to switch to a backup)
+mesh> /help                   everything else; Tab completes; Ctrl+D or /quit leaves
+```
+
+Leaving the app does not stop meshd; messages keep arriving in the background.
+
+### Commands
+
 ```bash
 mesh id                          # your contact link — share it
 mesh add 'meshmsg:…' Sara        # add a contact
@@ -41,7 +62,15 @@ mesh read Sara                   # history (✓ sent, ✓✓ delivered)
 mesh watch                       # live incoming messages
 mesh status                      # links, peers, stored packets
 mesh ui                          # open the web UI
+mesh config                      # all settings
+mesh config set gateway=on lan.peers=10.0.0.5:7000   # change them (mesh config keys)
+mesh relay add ir-1 https://relay-ir.example socks5://127.0.0.1:1080
+mesh bridge add ir-1 eu-1 50     # MB/day
+mesh ports                       # USB serial ports for a LoRa node
 ```
+
+Settings changed from the app, `mesh config`/`relay`/`bridge` or the web UI are the
+same: applied at once and written to `config.toml`.
 
 ### Settings from the web UI
 
@@ -57,8 +86,9 @@ Your account is the secret key in `identity.key`. Back it up sealed with a passp
 
 ```bash
 mesh identity export -o backup.txt   # asks for a passphrase twice; prints to stdout without -o
-# on the new machine, with meshd stopped:
+# on the new machine:
 mesh identity import backup.txt      # or paste it: mesh identity import
+                                     # (with meshd running it switches to the account at once)
 ```
 
 Or in the web UI: **⚙ → Account → Back up account / Restore from backup** (works

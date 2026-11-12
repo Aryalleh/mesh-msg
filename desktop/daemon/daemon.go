@@ -100,6 +100,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.ctx = ctx
 	d.mu.Lock()
 	d.startNode()
+	dataDir, uiAddr := d.cfg.DataDir, d.cfg.UI // d.cfg is replaced when settings change
 	d.mu.Unlock()
 	defer func() {
 		d.opMu.Lock()
@@ -110,7 +111,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}()
 	api := d.apiHandler()
 
-	sock := SocketPath(d.cfg.DataDir)
+	sock := SocketPath(dataDir)
 	os.Remove(sock)
 	ln, err := net.Listen("unix", sock)
 	if err != nil {
@@ -121,12 +122,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 	go ctlSrv.Serve(ln)
 	defer ctlSrv.Close()
 
-	if d.cfg.UI != "" {
-		host, _, err := net.SplitHostPort(d.cfg.UI)
+	if uiAddr != "" {
+		host, _, err := net.SplitHostPort(uiAddr)
 		if err != nil || !(host == "127.0.0.1" || host == "::1" || host == "localhost") {
-			return fmt.Errorf("ui address %q must be loopback", d.cfg.UI)
+			return fmt.Errorf("ui address %q must be loopback", uiAddr)
 		}
-		uiLn, err := net.Listen("tcp", d.cfg.UI)
+		uiLn, err := net.Listen("tcp", uiAddr)
 		if err != nil {
 			return fmt.Errorf("web ui: %w", err)
 		}
