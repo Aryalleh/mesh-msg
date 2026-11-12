@@ -151,7 +151,7 @@ between devices and never touches a relay. Every upload is signed (`X-Account`,
 
 | Config | Default | |
 |---|---|---|
-| `media_important_per_day` | 5 | files one account may upload per UTC day; one file to a group counts once |
+| `media_important_per_day` | 5 | files one account may upload per UTC day; one file to a group counts once, whatever the number of members. Each relay sets its own; editable in the admin panel (§6b), applies at once without a restart |
 | `media_important_hours` | 168 (7 days, as text) | how long an important file waits for its readers |
 
 - Over the allowance → `429` with the time it resets; `GET /v1/media/quota` (signed) returns
@@ -175,7 +175,8 @@ hour per relay. Sessions: random token in an HttpOnly, SameSite=Strict cookie, 1
 need the `X-Mava-Panel` header. The owner account (`server/admin.OwnerID`) is always an admin
 and can't be removed; other admins live in `data_dir/panel.json` (panel or `meshmsg-relay
 admin add|rm|list`). Settings changed in the panel go to the same file and override
-relay.json after a restart.
+relay.json after a restart. The important-media allowance (`media_important_per_day`, §6a)
+and `media_important_hours` are set in the panel and take effect immediately.
 
 ## 7. Data model
 

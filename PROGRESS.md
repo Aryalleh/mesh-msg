@@ -502,3 +502,5 @@ not implemented; no TURN, relays never carry a direct session).
   once accepted, `GET /v1/media/quota`). protocol.md §6b, server.md §6a, connectivity.md §2,
   README, decisions D13. Open: sybil accounts / per-relay counting. Not implemented; today
   any file may go to a relay. Previous docs commit `53891c9`.
+- User confirmed: one important file to a group counts once; the daily allowance is set per
+  relay in its admin panel (server.md §6a, §6b). Previous docs commit `05fb69b`.
