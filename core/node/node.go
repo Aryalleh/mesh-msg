@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/announce"
+	"github.com/Aryalleh/mesh-msg/core/e2e"
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/message"
 	"github.com/Aryalleh/mesh-msg/core/packet"
@@ -227,6 +228,11 @@ func (n *Node) setLinkStatus(name, status string) {
 }
 
 func (n *Node) onMessage(_ *identity.Identity, m *message.Received) {
+	if m.ContentType == e2e.ContentGroup {
+		// Private-group traffic: the sender is a member, not a new contact.
+		n.onPrivateGroup(m)
+		return
+	}
 	if m.FirstContact {
 		// Remember first-contact senders (unnamed) so replies use Noise K.
 		if err := n.db.putContact(m.From, "", time.Now()); err == nil {
@@ -247,6 +253,10 @@ func (n *Node) onMessage(_ *identity.Identity, m *message.Received) {
 func (n *Node) onReceipt(acked packet.ID) {
 	if ok, _ := n.db.markDelivered(acked.String()); ok {
 		n.emit(Event{Type: "delivered", Info: acked.String()})
+	}
+	// A member's copy of a private-group message: Info is the message id.
+	if msg, ok := n.onGroupReceipt(acked); ok {
+		n.emit(Event{Type: "delivered", Info: msg})
 	}
 }
 
@@ -364,7 +374,7 @@ func (n *Node) Messages(ref string, limit int) ([]Message, error) {
 		if c != nil {
 			h = c.pub.Hash()
 		} else {
-			h = g.g.Hash()
+			h = g.id
 		}
 		peer = &h
 	}
@@ -405,7 +415,7 @@ func (n *Node) Status() Status {
 	n.mu.Unlock()
 	stored, _ := n.store.Count()
 	cs, _ := n.db.contacts()
-	gs, _ := n.db.groups()
+	gs, _ := n.Groups()
 	return Status{
 		Hash: n.id.Hash().String(), URI: n.Identity().URI(),
 		Uptime: time.Since(n.start).Round(time.Second).String(),

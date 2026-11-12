@@ -34,13 +34,6 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS messages_peer ON messages(peer, received);
 CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS groups (
-	hash   BLOB PRIMARY KEY,
-	name   TEXT NOT NULL,
-	kind   TEXT NOT NULL,       -- private | regional | global
-	secret BLOB NOT NULL,
-	joined INTEGER NOT NULL
-);
 `
 
 func openAppDB(path string) (*appDB, error) {
@@ -50,6 +43,10 @@ func openAppDB(path string) (*appDB, error) {
 	}
 	db.SetMaxOpenConns(1)
 	if _, err := db.Exec(appSchema); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := migrateGroups(db); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -128,6 +125,10 @@ type Message struct {
 	Group    bool   `json:"group,omitempty"`
 	From     string `json:"from,omitempty"`
 	FromName string `json:"from_name,omitempty"`
+	// Outgoing private-group messages: how many members it went to and how
+	// many confirmed it (Delivered = all of them).
+	Recipients  int `json:"recipients,omitempty"`
+	DeliveredTo int `json:"delivered_to,omitempty"`
 }
 
 func (d *appDB) putMessage(m Message) error {

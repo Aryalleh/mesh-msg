@@ -140,7 +140,34 @@ reachable over its LoRa side and prioritises those packets for broadcast.
 
 ## 6a. Groups and public chats
 
-A group is addressed like a person. Its 32-byte secret derives, with HKDF-SHA256:
+### Private groups: a member list
+
+A private group is a list of members kept by every member. Each message is an ordinary
+one-to-one message (§4, always Noise **X** so the sender is authenticated and members need not
+have added each other) sent **separately to every other member**, with inner content type
+`5` (GROUP). Each copy gets its own RECEIPT, so the sender sees ✓ n/m and ✓✓ when all
+members have it. Relays, LoRa nodes and non-members see only ordinary messages.
+
+```
+content = group_id(16) | op(1) | body
+op 0 TEXT     text_type(1) | text                       (as content types 0/1)
+op 1 ROSTER   version(4) | name_len(1) | name | n(1) | n × (x(32) | ed(32) | name_len(1) | name)
+op 2 LEAVE    (empty)  the sender left
+op 3 REMOVED  (empty)  the owner removed the recipient
+```
+
+`group_id` is 16 random bytes and serves as the chat's hash in UIs. The **owner** creates the
+group and sends the ROSTER (at most 30 members, so it fits one message) to every member;
+whoever sent the first ROSTER a member accepts is that group's owner, and only the owner's
+later ROSTERs with a higher version count. The owner adds and removes members by sending a
+new ROSTER to everyone (and REMOVED to whoever was removed). A member who leaves sends LEAVE
+to everyone; the owner then sends an updated ROSTER. A TEXT that arrives before its ROSTER
+opens the group with the sender as a member until the list arrives. Senders' names are those
+the owner gave in the roster, unless the reader saved the person as a contact.
+
+### Public chats: a shared key
+
+A public chat is addressed like a person. Its 32-byte secret derives, with HKDF-SHA256:
 
 ```
 group identity = identity.FromSeed(HKDF(secret, info "mesh-msg group identity", 64 bytes))
@@ -155,13 +182,12 @@ cannot tell a group from a person.
 
 | Kind | Secret | Joined by |
 |---|---|---|
-| private | 32 random bytes | invite link `meshgroup:<base64url secret>?n=<name>` |
 | regional | `SHA-256("mesh-msg public channel v1|" + lower(name))` | `meshgroup:#tehran`, or typing the name |
 | global | same, name `global` | `meshgroup:#global` |
 
 Public chats are readable by anyone who knows the name. That is the point.
 
-DATA body to a group (no Noise; one symmetric key per group):
+DATA body to a public chat (no Noise; one symmetric key per chat):
 
 ```
 ChaCha20-Poly1305(group key, nonce = 0x00000000 || packet_id, ad = prologue (§3),
@@ -174,10 +200,10 @@ Overhead 149 bytes plus the name, so a short message fits one LoRa frame. The si
 stops members (and anyone, in public chats) from posting in someone else's name. The name
 is the sender's own label; clients show a saved contact name instead when they have one.
 
-Groups send **no RECEIPTs**: a receipt purges stored copies, which the other members still
+Public chats send **no RECEIPTs**: a receipt purges stored copies, which the other members still
 need. Members deliver a group packet *and keep forwarding it*; copies expire with the
 store TTL. Global chat packets carry `NO_LORA` (their volume would swamp LoRa airtime);
-private and regional groups use every link.
+regional chats use every link.
 
 ## 7. Link layers (framing per interface)
 

@@ -32,6 +32,18 @@ func BuildText(sender *identity.Identity, recipient identity.Public, text string
 	if len(content) > MaxTextBytes {
 		return nil, errors.New("message: text too long")
 	}
+	return BuildContent(sender, recipient, ct, content, o)
+}
+
+// MaxContentBytes is the largest inner content that fits in MaxFragments
+// LoRa frames with first-contact overhead.
+const MaxContentBytes = packet.MaxFragments*packet.FragBodySize - e2e.OverheadX - 32 - e2e.InnerHeader
+
+// BuildContent encrypts content of any content type for recipient.
+func BuildContent(sender *identity.Identity, recipient identity.Public, ct uint8, content []byte, o Options) ([]*packet.Packet, error) {
+	if len(content) > MaxContentBytes {
+		return nil, errors.New("message: content too long")
+	}
 	if o.Now.IsZero() {
 		o.Now = time.Now()
 	}

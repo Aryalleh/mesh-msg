@@ -175,17 +175,15 @@
     <string name="restore_confirm">Restore</string>
     <!-- Groups -->
     <string name="new_chat">New chat</string>
-    <string name="group_private">Private group</string>
     <string name="group_regional">Regional public chat</string>
     <string name="group_global">Global public chat</string>
     <string name="group_share">Share link</string>
-    <string name="group_invite">Invite people</string>
     <string name="group_leave">Leave group</string>
     <string name="group_leave_title">Leave %1$s?</string>
-    <string name="group_leave_body">You stop receiving its messages. You can join again later with its link.</string>
+    <string name="group_leave_body">You stop receiving its messages. For a private group the other members are told.</string>
     <string name="group_public_warning">Public chat: anyone can read it and post. Don\'t share anything private here.</string>
     <string name="groups_title">Group chats</string>
-    <string name="groups_body">A private group is read only by people you give its invite link to. It works over the same paths as your chats: Bluetooth, LoRa, relays.</string>
+    <string name="groups_body">A private group of your contacts. Each message is sent to every member separately, so you see who got it. It works over the same paths as your chats: Bluetooth, LoRa, relays.</string>
     <string name="group_name_label">Group name</string>
     <string name="group_create">Create group</string>
     <string name="public_chats_title">Public chats</string>
@@ -193,4 +191,15 @@
     <string name="region_label">Your city, province or country</string>
     <string name="region_helper">Everyone who picks the same name meets in one regional chat.</string>
     <string name="join_region">Join regional chat</string>
+    <string name="group_members">Members</string>
+    <string name="group_private_members">Private group · %1$d members</string>
+    <string name="group_removed">You were removed from this group</string>
+    <string name="group_add_member">Add member</string>
+    <string name="group_remove_member">Remove</string>
+    <string name="group_owner">owner</string>
+    <string name="group_you">you</string>
+    <string name="group_pick_members">Members</string>
+    <string name="group_no_contacts">Add contacts first: a group\'s members are your contacts.</string>
+    <string name="delivered_to_n">Delivered to %1$d of %2$d members</string>
+    <string name="close">Close</string>
 </resources>

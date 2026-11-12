@@ -348,3 +348,29 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 - Checked against the live relay eu-1: a private group message between two local meshd
   arrived in ~5 s with the relay unchanged.
 - Commit `f2d8c14`. CI green (run 43215403809: desktop + Android lint/tests/screenshots/APKs). Next: release when the user asks (v0.1.0-alpha6 still untagged).
+
+### 2026-11-12 — Private groups become member lists (broadcast to a list)
+
+- Private groups no longer use a shared secret or invite link. A group is a member list kept
+  by every member. Each message is sealed **separately to every member** as an ordinary
+  one-to-one message (Noise X, inner content type 5 `e2e.ContentGroup`): `group_id | op | body`,
+  with ops TEXT / ROSTER / LEAVE / REMOVED (`core/group/members.go`, docs/protocol.md §6a).
+  #global and regional chats are unchanged (shared-key channels).
+- Owner = sender of the first roster; only the owner's newer rosters count. The owner adds
+  and removes members (removed member is told and can't send). Leaving tells everyone. Max 30
+  members. Members don't need to have added each other and don't become contacts.
+- Per-member receipts: table `group_sends`; messages carry `recipients` / `delivered_to`;
+  `delivered` when all members confirmed (UIs show ✓ n/m, then ✓✓).
+- router `SendContent`, message `BuildContent`; node `CreateGroup(name, members)`,
+  `AddMembers`, `RemoveMember`; tables `group_members`, `group_sends`, groups gain
+  owner/version/removed (ALTER on old DBs). Private groups need no announces or mailbox polling.
+- meshd: `POST /groups {name, members}`, `POST /groups/{g}/members {add}`,
+  `DELETE /groups/{g}/members/{m}`. CLI: `mesh group new <name> <contact…>`,
+  `group members|add|remove`. Terminal app: `/group Name: a, b`, `/members`, `/addmember`,
+  `/kick`. Web UI: contact checklist in New group, Members dialog (add/remove), ✓ n/m;
+  checked with three meshd in headless Chromium.
+- mobile: `CreateGroup(name, membersJSON)`, `AddMembers`, `RemoveMember`. Android: member
+  picker on the New chat screen, Members dialog in the chat menu (owner adds/removes),
+  "removed" banner, ✓ n/m marks, en + fa strings, Json/screenshot tests. Compiles in CI only.
+- Tests: node (relay, 3 users: ✓✓ per member, reply between non-contacts, remove/re-add,
+  leave; LAN; persistence), CLI/app, mobile BLE chain with a non-member in the middle.

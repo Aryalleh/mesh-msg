@@ -266,8 +266,12 @@ func (d *Daemon) apiHandler() http.Handler {
 		writeJSON(w, node.Regions)
 	})
 	mux.HandleFunc("POST /groups", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
-		// {"name": "…"} creates a private group; {"link": "meshgroup:…" | "#tehran" | "global"} joins.
-		var req struct{ Name, Link string }
+		// {"name": "…", "members": ["sara", …]} creates a private group;
+		// {"link": "global" | "#tehran" | "meshgroup:#tehran"} joins a public chat.
+		var req struct {
+			Name, Link string
+			Members    []string
+		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			httpErr(w, err, 400)
 			return
@@ -277,8 +281,29 @@ func (d *Daemon) apiHandler() http.Handler {
 		if req.Link != "" {
 			g, err = n.JoinGroup(req.Link)
 		} else {
-			g, err = n.CreateGroup(req.Name)
+			g, err = n.CreateGroup(req.Name, req.Members)
 		}
+		if err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		writeJSON(w, g)
+	}))
+	mux.HandleFunc("POST /groups/{ref}/members", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		var req struct{ Add []string }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		g, err := n.AddMembers(r.PathValue("ref"), req.Add)
+		if err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		writeJSON(w, g)
+	}))
+	mux.HandleFunc("DELETE /groups/{ref}/members/{member}", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		g, err := n.RemoveMember(r.PathValue("ref"), r.PathValue("member"))
 		if err != nil {
 			httpErr(w, err, 400)
 			return

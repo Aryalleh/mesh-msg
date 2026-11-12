@@ -283,9 +283,10 @@ func (c *Core) Messages(contact string, limit int) (string, error) {
 
 // ---- groups and public chats ----
 // Send, Messages and MarkRead take a group's hash too; Chats lists groups as
-// {"group":{hash,name,title,kind,uri},"last":…,"unread":n}.
+// {"group":{hash,name,title,kind,uri,owner,is_owner,removed,members},"last":…,"unread":n}.
+// Outgoing private-group messages carry "recipients" and "delivered_to".
 
-// Groups returns the joined groups as JSON [{hash,name,title,kind,uri,joined}].
+// Groups returns the joined groups as JSON [{hash,name,title,kind,…,members}].
 func (c *Core) Groups() (string, error) {
 	gs, err := c.n.Groups()
 	if gs == nil {
@@ -294,12 +295,34 @@ func (c *Core) Groups() (string, error) {
 	return toJSON(gs, err)
 }
 
-// CreateGroup makes a private group and returns it as JSON (its "uri" is the
-// invite link).
-func (c *Core) CreateGroup(name string) (string, error) { return toJSON(c.n.CreateGroup(name)) }
+// CreateGroup makes a private group with contacts (a JSON array of hashes or
+// names) and returns it as JSON. Each message goes to every member separately.
+func (c *Core) CreateGroup(name, membersJSON string) (string, error) {
+	var ms []string
+	if membersJSON != "" {
+		if err := json.Unmarshal([]byte(membersJSON), &ms); err != nil {
+			return "", err
+		}
+	}
+	return toJSON(c.n.CreateGroup(name, ms))
+}
 
-// JoinGroup joins by invite link (meshgroup:…) or public chat name
-// ("global", "#tehran") and returns the group as JSON.
+// AddMembers adds contacts (JSON array) to a private group we own.
+func (c *Core) AddMembers(group, membersJSON string) (string, error) {
+	var ms []string
+	if err := json.Unmarshal([]byte(membersJSON), &ms); err != nil {
+		return "", err
+	}
+	return toJSON(c.n.AddMembers(group, ms))
+}
+
+// RemoveMember removes a member (hash) from a private group we own.
+func (c *Core) RemoveMember(group, member string) (string, error) {
+	return toJSON(c.n.RemoveMember(group, member))
+}
+
+// JoinGroup joins a public chat ("global", "#tehran", meshgroup:#tehran) and
+// returns it as JSON.
 func (c *Core) JoinGroup(link string) (string, error) { return toJSON(c.n.JoinGroup(link)) }
 
 // LeaveGroup leaves a group (hash, name or title).

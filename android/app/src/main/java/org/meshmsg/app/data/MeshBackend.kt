@@ -24,9 +24,12 @@ interface MeshBackend {
     fun removeContact(hash: String): Result<Unit>
     fun configureLoRa(node: String, patchJson: String): Result<Unit>
 
-    /** Creates a private group; its [Contact.uri] is the invite link. */
-    fun createGroup(name: String): Result<Contact>
-    /** Joins by invite link (meshgroup:…) or public chat name ("global", "#tehran"). */
+    /** Creates a private group with these contacts (hashes); each message goes to every member. */
+    fun createGroup(name: String, members: List<String>): Result<Contact>
+    /** Adds contacts to / removes a member from a private group we own. */
+    fun addMembers(group: String, members: List<String>): Result<Contact>
+    fun removeMember(group: String, member: String): Result<Contact>
+    /** Joins a public chat by link (meshgroup:#tehran) or name ("global", "#tehran"). */
     fun joinGroup(link: String): Result<Contact>
     fun leaveGroup(hash: String): Result<Unit>
 }

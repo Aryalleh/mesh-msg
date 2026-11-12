@@ -468,6 +468,27 @@ func (r *Router) SendText(from *identity.Identity, to identity.Public, text stri
 	return pkts[0].ID, nil
 }
 
+// SendContent seals arbitrary inner content (content type ct) for to, like
+// SendText; private groups use it. It returns the packet ID, whose receipt
+// arrives through OnReceipt.
+func (r *Router) SendContent(from *identity.Identity, to identity.Public, ct uint8, content []byte, known, priority bool) (packet.ID, error) {
+	pkts, err := message.BuildContent(from, to, ct, content, message.Options{
+		KnownContact: known, Priority: priority, MaxHops: r.cfg.MaxHops, Now: r.cfg.Now(),
+	})
+	if err != nil {
+		return packet.ID{}, err
+	}
+	var acts actions
+	r.mu.Lock()
+	r.known[to.Hash()] = to
+	for _, p := range pkts {
+		r.originate(&acts, p)
+	}
+	r.mu.Unlock()
+	acts.run()
+	return pkts[0].ID, nil
+}
+
 // Announce sends a fresh announce for every local identity.
 func (r *Router) Announce() {
 	var acts actions

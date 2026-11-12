@@ -29,6 +29,8 @@ const (
 	ContentTextCompact uint8 = 1
 	ContentContactCard uint8 = 2
 	ContentMediaChunk  uint8 = 3
+	ContentAck         uint8 = 4 // reserved (protocol.md §3)
+	ContentGroup       uint8 = 5 // private group traffic (core/group: text, roster, leave, removed)
 )
 
 const (

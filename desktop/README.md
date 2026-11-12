@@ -45,7 +45,7 @@ Sara> سلام                    type and press Enter to send
 Sara> /back                   back to the chat list
 mesh> /add meshmsg:… Reza     add a contact
 mesh> /global                 join the global public chat (/region tehran for your area)
-mesh> /group Family           start a private group; /invite shows its link
+mesh> /group Family: Sara, Ali   start a private group; /members, /addmember, /kick
 mesh> /set gateway=off        change a setting (/settings shows them all, /keys lists keys)
 mesh> /relay add ir-1 https://relay-ir.example
 mesh> /backup                 back up your account   (/restore to switch to a backup)
@@ -77,19 +77,21 @@ same: applied at once and written to `config.toml`.
 ### Groups and public chats
 
 ```bash
-mesh group new Family            # private group; prints its invite link (meshgroup:…)
-mesh group join 'meshgroup:…'    # join a private group by its link
+mesh group new Family Sara Ali   # private group with these contacts
+mesh group add Family Reza       # add / remove members (owner only)
+mesh group remove Family Reza
+mesh group members Family
 mesh group join global           # the global public chat
 mesh group join '#tehran'        # a regional public chat (any city / country name)
 mesh send Family "شام ساعت ۸"    # send / read work with groups too
-mesh groups                      # joined groups;  mesh group invite|leave <group>
+mesh groups                      # joined groups;  mesh group leave <group>
 ```
 
-In the app: `/group <name>`, `/join <link>`, `/global`, `/region <name>`, `/invite`,
-`/leave`. In the web UI: **+ → New group / Join group / Public chats**.
+In the app: `/group <name>: <contact>, …`, `/members`, `/addmember`, `/kick`, `/global`,
+`/region <name>`, `/leave`. In the web UI: **+ → New group / Public chats**, and **Members** in a group.
 
-Anyone holding a private group's link can read and post, so share it only with members.
-Public chats are open to everyone. Groups have no delivery receipts (✓ only).
+A private group's message is sent to every member separately, so you see ✓ 2/3 until all
+members have it (✓✓). Public chats are open to everyone and have no delivery receipts (✓ only).
 
 ### Settings from the web UI
 

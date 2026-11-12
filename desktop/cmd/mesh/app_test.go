@@ -212,8 +212,24 @@ func TestGroupCommands(t *testing.T) {
 		}
 		return buf.String()
 	}
-	if o := must("group", "new", "Family"); !strings.Contains(o, "meshgroup:") {
-		t.Fatalf("no invite link: %s", o)
+	for _, name := range []string{"Sara", "Reza", "Ali"} {
+		p, _ := identity.Generate()
+		must("add", identity.Contact{Public: p.Public}.URI(), name)
+	}
+	if o := must("group", "new", "Family", "Sara", "Reza"); !strings.Contains(o, "3 members") || !strings.Contains(o, "Sara") || !strings.Contains(o, "(owner) (you)") {
+		t.Fatalf("new: %s", o)
+	}
+	if o := must("group", "add", "Family", "Ali"); !strings.Contains(o, "Ali") {
+		t.Fatal(o)
+	}
+	if o := must("group", "remove", "Family", "Reza"); strings.Contains(o, "Reza") {
+		t.Fatal(o)
+	}
+	if o := must("group", "members", "Family"); !strings.Contains(o, "Sara") || !strings.Contains(o, "Ali") {
+		t.Fatal(o)
+	}
+	if err := run([]string{"group", "new", "X", "nobody"}); err == nil {
+		t.Fatal("unknown member accepted")
 	}
 	if o := must("group", "join", "global"); !strings.Contains(o, "#global") || !strings.Contains(o, "public") {
 		t.Fatal(o)
@@ -225,11 +241,11 @@ func TestGroupCommands(t *testing.T) {
 			t.Fatalf("groups lacks %q:\n%s", w, o)
 		}
 	}
-	if o := must("group", "invite", "#global"); !strings.HasPrefix(o, "meshgroup:#global") {
+	if o := must("group", "members", "#global"); !strings.Contains(o, "public") {
 		t.Fatal(o)
 	}
 	must("send", "Family", "سلام خانواده")
-	if o := must("read", "Family"); !strings.Contains(o, "Family you: سلام خانواده") {
+	if o := must("read", "Family"); !strings.Contains(o, "Family you: سلام خانواده ✓ 0/2") {
 		t.Fatal(o)
 	}
 	must("group", "leave", "#tehran")
@@ -258,15 +274,26 @@ func TestAppGroups(t *testing.T) {
 			}
 		}
 	}
-	expect("/chats", "/global")
+	for _, name := range []string{"Sara", "Ali"} {
+		p, _ := identity.Generate()
+		expect("/add "+identity.Contact{Public: p.Public}.URI()+" "+name, "added "+name)
+	}
+	expect("/chats", "Ali", "Sara")
 	expect("/global", "joined #global", "public", "── #global")
 	expect("hello world", "you: hello world")
 	if strings.Contains(buf.String(), "✓") {
-		t.Fatal("group message shows a delivery mark")
+		t.Fatal("public chat message shows a delivery mark")
 	}
 	expect("/region Tehran", "joined #tehran", "regional public chat")
-	expect("/group Family", "joined Family", "private group", "meshgroup:")
-	expect("/invite", "Invite link for Family", "meshgroup:")
+	expect("/group Family: Sara", "joined Family", "private group, 2 members", "Sara", "(owner) (you)")
+	expect("hi family", "you: hi family ✓ 0/1")
+	expect("/addmember Ali", "Ali", "Sara")
+	expect("/members", "Ali", "Sara", "(owner)")
+	expect("/kick Sara", "Ali")
+	if strings.Contains(buf.String(), "Sara") {
+		t.Fatal("Sara still listed")
+	}
+	expect("/invite", "private", "/addmember")
 	expect("/rm", "that is a group")
 	expect("/back", "#global", "→ hello world", "#tehran", "Family")
 	expect("#glo", "── #global", "you: hello world")

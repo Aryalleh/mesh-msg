@@ -24,94 +24,148 @@ func waitText(t *testing.T, ch <-chan node.Event, text string, timeout time.Dura
 	}
 }
 
-func TestPrivateGroupThroughRelay(t *testing.T) {
+// waitGroup waits until n's group satisfies ok.
+func waitGroup(t *testing.T, n *node.Node, ref string, ok func(node.Group) bool, timeout time.Duration) node.Group {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		gs, _ := n.Groups()
+		for _, g := range gs {
+			if (g.Hash == ref || g.Name == ref) && ok(g) {
+				return g
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("group %q never reached the expected state: %+v", ref, gs)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func memberNames(g node.Group) string {
+	var s []string
+	for _, m := range g.Members {
+		s = append(s, m.Name)
+	}
+	return strings.Join(s, ",")
+}
+
+func TestPrivateGroupMemberList(t *testing.T) {
 	url := startRelay(t, "ir-1", "ir")
 	relays := []node.RelayConfig{{Name: "ir-1", URL: url}}
 	ali := startNode(t, node.Config{Name: "Ali", Relays: relays})
 	sara := startNode(t, node.Config{Name: "Sara", Relays: relays})
 	reza := startNode(t, node.Config{Name: "Reza", Relays: relays})
-	// Nobody has anyone as a contact: the invite link is all it takes.
-	g, err := ali.CreateGroup("Family")
+	// Ali knows both; Sara and Reza don't know each other.
+	befriend(t, ali, sara, "ali", "sara")
+	befriend(t, ali, reza, "ali", "reza")
+	aliEv, c1 := ali.Subscribe()
+	defer c1()
+	saraEv, c2 := sara.Subscribe()
+	defer c2()
+	rezaEv, c3 := reza.Subscribe()
+	defer c3()
+
+	g, err := ali.CreateGroup("Family", []string{"sara", "reza"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(g.URI, "meshgroup:") || g.Kind != "private" {
+	if !g.IsOwner || g.Kind != "private" || len(g.Members) != 3 || g.URI != "" {
 		t.Fatalf("group %+v", g)
 	}
+	// Members get the list (with the names Ali gave) and see Ali as owner.
 	for _, n := range []*node.Node{sara, reza} {
-		if j, err := n.JoinGroup(g.URI); err != nil || j.Hash != g.Hash || j.Name != "Family" {
-			t.Fatalf("join: %+v %v", j, err)
+		sg := waitGroup(t, n, g.Hash, func(g node.Group) bool { return len(g.Members) == 3 }, 20*time.Second)
+		if sg.Name != "Family" || sg.IsOwner || sg.Owner != ali.Identity().Hash().String() {
+			t.Fatalf("member's view %+v", sg)
 		}
 	}
-	saraEv, c1 := sara.Subscribe()
-	defer c1()
-	rezaEv, c2 := reza.Subscribe()
-	defer c2()
-	aliEv, c3 := ali.Subscribe()
-	defer c3()
 
-	if _, err := ali.SendGroup("Family", "شام ساعت ۸"); err != nil {
-		t.Fatal(err)
+	m, err := ali.SendGroup("Family", "شام ساعت ۸")
+	if err != nil || m.Recipients != 2 {
+		t.Fatalf("%+v %v", m, err)
 	}
 	for _, ev := range []<-chan node.Event{saraEv, rezaEv} {
-		m := waitText(t, ev, "شام ساعت ۸", 30*time.Second)
-		if !m.Group || m.Peer != g.Hash || m.From != ali.Identity().Hash().String() || m.FromName != "Ali" || m.Outgoing {
-			t.Fatalf("got %+v", m)
+		got := waitText(t, ev, "شام ساعت ۸", 30*time.Second)
+		if !got.Group || got.Peer != g.Hash || got.From != ali.Identity().Hash().String() {
+			t.Fatalf("got %+v", got)
 		}
 	}
-	if _, err := sara.SendGroup(g.Hash[:8], "باشه"); err != nil {
+	// One receipt per member; delivered when both confirmed.
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		ms, _ := ali.Messages("Family", 10)
+		if len(ms) == 1 && ms[0].DeliveredTo == 2 && ms[0].Delivered {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("not delivered to both: %+v", ms)
+		}
+		waitEvent(t, aliEv, "delivered", 30*time.Second)
+	}
+
+	// Sara replies: it reaches Reza, whom she has never added. Her name is the one Ali gave.
+	if _, err := sara.SendGroup(g.Hash, "باشه"); err != nil {
 		t.Fatal(err)
+	}
+	if got := waitText(t, rezaEv, "باشه", 30*time.Second); got.FromName != "sara" {
+		t.Fatalf("sender name %q", got.FromName)
 	}
 	waitText(t, aliEv, "باشه", 30*time.Second)
-	waitText(t, rezaEv, "باشه", 30*time.Second)
-
-	// History and chat list on Reza's side.
-	ms, err := reza.Messages("Family", 10)
-	if err != nil || len(ms) != 2 || ms[0].FromName != "Ali" || ms[1].FromName != "Sara" {
-		t.Fatalf("history %v %+v", err, ms)
+	// Group members do not become contacts.
+	if cs, _ := reza.Contacts(); len(cs) != 1 {
+		t.Fatalf("reza's contacts %+v", cs)
 	}
-	// A saved contact name wins over the name the sender chose.
-	if _, err := reza.AddContact(sara.Identity().URI(), "sister"); err != nil {
-		t.Fatal(err)
-	}
-	ms, _ = reza.Messages("Family", 10)
-	if ms[1].FromName != "sister" {
-		t.Fatalf("contact name not used: %q", ms[1].FromName)
-	}
-	chats, _ := reza.Chats()
-	var found bool
-	for _, c := range chats {
-		if c.Group != nil && c.Group.Hash == g.Hash {
-			found = c.Last != nil && c.Last.Text == "باشه" && c.Unread == 2
-		}
-	}
-	if !found {
-		t.Fatalf("group chat missing or wrong in %+v", chats)
-	}
-	if err := reza.MarkRead("Family"); err != nil {
-		t.Fatal(err)
-	}
-	// Own messages show as "you".
-	ms, _ = ali.Messages("Family", 10)
-	if !ms[0].Outgoing || ms[0].FromName != "you" {
-		t.Fatalf("own message %+v", ms[0])
+	// Only the owner manages members.
+	if _, err := sara.RemoveMember("Family", "reza"); err == nil {
+		t.Fatal("non-owner removed a member")
 	}
 
-	// Reza leaves: no more messages for him.
-	if err := reza.LeaveGroup("Family"); err != nil {
+	// Ali removes Reza: Reza is told, Sara gets the new list, Reza gets nothing more.
+	if _, err := ali.RemoveMember("Family", "reza"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ali.SendGroup("Family", "after leave"); err != nil {
+	waitGroup(t, reza, g.Hash, func(g node.Group) bool { return g.Removed }, 20*time.Second)
+	waitGroup(t, sara, g.Hash, func(g node.Group) bool { return len(g.Members) == 2 }, 20*time.Second)
+	if _, err := reza.SendGroup(g.Hash, "x"); err == nil {
+		t.Fatal("removed member could send")
+	}
+	if m, _ := ali.SendGroup("Family", "after removal"); m.Recipients != 1 {
+		t.Fatalf("recipients %d", m.Recipients)
+	}
+	waitText(t, saraEv, "after removal", 30*time.Second)
+
+	// Ali adds Reza back; then Sara leaves and the owner updates the list.
+	if _, err := ali.AddMembers("Family", []string{"reza"}); err != nil {
 		t.Fatal(err)
 	}
-	waitText(t, saraEv, "after leave", 30*time.Second)
-	time.Sleep(time.Second)
-	if ms, _ := reza.Messages("", 100); len(ms) != 2 {
-		t.Fatalf("left member still receives: %+v", ms)
+	waitGroup(t, reza, g.Hash, func(g node.Group) bool { return !g.Removed && len(g.Members) == 3 }, 20*time.Second)
+	if err := sara.LeaveGroup("Family"); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := reza.SendGroup("Family", "x"); err == nil {
-		t.Fatal("sent to a left group")
+	waitGroup(t, ali, g.Hash, func(g node.Group) bool { return len(g.Members) == 2 }, 20*time.Second)
+	waitGroup(t, reza, g.Hash, func(g node.Group) bool { return len(g.Members) == 2 && !strings.Contains(memberNames(g), "sara") }, 20*time.Second)
+	if gs, _ := sara.Groups(); len(gs) != 0 {
+		t.Fatalf("sara still has %+v", gs)
 	}
+}
+
+func TestPrivateGroupOverLAN(t *testing.T) {
+	a := startNode(t, node.Config{Name: "A", LAN: node.LANConfig{Enabled: true}})
+	time.Sleep(100 * time.Millisecond)
+	b := startNode(t, node.Config{Name: "B", LAN: node.LANConfig{Enabled: true, StaticPeers: []string{a.LANAddr()}}})
+	befriend(t, a, b, "a", "b")
+	ev, cancel := b.Subscribe()
+	defer cancel()
+	g, err := a.CreateGroup("Team", []string{"b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitGroup(t, b, g.Hash, func(g node.Group) bool { return g.Name == "Team" }, 20*time.Second)
+	if _, err := a.SendGroup("Team", "over LAN"); err != nil {
+		t.Fatal(err)
+	}
+	waitText(t, ev, "over LAN", 20*time.Second)
 }
 
 func TestGlobalChannelAcrossBridge(t *testing.T) {
@@ -162,10 +216,20 @@ func TestGroupsPersist(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, _ := n.CreateGroup("Team")
+	friend := t.TempDir()
+	f, _ := node.Open(node.Config{DataDir: friend})
+	n.AddContact(f.Identity().URI(), "friend")
+	f.Close()
+	g, err := n.CreateGroup("Team", []string{"friend"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	n.JoinGroup("global")
-	if _, err := n.CreateGroup("  "); err == nil {
+	if _, err := n.CreateGroup("  ", nil); err == nil {
 		t.Fatal("unnamed group created")
+	}
+	if _, err := n.CreateGroup("x", []string{"nobody"}); err == nil {
+		t.Fatal("unknown member accepted")
 	}
 	if _, err := n.JoinGroup("meshgroup:bad"); err == nil {
 		t.Fatal("bad link accepted")
@@ -177,11 +241,11 @@ func TestGroupsPersist(t *testing.T) {
 	}
 	defer n.Close()
 	gs, _ := n.Groups()
-	if len(gs) != 2 || gs[0].Hash != g.Hash || gs[0].URI != g.URI || gs[1].Title != "#global" {
+	if len(gs) != 2 || gs[0].Hash != g.Hash || len(gs[0].Members) != 2 || !gs[0].IsOwner || gs[1].Title != "#global" {
 		t.Fatalf("groups after reopen: %+v", gs)
 	}
-	if _, err := n.SendGroup("Team", "still a member"); err != nil {
-		t.Fatal(err)
+	if m, err := n.SendGroup("Team", "still a member"); err != nil || m.Recipients != 1 {
+		t.Fatal(m, err)
 	}
 	if s := n.Status(); s.Groups != 2 {
 		t.Fatalf("status groups %d", s.Groups)

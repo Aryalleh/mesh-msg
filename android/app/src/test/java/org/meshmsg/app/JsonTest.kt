@@ -49,7 +49,8 @@ class JsonTest {
     @Test fun groupChats() {
         val list = Json.chats(
             """[{"contact":{"hash":"","name":"","uri":"","added":"0001-01-01T00:00:00Z"},
-                 "group":{"hash":"b520a898","name":"Family","title":"Family","kind":"private","uri":"meshgroup:AbC?n=Family","joined":"2026-11-12T11:00:00Z"},
+                 "group":{"hash":"b520a898","name":"Family","title":"Family","kind":"private","joined":"2026-11-12T11:00:00Z","owner":"aa11","is_owner":true,
+                   "members":[{"hash":"aa11","name":"Me","owner":true,"you":true},{"hash":"bb22","name":"Sara"}]},
                  "last":{"id":"07","peer":"b520a898","outgoing":false,"text":"از طریق بلوتوث","sent":"2026-11-12T11:00:00Z","received":"2026-11-12T11:00:01Z","delivered":false,"group":true,"from":"aa11bb22cc33","from_name":"Ali"},
                  "unread":1},
                {"contact":{"hash":"","name":"","uri":"","added":"0001-01-01T00:00:00Z"},
@@ -62,7 +63,11 @@ class JsonTest {
         assertEquals("b520a898", family.hash)
         assertEquals("Family", family.displayName)
         assertEquals(GroupKind.Private, family.group)
-        assertEquals("meshgroup:AbC?n=Family", family.uri)
+        assertEquals("", family.uri)
+        assertTrue(family.isOwner)
+        assertFalse(family.removed)
+        assertEquals(listOf("Me", "Sara"), family.members.map { it.displayName })
+        assertTrue(family.members[0].owner && family.members[0].you)
         assertTrue(list[0].last!!.group)
         assertEquals("Ali", list[0].last!!.fromName)
         assertEquals(GroupKind.Global, list[1].contact.group)
@@ -71,6 +76,10 @@ class JsonTest {
         // A sender without a name shows a short hash.
         val m = Json.message(JSONObject("""{"id":"1","peer":"p","text":"x","group":true,"from":"aa11bb22cc33"}"""), true)
         assertEquals("aa11bb22", m.fromName)
+        val sent = Json.message(JSONObject("""{"id":"2","peer":"p","text":"x","group":true,"outgoing":true,"recipients":3,"delivered_to":2}"""), true)
+        assertEquals(3, sent.recipients)
+        assertEquals(2, sent.deliveredTo)
+        assertEquals(Delivery.Sent, sent.delivery)
         assertFalse(Json.chats(chats, true)[0].contact.isGroup)
     }
 

@@ -188,11 +188,14 @@ func (l *relayLink) mailboxOnce(ctx context.Context) error {
 // groupsOnce fetches the mailbox of every joined group (members fetch as the
 // group's shared identity). No long poll: one quick fetch per group.
 func (l *relayLink) groupsOnce(ctx context.Context) error {
-	gs, err := l.n.db.groups()
+	gs, err := l.n.Groups()
 	if err != nil {
 		return err
 	}
 	for _, g := range gs {
+		if g.g == nil {
+			continue // private groups travel as one-to-one messages
+		}
 		key := l.name + ":group:" + g.Hash
 		raws, cur, err := l.c.Mailbox(ctx, g.g.Identity(), l.n.cursor(key), 0)
 		if err != nil {

@@ -190,6 +190,9 @@ class MainActivity : ComponentActivity() {
                             onInvite = {
                                 startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, contact.uri), null))
                             },
+                            contacts = chats.map { it.contact }.filter { !it.isGroup },
+                            onAddMembers = { vm.addMembers(hash, it) },
+                            onRemoveMember = { vm.removeMember(hash, it) },
                             onLeave = { vm.leaveGroup(hash); nav.popBackStack() },
                         )
                     }
@@ -205,6 +208,7 @@ class MainActivity : ComponentActivity() {
                     val openGroup = { hash: String? ->
                         if (hash != null) nav.navigate(Routes.chat(hash)) { popUpTo(Routes.CHATS) }
                     }
+                    val chats by vm.chats.collectAsStateWithLifecycle()
                     AddContactScreen(
                         myUri = myUri,
                         initialLink = remember { pendingLink.value.orEmpty().also { pendingLink.value = null } },
@@ -219,7 +223,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onPaste = { clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty().trim() },
                         onAdd = { uri, name ->
-                            if (uri.trim().startsWith("meshgroup:")) {
+                            if (uri.trim().startsWith("meshgroup:#")) {
                                 val hash = runBlocking { vm.joinGroup(uri) }
                                 openGroup(hash)
                                 if (hash == null) org.meshmsg.app.ui.LinkError.Invalid else null
@@ -231,7 +235,8 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         regions = vm.regions,
-                        onCreateGroup = { name -> openGroup(runBlocking { vm.createGroup(name) }) },
+                        contacts = chats.map { it.contact }.filter { !it.isGroup },
+                        onCreateGroup = { name, members -> openGroup(runBlocking { vm.createGroup(name, members) }) },
                         onJoinGroup = { link -> openGroup(runBlocking { vm.joinGroup(link) }) },
                     )
                 }

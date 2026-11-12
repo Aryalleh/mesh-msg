@@ -167,17 +167,15 @@
     <string name="restore_confirm">برگرداندن</string>
     <!-- Groups -->
     <string name="new_chat">گفتگوی تازه</string>
-    <string name="group_private">گروه خصوصی</string>
     <string name="group_regional">گفتگوی عمومی منطقه</string>
     <string name="group_global">گفتگوی عمومی جهانی</string>
     <string name="group_share">اشتراک پیوند</string>
-    <string name="group_invite">دعوت افراد</string>
     <string name="group_leave">ترک گروه</string>
     <string name="group_leave_title">از %1$s خارج می‌شوید؟</string>
-    <string name="group_leave_body">دیگر پیام‌های آن را نمی‌گیرید. بعداً با پیوندش دوباره می‌توانید عضو شوید.</string>
+    <string name="group_leave_body">دیگر پیام‌های آن را نمی‌گیرید. در گروه خصوصی، به اعضای دیگر خبر داده می‌شود.</string>
     <string name="group_public_warning">گفتگوی عمومی: هر کسی می‌تواند آن را بخواند و در آن بنویسد. چیز خصوصی اینجا نفرستید.</string>
     <string name="groups_title">گفتگوهای گروهی</string>
-    <string name="groups_body">گروه خصوصی را فقط کسانی می‌خوانند که پیوند دعوتش را به آن‌ها بدهید. از همان راه‌های گفتگوهای شما کار می‌کند: بلوتوث، لورا، رله‌ها.</string>
+    <string name="groups_body">گروهی از مخاطبان شما. هر پیام جداگانه برای هر عضو فرستاده می‌شود، پس می‌بینید به چه کسی رسید. از همان راه‌های گفتگوهای شما کار می‌کند: بلوتوث، لورا، رله‌ها.</string>
     <string name="group_name_label">نام گروه</string>
     <string name="group_create">ساخت گروه</string>
     <string name="public_chats_title">گفتگوهای عمومی</string>
@@ -185,4 +183,15 @@
     <string name="region_label">شهر، استان یا کشور شما</string>
     <string name="region_helper">هر کس همین نام را انتخاب کند در یک گفتگوی منطقه‌ای با شما است.</string>
     <string name="join_region">پیوستن به گفتگوی منطقه</string>
+    <string name="group_members">اعضا</string>
+    <string name="group_private_members">گروه خصوصی · %1$d عضو</string>
+    <string name="group_removed">شما از این گروه حذف شدید</string>
+    <string name="group_add_member">افزودن عضو</string>
+    <string name="group_remove_member">حذف</string>
+    <string name="group_owner">مدیر</string>
+    <string name="group_you">شما</string>
+    <string name="group_pick_members">اعضا</string>
+    <string name="group_no_contacts">اول مخاطب اضافه کنید: اعضای گروه از مخاطبان شما هستند.</string>
+    <string name="delivered_to_n">به %1$d از %2$d عضو رسید</string>
+    <string name="close">بستن</string>
 </resources>

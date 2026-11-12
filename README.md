@@ -13,7 +13,7 @@ Messages travel over whatever path exists:
 | 2a — Regional | Phones/PCs on a country's domestic network → in-region relay | One country, even during an international blackout | Anything |
 | 2b — Global | Federated relays (EU, US, Asia, AU); regions joined by volunteer **bridges** (VPN, Starlink, unfiltered SIM) | Global | Anything |
 
-Chats are one-to-one, **private groups** (joined by invite link), **regional public chats**
+Chats are one-to-one, **private groups** (a member list: each message goes to every member separately, with ✓✓ per member), **regional public chats**
 (one per city or country name, e.g. `#tehran`) and one **global public chat** (`#global`).
 All of them travel over every tier above (the global chat skips LoRa to save airtime).
 

@@ -97,7 +97,11 @@ class CoreBackend(dataDir: String, configJson: String) : MeshBackend, Listener {
     override fun renameContact(hash: String, name: String): Result<Unit> = call { core.renameContact(hash, name.trim()) }
     override fun removeContact(hash: String): Result<Unit> = call { core.removeContact(hash) }
     override fun configureLoRa(node: String, patchJson: String): Result<Unit> = call { core.loRaConfigure(node, patchJson) }
-    override fun createGroup(name: String): Result<Contact> = call { Json.group(JSONObject(core.createGroup(name.trim()))) }
+    override fun createGroup(name: String, members: List<String>): Result<Contact> =
+        call { Json.group(JSONObject(core.createGroup(name.trim(), org.json.JSONArray(members).toString()))) }
+    override fun addMembers(group: String, members: List<String>): Result<Contact> =
+        call { Json.group(JSONObject(core.addMembers(group, org.json.JSONArray(members).toString()))) }
+    override fun removeMember(group: String, member: String): Result<Contact> = call { Json.group(JSONObject(core.removeMember(group, member))) }
     override fun joinGroup(link: String): Result<Contact> = call { Json.group(JSONObject(core.joinGroup(link.trim()))) }
     override fun leaveGroup(hash: String): Result<Unit> = call { core.leaveGroup(hash) }
 

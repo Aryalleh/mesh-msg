@@ -19,12 +19,27 @@ enum class GroupKind(val id: String) {
     }
 }
 
+/** A member of a private group. */
+@Immutable
+data class GroupMember(val hash: String, val name: String, val owner: Boolean = false, val you: Boolean = false) {
+    val displayName: String get() = name.ifBlank { hash.take(8) }
+}
+
 /**
  * A chat partner: a person, or a group ([group] set; then [name] is the
- * group's title such as "#tehran" and [uri] its invite link).
+ * group's title such as "#tehran" and [uri] a public chat's link). Private
+ * groups carry their [members]; [isOwner] may add and remove them.
  */
 @Immutable
-data class Contact(val hash: String, val name: String, val uri: String, val group: GroupKind? = null) {
+data class Contact(
+    val hash: String,
+    val name: String,
+    val uri: String,
+    val group: GroupKind? = null,
+    val members: List<GroupMember> = emptyList(),
+    val isOwner: Boolean = false,
+    val removed: Boolean = false,
+) {
     /** Name to show: the saved name, or a short form of the hash. */
     val displayName: String get() = name.ifBlank { hash.take(8) }
     val isGroup: Boolean get() = group != null
@@ -45,6 +60,9 @@ data class Message(
     /** Group messages: who wrote it (their chosen or saved name, "you" for us). */
     val group: Boolean = false,
     val fromName: String = "",
+    /** Outgoing private-group messages: members it went to, and how many confirmed. */
+    val recipients: Int = 0,
+    val deliveredTo: Int = 0,
 ) {
     /** When the user saw it happen on this phone. */
     val timeMs: Long get() = if (outgoing) sentMs else receivedMs
@@ -103,7 +121,17 @@ object Json {
     fun contact(o: JSONObject) = Contact(o.optString("hash"), o.optString("name"), o.optString("uri"))
 
     /** A group (core node.Group JSON) as a chat partner. */
-    fun group(o: JSONObject) = Contact(o.optString("hash"), o.optString("title"), o.optString("uri"), GroupKind.of(o.optString("kind")))
+    fun group(o: JSONObject): Contact {
+        val ms = o.optJSONArray("members") ?: JSONArray()
+        val members = List(ms.length()) {
+            val m = ms.getJSONObject(it)
+            GroupMember(m.optString("hash"), m.optString("name"), m.optBoolean("owner"), m.optBoolean("you"))
+        }
+        return Contact(
+            o.optString("hash"), o.optString("title"), o.optString("uri"), GroupKind.of(o.optString("kind")),
+            members, o.optBoolean("is_owner"), o.optBoolean("removed"),
+        )
+    }
 
     /**
      * [linkUp]: whether any path existed when the list was read. The core
@@ -123,6 +151,8 @@ object Json {
             delivery = if (outgoing) delivery else Delivery.Delivered,
             group = o.optBoolean("group"),
             fromName = o.optString("from_name").ifBlank { o.optString("from").take(8) },
+            recipients = o.optInt("recipients"),
+            deliveredTo = o.optInt("delivered_to"),
         )
     }
 

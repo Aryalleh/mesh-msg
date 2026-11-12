@@ -1,7 +1,6 @@
 package group
 
 import (
-	"crypto/rand"
 	"errors"
 	"strings"
 	"testing"
@@ -40,17 +39,17 @@ func reassemble(t *testing.T, pkts []*packet.Packet) *packet.Packet {
 	return full
 }
 
-func TestPrivateGroupRoundTrip(t *testing.T) {
-	g, err := New("Family", rand.Reader)
+func TestChannelRoundTrip(t *testing.T) {
+	g, err := Channel("tehran")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A member who joined by link derives the same group.
+	// Someone who joined by link derives the same channel.
 	m, err := ParseURI(g.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Hash() != g.Hash() || m.Name != "Family" || m.Kind != Private {
+	if m.Hash() != g.Hash() || m.Name != "tehran" || m.Kind != Regional {
 		t.Fatalf("joined %+v", m)
 	}
 	alice, _ := identity.Generate()
@@ -76,8 +75,8 @@ func TestPrivateGroupRoundTrip(t *testing.T) {
 }
 
 func TestOutsidersAndForgery(t *testing.T) {
-	g, _ := New("A", rand.Reader)
-	other, _ := New("A", rand.Reader) // same name, other secret
+	g, _ := Channel("a")
+	other, _ := Channel("b")
 	alice, _ := identity.Generate()
 	pkts, _ := g.BuildText(alice, "Alice", "hi", 0, false, time.Now())
 	p := reassemble(t, pkts)
@@ -122,8 +121,10 @@ func TestChannels(t *testing.T) {
 	if _, err := Channel("  # "); err == nil {
 		t.Fatal("empty channel accepted")
 	}
-	if _, err := ParseURI("meshmsg:abc"); err == nil {
-		t.Fatal("contact link accepted as group")
+	for _, bad := range []string{"meshmsg:abc", "meshgroup:AbCdEf?n=x", "meshgroup:"} {
+		if _, err := ParseURI(bad); err == nil {
+			t.Fatalf("%q accepted", bad)
+		}
 	}
 	// Channel derivation is fixed: changing it splits every channel.
 	if got := gl.Hash().String(); got != globalHash {
@@ -132,7 +133,7 @@ func TestChannels(t *testing.T) {
 }
 
 func TestLongNameTruncated(t *testing.T) {
-	g, _ := New("x", rand.Reader)
+	g, _ := Channel("x")
 	alice, _ := identity.Generate()
 	pkts, _ := g.BuildText(alice, strings.Repeat("ن", 40), "hi", 0, false, time.Now())
 	m, err := g.Open(reassemble(t, pkts))

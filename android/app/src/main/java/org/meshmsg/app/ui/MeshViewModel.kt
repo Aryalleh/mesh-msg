@@ -94,6 +94,8 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     fun rename(hash: String, name: String) = io { it.renameContact(hash, name) }
     fun remove(hash: String) = io { it.removeContact(hash) }
     fun leaveGroup(hash: String) = io { it.leaveGroup(hash) }
+    fun addMembers(group: String, members: List<String>) = io { it.addMembers(group, members) }
+    fun removeMember(group: String, member: String) = io { it.removeMember(group, member) }
 
     /** Suggested regional chats (from the core). */
     val regions: List<String> by lazy {
@@ -101,7 +103,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     }
 
     /** Creates or joins a group; returns its hash, or null (the error goes to the snackbar). */
-    suspend fun createGroup(name: String): String? = groupCall { it.createGroup(name) }
+    suspend fun createGroup(name: String, members: List<String>): String? = groupCall { it.createGroup(name, members) }
     suspend fun joinGroup(link: String): String? = groupCall { it.joinGroup(link) }
 
     private suspend fun groupCall(f: (CoreBackend) -> Result<org.meshmsg.app.data.Contact>): String? {

@@ -55,6 +55,9 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,6 +87,9 @@ fun ChatScreen(
     modifier: Modifier = Modifier,
     onInvite: () -> Unit = {},
     onLeave: () -> Unit = {},
+    contacts: List<org.meshmsg.app.data.Contact> = emptyList(),
+    onAddMembers: (List<String>) -> Unit = {},
+    onRemoveMember: (String) -> Unit = {},
     nowMs: Long = System.currentTimeMillis(),
     initialDraft: String = "",
 ) {
@@ -92,6 +98,7 @@ fun ChatScreen(
     var renaming by rememberSaveable { mutableStateOf(false) }
     var removing by rememberSaveable { mutableStateOf(false) }
     var leaving by rememberSaveable { mutableStateOf(false) }
+    var showMembers by rememberSaveable { mutableStateOf(false) }
     val group = contact.group
     val list = rememberLazyListState()
     LaunchedEffect(messages.size) { if (messages.isNotEmpty()) list.scrollToItem(messages.size - 1) }
@@ -110,13 +117,12 @@ fun ChatScreen(
                             Text(contact.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (group != null) {
                                 Text(
-                                    stringResource(
-                                        when (group) {
-                                            GroupKind.Private -> R.string.group_private
-                                            GroupKind.Regional -> R.string.group_regional
-                                            GroupKind.Global -> R.string.group_global
-                                        },
-                                    ),
+                                    when {
+                                        group == GroupKind.Private && contact.removed -> stringResource(R.string.group_removed)
+                                        group == GroupKind.Private -> stringResource(R.string.group_private_members, contact.members.size)
+                                        group == GroupKind.Regional -> stringResource(R.string.group_regional)
+                                        else -> stringResource(R.string.group_global)
+                                    },
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
@@ -130,10 +136,11 @@ fun ChatScreen(
                     IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.more_options)) }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         if (group != null) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(if (group.public) R.string.group_share else R.string.group_invite)) },
-                                onClick = { menu = false; onInvite() },
-                            )
+                            if (group.public) {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.group_share)) }, onClick = { menu = false; onInvite() })
+                            } else {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.group_members)) }, onClick = { menu = false; showMembers = true })
+                            }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.group_leave), color = MaterialTheme.colorScheme.error) },
                                 onClick = { menu = false; leaving = true },
@@ -162,6 +169,7 @@ fun ChatScreen(
         Column(Modifier.fillMaxSize().padding(pad)) {
             if (!anyPathUp) InfoBanner(stringResource(R.string.no_path_banner))
             if (group?.public == true && messages.isEmpty()) InfoBanner(stringResource(R.string.group_public_warning))
+            if (contact.removed) InfoBanner(stringResource(R.string.group_removed))
             if (messages.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
@@ -199,6 +207,47 @@ fun ChatScreen(
             },
             confirmButton = { TextButton(onClick = { renaming = false; onRename(name) }) { Text(stringResource(R.string.save)) } },
             dismissButton = { TextButton(onClick = { renaming = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (showMembers) {
+        val candidates = contacts.filter { c -> contact.members.none { it.hash == c.hash } }
+        var adding by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { showMembers = false },
+            title = { Text(stringResource(R.string.group_members)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    contact.members.forEach { m ->
+                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+                            val tags = listOfNotNull(
+                                stringResource(R.string.group_owner).takeIf { m.owner },
+                                stringResource(R.string.group_you).takeIf { m.you },
+                            )
+                            Text(
+                                m.displayName + if (tags.isEmpty()) "" else " (" + tags.joinToString(", ") + ")",
+                                Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                            if (contact.isOwner && !m.you) {
+                                TextButton(
+                                    onClick = { onRemoveMember(m.hash) },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                ) { Text(stringResource(R.string.group_remove_member)) }
+                            }
+                        }
+                    }
+                    if (contact.isOwner && adding) {
+                        candidates.forEach { c ->
+                            TextButton(onClick = { onAddMembers(listOf(c.hash)); adding = false }) { Text("+ " + c.displayName) }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showMembers = false }) { Text(stringResource(R.string.close)) } },
+            dismissButton = {
+                if (contact.isOwner && candidates.isNotEmpty() && !adding) {
+                    TextButton(onClick = { adding = true }) { Text(stringResource(R.string.group_add_member)) }
+                }
+            },
         )
     }
     if (leaving) {
@@ -275,8 +324,23 @@ private fun Bubble(m: Message, showSender: Boolean = false) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(Times.clock(m.timeMs, currentLocale()), style = MaterialTheme.typography.labelSmall, color = meta)
-                // Groups have no delivery receipts: never claim "delivered".
-                if (m.outgoing) DeliveryMark(if (m.group && m.delivery == Delivery.Delivered) Delivery.Sent else m.delivery, meta)
+                when {
+                    !m.outgoing -> {}
+                    // Public chats have no delivery receipts: never claim "delivered".
+                    m.group && m.recipients == 0 -> DeliveryMark(if (m.delivery == Delivery.Delivered) Delivery.Sent else m.delivery, meta)
+                    // Private groups: one receipt per member.
+                    m.group && m.deliveredTo < m.recipients -> {
+                        val deliveredLabel = stringResource(R.string.delivered_to_n, m.deliveredTo, m.recipients)
+                        DeliveryMark(m.delivery, meta)
+                        Text(
+                            "${m.deliveredTo}/${m.recipients}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = meta,
+                            modifier = Modifier.semantics { contentDescription = deliveredLabel },
+                        )
+                    }
+                    else -> DeliveryMark(m.delivery, meta)
+                }
             }
         }
     }

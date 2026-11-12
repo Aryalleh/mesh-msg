@@ -412,29 +412,29 @@ func TestExportRestoreIdentity(t *testing.T) {
 	}
 }
 
-// A group over BLE only: A and C are members, B in the middle is not and
-// still carries the group's packets (it can't read them).
+// A private group over BLE only: A and C are members, B in the middle is not
+// and still carries their copies (it can't read them). C never added A's
+// other member list entries as contacts.
 func TestGroupOverBLEThroughNonMember(t *testing.T) {
-	a, _ := phone(t, `{"name":"Ali"}`)
+	a, aev := phone(t, `{"name":"Ali"}`)
 	b, bev := phone(t, "")
 	c, cev := phone(t, "")
+	mustAdd(t, a, c.URI(), "Cyrus")
 	var g node.Group
-	s, err := a.CreateGroup("Family")
-	if err != nil || json.Unmarshal([]byte(s), &g) != nil || !strings.HasPrefix(g.URI, "meshgroup:") {
+	s, err := a.CreateGroup("Family", `["Cyrus"]`)
+	if err != nil || json.Unmarshal([]byte(s), &g) != nil || len(g.Members) != 2 || !g.IsOwner {
 		t.Fatal(err, s)
-	}
-	if _, err := c.JoinGroup(g.URI); err != nil {
-		t.Fatal(err)
 	}
 	connectBLE(t, a, b, 20)
 	connectBLEAs(t, b, c, 20, "ble2")
 	if _, err := a.Send(g.Hash, "از طریق بلوتوث"); err != nil {
 		t.Fatal(err)
 	}
-	e := cev.wait(t, "message", 20*time.Second)
-	if e.Message.Text != "از طریق بلوتوث" || !e.Message.Group || e.Message.FromName != "Ali" || e.Message.Peer != g.Hash {
+	e := cev.wait(t, "message", 30*time.Second)
+	if e.Message.Text != "از طریق بلوتوث" || !e.Message.Group || e.Message.Peer != g.Hash {
 		t.Fatalf("got %+v", e.Message)
 	}
+	aev.wait(t, "delivered", 30*time.Second)
 	select {
 	case ev := <-bev.ch:
 		if ev.Type == "message" {
@@ -445,17 +445,23 @@ func TestGroupOverBLEThroughNonMember(t *testing.T) {
 	var chats []node.Chat
 	s, _ = c.Chats()
 	json.Unmarshal([]byte(s), &chats)
-	if len(chats) != 1 || chats[0].Group == nil || chats[0].Group.Title != "Family" || chats[0].Unread != 1 {
+	if len(chats) != 1 || chats[0].Group == nil || chats[0].Group.Title != "Family" || chats[0].Unread != 1 || len(chats[0].Group.Members) != 2 {
 		t.Fatalf("chats: %s", s)
+	}
+	var ms []node.Message
+	s, _ = a.Messages(g.Hash, 10)
+	json.Unmarshal([]byte(s), &ms)
+	if len(ms) != 1 || ms[0].Recipients != 1 || ms[0].DeliveredTo != 1 || !ms[0].Delivered {
+		t.Fatalf("delivery: %s", s)
+	}
+	if s, err := a.RemoveMember(g.Hash, c.Hash()); err != nil || strings.Contains(s, c.Hash()) {
+		t.Fatal(err, s)
+	}
+	if _, err := a.AddMembers(g.Hash, `["Cyrus"]`); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := c.JoinGroup("global"); err != nil {
 		t.Fatal(err)
-	}
-	var gs []node.Group
-	s, _ = c.Groups()
-	json.Unmarshal([]byte(s), &gs)
-	if len(gs) != 2 {
-		t.Fatalf("groups: %s", s)
 	}
 	if err := c.LeaveGroup("#global"); err != nil {
 		t.Fatal(err)

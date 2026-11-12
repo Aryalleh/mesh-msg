@@ -33,12 +33,12 @@ func (n *Node) Chats() ([]Chat, error) {
 		ch.Unread, _ = n.db.unread(h, n.readMark(c.Hash))
 		out = append(out, ch)
 	}
-	gs, err := n.db.groups()
+	gs, err := n.Groups()
 	if err != nil {
 		return nil, err
 	}
 	for _, g := range gs {
-		h := g.g.Hash()
+		h := g.id
 		ch := Chat{Group: &g}
 		if ms, err := n.db.messages(&h, 1); err == nil && len(ms) == 1 {
 			n.nameGroupSender(&ms[0])

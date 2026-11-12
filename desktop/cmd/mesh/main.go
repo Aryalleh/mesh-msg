@@ -36,10 +36,12 @@ Usage:
   mesh rm <contact>              remove a contact
   mesh send <chat> <text…>       send a message ("-" reads text from stdin)
   mesh groups                    joined groups and public chats
-  mesh group new <name>          create a private group (prints its invite link)
-  mesh group join <link|#name>   join by invite link (meshgroup:…) or a public chat:
-                                 global, or a region such as #tehran
-  mesh group invite <group>      print a group's invite link
+  mesh group new <name> [contact…]  create a private group with these contacts
+                                 (each message goes to every member separately, ✓✓ per member)
+  mesh group members <group>     a private group's members
+  mesh group add <group> <contact…>   add members (owner only)
+  mesh group remove <group> <member>  remove a member (owner only)
+  mesh group join <#name|global> join a public chat: global, or a region such as #tehran
   mesh group leave <group>       leave a group
   mesh regions                   suggested regional chats
   mesh read [contact] [-n N]     show messages
@@ -306,7 +308,7 @@ func printMessage(m node.Message, names map[string]string) {
 	}
 	if m.Group {
 		if m.Outgoing {
-			fmt.Fprintf(out, "%s %s you: %s\n", m.Sent.Local().Format("01-02 15:04"), who, m.Text)
+			fmt.Fprintf(out, "%s %s you: %s%s\n", m.Sent.Local().Format("01-02 15:04"), who, m.Text, groupMark(m))
 		} else {
 			fmt.Fprintf(out, "%s %s %s: %s\n", m.Received.Local().Format("01-02 15:04"), who, senderName(m), m.Text)
 		}
@@ -367,7 +369,7 @@ func openBrowser(u string) {
 }
 
 func groupCmd(args []string) error {
-	const usage = "usage: mesh group new <name> | join <meshgroup:…|#region|global> | invite <group> | leave <group> | list"
+	const usage = "usage: mesh group new <name> [contact…] | members <group> | add <group> <contact…> | remove <group> <member> | join <#region|global> | leave <group> | list"
 	if len(args) == 0 {
 		return errors.New(usage)
 	}
@@ -390,10 +392,11 @@ func groupCmd(args []string) error {
 			return errors.New(usage)
 		}
 		var g node.Group
-		if err := call("POST", "/groups", map[string]string{"name": strings.Join(args[1:], " ")}, &g); err != nil {
+		if err := call("POST", "/groups", map[string]any{"name": args[1], "members": args[2:]}, &g); err != nil {
 			return err
 		}
-		fmt.Fprintf(out, "created %s — invite people with this link (anyone holding it can read and post):\n%s\n", g.Title, g.URI)
+		fmt.Fprintf(out, "created %s with %d members\n", g.Title, len(g.Members))
+		printMembers(g)
 	case "join":
 		if len(args) < 2 {
 			return errors.New(usage)
@@ -406,22 +409,37 @@ func groupCmd(args []string) error {
 		if g.Kind != "private" {
 			fmt.Fprintln(out, "this chat is public: anyone can read it and post")
 		}
-	case "invite", "link":
+	case "members", "invite", "link":
 		if len(args) < 2 {
 			return errors.New(usage)
 		}
-		var gs []node.Group
-		if err := call("GET", "/groups", nil, &gs); err != nil {
+		g, err := findGroup(strings.Join(args[1:], " "))
+		if err != nil {
 			return err
 		}
-		ref := strings.Join(args[1:], " ")
-		for _, g := range gs {
-			if g.Hash == ref || strings.EqualFold(g.Title, ref) || strings.EqualFold(g.Name, ref) || (len(ref) >= 6 && strings.HasPrefix(g.Hash, ref)) {
-				fmt.Fprintln(out, g.URI)
-				return nil
-			}
+		if g.Kind != "private" {
+			fmt.Fprintf(out, "%s is public: anyone can join with: mesh group join %s\n", g.Title, g.Title)
+			return nil
 		}
-		return fmt.Errorf("no group %q", ref)
+		printMembers(g)
+	case "add":
+		if len(args) < 3 {
+			return errors.New(usage)
+		}
+		var g node.Group
+		if err := call("POST", "/groups/"+url.PathEscape(args[1])+"/members", map[string]any{"add": args[2:]}, &g); err != nil {
+			return err
+		}
+		printMembers(g)
+	case "remove", "kick":
+		if len(args) != 3 {
+			return errors.New(usage)
+		}
+		var g node.Group
+		if err := call("DELETE", "/groups/"+url.PathEscape(args[1])+"/members/"+url.PathEscape(args[2]), nil, &g); err != nil {
+			return err
+		}
+		printMembers(g)
 	case "leave", "rm":
 		if len(args) < 2 {
 			return errors.New(usage)
@@ -431,4 +449,49 @@ func groupCmd(args []string) error {
 		return errors.New(usage)
 	}
 	return nil
+}
+
+func findGroup(ref string) (node.Group, error) {
+	var gs []node.Group
+	if err := call("GET", "/groups", nil, &gs); err != nil {
+		return node.Group{}, err
+	}
+	for _, g := range gs {
+		if g.Hash == ref || strings.EqualFold(g.Title, ref) || strings.EqualFold(g.Name, ref) || (len(ref) >= 6 && strings.HasPrefix(g.Hash, ref)) {
+			return g, nil
+		}
+	}
+	return node.Group{}, fmt.Errorf("no group %q", ref)
+}
+
+func printMembers(g node.Group) {
+	if g.Removed {
+		fmt.Fprintf(out, "%s: you were removed from this group\n", g.Title)
+	}
+	for _, m := range g.Members {
+		name := m.Name
+		if name == "" {
+			name = m.Hash[:12]
+		}
+		tag := ""
+		if m.Owner {
+			tag += " (owner)"
+		}
+		if m.You {
+			tag += " (you)"
+		}
+		fmt.Fprintf(out, "  %-20s %s%s\n", name, m.Hash[:12], tag)
+	}
+}
+
+// groupMark is the delivery mark of an outgoing group message: ✓✓ when every
+// member confirmed it, else ✓ n/m (public chats have no receipts).
+func groupMark(m node.Message) string {
+	switch {
+	case m.Recipients == 0:
+		return ""
+	case m.Delivered || m.DeliveredTo >= m.Recipients:
+		return " ✓✓"
+	}
+	return fmt.Sprintf(" ✓ %d/%d", m.DeliveredTo, m.Recipients)
 }

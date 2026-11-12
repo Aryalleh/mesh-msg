@@ -12,6 +12,7 @@ import org.meshmsg.app.data.Chat
 import org.meshmsg.app.data.Contact
 import org.meshmsg.app.data.Delivery
 import org.meshmsg.app.data.GroupKind
+import org.meshmsg.app.data.GroupMember
 import org.meshmsg.app.data.LoRaNode
 import org.meshmsg.app.data.Message
 import org.meshmsg.app.data.NetStatus
@@ -101,7 +102,15 @@ class ScreenshotTest(private val variant: Variant) {
             msg(6, true, "If I don't answer I'm still on the road", 1 * MIN, Delivery.Queued),
         )
 
-    private val family = Contact("b520a8985244aa01", if (fa) "خانواده" else "Family", "meshgroup:x", GroupKind.Private)
+    private val family = Contact(
+        "b520a8985244aa01", if (fa) "خانواده" else "Family", "", GroupKind.Private,
+        members = listOf(
+            GroupMember("aa", if (fa) "من" else "Me", owner = true, you = true),
+            GroupMember("bb", if (fa) "مامان" else "Mom"),
+            GroupMember("cc", if (fa) "علی" else "Ali"),
+        ),
+        isOwner = true,
+    )
     private val tehran = Contact("9c1d3e5f7a9b0c2d", "#tehran", "meshgroup:#tehran", GroupKind.Regional)
 
     private fun gmsg(id: Int, out: Boolean, from: String, text: String, ago: Long) =
@@ -111,11 +120,11 @@ class ScreenshotTest(private val variant: Variant) {
         get() = if (fa) listOf(
             gmsg(1, false, "مامان", "شام ساعت ۸ خونه‌ی ما", 50 * MIN),
             gmsg(2, false, "علی", "من نان می‌گیرم", 30 * MIN),
-            gmsg(3, true, "you", "منم میام", 5 * MIN),
+            gmsg(3, true, "you", "منم میام", 5 * MIN).copy(recipients = 2, deliveredTo = 1),
         ) else listOf(
             gmsg(1, false, "Mom", "Dinner at 8 at our place", 50 * MIN),
             gmsg(2, false, "Ali", "I'll bring bread", 30 * MIN),
-            gmsg(3, true, "you", "I'm coming too", 5 * MIN),
+            gmsg(3, true, "you", "I'm coming too", 5 * MIN).copy(recipients = 2, deliveredTo = 1),
         )
 
     private val limits = TextLimits(onePacket = 172, max = 1800, bytes = { it.toByteArray().size })
@@ -162,6 +171,7 @@ class ScreenshotTest(private val variant: Variant) {
         AddContactScreen(
             "meshmsg:Jf3kQ0vT8mZp2xW7aYbN5cR1dE6gH9iK4lM0oP3qS8u", onBack = {}, onCopy = {}, onShare = {}, onPaste = { "" }, onAdd = { _, _ -> null },
             regions = listOf("iran", "tehran", "mashhad", "isfahan"),
+            contacts = listOf(sara, ali),
         )
     }
 

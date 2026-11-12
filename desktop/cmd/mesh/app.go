@@ -27,8 +27,9 @@ import (
 const appHelp = `In a chat, type and press Enter to send. Anywhere:
   /chats  (or /back)        the chat list           <number> or <name>   open a chat
   /add <meshmsg:…> [name]   add a contact            /id                  your contact link
-  /group <name>             new private group        /invite              its invite link
-  /join <link|#name>        join a group or channel  /leave               leave this group
+  /group <name>: <contact>, <contact>…   new private group (each message goes to every member)
+  /members                  this group's members     /addmember <contact>… /kick <member>  (owner)
+  /join <#name>             join a public chat       /leave               leave this group
   /global                   the global public chat   /region <name>       your city's / country's chat
   /rename <name>            rename this chat's contact (or /rename <contact> <name>)
   /rm                       remove this chat's contact (or /rm <contact>)
@@ -332,7 +333,7 @@ func (a *app) open(c *node.Contact) {
 	a.mu.Unlock()
 	kind := c.Hash[:12]
 	if g, ok := a.groupOf(c.Hash); ok {
-		kind = map[string]string{"private": "private group · /invite to add people", "regional": "regional public chat",
+		kind = map[string]string{"private": fmt.Sprintf("private group, %d members · /members", len(g.Members)), "regional": "regional public chat",
 			"global": "global public chat"}[string(g.Kind)] + " · /leave to leave"
 	}
 	a.printf("\n── %s · %s ── /back for the chat list\n", displayName(*c), kind)
@@ -371,7 +372,9 @@ func (a *app) printMsg(m node.Message) {
 		}
 	}
 	mark := ""
-	if m.Outgoing && !m.Group { // groups have no delivery receipts
+	if m.Group {
+		mark = groupMark(m) // ✓ n/m in private groups; public chats have no receipts
+	} else if m.Outgoing {
 		mark = " ✓"
 		if m.Delivered {
 			mark = " ✓✓"
@@ -475,13 +478,50 @@ func (a *app) handle(line string) {
 			args = args[1:]
 		}
 		if len(args) == 0 {
-			err = errors.New("usage: /group <name> — creates a private group and shows its invite link")
+			err = errors.New("usage: /group <name>: <contact>, <contact>… — a private group; each message goes to every member separately")
+			break
+		}
+		name, list, _ := strings.Cut(strings.Join(args, " "), ":")
+		members := []string{}
+		for _, m := range strings.Split(list, ",") {
+			if m = strings.TrimSpace(m); m != "" {
+				members = append(members, m)
+			}
+		}
+		var g node.Group
+		if err = call("POST", "/groups", map[string]any{"name": strings.TrimSpace(name), "members": members}, &g); err == nil {
+			a.joined(g)
+			a.printMembers(g)
+			if len(members) == 0 {
+				a.printf("add people with /addmember <contact>…\n")
+			}
+		}
+	case "members":
+		if cur == nil {
+			err = errors.New("open a group first")
 			break
 		}
 		var g node.Group
-		if err = call("POST", "/groups", map[string]string{"name": strings.Join(args, " ")}, &g); err == nil {
-			a.joined(g)
-			a.printf("Invite people with this link (anyone holding it can read and post):\n%s\n", g.URI)
+		if g, err = findGroup(cur.Hash); err == nil {
+			a.printMembers(g)
+		}
+	case "addmember", "addmembers":
+		if cur == nil || len(args) == 0 {
+			err = errors.New("usage: /addmember <contact>… inside a group you own")
+			break
+		}
+		var g node.Group
+		if err = call("POST", "/groups/"+url.PathEscape(cur.Hash)+"/members", map[string]any{"add": args}, &g); err == nil {
+			a.printMembers(g)
+		}
+	case "kick", "removemember":
+		if cur == nil || len(args) == 0 {
+			err = errors.New("usage: /kick <member> inside a group you own")
+			break
+		}
+		var g node.Group
+		if err = call("DELETE", "/groups/"+url.PathEscape(cur.Hash)+"/members/"+url.PathEscape(strings.Join(args, " ")), nil, &g); err == nil {
+			a.printMembers(g)
 		}
 	case "join":
 		if len(args) == 0 {
@@ -520,7 +560,8 @@ func (a *app) handle(line string) {
 		}
 		if g, ok := a.groupOf(c.Hash); ok {
 			if g.Kind == "private" {
-				a.printf("Invite link for %s — anyone holding it can read and post, send it only to members:\n%s\n", g.Title, g.URI)
+				a.printf("%s is private: its owner adds people with /addmember <contact>.\n", g.Title)
+				a.printMembers(g)
 			} else {
 				a.printf("%s is public: anyone can join with /join %s or this link:\n%s\n", g.Title, g.Title, g.URI)
 			}
@@ -640,6 +681,26 @@ func (a *app) handle(line string) {
 	}
 	if err != nil {
 		a.printf("%v\n", err)
+	}
+}
+
+func (a *app) printMembers(g node.Group) {
+	if g.Removed {
+		a.printf("you were removed from %s\n", g.Title)
+	}
+	for _, m := range g.Members {
+		name := m.Name
+		if name == "" {
+			name = m.Hash[:12]
+		}
+		tag := ""
+		if m.Owner {
+			tag += " (owner)"
+		}
+		if m.You {
+			tag += " (you)"
+		}
+		a.printf("  %s%s\n", name, tag)
 	}
 }
 
@@ -813,7 +874,7 @@ func (a *app) complete(line string, pos int, key rune) (string, int, bool) {
 		prefix, word = line[:i+1], line[i+1:]
 	}
 	if prefix == "" && strings.HasPrefix(word, "/") {
-		for _, c := range []string{"/chats", "/back", "/open", "/add", "/group", "/join", "/global", "/region", "/invite", "/leave", "/groups", "/rename", "/rm", "/history", "/id", "/status",
+		for _, c := range []string{"/chats", "/back", "/open", "/add", "/group", "/members", "/addmember", "/kick", "/join", "/global", "/region", "/invite", "/leave", "/groups", "/rename", "/rm", "/history", "/id", "/status",
 			"/settings", "/set", "/keys", "/relay", "/bridge", "/lora", "/ports", "/backup", "/restore", "/ui", "/clear", "/help", "/quit", "/send"} {
 			if strings.HasPrefix(c, word) {
 				cands = append(cands, c)

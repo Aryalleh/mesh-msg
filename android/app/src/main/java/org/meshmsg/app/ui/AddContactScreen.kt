@@ -1,5 +1,9 @@
 package org.meshmsg.app.ui
 
+import androidx.compose.ui.semantics.Role
+
+import androidx.compose.foundation.selection.toggleable
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -75,10 +79,12 @@ fun AddContactScreen(
     initialLink: String = "",
     initialError: LinkError? = null,
     regions: List<String> = emptyList(),
-    onCreateGroup: (name: String) -> Unit = {},
+    contacts: List<org.meshmsg.app.data.Contact> = emptyList(),
+    onCreateGroup: (name: String, members: List<String>) -> Unit = { _, _ -> },
     onJoinGroup: (link: String) -> Unit = {},
 ) {
     var groupName by rememberSaveable { mutableStateOf("") }
+    var picked by rememberSaveable { mutableStateOf(listOf<String>()) }
     var region by rememberSaveable { mutableStateOf("") }
     var link by rememberSaveable { mutableStateOf(initialLink) }
     var name by rememberSaveable { mutableStateOf("") }
@@ -153,8 +159,24 @@ fun AddContactScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text(stringResource(R.string.group_pick_members), style = MaterialTheme.typography.titleSmall)
+                if (contacts.isEmpty()) {
+                    Text(stringResource(R.string.group_no_contacts), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                contacts.forEach { c ->
+                    val on = c.hash in picked
+                    androidx.compose.foundation.layout.Row(
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .toggleable(value = on, role = Role.Checkbox) { picked = if (on) picked - c.hash else picked + c.hash },
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Space.m),
+                    ) {
+                        androidx.compose.material3.Checkbox(checked = on, onCheckedChange = null)
+                        Text(c.displayName, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
                 Button(
-                    onClick = { onCreateGroup(groupName) },
+                    onClick = { onCreateGroup(groupName, picked) },
                     enabled = groupName.isNotBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) { Text(stringResource(R.string.group_create)) }

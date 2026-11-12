@@ -1,8 +1,14 @@
-// Package group implements group chats: private groups (a random secret
-// shared by invite link) and public channels (the secret is derived from a
-// public name: the global channel and regional channels).
+// Package group implements group chats.
 //
-// A group is addressed like a person: its secret derives an identity (X25519
+// Private groups (members.go) are member lists: every message is sealed
+// separately to each member as an ordinary one-to-one message (content type
+// e2e.ContentGroup), so each member's delivery is acknowledged and the owner
+// can add and remove people.
+//
+// Public channels (this file) are the global chat and regional chats. Their
+// secret is derived from a public name, so anyone can join.
+//
+// A channel is addressed like a person: its secret derives an identity (X25519
 // + Ed25519), and dest_hash is that identity's hash. Every member holds the
 // group identity, so members announce it, fetch its relay mailbox and let
 // gateways fetch it for them exactly as for their own account; relays and
@@ -23,7 +29,6 @@ package group
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -45,7 +50,7 @@ import (
 type Kind string
 
 const (
-	Private  Kind = "private"  // random secret, joined by invite link
+	Private  Kind = "private"  // member list, owner adds and removes (members.go)
 	Regional Kind = "regional" // public channel of a region; anyone can read
 	Global   Kind = "global"   // the one public channel for everyone
 )
@@ -68,22 +73,13 @@ const (
 // frames with a full-length sender name.
 const MaxTextBytes = packet.MaxFragments*packet.FragBodySize - Overhead - MaxNameLen
 
-// Group is a joined group.
+// Group is a joined public channel.
 type Group struct {
 	Name   string
 	Kind   Kind
 	Secret [SecretSize]byte
 	id     *identity.Identity
 	key    [32]byte
-}
-
-// New makes a private group with a fresh secret.
-func New(name string, rand io.Reader) (*Group, error) {
-	var s [SecretSize]byte
-	if _, err := io.ReadFull(rand, s[:]); err != nil {
-		return nil, err
-	}
-	return FromSecret(name, Private, s)
 }
 
 // Channel returns the public channel with this name: kind Global for
@@ -143,51 +139,24 @@ func (g *Group) Title() string {
 	return g.Name
 }
 
-// URI is the invite link: meshgroup:<base64url secret>?n=<name> for
-// private groups, meshgroup:#<name> for channels.
-func (g *Group) URI() string {
-	if g.Public() {
-		return uriScheme + ":#" + url.PathEscape(g.Name)
-	}
-	s := uriScheme + ":" + base64.RawURLEncoding.EncodeToString(g.Secret[:])
-	if g.Name != "" {
-		s += "?n=" + url.QueryEscape(g.Name)
-	}
-	return s
-}
+// URI is the channel's link: meshgroup:#<name>.
+func (g *Group) URI() string { return uriScheme + ":#" + url.PathEscape(g.Name) }
 
-// ParseURI parses an invite link (or a bare "#channel").
+// ParseURI parses a channel link (meshgroup:#name) or a bare "#name".
 func ParseURI(s string) (*Group, error) {
 	s = strings.TrimSpace(s)
 	if strings.HasPrefix(s, "#") {
 		return Channel(s)
 	}
 	rest, ok := strings.CutPrefix(s, uriScheme+":")
-	if !ok {
-		return nil, errors.New("group: not a group link (meshgroup:…)")
+	if !ok || !strings.HasPrefix(rest, "#") {
+		return nil, errors.New("group: not a public chat link (meshgroup:#name)")
 	}
-	if strings.HasPrefix(rest, "#") {
-		name, err := url.PathUnescape(rest[1:])
-		if err != nil {
-			return nil, err
-		}
-		return Channel(name)
+	name, err := url.PathUnescape(rest[1:])
+	if err != nil {
+		return nil, err
 	}
-	enc, query, _ := strings.Cut(rest, "?")
-	b, err := base64.RawURLEncoding.DecodeString(enc)
-	if err != nil || len(b) != SecretSize {
-		return nil, errors.New("group: bad group link")
-	}
-	name := ""
-	if q, err := url.ParseQuery(query); err == nil {
-		name = q.Get("n")
-	}
-	if name == "" {
-		name = "group"
-	}
-	var sec [SecretSize]byte
-	copy(sec[:], b)
-	return FromSecret(name, Private, sec)
+	return Channel(name)
 }
 
 // Message is a decrypted group message.
