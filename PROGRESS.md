@@ -436,3 +436,11 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   the 2nd member fetched; big file not auto-fetched), video over LAN without relays, photo
   over BLE (mobile), relay media limits/TTL/accounts, Android JSON. Web UI checked in
   Chromium (image + audio rendered, served with sandbox CSP).
+- Commit `1852fdc`, CI run 43249185737 green (desktop + Android lint/tests/APKs).
+
+### 2026-11-12 — release v0.1.0-alpha8
+
+- Tagged `v0.1.0-alpha8` on `1852fdc` (Mava name, media, relay media accounts). Release run 43250076145 green: APKs (arm64-v8a, armeabi-v7a, x86_64, universal) + desktop linux amd64/arm64.
+- Relay eu-1 still runs without media (`media_max_mb` unset), so files move phone to phone only until it is turned on and the relay redeployed.
+- Repo description not set (no API token here); the user sets it on GitHub.
+- Next: turn on media on eu-1 when the user agrees; real-device tests of BLE + voice/video.
