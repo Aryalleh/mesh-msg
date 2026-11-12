@@ -529,3 +529,13 @@ not implemented; no TURN, relays never carry a direct session).
   kind and codec ids, stream id + fragmentation in every frame, ops UPDATE/CONTROL, unknown
   fields ignored (v1 voice clients interoperate), shared bandwidth estimator, `core/call`
   layout with MediaSource/MediaSink. decisions D16. Previous commit `79ba2d8`.
+
+### 2026-11-12 — Direct paths: every TURN alternative in the apps; TURN for private-relay admins
+
+- connectivity.md: §3a IPv6 first, PCP → NAT-PMP → UPnP port mapping, NAT-type detection
+  with two reflectors; §4a symmetric NAT: sequential port prediction and birthday method
+  (256 sockets, ≤2048 paced probes, ≤20 s); new path order; failure reasons in the UI; §7
+  TURN (RFC 8656, built into meshmsg-relay) only for a private relay's own admins, off by
+  default, refused on origin relays, short-lived signed credentials, panel limits; tests.
+- calls.md rules, server.md §6c, threat model, decisions D17. Not implemented. Previous
+  commit `9075308`.

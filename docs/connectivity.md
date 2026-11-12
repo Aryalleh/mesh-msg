@@ -30,6 +30,11 @@ must reach B and C on its hotspot interface, not through the internet. None of t
 decisions may come from the address class (`10/8`, `172.16/12`, `192.168/16`, `100.64/10`,
 public, IPv6 ULA/global): only a successful, authenticated check proves a path.
 
+**Amendment (owner's decision):** the one exception to "no TURN" is a **private relay
+serving its own admins** (§7). Official and origin relays never offer TURN, and nobody else
+gets it. For everyone, every method of §3a–§4 must be built into the apps, so that a
+direct path is found as often as possible.
+
 ## 2. Roles
 
 - **Signaling** = exchanging candidates. It is an ordinary end-to-end-encrypted message
@@ -58,10 +63,29 @@ Each side gathers, on every network change:
 | reflexive | the outer address:port a reflector saw (one per interface that reaches one; several reflectors so a mapping that changes per destination is detected) |
 | peer-reflexive | an address a peer saw our probe come from during checks |
 | local-discovered | addresses heard from multicast/broadcast discovery on each interface |
+| mapped | a port the device asked its router to open (UPnP IGD, NAT-PMP or PCP, §3a) |
+| predicted | ports guessed for a NAT that changes ports per destination (§4a) |
+| relayed | TURN allocation on a private relay, **only for that relay's admins** (§7) |
 
 All candidates are sent; none is dropped because it "looks private" or "looks
 unreachable". Port mappings are kept open by the probe socket itself (one UDP socket per
 interface for gathering and for the session).
+
+## 3a. Opening and classifying the path
+
+- **IPv6 first.** Mobile carriers often give phones global IPv6 with no NAT, only a
+  stateful firewall that the simultaneous probes of §4 open. Global IPv6 host candidates are
+  gathered and checked on every interface that has one, alongside IPv4.
+- **Router port mapping.** On every interface, ask the gateway router for a port mapping:
+  PCP, then NAT-PMP, then UPnP IGD (SSDP discovery). A granted mapping is a `mapped`
+  candidate. Mappings have a short lease (the session's length, renewed), are removed when
+  the session ends, and are never kept open in the background. Works on home routers, not
+  on carrier CGNAT.
+- **NAT type.** Each interface asks at least two reflectors on different addresses from the
+  same socket. Same outer port for both → endpoint-independent mapping (hole punching
+  works). Different ports → symmetric; the difference between them (+1, +2, …) says whether
+  ports are allocated in sequence (predictable) or at random. The type is sent with the
+  candidates, chooses the method of §4a, and is shown in diagnostics.
 
 ## 4. Connectivity checks
 
@@ -75,22 +99,43 @@ interface for gathering and for the session).
   address of a received probe becomes a peer-reflexive candidate and is checked too.
 - TCP (simultaneous open) is tried on host candidates only, for networks that drop UDP.
 
+## 4a. Getting through symmetric NAT
+
+Run only when the NAT-type check says a side is symmetric and normal checks found nothing:
+
+- **Sequential ports:** the other side probes the next ports after the last observed
+  mapping (observed + k × step, k = 1…64).
+- **Random ports (birthday method):** the symmetric side opens 256 UDP sockets and probes
+  the other side's reflexive address from all of them; the other side (if it is
+  endpoint-independent) sends to random ports of the symmetric side's outer address, up to
+  2048 probes paced at ~100/s. With 256 open mappings the chance of a hit within 2048 tries
+  is high. If both sides are symmetric, both open 256 sockets and probe random ports of each
+  other; success is lower and is attempted for at most 20 s.
+- Extra sockets are closed as soon as one pair succeeds. Probes stay authenticated, so a
+  stray reply can't be mistaken for the peer. The pacing keeps it from looking like a scan
+  to carrier equipment.
+
 ## 5. Choosing the path
 
 Among pairs that succeeded, in order:
 
 1. pair where both addresses are host or local-discovered candidates (the traffic stays on
    the shared local network, however many NATs are above it),
-2. pairs involving peer-reflexive candidates,
-3. reflexive ↔ reflexive (crosses the internet through both NATs),
+2. global IPv6 ↔ global IPv6 (no NAT on the way),
+3. pairs involving mapped or peer-reflexive candidates,
+4. reflexive ↔ reflexive (crosses the internet through both NATs),
+5. predicted ports (§4a),
+6. relayed (§7) — last, and only for an admin of a private relay with TURN on,
 
 ties broken by measured RTT. Checks keep running for a short time after the first success,
 so a better pair found later replaces it. On a network change (interface up/down, hotspot
 toggled, IP changed) candidates are gathered again and checks repeat; the session moves to
 the new best pair without dropping. Keepalives every 15 s hold NAT and CGNAT mappings.
 
-If no pair succeeds (for example symmetric NAT on both sides), the result is **no direct
-path**: the session is not established and the UI says so. There is no relayed fallback.
+If no pair succeeds, the result is **no direct path**: the session is not established, and
+the UI gives the reason from the NAT types ("both of you are behind your carriers' NAT —
+try Wi-Fi", "the other side's network blocks UDP", …). There is no relayed fallback, except
+§7 for admins of a private relay.
 
 ## 6. Tests that must exist
 
@@ -100,7 +145,32 @@ Simulated with network namespaces (Linux, `sim/` or a script like `scripts/e2e-l
 - phone hotspot behind CGNAT, two clients on the hotspot: stays on the hotspot subnet;
 - device providing the hotspot ↔ client on it: uses the hotspot interface;
 - double and triple NAT, cone mappings: hole punch succeeds over reflexive candidates;
-- symmetric NAT on both sides: fails cleanly with "no direct path", nothing relayed;
+- IPv6-only path between two IPv4-CGNAT networks: chosen over IPv4;
+- home router with UPnP / NAT-PMP / PCP: mapped candidate used, mapping removed afterwards;
+- NAT type detection: endpoint-independent, sequential symmetric, random symmetric;
+- one side symmetric (random ports): birthday method succeeds; sequential: prediction succeeds;
+- symmetric NAT on both sides: either connects via §4a or fails cleanly with the reason,
+  nothing relayed (except §7);
+- admin of a private relay with TURN on: relayed only when everything else failed; the same
+  call by a non-admin, or through an official relay, gets no TURN;
 - two separate networks with the same private subnet and same host address: no false match;
 - network change mid-session: moves to the new best path;
-- the relay never forwards a session byte in any scenario (counter assertion).
+- the relay never forwards a session byte in any scenario except §7 (counter assertion).
+
+## 7. TURN on private relays, for their admins only
+
+A relay operator can serve **their own admins** (the accounts in the relay's admin list,
+server.md §6b) with TURN, so the people who run a relay can always reach each other.
+
+- Off by default. `turn_enabled` is refused on relays marked `origin: true` in
+  `network/relays.json`, so official relays never carry sessions.
+- Built into `meshmsg-relay` (standard TURN, RFC 8656, UDP and TCP/TLS on 443). Credentials
+  are short-lived (10 min) and issued only to an admin: `POST /v1/turn/credentials`, signed
+  with the account key. Non-admins get `403`.
+- One side being an admin is enough: the admin's app allocates and the other side sends to
+  the relayed address. The app uses it only after every method above failed.
+- Limits in the panel: `turn_max_sessions`, `turn_max_kbps` per session, and a monthly
+  traffic cap; the panel shows live sessions and bytes.
+- The relay sees both sides' IP addresses and traffic volume and timing, never content
+  (the session is end-to-end encrypted above TURN). The app tells the admin when a call goes
+  through their relay.

@@ -246,6 +246,14 @@ relay.json after a restart. The important-media settings (`media_important_per_d
 `media_pow_max_bits`, `media_pow_age_tiers`, §6a) are set in the panel and take
 effect immediately; the panel also shows the ledger's state and relays sending invalid entries.
 
+## 6c. TURN for the relay's admins (optional)
+
+Off by default; refused on origin relays. When on, the relay's own admins (§6b) can relay
+calls and direct sessions through it when no direct path exists. Settings in the panel:
+`turn_enabled`, `turn_max_sessions`, `turn_max_kbps`, `turn_monthly_gb`. Credentials:
+`POST /v1/turn/credentials` (signed by an admin account, valid 10 min). Details and rules:
+connectivity.md §7.
+
 ## 7. Data model
 
 ```
