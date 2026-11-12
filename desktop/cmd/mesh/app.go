@@ -39,6 +39,7 @@ const appHelp = `In a chat, type and press Enter to send. Anywhere:
   /relay add <name> <url> [via] | rm <name>          /bridge add <a> <b> [MB/day] | rm <a> <b>
   /lora | /lora set k=v… | /lora plans               /ports               USB serial ports
   /backup [file]            back up your account     /restore             restore one
+  /file <path> [caption]    send a photo, voice/video message or file    /save <id> [path]  save one
   /ui                       open the web UI          /clear               clear the screen
   /help                     this help                /quit (or Ctrl+D)    leave (meshd keeps running)`
 
@@ -164,7 +165,7 @@ func (a *app) banner() {
 		a.printf("%v\n", err)
 		return
 	}
-	a.printf("mesh-msg %s · you are %s\n", version, s.Hash[:12])
+	a.printf("Mava %s · you are %s\n", version, s.Hash[:12])
 	a.printf("%s\n", linkSummary(s))
 }
 
@@ -380,7 +381,7 @@ func (a *app) printMsg(m node.Message) {
 			mark = " ✓✓"
 		}
 	}
-	a.printf("%s %s: %s%s\n", msgTime(m).Local().Format("15:04"), who, m.Text, mark)
+	a.printf("%s %s: %s%s\n", msgTime(m).Local().Format("15:04"), who, msgText(m), mark)
 }
 
 func (a *app) known(hash string) bool {
@@ -663,6 +664,29 @@ func (a *app) handle(line string) {
 		err = a.backup(args)
 	case "restore":
 		err = a.restore()
+	case "file", "photo", "voice", "video":
+		if cur == nil || len(args) == 0 {
+			err = errors.New("usage: /file <path> [caption…] inside a chat (photos, voice and video messages, any file)")
+			break
+		}
+		var m node.Message
+		if m, err = sendFile(cur.Hash, args[0], strings.Join(args[1:], " ")); err == nil {
+			a.printMsg(m)
+		}
+	case "save", "get":
+		if len(args) == 0 {
+			err = errors.New("usage: /save <file id> [path] — ids are shown as \"mesh media get <id>\"")
+			break
+		}
+		dest := ""
+		if len(args) > 1 {
+			dest = args[1]
+		}
+		a.printf("downloading…\n")
+		var path string
+		if path, err = getMedia(args[0], dest, nil); err == nil {
+			a.printf("saved %s\n", path)
+		}
 	case "clear", "cls":
 		a.printf("\x1b[2J\x1b[H")
 	case "send":
@@ -875,7 +899,7 @@ func (a *app) complete(line string, pos int, key rune) (string, int, bool) {
 	}
 	if prefix == "" && strings.HasPrefix(word, "/") {
 		for _, c := range []string{"/chats", "/back", "/open", "/add", "/group", "/members", "/addmember", "/kick", "/join", "/global", "/region", "/invite", "/leave", "/groups", "/rename", "/rm", "/history", "/id", "/status",
-			"/settings", "/set", "/keys", "/relay", "/bridge", "/lora", "/ports", "/backup", "/restore", "/ui", "/clear", "/help", "/quit", "/send"} {
+			"/settings", "/set", "/keys", "/relay", "/bridge", "/lora", "/ports", "/backup", "/restore", "/ui", "/clear", "/help", "/quit", "/send", "/file", "/save"} {
 			if strings.HasPrefix(c, word) {
 				cands = append(cands, c)
 			}

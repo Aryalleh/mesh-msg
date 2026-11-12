@@ -575,7 +575,7 @@ func (n *Node) onPrivateGroup(rm *message.Received) {
 		}
 		n.emit(Event{Type: "group", Info: env.ID.String()})
 
-	case group.OpText:
+	case group.OpText, group.OpMedia:
 		if g == nil {
 			// The text overtook the member list: keep it in a group we learn
 			// the name and members of when the list arrives.
@@ -598,6 +598,10 @@ func (n *Node) onPrivateGroup(rm *message.Received) {
 		m := Message{
 			ID: rm.PacketID.String(), Peer: env.ID.String(), Text: env.Text, Sent: rm.Sent, Received: time.Now(),
 			Group: true, From: from.String(), FromName: name,
+		}
+		if env.Op == group.OpMedia {
+			n.onMedia(&m, env.Media)
+			return
 		}
 		if err := n.db.putMessage(m); err != nil {
 			n.cfg.Logf("node: store group message: %v", err)

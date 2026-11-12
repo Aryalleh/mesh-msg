@@ -59,6 +59,12 @@ via  = "direct"
 off = false
 max_auto = 6
 
+# Photos, voice and video messages, files: they travel straight between
+# nearby devices or through relays that accept media, never through LoRa.
+# Files up to this size download without asking.
+[media]
+auto_download_mb = 2
+
 # Gateway: carry relay traffic into your local mesh (LAN / LoRa). On by default:
 # without it, nodes near you that have no internet never get their replies.
 [gateway]

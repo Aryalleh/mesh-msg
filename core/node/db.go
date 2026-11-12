@@ -55,7 +55,11 @@ func openAppDB(path string) (*appDB, error) {
 		return nil, err
 	}
 	// v2: group chats. Older databases get the new message columns.
-	for _, col := range []string{"sender BLOB", "sender_name TEXT NOT NULL DEFAULT ''"} {
+	if _, err := db.Exec(mediaSchema); err != nil {
+		db.Close()
+		return nil, err
+	}
+	for _, col := range []string{"sender BLOB", "sender_name TEXT NOT NULL DEFAULT ''", "media TEXT NOT NULL DEFAULT ''"} {
 		var n int
 		db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name=?`, strings.Fields(col)[0]).Scan(&n)
 		if n == 0 {
@@ -133,6 +137,8 @@ type Message struct {
 	// many confirmed it (Delivered = all of them).
 	Recipients  int `json:"recipients,omitempty"`
 	DeliveredTo int `json:"delivered_to,omitempty"`
+	// A photo, file, voice or video message (Text is its caption).
+	Media *MediaInfo `json:"media,omitempty"`
 }
 
 func (d *appDB) putMessage(m Message) error {
@@ -148,8 +154,12 @@ func (d *appDB) putMessage(m Message) error {
 		}
 		sender = h[:]
 	}
-	_, err = d.db.Exec(`INSERT OR IGNORE INTO messages(id,peer,outgoing,body,sent,received,delivered,sender,sender_name) VALUES(?,?,?,?,?,?,?,?,?)`,
-		m.ID, peer[:], m.Outgoing, m.Text, m.Sent.Unix(), m.Received.UnixMilli(), m.Delivered, sender, m.FromName)
+	media := ""
+	if m.Media != nil {
+		media = m.Media.ID
+	}
+	_, err = d.db.Exec(`INSERT OR IGNORE INTO messages(id,peer,outgoing,body,sent,received,delivered,sender,sender_name,media) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		m.ID, peer[:], m.Outgoing, m.Text, m.Sent.Unix(), m.Received.UnixMilli(), m.Delivered, sender, m.FromName, media)
 	return err
 }
 
@@ -166,7 +176,7 @@ func (d *appDB) messages(peer *packet.Hash, limit int) ([]Message, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	q := `SELECT id,peer,outgoing,body,sent,received,delivered,sender,sender_name FROM messages`
+	q := `SELECT id,peer,outgoing,body,sent,received,delivered,sender,sender_name,media FROM messages`
 	var args []any
 	if peer != nil {
 		q += ` WHERE peer=?`
@@ -184,8 +194,12 @@ func (d *appDB) messages(peer *packet.Hash, limit int) ([]Message, error) {
 		var pb []byte
 		var sent, recv int64
 		var sender []byte
-		if err := rows.Scan(&m.ID, &pb, &m.Outgoing, &m.Text, &sent, &recv, &m.Delivered, &sender, &m.FromName); err != nil {
+		var media string
+		if err := rows.Scan(&m.ID, &pb, &m.Outgoing, &m.Text, &sent, &recv, &m.Delivered, &sender, &m.FromName, &media); err != nil {
 			return nil, err
+		}
+		if media != "" {
+			m.Media = &MediaInfo{ID: media}
 		}
 		if len(sender) == len(packet.Hash{}) {
 			m.Group, m.From = true, hex.EncodeToString(sender)
@@ -195,6 +209,17 @@ func (d *appDB) messages(peer *packet.Hash, limit int) ([]Message, error) {
 		m.Peer = h.String()
 		m.Sent, m.Received = time.Unix(sent, 0), time.UnixMilli(recv)
 		out = append(out, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close() // before more queries on a single-connection pool
+	for i := range out {
+		if out[i].Media != nil {
+			if mi, ok := d.mediaInfo(out[i].Media.ID); ok {
+				out[i].Media = &mi
+			}
+		}
 	}
 	// oldest first for display
 	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {

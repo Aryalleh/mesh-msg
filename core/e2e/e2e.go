@@ -30,7 +30,8 @@ const (
 	ContentContactCard uint8 = 2
 	ContentMediaChunk  uint8 = 3
 	ContentAck         uint8 = 4 // reserved (protocol.md §3)
-	ContentGroup       uint8 = 5 // private group traffic (core/group: text, roster, leave, removed)
+	ContentGroup       uint8 = 5 // private group traffic (core/group: text, roster, leave, removed, media)
+	ContentMedia       uint8 = 6 // a file: core/media reference (the file itself travels outside the mesh)
 )
 
 const (

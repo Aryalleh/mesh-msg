@@ -3,10 +3,12 @@ package meshcore
 import (
 	"bytes"
 	"context"
+	crand "crypto/rand"
 	"encoding/json"
 	"math/rand"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -476,5 +478,44 @@ func TestGroupOverBLEThroughNonMember(t *testing.T) {
 	var rs []string
 	if json.Unmarshal([]byte(Regions()), &rs) != nil || len(rs) == 0 {
 		t.Fatal("regions")
+	}
+}
+
+// A photo between two phones over Bluetooth only: it is pulled in small
+// windows next to the packet stream, and a text right after it still
+// arrives promptly.
+func TestPhotoOverBLE(t *testing.T) {
+	a, _ := phone(t, `{"name":"Ali"}`)
+	b, bev := phone(t, "")
+	mustAdd(t, a, b.URI(), "Bita")
+	connectBLE(t, a, b, 20)
+	photo := make([]byte, 120_000)
+	crand.Read(photo)
+	path := filepath.Join(t.TempDir(), "photo.jpg")
+	os.WriteFile(path, photo, 0o600)
+	if _, err := a.SendMedia(b.Hash(), path, "image/jpeg", "photo.jpg", "عکس"); err != nil {
+		t.Fatal(err)
+	}
+	e := bev.wait(t, "message", 30*time.Second)
+	if e.Message.Media == nil || e.Message.Text != "عکس" {
+		t.Fatalf("%+v", e.Message)
+	}
+	id := e.Message.Media.ID
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		if p, err := b.MediaPath(id); err == nil {
+			got, _ := os.ReadFile(p)
+			if !bytes.Equal(got, photo) {
+				t.Fatal("photo differs")
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("photo never arrived over BLE")
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if s := b.KnownRelays(); s != "[]" {
+		t.Fatalf("known relays %s", s)
 	}
 }

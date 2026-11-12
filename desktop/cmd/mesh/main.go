@@ -35,6 +35,8 @@ Usage:
   mesh rename <contact> <name>   rename a contact
   mesh rm <contact>              remove a contact
   mesh send <chat> <text…>       send a message ("-" reads text from stdin)
+  mesh send-file <chat> <path> [caption…]   send a photo, voice or video message, or any file
+  mesh media get <id> [path]     download and save a received file (ids are in mesh read)
   mesh groups                    joined groups and public chats
   mesh group new <name> [contact…]  create a private group with these contacts
                                  (each message goes to every member separately, ✓✓ per member)
@@ -231,6 +233,18 @@ func run(args []string) error {
 			return errors.New("usage: mesh rm <contact>")
 		}
 		return call("DELETE", "/contacts/"+url.PathEscape(rest[0]), nil, nil)
+	case "send-file", "file", "sendfile":
+		if len(rest) < 2 {
+			return errors.New("usage: mesh send-file <contact|group> <path> [caption…]")
+		}
+		m, err := sendFile(rest[0], rest[1], strings.Join(rest[2:], " "))
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "queued %s (%s)\n", m.ID, mediaLabel(m))
+		return nil
+	case "media":
+		return mediaCmd(rest)
 	case "send":
 		if len(rest) < 2 {
 			return errors.New("usage: mesh send <contact> <text…>")
@@ -309,9 +323,9 @@ func printMessage(m node.Message, names map[string]string) {
 	}
 	if m.Group {
 		if m.Outgoing {
-			fmt.Fprintf(out, "%s %s you: %s%s\n", m.Sent.Local().Format("01-02 15:04"), who, m.Text, groupMark(m))
+			fmt.Fprintf(out, "%s %s you: %s%s\n", m.Sent.Local().Format("01-02 15:04"), who, msgText(m), groupMark(m))
 		} else {
-			fmt.Fprintf(out, "%s %s %s: %s\n", m.Received.Local().Format("01-02 15:04"), who, senderName(m), m.Text)
+			fmt.Fprintf(out, "%s %s %s: %s\n", m.Received.Local().Format("01-02 15:04"), who, senderName(m), msgText(m))
 		}
 		return
 	}
@@ -322,7 +336,7 @@ func printMessage(m node.Message, names map[string]string) {
 			mark = " ✓✓"
 		}
 	}
-	fmt.Fprintf(out, "%s %s %s: %s%s\n", ts.Local().Format("01-02 15:04"), arrow, who, m.Text, mark)
+	fmt.Fprintf(out, "%s %s %s: %s%s\n", ts.Local().Format("01-02 15:04"), arrow, who, msgText(m), mark)
 }
 
 func watch() error {

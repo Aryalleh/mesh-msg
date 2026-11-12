@@ -147,4 +147,14 @@ class JsonTest {
         s.relays = emptyList() // removing the default sticks
         assertTrue(Settings(RuntimeEnvironment.getApplication()).relays.isEmpty())
     }
+
+    @Test fun media() {
+        val m = Json.message(JSONObject("""{"id":"m1","peer":"aa11","outgoing":false,"text":"شام","sent":"2026-11-12T10:00:00Z","received":"2026-11-12T10:00:01Z",
+          "media":{"id":"4a0552a26fb607a4be364fed582f104a","mime":"audio/mp4","name":"voice.m4a","size":180000,"state":"downloading","have":90040,"total":180080}}"""), true)
+        val media = m.media!!
+        assertEquals(org.meshmsg.app.data.MediaKind.Audio, media.kind)
+        assertEquals(org.meshmsg.app.data.MediaState.Downloading, media.state)
+        assertEquals(0.5f, media.progress, 0.01f)
+        assertNull(Json.message(JSONObject("""{"id":"m2","peer":"aa11","text":"hi"}"""), true).media)
+    }
 }

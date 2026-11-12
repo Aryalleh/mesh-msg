@@ -23,8 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Aryalleh/mesh-msg/core/media"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/Aryalleh/mesh-msg/core/identity"
@@ -295,6 +298,65 @@ func (c *Core) Groups() (string, error) {
 	return toJSON(gs, err)
 }
 
+// ---- media: photos, voice and video messages, files ----
+// Messages JSON carries "media":{id,mime,name,size,state,…}; state is ready |
+// remote (tap to download) | downloading | missing. "media" events report
+// changes.
+
+// SendMedia sends the file at path to a contact or private group.
+func (c *Core) SendMedia(peer, path, mime, name, caption string) (string, error) {
+	st, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if st.Size() > media.MaxFileBytes {
+		return "", fmt.Errorf("file larger than %d MB", media.MaxFileBytes>>20)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return toJSON(c.n.SendMedia(peer, b, mime, name, caption))
+}
+
+// FetchMedia downloads a received file in the background.
+func (c *Core) FetchMedia(id string) error { return c.n.FetchMedia(id) }
+
+// MediaPath decrypts a downloaded file into the app's cache and returns its
+// path (the same path on later calls).
+func (c *Core) MediaPath(id string) (string, error) {
+	mi, ok := c.n.MediaInfo(id)
+	if !ok {
+		return "", fmt.Errorf("no file %q", id)
+	}
+	name := strings.Map(func(r rune) rune {
+		if r == '/' || r == '\\' || r < 32 {
+			return '_'
+		}
+		return r
+	}, mi.Name)
+	if name == "" || name == "." || name == ".." {
+		name = "file"
+	}
+	dir := filepath.Join(c.dir, "media-cache", mi.ID)
+	path := filepath.Join(dir, name)
+	if _, err := os.Stat(path); err == nil {
+		return path, nil
+	}
+	file, _, err := c.n.MediaFile(mi.ID)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, file, 0o600); err != nil {
+		return "", err
+	}
+	return path, os.Rename(tmp, path)
+}
+
 // KnownRelays returns the relays found automatically (official list, relays'
 // lists, nearby devices) as JSON [{url,name,region,source,state,active,config,…}].
 func (c *Core) KnownRelays() string {
@@ -399,6 +461,7 @@ func (c *Core) PeerUp(transport, peer string) error {
 	count := l.up(peer)
 	c.n.SetLinkStatus(transport, peerCount(count))
 	c.n.Router().PeerUp(transport, router.PeerID(peer))
+	c.n.RetryMedia() // a neighbour may hold files we wait for
 	return nil
 }
 
@@ -433,7 +496,7 @@ func (c *Core) Receive(transport, peer string, chunk []byte) error {
 	}
 	pkts, err := l.feed(peer, chunk)
 	for _, p := range pkts {
-		c.n.Router().Inbound(transport, router.PeerID(peer), p)
+		c.n.Inbound(transport, router.PeerID(peer), p) // packets and media frames
 	}
 	return err
 }

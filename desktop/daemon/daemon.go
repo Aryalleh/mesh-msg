@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -9,7 +10,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Aryalleh/mesh-msg/core/media"
+	"io"
 	"log"
+	mimepkg "mime"
 	"net"
 	"net/http"
 	"os"
@@ -353,6 +357,61 @@ func (d *Daemon) apiHandler() http.Handler {
 		}
 		writeJSON(w, m)
 	}))
+	// Files: the body is the file itself; to, name, mime, caption in the query.
+	mux.HandleFunc("POST /send-media", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		file, err := io.ReadAll(http.MaxBytesReader(w, r.Body, media.MaxFileBytes))
+		if err != nil {
+			httpErr(w, fmt.Errorf("file too large (max %d MB)", media.MaxFileBytes>>20), 413)
+			return
+		}
+		mime := q.Get("mime")
+		if mime == "" {
+			mime = http.DetectContentType(file)
+		}
+		m, err := n.SendMedia(q.Get("to"), file, mime, q.Get("name"), q.Get("caption"))
+		if err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		writeJSON(w, m)
+	}))
+	mux.HandleFunc("GET /media/{id}", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		file, mi, err := n.MediaFile(r.PathValue("id"))
+		if err != nil {
+			httpErr(w, err, 404)
+			return
+		}
+		// Files come from other people: only plain images, audio and video
+		// are shown inline, everything else is a download, and nothing may
+		// run in the UI's origin.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'")
+		disp := "attachment"
+		if safeInline(mi.Mime) && r.URL.Query().Get("download") == "" {
+			w.Header().Set("Content-Type", mi.Mime)
+			disp = "inline"
+		} else {
+			w.Header().Set("Content-Type", "application/octet-stream")
+		}
+		w.Header().Set("Content-Disposition", mimepkg.FormatMediaType(disp, map[string]string{"filename": mi.Name}))
+		http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(file))
+	}))
+	mux.HandleFunc("GET /media/{id}/info", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		mi, ok := n.MediaInfo(r.PathValue("id"))
+		if !ok {
+			httpErr(w, errors.New("no such file"), 404)
+			return
+		}
+		writeJSON(w, mi)
+	}))
+	mux.HandleFunc("POST /media/{id}/fetch", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		if err := n.FetchMedia(r.PathValue("id")); err != nil {
+			httpErr(w, err, 404)
+			return
+		}
+		w.WriteHeader(204)
+	}))
 	mux.HandleFunc("GET /messages", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 		ms, err := n.Messages(r.URL.Query().Get("with"), limit)
@@ -456,4 +515,15 @@ func (d *Daemon) uiHandler(api http.Handler) http.Handler {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write(b)
 	})
+}
+
+// safeInline: types a browser shows without running anything.
+func safeInline(mime string) bool {
+	switch mime {
+	case "image/jpeg", "image/png", "image/gif", "image/webp",
+		"audio/ogg", "audio/mpeg", "audio/mp4", "audio/aac", "audio/webm", "audio/wav", "audio/x-m4a",
+		"video/mp4", "video/webm", "video/3gpp":
+		return true
+	}
+	return false
 }

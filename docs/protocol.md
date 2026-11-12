@@ -69,7 +69,7 @@ e (32) | enc(s) (48) | ciphertext(inner) | tag (16)   overhead = 96
 Inner plaintext:
 
 ```
-0  1  content_type   0=text, 1=text-compressed, 2=contact-card, 3=media-chunk, 4=e2e-ack
+0  1  content_type   0=text, 1=text-compressed, 2=contact-card, 3=(reserved), 4=e2e-ack, 5=group, 6=media
 1  4  timestamp      unix seconds
 5  1  sender_ed_hint first byte of sender ed25519 key (fast path; optional)
 6  .. content
@@ -171,6 +171,7 @@ op 0 TEXT     text_type(1) | text                       (as content types 0/1)
 op 1 ROSTER   version(4) | name_len(1) | name | n(1) | n × (x(32) | ed(32) | name_len(1) | name)
 op 2 LEAVE    (empty)  the sender left
 op 3 REMOVED  (empty)  the owner removed the recipient
+op 4 MEDIA    media reference (§6b)
 ```
 
 `group_id` is 16 random bytes and serves as the chat's hash in UIs. The **owner** creates the
@@ -221,6 +222,36 @@ Public chats send **no RECEIPTs**: a receipt purges stored copies, which the oth
 need. Members deliver a group packet *and keep forwarding it*; copies expire with the
 store TTL. Global chat packets carry `NO_LORA` (their volume would swamp LoRa airtime);
 regional chats use every link.
+
+## 6b. Media: photos, voice and video messages, files
+
+The message carries only a **reference**; the file moves separately, so a big file never
+holds up messages.
+
+```
+blob    = file sealed in 64 KiB chunks, ChaCha20-Poly1305 with a random key,
+          nonce = 0^8 || chunk_index(4), ad = "mesh-msg media v1" || chunk_index(4) || last(1)
+id      = SHA-256(blob)[0..16]
+ref     = id(16) | key(32) | blob_size(4) | mime_len(1) | mime | name_len(1) | name
+          | n(1) | n × (url_len(1) | url) | caption_type(1) | caption
+```
+
+Content type 6 (to a contact) or group op 4 (to a private group) carries the ref; public
+chats take no files. The URLs are relays (at most 4) the sender uploaded the blob to.
+
+**Getting the blob**, in this order: a neighbour over Wi-Fi/LAN, a relay from the ref, then
+a Bluetooth neighbour. Every node keeps the blobs it sent or fetched and serves them to its
+neighbours. Between neighbours, link frames with version bits `11` (older nodes drop them):
+
+```
+0xC1 REQ   id(16) | offset(4) | length(4)     receiver asks for the next window
+0xC2 DATA  id(16) | offset(4) | total(4) | bytes   (total = 0: "I don't have it")
+```
+
+The receiver pulls a window (256 KB on LAN in 32 KB frames, 8 KB on Bluetooth in 2 KB
+frames) and asks for the next only when it arrived, so messages keep flowing in between.
+Downloads resume where they stopped. Files up to 2 MB download by themselves; bigger ones
+on request. Media never goes over LoRa. Relays: see server.md §6a.
 
 ## 7. Link layers (framing per interface)
 

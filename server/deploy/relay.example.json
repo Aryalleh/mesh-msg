@@ -13,5 +13,10 @@
     { "name": "eu-1", "region": "global", "urls": ["https://eu-1.example.org", "http://exampleonionaddress.onion"] },
     { "name": "us-1", "region": "global", "urls": ["https://us-1.example.org"] }
   ],
+  "media_max_mb": 16,
+  "media_store_mb": 2048,
+  "media_max_hours": 8,
+  "media_min_hours": 1,
+  "media_accounts": [],
   "log": false
 }

@@ -103,7 +103,10 @@ private fun ChatRow(chat: Chat, nowMs: Long, onClick: () -> Unit) {
                 if (last != null && last.outgoing) DeliveryMark(last.delivery, MaterialTheme.colorScheme.onSurfaceVariant)
                 val sender = if (last != null && chat.contact.isGroup && !last.outgoing && last.fromName.isNotBlank()) last.fromName + ": " else ""
                 Text(
-                    last?.text?.replace('\n', ' ')?.let { sender + it } ?: stringResource(R.string.chat_no_messages),
+                    last?.let { l ->
+                        val media = l.media?.let { "📎 " + (if (l.text.isBlank()) mediaLabel(it) else "") } ?: ""
+                        sender + media + l.text.replace('\n', ' ')
+                    } ?: stringResource(R.string.chat_no_messages),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (unread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = if (unread) FontWeight.Medium else FontWeight.Normal,

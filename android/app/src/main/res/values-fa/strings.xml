@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">mesh-msg</string>
+    <string name="app_name">Mava</string>
 
     <string name="nav_chats">گفتگوها</string>
     <string name="nav_network">شبکه</string>
@@ -10,7 +10,7 @@
     <string name="save">ذخیره</string>
 
     <string name="chats_empty_title">هنوز گفتگویی نیست</string>
-    <string name="chats_empty_body">با پیوند mesh-msg کسی را اضافه کنید، گروه بسازید، یا به گفتگوی جهانی و گفتگوی منطقه‌تان بپیوندید.</string>
+    <string name="chats_empty_body">با پیوند Mava کسی را اضافه کنید، گروه بسازید، یا به گفتگوی جهانی و گفتگوی منطقه‌تان بپیوندید.</string>
     <string name="add_contact">افزودن مخاطب</string>
     <string name="chat_no_messages">هنوز پیامی نیست</string>
     <plurals name="unread_count">
@@ -43,7 +43,7 @@
 
     <string name="my_link_title">پیوند شما</string>
     <string name="my_link_body">این کد را نشان دهید یا پیوند را بفرستید. هر کس آن را داشته باشد می‌تواند به شما پیام بدهد.</string>
-    <string name="qr_description">کد QR پیوند mesh-msg شما</string>
+    <string name="qr_description">کد QR پیوند Mava شما</string>
     <string name="copy_link">رونوشت پیوند</string>
     <string name="share_link">هم‌رسانی</string>
     <string name="link_copied">پیوند رونوشت شد</string>
@@ -53,7 +53,7 @@
     <string name="paste">چسباندن</string>
     <string name="name_optional_label">نام (اختیاری)</string>
     <string name="name_optional_helper">فقط روی همین گوشی ذخیره می‌شود.</string>
-    <string name="link_invalid">این پیوند mesh-msg نیست. پیوند با meshmsg: شروع می‌شود؛ دوباره و کامل رونوشت کنید.</string>
+    <string name="link_invalid">این پیوند Mava نیست. پیوند با meshmsg: شروع می‌شود؛ دوباره و کامل رونوشت کنید.</string>
     <string name="link_is_yours">این پیوند خود شماست.</string>
 
     <string name="network_summary_up">پیام‌ها الان می‌توانند بروند</string>
@@ -72,7 +72,7 @@
         <item quantity="one">%1$d گوشی وصل است</item>
         <item quantity="other">%1$d گوشی وصل است</item>
     </plurals>
-    <string name="nearby_searching">در جستجوی گوشی‌های اطراف. گوشی دیگر هم باید mesh-msg را باز داشته باشد.</string>
+    <string name="nearby_searching">در جستجوی گوشی‌های اطراف. گوشی دیگر هم باید Mava را باز داشته باشد.</string>
     <string name="relay_up">در دسترس است</string>
     <string name="relay_waiting">الان در دسترس نیست. دوباره تلاش می‌شود.</string>
     <string name="lora_waiting">در انتظار پاسخ نود</string>
@@ -126,7 +126,7 @@
     <string name="wipe_confirm_label">بنویسید %1$s</string>
 
     <string name="onb_title">پیام‌رسانی بدون اینترنت</string>
-    <string name="onb_body">mesh-msg پیام‌های رمزشده را گوشی‌به‌گوشی با بلوتوث، با رادیوهای LoRa و هر جا اینترنتی باشد از راه رله‌ها می‌رساند.</string>
+    <string name="onb_body">Mava پیام‌های رمزشده را گوشی‌به‌گوشی با بلوتوث، با رادیوهای LoRa و هر جا اینترنتی باشد از راه رله‌ها می‌رساند.</string>
     <string name="onb_point_identity">نه شماره‌ی تلفن، نه حساب کاربری. هویت شما کلیدی است که روی همین گوشی می‌ماند.</string>
     <string name="onb_point_mesh">گوشی شما پیام‌های مهروموم‌شده‌ی دیگران را هم جابه‌جا می‌کند، ولی نمی‌تواند آن‌ها را بخواند.</string>
     <string name="onb_point_perm">برای پیدا کردن گوشی‌های نزدیک اجازه‌ی بلوتوث لازم است. از مکان شما استفاده نمی‌شود.</string>
@@ -134,7 +134,7 @@
 
     <string name="notif_channel_mesh">شبکه در حال کار</string>
     <string name="notif_channel_messages">پیام‌ها</string>
-    <string name="notif_mesh_title">mesh-msg در حال کار است</string>
+    <string name="notif_mesh_title">Mava در حال کار است</string>
     <string name="notif_mesh_up">به شبکه وصل است</string>
     <string name="notif_mesh_down">در جستجوی مسیر</string>
     <string name="notif_new_message">پیام تازه</string>
@@ -194,4 +194,24 @@
     <string name="close">بستن</string>
     <string name="settings_discovery">یافتن خودکار رله‌ها</string>
     <string name="settings_discovery_body">از رله‌های فهرست رسمی و رله‌هایی که گوشی‌ها و گره‌های لورای نزدیک معرفی می‌کنند استفاده کن و رله‌ی خودت را هم معرفی کن. هر کدام اول بررسی می‌شود.</string>
+    <!-- Media -->
+    <string name="attach">پیوست</string>
+    <string name="attach_media">عکس یا ویدیو</string>
+    <string name="attach_video">ضبط ویدیو</string>
+    <string name="attach_file">فایل</string>
+    <string name="voice_record">ضبط پیام صوتی</string>
+    <string name="voice_recording">در حال ضبط %1$s</string>
+    <string name="voice_cancel">لغو ضبط</string>
+    <string name="voice_send">فرستادن پیام صوتی</string>
+    <string name="mic_denied">برای ضبط پیام صوتی، اجازهٔ میکروفون را بدهید.</string>
+    <string name="media_photo">عکس</string>
+    <string name="media_voice">پیام صوتی</string>
+    <string name="media_video">ویدیو</string>
+    <string name="media_file">فایل</string>
+    <string name="media_download">دانلود (%1$s)</string>
+    <string name="media_missing">دیگر در دسترس نیست</string>
+    <string name="media_uploading">در حال بارگذاری…</string>
+    <string name="media_play">پخش</string>
+    <string name="media_pause">توقف</string>
+    <string name="media_no_app">برنامه‌ای در این گوشی این فایل را باز نمی‌کند.</string>
 </resources>

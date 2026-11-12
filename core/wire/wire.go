@@ -18,6 +18,7 @@ const (
 	HeaderMore      = "X-More"      // response: "1" if more items are pending
 	HeaderNonce     = "X-Nonce"     // mailbox challenge
 	HeaderSignature = "X-Signature" // mailbox challenge signature (hex)
+	HeaderReaders   = "X-Readers"   // media upload: downloads after which the relay deletes the file
 	ContentType     = "application/x-meshmsg-frames"
 )
 
@@ -97,7 +98,23 @@ type Info struct {
 	PowBits int    `json:"pow_bits"`
 	Version string `json:"version"`
 	PubKey  string `json:"pubkey"` // relay identity (hex X||Ed)
+	// Media: the largest file this relay holds (0 = no media) and how long
+	// it keeps a 1 MB file nobody fetched (bigger files: less).
+	MediaMaxMB    int `json:"media_max_mb,omitempty"`
+	MediaMaxHours int `json:"media_max_hours,omitempty"`
+	// MediaAccountsOnly: only listed accounts may upload (signed uploads).
+	MediaAccountsOnly bool `json:"media_accounts_only,omitempty"`
 }
+
+// Media upload signature (relays that allow only some accounts).
+const (
+	HeaderAccount     = "X-Account" // uploader's public key (hex X||Ed)
+	DomainMediaUpload = "MESHMSG-MEDIA-PUT"
+)
+
+// MediaPoWBody is what the proof of work of a media upload covers (the
+// file's id, not its bytes, so big files cost the same).
+func MediaPoWBody(id string) []byte { return []byte("mesh-msg media|" + id) }
 
 // RelayEntry is one relay in a relay list.
 type RelayEntry struct {

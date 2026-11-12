@@ -113,11 +113,35 @@ bridge ── /v1/sync ───────────────────
 | WS   | `/v1/gateway` | gateway session (§4) |
 | POST | `/v1/sync` | federation / bridge sync: exchange cursors, push & pull batches |
 | GET  | `/v1/relays` | signed relay list |
+| PUT  | `/v1/media/{id}` | store an encrypted file (only on relays with media on; §6a) |
+| GET  | `/v1/media/{id}` | fetch it (`Range: bytes=N-` resumes) |
 
 Bodies are binary (length-prefixed packets), not JSON, to stay small on throttled links.
 
 **Abuse control (no accounts):** hashcash proof-of-work with adaptive difficulty, per-IP and
 per-key rate limits, size caps (packet ≤ 64 KB, mailbox ≤ N MB), TTL (7 days text).
+
+## 6a. Media (optional)
+
+Photos, voice and video messages and files travel **outside** the packet stream, so they
+never slow messages down: nearby phones pull them from each other in small windows over
+Bluetooth or Wi-Fi, and relays that allow it hold them for people who are far away. Media
+never goes over LoRa and is never synced between relays.
+
+A relay takes media only if `media_max_mb > 0`. Files are end-to-end encrypted blobs named
+by their hash; the relay can't read them.
+
+| Config | Default | |
+|---|---|---|
+| `media_max_mb` | 0 (off) | largest file it takes |
+| `media_store_mb` | 2048 | total storage; when full, uploads get 507 and clients try another relay |
+| `media_max_hours` | 8 | how long a small file (≤ 1 MB) waits for its readers |
+| `media_min_hours` | 1 | the shortest wait, for big files: keep time = max(min, max × 1 MB / size) |
+| `media_accounts` | `[]` (anyone, with PoW) | if set, only these accounts (hashes from `mesh id`) may upload; uploads are then signed (`X-Account`, `X-Signature` over `MESHMSG-MEDIA-PUT` and the id). Anyone may download. |
+
+The uploader says how many people will download it (`X-Readers`). **The relay deletes the
+file as soon as that many complete downloads happened**, or when its time runs out, whichever
+comes first. Nothing is kept after that.
 
 ## 7. Data model
 

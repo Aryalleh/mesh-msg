@@ -157,6 +157,7 @@ func (l *lanLink) serve(ctx context.Context, c net.Conn) {
 	l.mu.Unlock()
 	l.n.setLinkStatus("lan", fmt.Sprintf("%d peers", count))
 	l.n.router.PeerUp("lan", peer)
+	l.n.mediaLinkUp()
 
 	defer func() {
 		l.mu.Lock()
@@ -173,7 +174,7 @@ func (l *lanLink) serve(ctx context.Context, c net.Conn) {
 		if err != nil {
 			return
 		}
-		l.n.router.Inbound("lan", peer, raw)
+		l.n.Inbound("lan", peer, raw)
 	}
 }
 

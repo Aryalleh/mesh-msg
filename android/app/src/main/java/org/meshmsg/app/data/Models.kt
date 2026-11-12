@@ -63,9 +63,38 @@ data class Message(
     /** Outgoing private-group messages: members it went to, and how many confirmed. */
     val recipients: Int = 0,
     val deliveredTo: Int = 0,
+    /** A photo, voice or video message, or file. */
+    val media: Media? = null,
 ) {
     /** When the user saw it happen on this phone. */
     val timeMs: Long get() = if (outgoing) sentMs else receivedMs
+}
+
+enum class MediaKind { Image, Audio, Video, File }
+
+/** ready: on this phone; remote: tap to download; downloading; missing: gone everywhere. */
+enum class MediaState { Ready, Remote, Downloading, Missing }
+
+@Immutable
+data class Media(
+    val id: String,
+    val mime: String,
+    val name: String,
+    val size: Long,
+    val state: MediaState,
+    val have: Long = 0,
+    val total: Long = 0,
+    /** Outgoing: relays it should go to, and how many have it. */
+    val relays: Int = 0,
+    val uploaded: Int = 0,
+) {
+    val kind: MediaKind get() = when (mime.substringBefore('/')) {
+        "image" -> MediaKind.Image
+        "audio" -> MediaKind.Audio
+        "video" -> MediaKind.Video
+        else -> MediaKind.File
+    }
+    val progress: Float get() = if (total > 0) (have.toFloat() / total).coerceIn(0f, 1f) else 0f
 }
 
 @Immutable
@@ -153,8 +182,21 @@ object Json {
             fromName = o.optString("from_name").ifBlank { o.optString("from").take(8) },
             recipients = o.optInt("recipients"),
             deliveredTo = o.optInt("delivered_to"),
+            media = o.optJSONObject("media")?.let { media(it) },
         )
     }
+
+    fun media(o: JSONObject): Media = Media(
+        id = o.optString("id"), mime = o.optString("mime"), name = o.optString("name"), size = o.optLong("size"),
+        state = when (o.optString("state")) {
+            "ready" -> MediaState.Ready
+            "downloading" -> MediaState.Downloading
+            "missing" -> MediaState.Missing
+            else -> MediaState.Remote
+        },
+        have = o.optLong("have"), total = o.optLong("total"),
+        relays = o.optInt("relays"), uploaded = o.optInt("uploaded"),
+    )
 
     fun messages(json: String, linkUp: Boolean): List<Message> {
         val a = JSONArray(json)

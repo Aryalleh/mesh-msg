@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Files other apps may open (one at a time, through a granted URI). -->
+<paths>
+    <files-path name="received" path="mesh/media-cache/" />
+    <cache-path name="outgoing" path="outgoing/" />
+</paths>

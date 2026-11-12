@@ -184,6 +184,15 @@ class MainActivity : ComponentActivity() {
                         ChatScreen(
                             contact, messages, status.anyPathUp, vm.limits,
                             onSend = { vm.send(hash, it) },
+                            media = remember(hash) {
+                                org.meshmsg.app.ui.MediaActions(
+                                    pick = { uri, caption -> vm.sendUri(hash, uri, caption) },
+                                    sendFile = { f, mime, name, caption -> vm.sendFile(hash, f, mime, name, caption) },
+                                    fetch = { vm.fetchMedia(it) },
+                                    path = { vm.mediaPath(it) },
+                                    error = { vm.error(it) },
+                                )
+                            },
                             onBack = { nav.popBackStack() },
                             onRename = { vm.rename(hash, it) },
                             onRemove = { vm.remove(hash); nav.popBackStack() },

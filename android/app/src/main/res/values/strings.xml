@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">mesh-msg</string>
+    <string name="app_name">Mava</string>
 
     <!-- Navigation -->
     <string name="nav_chats">Chats</string>
@@ -12,7 +12,7 @@
 
     <!-- Chats -->
     <string name="chats_empty_title">No chats yet</string>
-    <string name="chats_empty_body">Add someone by their mesh-msg link, start a group, or join the global chat and your region\'s chat.</string>
+    <string name="chats_empty_body">Add someone by their Mava link, start a group, or join the global chat and your region\'s chat.</string>
     <string name="add_contact">Add contact</string>
     <string name="chat_no_messages">No messages yet</string>
     <plurals name="unread_count">
@@ -47,7 +47,7 @@
     <!-- Add contact -->
     <string name="my_link_title">Your link</string>
     <string name="my_link_body">Show this code or send the link. Anyone who has it can write to you.</string>
-    <string name="qr_description">QR code of your mesh-msg link</string>
+    <string name="qr_description">QR code of your Mava link</string>
     <string name="copy_link">Copy link</string>
     <string name="share_link">Share</string>
     <string name="link_copied">Link copied</string>
@@ -57,7 +57,7 @@
     <string name="paste">Paste</string>
     <string name="name_optional_label">Name (optional)</string>
     <string name="name_optional_helper">Only stored on this phone.</string>
-    <string name="link_invalid">This is not a mesh-msg link. It starts with meshmsg: — copy it again in full.</string>
+    <string name="link_invalid">This is not a Mava link. It starts with meshmsg: — copy it again in full.</string>
     <string name="link_is_yours">This is your own link.</string>
 
     <!-- Network -->
@@ -77,7 +77,7 @@
         <item quantity="one">%1$d phone connected</item>
         <item quantity="other">%1$d phones connected</item>
     </plurals>
-    <string name="nearby_searching">Looking for phones around you. The other phone needs mesh-msg running too.</string>
+    <string name="nearby_searching">Looking for phones around you. The other phone needs Mava running too.</string>
     <string name="relay_up">Reachable</string>
     <string name="relay_waiting">Can\'t reach it right now. Will keep trying.</string>
     <string name="lora_waiting">Waiting for the node to answer</string>
@@ -133,7 +133,7 @@
 
     <!-- Onboarding -->
     <string name="onb_title">Messages without the internet</string>
-    <string name="onb_body">mesh-msg passes encrypted messages from phone to phone over Bluetooth, over LoRa radios, and through relays when any internet exists.</string>
+    <string name="onb_body">Mava passes encrypted messages from phone to phone over Bluetooth, over LoRa radios, and through relays when any internet exists.</string>
     <string name="onb_point_identity">No phone number, no account. Your identity is a key that stays on this phone.</string>
     <string name="onb_point_mesh">Your phone also carries sealed messages for others. It cannot read them.</string>
     <string name="onb_point_perm">Bluetooth permission is needed to find phones nearby. Location is not used.</string>
@@ -142,7 +142,7 @@
     <!-- Service notification -->
     <string name="notif_channel_mesh">Mesh running</string>
     <string name="notif_channel_messages">Messages</string>
-    <string name="notif_mesh_title">mesh-msg is running</string>
+    <string name="notif_mesh_title">Mava is running</string>
     <string name="notif_mesh_up">Connected to the mesh</string>
     <string name="notif_mesh_down">Looking for a path</string>
     <string name="notif_new_message">New message</string>
@@ -202,4 +202,24 @@
     <string name="close">Close</string>
     <string name="settings_discovery">Find relays automatically</string>
     <string name="settings_discovery_body">Use relays from the official list and ones nearby phones and LoRa nodes share, and share the relay you use. Each is checked first.</string>
+    <!-- Media: photos, voice and video messages, files -->
+    <string name="attach">Attach</string>
+    <string name="attach_media">Photo or video</string>
+    <string name="attach_video">Record video</string>
+    <string name="attach_file">File</string>
+    <string name="voice_record">Record a voice message</string>
+    <string name="voice_recording">Recording %1$s</string>
+    <string name="voice_cancel">Cancel recording</string>
+    <string name="voice_send">Send voice message</string>
+    <string name="mic_denied">Allow the microphone to record voice messages.</string>
+    <string name="media_photo">Photo</string>
+    <string name="media_voice">Voice message</string>
+    <string name="media_video">Video</string>
+    <string name="media_file">File</string>
+    <string name="media_download">Download (%1$s)</string>
+    <string name="media_missing">no longer available</string>
+    <string name="media_uploading">Uploading…</string>
+    <string name="media_play">Play</string>
+    <string name="media_pause">Pause</string>
+    <string name="media_no_app">No app on this phone opens this file.</string>
 </resources>

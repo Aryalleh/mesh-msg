@@ -45,6 +45,16 @@ type Config struct {
 	TLSCert    string            `json:"tls_cert"`    // optional: serve TLS directly
 	TLSKey     string            `json:"tls_key"`
 	Log        bool              `json:"log"` // default off: no request logs
+	// Media (encrypted files): off unless media_max_mb > 0. Files are deleted
+	// once every recipient fetched them, or after media_max_hours (files up
+	// to 1 MB; bigger ones sooner, down to media_min_hours).
+	MediaMaxMB    int `json:"media_max_mb"`
+	MediaStoreMB  int `json:"media_store_mb"`  // total cap, default 2048
+	MediaMaxHours int `json:"media_max_hours"` // default 8
+	MediaMinHours int `json:"media_min_hours"` // default 1
+	// MediaAccounts: if set, only these accounts (identity hashes, as
+	// "mesh id" shows them) may upload media. Empty: anyone (with PoW).
+	MediaAccounts []string `json:"media_accounts"`
 }
 
 // Peer is another relay to federate with.
@@ -130,6 +140,10 @@ func run(cfg *Config) error {
 	h := api.New(api.Config{
 		Relay: rl, Identity: key, PowBits: cfg.PowBits,
 		SyncTokens: cfg.SyncTokens, Relays: cfg.Relays, Logf: logf,
+		Media: api.MediaConfig{
+			Dir: filepath.Join(cfg.DataDir, "media"), MaxMB: cfg.MediaMaxMB, StoreMB: cfg.MediaStoreMB,
+			MaxHours: cfg.MediaMaxHours, MinHours: cfg.MediaMinHours, Accounts: cfg.MediaAccounts,
+		},
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

@@ -71,6 +71,7 @@ type Config struct {
 	LAN             LANConfig                        `toml:"lan" json:"lan"`
 	LoRa            LoRaConfig                       `toml:"lora" json:"lora"`
 	Discovery       DiscoveryConfig                  `toml:"discovery" json:"discovery"`
+	Media           MediaConfig                      `toml:"media" json:"media"`
 	Logf            func(format string, args ...any) `toml:"-" json:"-"`
 }
 
@@ -98,6 +99,7 @@ type Node struct {
 	lan     *lanLink
 	loras   map[string]*hostLinkLink
 	disc    *discovery // nil when relay discovery is off
+	mw      *mediaWorker
 }
 
 // Open loads or creates the node's identity and databases in cfg.DataDir.
@@ -146,6 +148,7 @@ func Open(cfg Config) (*Node, error) {
 		OnAnnounce:     n.onAnnounce,
 		Logf:           cfg.Logf,
 	})
+	n.mw = &mediaWorker{kick: make(chan struct{}, 1), busy: map[string]bool{}, waiters: map[string]chan []byte{}, serving: map[string]bool{}}
 	if !cfg.Discovery.Off {
 		n.disc = &discovery{n: n, cfg: cfg.Discovery, kick: make(chan struct{}, 1), auto: map[string]*autoRelay{}}
 	}
@@ -249,6 +252,10 @@ func (n *Node) onMessage(_ *identity.Identity, m *message.Received) {
 	msg := Message{
 		ID: m.PacketID.String(), Peer: m.From.Hash().String(), Text: m.Text,
 		Sent: m.Sent, Received: time.Now(),
+	}
+	if m.ContentType == e2e.ContentMedia {
+		n.onMedia(&msg, m.Content)
+		return
 	}
 	if err := n.db.putMessage(msg); err != nil {
 		n.cfg.Logf("node: store message: %v", err)
@@ -465,6 +472,8 @@ func (n *Node) Run(ctx context.Context) error {
 		wg.Add(1)
 		go func() { defer wg.Done(); n.disc.run(ctx) }()
 	}
+	wg.Add(1)
+	go func() { defer wg.Done(); n.runMedia(ctx) }()
 	if n.cfg.LoRa.Enabled && n.cfg.LoRa.Port != "" {
 		port := n.cfg.LoRa.Port
 		wg.Add(1)

@@ -1,6 +1,18 @@
 package org.meshmsg.app.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import java.io.File
+import org.meshmsg.app.data.MediaFiles
+import org.meshmsg.app.data.VoiceRecorder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -92,6 +104,7 @@ fun ChatScreen(
     onRemoveMember: (String) -> Unit = {},
     nowMs: Long = System.currentTimeMillis(),
     initialDraft: String = "",
+    media: MediaActions = MediaActions(),
 ) {
     var draft by rememberSaveable(contact.hash) { mutableStateOf(initialDraft) }
     var menu by remember { mutableStateOf(false) }
@@ -157,13 +170,15 @@ fun ChatScreen(
             )
         },
         bottomBar = {
+            // Files go to contacts and private groups, not to public chats.
+            val files = (group == null || group == GroupKind.Private) && !contact.removed
             Composer(draft, limits, onChange = { draft = it }, onSend = {
                 val text = draft.trim()
                 if (text.isNotEmpty()) {
                     onSend(text)
                     draft = ""
                 }
-            })
+            }, media = media.takeIf { files }, onMediaSent = { draft = "" })
         },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
@@ -190,7 +205,7 @@ fun ChatScreen(
                     itemsIndexed(messages, key = { _, m -> m.id }) { i, m ->
                         val newDay = i == 0 || Times.day(messages[i - 1].timeMs) != Times.day(m.timeMs)
                         if (newDay) DayHeader(m.timeMs, nowMs)
-                        Bubble(m, showSender = group != null)
+                        Bubble(m, showSender = group != null, media = media)
                     }
                 }
             }
@@ -299,7 +314,7 @@ private fun DayHeader(ms: Long, nowMs: Long) {
 }
 
 @Composable
-private fun Bubble(m: Message, showSender: Boolean = false) {
+private fun Bubble(m: Message, showSender: Boolean = false, media: MediaActions = MediaActions()) {
     val scheme = MaterialTheme.colorScheme
     val bg = if (m.outgoing) scheme.primaryContainer else scheme.surfaceContainer
     val fg = if (m.outgoing) scheme.onPrimaryContainer else scheme.onSurface
@@ -317,7 +332,8 @@ private fun Bubble(m: Message, showSender: Boolean = false) {
             if (showSender && !m.outgoing && m.fromName.isNotBlank()) {
                 Text(m.fromName, style = MaterialTheme.typography.labelLarge, color = scheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Text(m.text, style = MaterialTheme.typography.bodyLarge, color = fg)
+            m.media?.let { MediaContent(it, m.outgoing, fg, media) }
+            if (m.text.isNotEmpty() || m.media == null) Text(m.text, style = MaterialTheme.typography.bodyLarge, color = fg)
             Row(
                 Modifier.align(Alignment.End).padding(top = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(Space.xs),
@@ -347,8 +363,72 @@ private fun Bubble(m: Message, showSender: Boolean = false) {
 }
 
 @Composable
-private fun Composer(draft: String, limits: TextLimits, onChange: (String) -> Unit, onSend: () -> Unit) {
+private fun Composer(
+    draft: String,
+    limits: TextLimits,
+    onChange: (String) -> Unit,
+    onSend: () -> Unit,
+    media: MediaActions? = null,
+    onMediaSent: () -> Unit = {},
+) {
+    val ctx = LocalContext.current
     val used = remember(draft) { limits.bytes(draft) }
+    var attachMenu by remember { mutableStateOf(false) }
+    var recorder by remember { mutableStateOf<VoiceRecorder?>(null) }
+    var videoFile by rememberSaveable { mutableStateOf<String?>(null) }
+    val micDenied = stringResource(R.string.mic_denied)
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null && media != null) { media.pick(uri, draft.trim()); onMediaSent() }
+    }
+    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null && media != null) { media.pick(uri, draft.trim()); onMediaSent() }
+    }
+    val recordVideo = rememberLauncherForActivityResult(RecordVideo()) { ok ->
+        val f = videoFile?.let(::File)
+        videoFile = null
+        if (ok && f != null && f.length() > 0 && media != null) {
+            media.sendFile(f, "video/mp4", f.name, draft.trim()); onMediaSent()
+        } else f?.delete()
+    }
+    fun startRecording() {
+        recorder = runCatching { VoiceRecorder.start(ctx) }.onFailure { media?.error(it.message ?: it.toString()) }.getOrNull()
+    }
+    val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startRecording() else media?.error(micDenied)
+    }
+    DisposableEffect(Unit) { onDispose { recorder?.cancel() } }
+    var elapsed by remember { mutableStateOf(0L) }
+    LaunchedEffect(recorder) {
+        val r = recorder ?: return@LaunchedEffect
+        while (recorder === r) {
+            elapsed = System.currentTimeMillis() - r.startedMs
+            if (elapsed >= VoiceRecorder.MAX_MS) {
+                recorder = null
+                r.finish()?.let { media?.sendFile(it, VoiceRecorder.MIME, it.name, "") }
+            }
+            kotlinx.coroutines.delay(250)
+        }
+    }
+    recorder?.let { r ->
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            Row(
+                Modifier.navigationBarsPadding().imePadding().padding(horizontal = Space.m, vertical = Space.s).fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Space.s),
+            ) {
+                IconButton(onClick = { recorder = null; r.cancel() }) { Icon(Icons.Filled.Close, stringResource(R.string.voice_cancel)) }
+                Text(
+                    "● " + stringResource(R.string.voice_recording, "%d:%02d".format(elapsed / 60000, elapsed / 1000 % 60)),
+                    Modifier.weight(1f), color = MaterialTheme.colorScheme.error,
+                )
+                FilledIconButton(onClick = {
+                    recorder = null
+                    r.finish()?.let { media?.sendFile(it, VoiceRecorder.MIME, it.name, "") }
+                }, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.voice_send)) }
+            }
+        }
+        return
+    }
     val left = limits.onePacket - used
     val tooLong = used > limits.max
     Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
@@ -363,6 +443,30 @@ private fun Composer(draft: String, limits: TextLimits, onChange: (String) -> Un
                 )
             }
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                if (media != null) {
+                    Box {
+                        IconButton(onClick = { attachMenu = true }, modifier = Modifier.size(48.dp)) {
+                            Icon(MeshIcons.AttachFile, stringResource(R.string.attach))
+                        }
+                        DropdownMenu(expanded = attachMenu, onDismissRequest = { attachMenu = false }) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.attach_media)) }, onClick = {
+                                attachMenu = false
+                                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                            })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.attach_video)) }, onClick = {
+                                attachMenu = false
+                                val f = MediaFiles.newOutgoing(ctx, "video", "mp4")
+                                videoFile = f.path
+                                runCatching { recordVideo.launch(MediaFiles.uriFor(ctx, f)) }
+                                    .onFailure { videoFile = null; media.error(ctx.getString(R.string.media_no_app)) }
+                            })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.attach_file)) }, onClick = {
+                                attachMenu = false
+                                pickFile.launch(arrayOf("*/*"))
+                            })
+                        }
+                    }
+                }
                 TextField(
                     value = draft,
                     onValueChange = onChange,
@@ -381,11 +485,18 @@ private fun Composer(draft: String, limits: TextLimits, onChange: (String) -> Un
                         errorIndicatorColor = Color.Transparent,
                     ),
                 )
-                FilledIconButton(
-                    onClick = onSend,
-                    enabled = draft.isNotBlank() && !tooLong,
-                    modifier = Modifier.size(48.dp),
-                ) { Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send)) }
+                if (media != null && draft.isBlank()) {
+                    FilledIconButton(onClick = {
+                        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startRecording()
+                        else askMic.launch(Manifest.permission.RECORD_AUDIO)
+                    }, modifier = Modifier.size(48.dp)) { Icon(MeshIcons.Mic, stringResource(R.string.voice_record)) }
+                } else {
+                    FilledIconButton(
+                        onClick = onSend,
+                        enabled = draft.isNotBlank() && !tooLong,
+                        modifier = Modifier.size(48.dp),
+                    ) { Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send)) }
+                }
             }
         }
     }

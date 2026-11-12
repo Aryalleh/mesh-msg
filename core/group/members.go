@@ -23,6 +23,7 @@ import (
 //	op 1 ROSTER   version(4) | name_len(1) | name | n(1) | n × (x(32) | ed(32) | name_len(1) | name)
 //	op 2 LEAVE    (empty)  the sender left
 //	op 3 REMOVED  (empty)  the owner removed the recipient
+//	op 4 MEDIA    a core/media reference (photo, file, voice or video message)
 //
 // The owner is whoever sent the first ROSTER (the invite) a member received;
 // only the owner's later ROSTERs, with a higher version, are accepted. The
@@ -36,6 +37,7 @@ const (
 	OpRoster  Op = 1
 	OpLeave   Op = 2
 	OpRemoved Op = 3
+	OpMedia   Op = 4
 )
 
 // MaxMembers keeps a roster (≈ 70 bytes per member) within one message.
@@ -73,6 +75,7 @@ type Envelope struct {
 	Op     Op
 	Text   string  // OpText
 	Roster *Roster // OpRoster
+	Media  []byte  // OpMedia: encoded media reference
 }
 
 // NewID makes a random group ID.
@@ -92,6 +95,11 @@ func head(id packet.Hash, op Op) []byte {
 func EncodeText(id packet.Hash, text string) []byte {
 	ct, content := textenc.Encode(text)
 	return append(append(head(id, OpText), ct), content...)
+}
+
+// EncodeMedia encodes a media reference for the group.
+func EncodeMedia(id packet.Hash, ref []byte) []byte {
+	return append(head(id, OpMedia), ref...)
 }
 
 // EncodeOp encodes LEAVE or REMOVED.
@@ -150,6 +158,11 @@ func Decode(b []byte) (*Envelope, error) {
 			return nil, err
 		}
 		e.Roster = r
+	case OpMedia:
+		if len(body) == 0 {
+			return nil, errShort
+		}
+		e.Media = append([]byte(nil), body...)
 	case OpLeave, OpRemoved:
 	default:
 		return nil, errors.New("group: unknown operation")

@@ -40,6 +40,7 @@ type Config struct {
 	SyncTokens []string
 	Relays     []wire.RelayEntry // published relay list
 	RateLimit  float64           // requests/second per IP (0 = 20)
+	Media      MediaConfig       // encrypted files (off unless MaxMB > 0)
 	Logf       func(format string, args ...any)
 }
 
@@ -48,6 +49,8 @@ type Server struct {
 	cfg Config
 	mux *http.ServeMux
 	lim *limiter
+
+	media *mediaStore
 }
 
 // New builds the handler.
@@ -68,6 +71,14 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("POST /v1/gateway", s.gateway)
 	s.mux.HandleFunc("POST /v1/sync/push", s.syncPush)
 	s.mux.HandleFunc("GET /v1/sync/pull", s.syncPull)
+	if cfg.Media.MaxMB > 0 && cfg.Media.Dir != "" {
+		if err := s.openMedia(); err != nil {
+			cfg.Logf("media: %v (media off)", err)
+		} else {
+			s.mux.HandleFunc("PUT /v1/media/{id}", s.mediaPut)
+			s.mux.HandleFunc("GET /v1/media/{id}", s.mediaGet)
+		}
+	}
 	return s
 }
 
@@ -92,6 +103,8 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, wire.Info{
 		Name: s.cfg.Relay.Name(), Region: s.cfg.Relay.Region(), PowBits: s.cfg.PowBits,
 		Version: Version, PubKey: hex.EncodeToString(s.cfg.Identity.Bytes()),
+		MediaMaxMB: s.mediaMaxMB(), MediaMaxHours: s.cfg.Media.maxHours(),
+		MediaAccountsOnly: s.media != nil && len(s.cfg.Media.Accounts) > 0,
 	})
 }
 

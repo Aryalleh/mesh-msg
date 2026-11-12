@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>mesh-msg</title>
+<title>Mava</title>
 <link rel="icon" href="data:,">
 <style>
   :root {
@@ -66,6 +66,14 @@
   .msg .meta { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; text-align: end; }
   form#compose { display: flex; gap: 8px; padding: 12px 20px; background: var(--panel); border-top: 1px solid var(--line); }
   form#compose textarea { resize: none; height: 44px; unicode-bidi: plaintext; }
+  form#compose .icon { padding: 0 12px; font-size: 18px; }
+  #btnVoice.rec { background: var(--warn); color: #fff; }
+  .msg .media { display: block; margin: 2px 0 4px; }
+  .msg img.media, .msg video.media { max-width: min(360px, 100%); max-height: 360px; border-radius: 8px; }
+  .msg audio.media { width: min(300px, 100%); }
+  .msg .file { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 4px; }
+  .msg .file span { flex: 1; overflow-wrap: anywhere; }
+  .msg .file button { padding: 4px 10px; }
   .empty { margin: auto; color: var(--muted); text-align: center; max-width: 420px; padding: 20px; }
   dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); width: min(520px, 92vw); }
   dialog::backdrop { background: rgba(0,0,0,.4); }
@@ -106,7 +114,7 @@
 <body>
 <aside>
   <header>
-    <h1>mesh-msg</h1>
+    <h1>Mava</h1>
     <button class="ghost" id="btnSettings" title="Settings">⚙</button>
     <button class="ghost" id="btnMe" title="My contact link">Me</button>
     <button id="btnAdd" title="New chat: contact, group or channel">+</button>
@@ -166,7 +174,7 @@
 
       <div class="card">
         <h3>LoRa node (USB)</h3>
-        <p class="help">A Heltec V3, T-Beam S3, RAK4631 or T-Echo with mesh-msg firmware, plugged in by USB. This computer carries its traffic.</p>
+        <p class="help">A Heltec V3, T-Beam S3, RAK4631 or T-Echo with Mava (mesh-msg) firmware, plugged in by USB. This computer carries its traffic.</p>
         <label class="check"><input type="checkbox" id="loraOn"><span>Use a LoRa node</span></label>
         <label class="field">USB port<input id="loraPort" list="ports" dir="ltr" placeholder="/dev/ttyACM0"><datalist id="ports"></datalist></label>
         <div id="loraNodes"></div>
@@ -183,6 +191,9 @@
     </div>
   </section>
   <form id="compose" hidden>
+    <button type="button" class="ghost icon" id="btnAttach" title="Send a photo, video or file">📎</button>
+    <input type="file" id="fileIn" hidden>
+    <button type="button" class="ghost icon" id="btnVoice" title="Record a voice message (click again to send)">🎤</button>
     <textarea id="text" placeholder="Message… / پیام…" dir="auto" autocomplete="off"></textarea>
     <button type="submit">Send</button>
   </form>
@@ -300,7 +311,8 @@ function renderContacts() {
     if (c.last) {
       h.className = "last";
       const who = c.last.outgoing ? "you" : (c.kind !== "contact" ? (c.last.from_name || (c.last.from || "").slice(0, 8)) : "");
-      h.textContent = (who ? who + ": " : "") + c.last.text;
+      const media = c.last.media ? (c.last.text ? "📎 " : "📎 " + kindName[mediaKind(c.last.media)]) : "";
+      h.textContent = (who ? who + ": " : "") + media + c.last.text;
     } else { h.className = "hash"; h.textContent = c.kind === "contact" ? c.hash.slice(0, 16) : c.kind + " chat"; }
     li.append(n, h);
     li.onclick = () => openChat(c);
@@ -326,6 +338,7 @@ function addMessage(m) {
     f.title = m.from || "";
     div.append(f);
   }
+  if (m.media) div.append(mediaView(m));
   const t = document.createElement("span");
   t.textContent = m.text;
   const meta = document.createElement("span");
@@ -339,6 +352,78 @@ function addMessage(m) {
   box.append(div);
   box.scrollTop = box.scrollHeight;
 }
+
+const kindName = {image: "Photo", audio: "Voice message", video: "Video", file: "File"};
+function mediaKind(mi) { const k = (mi.mime || "").split("/")[0]; return ["image", "audio", "video"].includes(k) ? k : "file"; }
+function humanSize(n) { return n >= 1 << 20 ? (n / (1 << 20)).toFixed(1) + " MB" : n >= 1024 ? Math.round(n / 1024) + " KB" : n + " B"; }
+const inlineTypes = /^(image\/(jpeg|png|gif|webp)|audio\/(ogg|mpeg|mp4|aac|webm|wav|x-m4a)|video\/(mp4|webm|3gpp))$/;
+
+function mediaView(m) {
+  const mi = m.media, kind = mediaKind(mi), src = "/api/media/" + mi.id;
+  if (mi.state === "ready" && inlineTypes.test(mi.mime)) {
+    if (kind === "image") {
+      const img = el("img", {className: "media", src, alt: mi.name, loading: "lazy"});
+      img.onclick = () => window.open(src, "_blank", "noopener");
+      return img;
+    }
+    if (kind === "audio") return el("audio", {className: "media", src, controls: true, preload: "metadata"});
+    if (kind === "video") return el("video", {className: "media", src, controls: true, preload: "metadata"});
+  }
+  const box = el("div", {className: "file"}, el("span", {dir: "auto", textContent: `${kindName[kind]} · ${mi.name} · ${humanSize(mi.size)}`}));
+  if (mi.state === "ready") {
+    box.append(el("a", {href: src + "?download=1", textContent: "Save", download: mi.name}));
+  } else if (mi.state === "downloading") {
+    box.append(el("small", {textContent: mi.total ? "downloading…" : "downloading…"}));
+  } else if (mi.state === "missing") {
+    box.append(el("small", {textContent: "no longer available"}));
+  } else {
+    box.append(el("button", {className: "ghost", textContent: "Download", on: {click: async (e) => {
+      e.target.disabled = true; e.target.textContent = "waiting…";
+      try { await api("/media/" + mi.id + "/fetch", {method: "POST"}); } catch (err) { alert(err.message); }
+    }}}));
+  }
+  if (m.outgoing && mi.relays && mi.uploaded < mi.relays) box.append(el("small", {textContent: "uploading…"}));
+  return box;
+}
+
+async function sendFile(file, name, mime) {
+  if (!current) return;
+  const q = new URLSearchParams({to: current.hash, name: name || file.name, mime: mime || file.type || "", caption: $("text").value.trim()});
+  try {
+    const r = await fetch("/api/send-media?" + q, {method: "POST", body: file, headers: {"X-Meshd": "1"}});
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error || r.statusText);
+    $("text").value = "";
+    addMessage(body);
+    loadContacts();
+  } catch (err) { alert(err.message); }
+}
+$("btnAttach").onclick = () => $("fileIn").click();
+$("fileIn").onchange = () => { const f = $("fileIn").files[0]; $("fileIn").value = ""; if (f) sendFile(f); };
+
+// Voice messages: click to record, click again to send.
+let recorder = null;
+$("btnVoice").onclick = async () => {
+  if (recorder) { recorder.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) { alert("This browser can't record audio."); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({audio: true}); } catch (e) { alert("Microphone: " + e.message); return; }
+  const type = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/webm"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
+  recorder = new MediaRecorder(stream, {mimeType: type, audioBitsPerSecond: 24000});
+  const parts = [];
+  recorder.ondataavailable = (e) => parts.push(e.data);
+  recorder.onstop = () => {
+    stream.getTracks().forEach((t) => t.stop());
+    $("btnVoice").classList.remove("rec"); $("btnVoice").textContent = "🎤";
+    const mime = (recorder.mimeType || "audio/webm").split(";")[0];
+    recorder = null;
+    const blob = new Blob(parts, {type: mime});
+    if (blob.size) sendFile(blob, "voice-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + (mime.includes("ogg") ? ".ogg" : ".webm"), mime);
+  };
+  recorder.start();
+  $("btnVoice").classList.add("rec"); $("btnVoice").textContent = "■";
+  setTimeout(() => { if (recorder && recorder.state === "recording") recorder.stop(); }, 5 * 60 * 1000);
+};
 
 function showChat() {
   $("settings").hidden = true; $("messages").hidden = false;
@@ -364,6 +449,9 @@ async function openChat(c) {
       el("button", {className: "ghost", textContent: "Leave", on: {click: () => leaveGroup(c)}}));
   }
   $("compose").hidden = false;
+  // Files go to contacts and private groups, not to public chats.
+  const files = c.kind === "contact" || c.kind === "private";
+  $("btnAttach").hidden = !files; $("btnVoice").hidden = !files;
   $("messages").replaceChildren();
   renderContacts();
   for (const m of await api("/messages?with=" + c.hash + "&limit=200")) addMessage(m);
@@ -737,6 +825,14 @@ function listen() {
         api("/read/" + current.hash, {method: "POST"}).catch(() => {});
       }
       await loadContacts();
+    } else if (e.type === "media" && current) {
+      // A file finished downloading or uploading: refresh this chat if it is here.
+      const shown = [...document.querySelectorAll(".msg")].length;
+      clearTimeout(window.mediaRefresh);
+      window.mediaRefresh = setTimeout(async () => {
+        const ms = await api("/messages?with=" + current.hash + "&limit=" + Math.max(100, shown));
+        if (ms.some((m) => m.media && m.media.id === e.info)) { $("messages").replaceChildren(); ms.forEach(addMessage); }
+      }, 300);
     } else if (e.type === "delivered" && current && current.group && current.kind === "private") {
       // A member confirmed a copy: refresh the marks (✓ n/m).
       const ms = await api("/messages?with=" + current.hash + "&limit=200");

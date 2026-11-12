@@ -407,3 +407,32 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 
 - Tagged `v0.1.0-alpha7` on `9ae58d0` (relay discovery, stealth mode removed). Release run 43241056036 green: APKs (arm64-v8a, armeabi-v7a, x86_64, universal) + desktop linux amd64/arm64.
 - Next: media (photos, files, voice and video messages) in progress, not in this release.
+
+### 2026-11-12 — media: photos, voice and video messages, files; app named Mava
+
+- Name: the app is **Mava** (Android label, web UI, terminal app, READMEs). Package id,
+  `meshmsg:` links, binaries (`meshd`, `mesh`) and repo name unchanged so phones update in place.
+- `core/media`: file sealed in 64 KiB ChaCha20-Poly1305 chunks with a random key, id =
+  SHA-256(blob)[:16]; the message carries only a ref (content type 6, group op 4). No files
+  in public chats. Docs: protocol.md §6b, server.md §6a.
+- Moving the blob without lagging chats: neighbours pull windows (LAN 256 KB / 32 KB frames,
+  BLE 8 KB / 2 KB frames) with link frames 0xC1/0xC2 (version bits 11, older nodes drop them);
+  every node keeps blobs it sent/fetched and serves them. Never over LoRa.
+- Relays (only if `media_max_mb > 0`): PUT/GET `/v1/media/{id}`, PoW, `X-Readers`; the file is
+  **deleted once all readers downloaded it**, else after max(min_hours, max_hours × 1 MB/size)
+  (8 h small, 1 h minimum); `media_store_mb` cap → 507; not federated. `media_accounts`: only
+  listed accounts may upload (signed `X-Account`/`X-Signature`), anyone downloads.
+- Auto-download ≤ 2 MB (`[media] auto_download_mb`), bigger on request; resumable `.part`.
+- meshd: `POST /send-media`, `GET /media/{id}` (only safe image/audio/video inline, sandbox
+  CSP, nosniff), `/media/{id}/info`, `POST /media/{id}/fetch`. CLI `mesh send-file`, `mesh
+  media get|info`; terminal app `/file`, `/save`; web UI attach, voice recording, inline
+  photo/audio/video, download.
+- Android: attach (photo/video picker, record video ≤ 60 s low quality, any file), photos
+  shrunk to 1600 px JPEG, tap-to-record voice (AAC 24 kbit/s, ≤ 5 min), inline photos and
+  voice player, open video/files via FileProvider, download progress; en + fa strings.
+- Fix found while testing: `RetryMedia` on BLE `PeerUp` did a DB write on the link callback
+  and stalled the BLE tests; the worker now does it (flag + kick).
+- Tests: photo via relay (relay empty after the reader fetched), group voice (kept until
+  the 2nd member fetched; big file not auto-fetched), video over LAN without relays, photo
+  over BLE (mobile), relay media limits/TTL/accounts, Android JSON. Web UI checked in
+  Chromium (image + audio rendered, served with sandbox CSP).

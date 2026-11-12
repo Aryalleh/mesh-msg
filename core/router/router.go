@@ -549,6 +549,44 @@ func (r *Router) PeerUp(link string, peer PeerID) {
 	acts.run()
 }
 
+// Neighbour is a peer on a point-to-point link.
+type Neighbour struct {
+	Link string
+	Peer PeerID
+}
+
+// Neighbours lists current point-to-point peers, in link order.
+func (r *Router) Neighbours() []Neighbour {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []Neighbour
+	for _, name := range r.order {
+		ps := make([]string, 0, len(r.peers[name]))
+		for p := range r.peers[name] {
+			ps = append(ps, string(p))
+		}
+		sort.Strings(ps)
+		for _, p := range ps {
+			out = append(out, Neighbour{name, PeerID(p)})
+		}
+	}
+	return out
+}
+
+// SendRaw hands raw bytes to one neighbour, outside the packet logic (media
+// transfers). It reports whether the peer is there.
+func (r *Router) SendRaw(link string, peer PeerID, raw []byte) bool {
+	r.mu.Lock()
+	l, ok := r.links[link]
+	up := ok && r.peers[link][peer]
+	r.mu.Unlock()
+	if !up {
+		return false
+	}
+	l.Send(peer, raw)
+	return true
+}
+
 // PeerDown removes a neighbour.
 func (r *Router) PeerDown(link string, peer PeerID) {
 	r.mu.Lock()

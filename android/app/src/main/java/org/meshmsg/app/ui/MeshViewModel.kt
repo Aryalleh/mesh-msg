@@ -91,6 +91,30 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     fun openChat(hash: String) = backend.value?.openChat(hash)
     fun closeChat() = backend.value?.closeChat()
     fun send(hash: String, text: String) = io { it.send(hash, text) }
+
+    /** Sends what a picker returned (photos are shrunk first). */
+    fun sendUri(hash: String, uri: android.net.Uri, caption: String) = io { b ->
+        runCatching { org.meshmsg.app.data.MediaFiles.copyIn(app, uri) }.mapCatching { p ->
+            try { b.sendMedia(hash, p.file.path, p.mime, p.name, caption).getOrThrow() } finally { p.file.delete() }
+        }
+    }
+
+    /** Sends a recorded voice message or video, then deletes the copy (the core keeps its own). */
+    fun sendFile(hash: String, file: java.io.File, mime: String, name: String, caption: String) = io { b ->
+        if (file.length() > org.meshmsg.app.data.MediaFiles.MAX_BYTES) {
+            file.delete()
+            Result.failure<Unit>(IllegalArgumentException("File larger than 64 MB"))
+        } else {
+            b.sendMedia(hash, file.path, mime, name, caption).also { file.delete() }
+        }
+    }
+
+    fun fetchMedia(id: String) = io { it.fetchMedia(id) }
+
+    /** A downloaded file's path, or null while it isn't on the phone. */
+    suspend fun mediaPath(id: String): String? = withContext(Dispatchers.IO) { backend.value?.mediaPath(id)?.getOrNull() }
+
+    fun error(msg: String) { _errors.trySend(msg) }
     fun rename(hash: String, name: String) = io { it.renameContact(hash, name) }
     fun remove(hash: String) = io { it.removeContact(hash) }
     fun leaveGroup(hash: String) = io { it.leaveGroup(hash) }
