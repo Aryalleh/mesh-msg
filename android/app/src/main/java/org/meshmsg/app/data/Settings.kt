@@ -27,9 +27,13 @@ class Settings(context: Context) {
         get() = p.getString("name", "") ?: ""
         set(v) = p.edit { putString("name", v.trim()) }
 
-    /** Carry other people's traffic between relays and the mesh around this phone. */
+    /**
+     * Carry other people's traffic between relays and the mesh around this phone.
+     * On by default: without it, phones nearby that have no internet can send
+     * through this one but never get their replies.
+     */
     var gateway: Boolean
-        get() = p.getBoolean("gateway", false)
+        get() = p.getBoolean("gateway", true)
         set(v) = p.edit { putBoolean("gateway", v) }
 
     /** No BLE advertising: the phone is not discoverable (docs/android.md §8). */

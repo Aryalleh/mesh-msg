@@ -253,3 +253,13 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   mesh, CGO off) next to the APKs; one SHA256SUMS. `mesh version` added; meshd/mesh default
   to 0.0.0-dev. Rule written into CLAUDE.md.
 - Tagged `v0.1.0-alpha4` (account backup + versioning).
+
+### 2026-11-12 — gateway on by default
+- User asked why a Bluetooth-only phone needs "Share my internet with the mesh" on the
+  online phone. Reason: outbound packets from BLE reach the relay through any online node,
+  but replies are only fetched for nearby (non-relay) routes by `gatewayOnce`, which runs only
+  with the gateway on. Now on by default: Android `Settings.gateway` defaults to true
+  (installs that never touched the switch get it), meshd's generated config has
+  `[gateway] enabled = true` (targeted mode). Switch kept so it can be turned off. Clearer
+  en/fa text. Tests updated (`JsonTest`, `TestDefaultConfigParses`).
+- Release: `v0.1.0-alpha5` after CI on main is green.

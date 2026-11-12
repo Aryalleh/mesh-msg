@@ -113,7 +113,7 @@
     <string name="settings_stealth">Stealth mode</string>
     <string name="settings_stealth_body">This phone stops announcing itself over Bluetooth. It can still find others.</string>
     <string name="settings_gateway">Share my internet with the mesh</string>
-    <string name="settings_gateway_body">When a relay is in reach, carry messages for people around you. They stay encrypted.</string>
+    <string name="settings_gateway_body">Phones around you without internet send through yours, and only get their replies if this is on. Uses a little data; messages stay encrypted.</string>
     <string name="settings_battery">Battery use</string>
     <string name="battery_active">Active — always meshing</string>
     <string name="battery_saver">Saver — short scans every few minutes</string>

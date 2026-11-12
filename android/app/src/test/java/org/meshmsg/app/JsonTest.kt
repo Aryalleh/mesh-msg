@@ -101,7 +101,7 @@ class JsonTest {
         assertEquals("https://relay.example", o.getJSONArray("relays").getJSONObject(0).getString("url"))
         assertEquals(s.relays, Settings(RuntimeEnvironment.getApplication()).relays) // persisted
         s.clear()
-        assertTrue(s.relays == DEFAULT_RELAYS && !s.gateway && !s.onboarded)
+        assertTrue(s.relays == DEFAULT_RELAYS && s.gateway && !s.onboarded) // gateway on by default
         s.relays = emptyList() // removing the default sticks
         assertTrue(Settings(RuntimeEnvironment.getApplication()).relays.isEmpty())
     }

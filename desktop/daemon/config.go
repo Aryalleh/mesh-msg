@@ -48,9 +48,10 @@ via  = "direct"
 # url  = "https://relay-ir.example"
 # via  = "direct"
 
-# Gateway: carry relay traffic into your local mesh (LAN / LoRa).
+# Gateway: carry relay traffic into your local mesh (LAN / LoRa). On by default:
+# without it, nodes near you that have no internet never get their replies.
 [gateway]
-enabled = false
+enabled = true
 mode = "targeted"          # "targeted" or "carrier"
 quota_kb_per_hour = 512
 

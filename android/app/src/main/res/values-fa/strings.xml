@@ -107,7 +107,7 @@
     <string name="settings_stealth">حالت پنهان</string>
     <string name="settings_stealth_body">این گوشی دیگر خودش را روی بلوتوث اعلام نمی‌کند. هنوز می‌تواند دیگران را پیدا کند.</string>
     <string name="settings_gateway">اینترنتم را با شبکه شریک شو</string>
-    <string name="settings_gateway_body">وقتی رله‌ای در دسترس است، پیام‌های اطرافیان را هم جابه‌جا کن. پیام‌ها رمزشده می‌مانند.</string>
+    <string name="settings_gateway_body">گوشی‌های اطراف که اینترنت ندارند از راه گوشی شما پیام می‌فرستند و فقط اگر این روشن باشد پاسخ‌هایشان را می‌گیرند. کمی داده مصرف می‌کند؛ پیام‌ها رمزشده می‌مانند.</string>
     <string name="settings_battery">مصرف باتری</string>
     <string name="battery_active">فعال — همیشه در شبکه</string>
     <string name="battery_saver">کم‌مصرف — جستجوی کوتاه هر چند دقیقه</string>
