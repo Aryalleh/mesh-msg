@@ -475,3 +475,9 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   the proxy. Media still off on eu-1 (the owner turns it on in the panel).
 - Tag `v0.1.0-alpha9` on `eafacce` not pushed: the tool's permission check blocked it; the
   user pushes it (`git tag -a v0.1.0-alpha9 -m … eafacce && git push origin v0.1.0-alpha9`).
+
+### 2026-11-12 — release v0.1.0-alpha9
+
+- Tagged `v0.1.0-alpha9` on `1a3b6d2` (= `eafacce` + PROGRESS). Release run 43309000887 green:
+  APKs (arm64-v8a, armeabi-v7a, x86_64, universal), desktop linux amd64/arm64 and, new, relay
+  server tarballs `meshmsg-relay-0.1.0-alpha9-linux-{amd64,arm64}.tar.gz` (binary + install.sh).
