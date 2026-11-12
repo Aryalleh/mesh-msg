@@ -516,3 +516,12 @@ not implemented; no TURN, relays never carry a direct session).
 - Proof-of-work for important media now also depends on account age: +3 bits under 3 days,
   +2 under 30, +1 under 180, 0 after; base 20 bits, +1 per upload today, cap 28; all panel
   settings (server.md §6a). Previous docs commit `27887bf`.
+
+### 2026-11-12 — Requirement: voice calls (docs only)
+
+- `docs/calls.md`: 1:1 voice calls over direct links only (connectivity.md); signaling =
+  E2E content type 7 (OFFER/ANSWER/CANDIDATES/REJECT/END/CANCEL) over any path, OFFER rings
+  45 s then shows as missed; per-call Noise KK + ChaCha20-Poly1305 frames, Opus 16 kHz
+  6–24 kbps with FEC/DTX, adaptive jitter buffer, path switch mid-call; Android first
+  (libopus via NDK, self-managed ConnectionService); IP exposure in threat model; tests.
+- roadmap M9, decisions D15, architecture §5b link; `core/e2e` comment reserving type 7.

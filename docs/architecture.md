@@ -100,7 +100,8 @@ Devices may sit behind CGNAT, mobile networks, hotspots and nested NATs. A direc
 chosen only by tested reachability, never by whether an address looks private or public;
 the most direct working path wins (traffic stays on a shared local network), relays only
 pass encrypted candidates and never carry a direct session, and there is no TURN fallback.
-Requirement and design: [connectivity.md](connectivity.md).
+Requirement and design: [connectivity.md](connectivity.md). Voice calls use only these
+direct links ([calls.md](calls.md)).
 
 ## 6. Message paths (example)
 

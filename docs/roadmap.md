@@ -11,6 +11,7 @@
 | **M6 Hardening** | panic wipe, APK sharing, Tor path, reproducible builds, security review | external review findings addressed |
 | **M7 Field test** | 10 km LoRa test + simulated domestic-only network test | measured delivery report |
 | **M8 Windows / macOS** | desktop builds + installers | |
+| **M9 Direct links + calls** | direct IP link across any NAT ([connectivity.md](connectivity.md)), then 1:1 voice calls on Android ([calls.md](calls.md)) | call between two phones behind different NATs and on one hotspot; relay counters show zero audio bytes |
 
 Order rationale: the Go core and relay come first because desktop, Android and the
 simulator all reuse them, and Linux desktop + relay is the fastest way to a working

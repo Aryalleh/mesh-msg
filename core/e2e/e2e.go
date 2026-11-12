@@ -32,6 +32,7 @@ const (
 	ContentAck         uint8 = 4 // reserved (protocol.md §3)
 	ContentGroup       uint8 = 5 // private group traffic (core/group: text, roster, leave, removed, media)
 	ContentMedia       uint8 = 6 // a file: core/media reference (the file itself travels outside the mesh)
+	// 7 is reserved for call signaling (docs/calls.md), not implemented yet.
 )
 
 const (

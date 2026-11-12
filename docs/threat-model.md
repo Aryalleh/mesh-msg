@@ -24,6 +24,7 @@ control of national ISPs, mobile networks, app stores in-country, and police pow
 | Seize / compel an **in-country regional relay** | logs of connecting IPs (domestic IPs map to registered SIMs), shutdown | relay is untrusted & disposable; no logs, in-memory gateway state, short retention; several relays on different providers; addresses rotate via signed relay lists over the mesh |
 | DPI on domestic network flags connections to a known relay | identify gateways | relay traffic is plain HTTPS on an innocuous domain; rotate addresses; gateway role is opt-in and its risk is explained in the UI |
 | Detect bridge operators (VPN / Starlink / unfiltered SIM traffic patterns) | arrest of bridge operators | bridges are opt-in with clear risk warning; data budgets keep traffic small; batching + jitter; operators decide their own exposure |
+| A call partner learns your network address | location of the caller / callee | calls go over a direct path only, so each side sees the other's IP addresses; calls only from contacts by default, the first call screen warns; relays never see audio |
 | Malicious relay or bridge | drop / delay / inject packets | E2E auth stops injection; store-and-forward over many paths survives dropping; receipts reveal non-delivery |
 
 ## Explicit non-goals (v0)
