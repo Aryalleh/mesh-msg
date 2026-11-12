@@ -402,3 +402,8 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 - Stealth mode (Android: no BLE advertising) removed at the user's request: setting, strings,
   `BleMesh`/`BleProto.shouldConnect` parameter, tests, docs (threat model notes the residual risk).
 - Commit `4a831cd`. CI green (run 43235193027: desktop + Android). Next: optionally redeploy relay eu-1 (fills its pubkey into /v1/relays); release when asked.
+
+### 2026-11-12 — release v0.1.0-alpha7
+
+- Tagged `v0.1.0-alpha7` on `9ae58d0` (relay discovery, stealth mode removed). Release run 43241056036 green: APKs (arm64-v8a, armeabi-v7a, x86_64, universal) + desktop linux amd64/arm64.
+- Next: media (photos, files, voice and video messages) in progress, not in this release.
