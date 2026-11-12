@@ -289,3 +289,4 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   checked end to end in headless Chromium (save, bad relay refused, backup, wrong
   passphrase, restore, phone width).
 - Android: settings already covers relays/gateway/backup; LoRa there waits for LoRa-over-BLE.
+- Commit `a242b8e`. Next: release v0.1.0-alpha6 when the user asks.
