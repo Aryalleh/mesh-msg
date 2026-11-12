@@ -469,3 +469,9 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 - Tests: admin login end to end (code arrives in a real node's Mava, wrong/reused code
   refused, owner not removable, settings validated, restart); CLI checked by hand; web UI
   round video recorded with Chromium's fake camera and played as a circle on the receiver.
+- Commit `eafacce`, CI run 43297297180 green (desktop + Android with CameraX).
+- Relay eu-1 updated to `0.1.0-alpha9+eafacce` with `install.sh` in update mode (config and
+  key kept; previous binary at `/usr/local/bin/meshmsg-relay.prev`); `/admin` answers through
+  the proxy. Media still off on eu-1 (the owner turns it on in the panel).
+- Tag `v0.1.0-alpha9` on `eafacce` not pushed: the tool's permission check blocked it; the
+  user pushes it (`git tag -a v0.1.0-alpha9 -m … eafacce && git push origin v0.1.0-alpha9`).
