@@ -312,3 +312,4 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   input refused; app flow add → send Persian → list order → open by number/prefix → rename →
   unread → backup → rm → restore). Also driven in a real pty with two meshd over LAN: live
   receive, unread prompt, receipts.
+- Commit `ef0c03d`. Next: release v0.1.0-alpha6 once main CI is green.
