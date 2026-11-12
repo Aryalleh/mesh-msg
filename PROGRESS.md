@@ -244,3 +244,12 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 - CI now prints Gradle/Kotlin/lint errors as annotations (`f713762`): job logs need a login,
   annotations are public (`/check-runs/<job>/annotations`). First Android build of backup
   failed on a `String.chars()` extension shadowed by Java's `CharSequence.chars()`; renamed.
+
+### 2026-11-12 — versioned releases
+- User: each release must carry a new version so apps update. Gradle takes
+  `-PversionName/-PversionCode` (defaults 0.1.0-dev / 1); the workflow (now `name: build`,
+  jobs version → android + desktop → release) derives name from the tag and code = run
+  number + 100; release adds `meshmsg-desktop-<ver>-linux-{amd64,arm64}.tar.gz` (meshd +
+  mesh, CGO off) next to the APKs; one SHA256SUMS. `mesh version` added; meshd/mesh default
+  to 0.0.0-dev. Rule written into CLAUDE.md.
+- Tagged `v0.1.0-alpha4` (account backup + versioning).

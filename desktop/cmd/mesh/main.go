@@ -42,6 +42,7 @@ Usage:
                                  region=EU_868… preset=FAST|BALANCED|LONG
                                  freq=869.525 (MHz) power=14 (dBm) name=… announce=30 (min)
   mesh lora plans                region frequency plans and presets
+  mesh version                   print the version
   mesh identity export [-o file] back up your account key, sealed with a passphrase
   mesh identity import [-replace] [file|-]
                                  restore an account from a backup (meshd must be stopped)
@@ -53,6 +54,7 @@ Flags: -data <dir> (default ~/.local/share/meshd)
 var (
 	client  *http.Client
 	dataDir string
+	version = "0.0.0-dev" // set by the release build (-X main.version=…)
 )
 
 func main() {
@@ -126,6 +128,8 @@ func run(args []string) error {
 		return loraCmd(rest)
 	case "identity":
 		return identityCmd(rest)
+	case "version":
+		fmt.Println("mesh", version)
 	case "id":
 		var id map[string]string
 		if err := call("GET", "/id", nil, &id); err != nil {

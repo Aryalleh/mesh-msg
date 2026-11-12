@@ -16,7 +16,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/desktop/daemon"
 )
 
-var version = "0.1.0-dev"
+var version = "0.0.0-dev" // set by the release build (-X main.version=…)
 
 func main() {
 	defCfg, defData := daemon.DefaultPaths()

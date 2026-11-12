@@ -28,8 +28,10 @@ android {
         applicationId = "org.meshmsg.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // Set by CI from the release tag (v0.1.0-alpha4 → 0.1.0-alpha4) and the
+        // workflow run number, so every build installs as an update over the last.
+        versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (findProperty("versionName") as String?) ?: "0.1.0-dev"
         // Only what the UI is translated into.
         androidResources.localeFilters += listOf("en", "fa")
     }

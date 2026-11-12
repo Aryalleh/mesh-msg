@@ -1,6 +1,12 @@
-# Builds the Android app (Go core AAR + APKs) on every push to main and on tags.
-# A tag v* publishes the APKs as a GitHub release (prerelease for -alpha/-beta/-rc).
-name: android
+# Builds the apps on every push to main and on tags. A tag v* publishes a
+# GitHub release (prerelease for -alpha/-beta/-rc) with the Android APKs and
+# the Linux desktop binaries, all stamped with the tag's version.
+#
+# Versions: name = tag without "v" (e.g. 0.1.0-alpha4), or 0.0.0-dev+<sha> on
+# main. Android versionCode = this workflow's run number, which only grows, so
+# each APK installs over the previous one. Do not rename this file: that
+# restarts the run number and would break updates.
+name: build
 
 on:
   push:
@@ -13,7 +19,21 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      name: ${{ steps.v.outputs.name }}
+      code: ${{ steps.v.outputs.code }}
+    steps:
+      - id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then name=${GITHUB_REF_NAME#v}; else name=0.0.0-dev+${GITHUB_SHA::7}; fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$((GITHUB_RUN_NUMBER + 100))" >> "$GITHUB_OUTPUT"
+          echo "version $name, code $((GITHUB_RUN_NUMBER + 100))"
+
+  android:
+    needs: version
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -52,7 +72,9 @@ jobs:
         working-directory: android
         run: |
           set -o pipefail
-          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug 2>&1 | tee ../gradle.log
+          ./gradlew --no-daemon -PversionName='${{ needs.version.outputs.name }}' -PversionCode='${{ needs.version.outputs.code }}' \
+            lintDebug testDebugUnitTest assembleDebug 2>&1 | tee ../gradle.log
+
       - name: Report build errors
         if: failure()
         run: |
@@ -66,31 +88,74 @@ jobs:
 
       - name: Collect APKs
         run: |
-          ver=${GITHUB_REF_NAME//\//-}
+          ver='${{ needs.version.outputs.name }}'
           mkdir -p dist
           for f in android/app/build/outputs/apk/debug/app-*-debug.apk; do
             abi=$(basename "$f" | sed -e 's/^app-//' -e 's/-debug\.apk$//')
             cp "$f" "dist/meshmsg-$ver-$abi.apk"
           done
-          (cd dist && sha256sum *.apk > SHA256SUMS)
           ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: apks
+          name: android
           path: dist/
 
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+  desktop:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: meshd + mesh for Linux
+        run: |
+          ver='${{ needs.version.outputs.name }}'
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            d=meshmsg-desktop-$ver-linux-$arch
+            mkdir -p "$d"
+            for cmd in meshd mesh; do
+              CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$ver" -o "$d/$cmd" ./desktop/cmd/$cmd
+            done
+            cp desktop/README.md "$d/"
+            tar czf "dist/$d.tar.gz" "$d"
+          done
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop
+          path: dist/
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [version, android, desktop]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: cd dist && sha256sum * > SHA256SUMS && ls -la
+
+      - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           prerelease: ${{ contains(github.ref_name, '-') }}
           body: |
-            Test build of the mesh-msg Android app (M5).
+            mesh-msg ${{ needs.version.outputs.name }} (Android versionCode ${{ needs.version.outputs.code }}).
 
-            - Default relay: `eu-1` (http://87.106.5.192).
-            - Which APK: `arm64-v8a` for almost every phone; `universal` if unsure.
-            - Signed with the project's public test key, not a release key. Later test
-              builds install over this one.
-            - BLE and USB LoRa have not been tried on real phones yet.
+            **Android** — `arm64-v8a` for almost every phone, `universal` if unsure. Installs as an
+            update over earlier test builds (same public test key; not a release key).
+            **Desktop** — `meshmsg-desktop-…-linux-amd64.tar.gz` (or arm64): `meshd` + `mesh`,
+            see the README inside.
+
+            Default relay: `eu-1` (http://87.106.5.192). Account backup: Settings → Back up
+            account on Android, `mesh identity export` on desktop.
+            BLE and USB LoRa have not been tried on real phones yet.
