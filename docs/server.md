@@ -115,6 +115,7 @@ bridge ── /v1/sync ───────────────────
 | GET  | `/v1/relays` | signed relay list |
 | PUT  | `/v1/media/{id}` | store an encrypted file (only on relays with media on; §6a) |
 | GET  | `/v1/media/{id}` | fetch it (`Range: bytes=N-` resumes) |
+| GET  | `/v1/media/quota` | the signed account's allowance today: `{per_day, used, left, resets, allowed}` |
 | POST | `/v1/usage` | push signed important-media usage entries (§6a ledger) |
 | GET  | `/v1/usage?since=` | pull the usage ledger (anyone) |
 
@@ -137,15 +138,19 @@ by their hash; the relay can't read them.
 |---|---|---|
 | `media_max_mb` | 0 (off) | largest file it takes |
 | `media_store_mb` | 2048 | total storage; when full, uploads get 507 and clients try another relay |
-| `media_max_hours` | 8 | how long a small file (≤ 1 MB) waits for its readers |
-| `media_min_hours` | 1 | the shortest wait, for big files: keep time = max(min, max × 1 MB / size) |
-| `media_accounts` | `[]` (anyone, with PoW) | if set, only these accounts (hashes from `mesh id`) may upload; uploads are then signed (`X-Account`, `X-Signature` over `MESHMSG-MEDIA-PUT` and the id). Anyone may download. |
+| `media_important_per_day` | 5 | important files one account may upload per UTC day (below) |
+| `media_important_hours` | 168 | how long a file waits for its readers (below) |
+| `media_accounts` | `[]` (anyone, with PoW) | if set, only these accounts (hashes from `mesh id`) may upload. Anyone may download. |
+
+Every upload is signed by the account: `X-Account` (hex public key), `X-Day` (UTC day
+number = Unix time / 86400, the relay's day ± 1) and `X-Signature` over
+`MESHMSG-MEDIA-PUT` | id (hex) | day (4 bytes, big-endian). Unsigned uploads get `401`.
 
 The uploader says how many people will download it (`X-Readers`). **The relay deletes the
 file as soon as that many complete downloads happened**, or when its time runs out, whichever
 comes first. Nothing is kept after that.
 
-### Important media only, with a daily allowance (requirement, not implemented yet)
+### Important media only, with a daily allowance (implemented in v0.1.0-alpha10)
 
 Relays carry only **important** media (protocol.md §6b); normal media moves directly
 between devices and never touches a relay. Every upload is signed (`X-Account`,
@@ -156,8 +161,11 @@ between devices and never touches a relay. Every upload is signed (`X-Account`,
 | `media_important_per_day` | 5 | files one account may upload per UTC day; one file to a group counts once, whatever the number of members. Each relay sets its own; editable in the admin panel (§6b), applies at once without a restart |
 | `media_important_hours` | 168 (7 days, as text) | how long an important file waits for its readers |
 
-- Over the allowance → `429` with the time it resets; `GET /v1/media/quota` (signed) returns
-  used / left so the app can show it before sending.
+- Over the allowance → `429` (`Retry-After`, body says when it resets); `GET /v1/media/quota`
+  (signed like an upload, over `MESHMSG-MEDIA-QUOTA` | day) returns used / left; the app
+  asks before sending and sends the file as normal media when nothing is left.
+- For now each relay counts only the uploads it saw (`data_dir/media/usage.json`); the
+  network-wide count (ledger) and the proof-of-work by account age below come next.
 - An accepted file is **never evicted** before its readers have it or its time runs out.
   When storage would not allow that, the relay refuses the upload (`507`) and the client
   tries another relay; it never drops a file it accepted.
@@ -254,6 +262,29 @@ calls and direct sessions through it when no direct path exists. Settings in the
 `turn_enabled`, `turn_max_sessions`, `turn_max_kbps`, `turn_monthly_gb`. Credentials:
 `POST /v1/turn/credentials` (signed by an admin account, valid 10 min). Details and rules:
 connectivity.md §7.
+
+## 6d. Ports (the same on every relay)
+
+Every relay uses one fixed set of ports, so one firewall rule set fits all relays and the
+apps know where to look without asking. `install.sh` opens them in ufw or firewalld when
+one is active (it never turns a firewall on); open the same ports in a provider's cloud
+firewall. Constants: `core/wire` `Port*`.
+
+| Port | Protocol | Use | Needed |
+|---|---|---|---|
+| 80 | TCP | API and admin panel over HTTP (or the HTTPS proxy's redirect / ACME) | always |
+| 443 | TCP | API over TLS (Caddy or another proxy in front); TURN over TLS shares it | with a domain |
+| 3478 | UDP | address reflector for direct links (connectivity.md §2) | when direct links ship |
+| 3479 | UDP | second reflector port: NAT type detection (connectivity.md §3a) | when direct links ship |
+| 3478 | TCP + UDP | TURN listener, for the relay's admins (§6c) | only with TURN on |
+| 61000–61999 | UDP | TURN relayed addresses (1000 sessions at most) | only with TURN on |
+
+Why these: 3478/3479 are the IANA-registered STUN/TURN ports, which most networks already
+let through. 61000–61999 lies in the IANA dynamic range (no registered service) and above
+Linux's default ephemeral range (32768–60999), so it never clashes with the relay's own
+outgoing connections. The relay's HTTP listener itself stays on `127.0.0.1:8080` behind the
+proxy; 8080 is not opened. Nothing listens on the UDP ports until those features exist, so
+opening them early is harmless.
 
 ## 7. Data model
 

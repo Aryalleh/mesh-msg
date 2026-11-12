@@ -16,6 +16,7 @@ import org.meshmsg.app.data.VoiceRecorder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -38,10 +39,12 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -376,6 +379,10 @@ private fun Composer(
     val ctx = LocalContext.current
     val used = remember(draft) { limits.bytes(draft) }
     var attachMenu by remember { mutableStateOf(false) }
+    // The next file also goes through a relay (reaches someone offline; a few per day).
+    var important by rememberSaveable { mutableStateOf(false) }
+    fun sendFile(f: File, mime: String, caption: String) { media?.sendFile(f, mime, f.name, caption, important); important = false }
+    fun pick(uri: android.net.Uri) { media?.pick(uri, draft.trim(), important); important = false; onMediaSent() }
     var recorder by remember { mutableStateOf<VoiceRecorder?>(null) }
     var videoFile by rememberSaveable { mutableStateOf<String?>(null) }
     val micDenied = stringResource(R.string.mic_denied)
@@ -395,22 +402,22 @@ private fun Composer(
         RoundVideoRecorder(
             onDone = { f ->
                 roundOpen = false
-                if (f != null) media.sendFile(f, RoundVideo.MIME, f.name, "")
+                if (f != null) sendFile(f, RoundVideo.MIME, "")
             },
             onError = { media.error(it) },
         )
     }
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null && media != null) { media.pick(uri, draft.trim()); onMediaSent() }
+        if (uri != null && media != null) pick(uri)
     }
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null && media != null) { media.pick(uri, draft.trim()); onMediaSent() }
+        if (uri != null && media != null) pick(uri)
     }
     val recordVideo = rememberLauncherForActivityResult(RecordVideo()) { ok ->
         val f = videoFile?.let(::File)
         videoFile = null
         if (ok && f != null && f.length() > 0 && media != null) {
-            media.sendFile(f, "video/mp4", f.name, draft.trim()); onMediaSent()
+            sendFile(f, "video/mp4", draft.trim()); onMediaSent()
         } else f?.delete()
     }
     fun startRecording() {
@@ -427,7 +434,7 @@ private fun Composer(
             elapsed = System.currentTimeMillis() - r.startedMs
             if (elapsed >= VoiceRecorder.MAX_MS) {
                 recorder = null
-                r.finish()?.let { media?.sendFile(it, VoiceRecorder.MIME, it.name, "") }
+                r.finish()?.let { sendFile(it, VoiceRecorder.MIME, "") }
             }
             kotlinx.coroutines.delay(250)
         }
@@ -446,7 +453,7 @@ private fun Composer(
                 )
                 FilledIconButton(onClick = {
                     recorder = null
-                    r.finish()?.let { media?.sendFile(it, VoiceRecorder.MIME, it.name, "") }
+                    r.finish()?.let { sendFile(it, VoiceRecorder.MIME, "") }
                 }, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.voice_send)) }
             }
         }
@@ -463,6 +470,14 @@ private fun Composer(
                     style = MaterialTheme.typography.labelMedium,
                     color = if (left >= 0) MaterialTheme.colorScheme.onSurfaceVariant else MeshTheme.extra.warning,
                     modifier = Modifier.padding(start = Space.l, bottom = Space.xs),
+                )
+            }
+            if (important && media != null) {
+                Text(
+                    "⚑ " + stringResource(R.string.important_on),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = Space.l, bottom = Space.xs).clickable { important = false },
                 )
             }
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
@@ -490,6 +505,18 @@ private fun Composer(
                                 attachMenu = false
                                 pickFile.launch(arrayOf("*/*"))
                             })
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(stringResource(R.string.important_toggle))
+                                        Text(stringResource(R.string.important_hint), style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                },
+                                leadingIcon = { Checkbox(checked = important, onCheckedChange = null) },
+                                onClick = { important = !important },
+                            )
                         }
                     }
                 }

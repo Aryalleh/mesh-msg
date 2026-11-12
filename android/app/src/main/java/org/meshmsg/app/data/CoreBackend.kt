@@ -90,8 +90,11 @@ class CoreBackend(dataDir: String, configJson: String) : MeshBackend, Listener {
     private fun <T> call(block: () -> T): Result<T> = runCatching(block).also { refresh.trySend(Unit) }
 
     override fun send(hash: String, text: String): Result<Unit> = call { core.send(hash, text); Unit }
-    override fun sendMedia(hash: String, path: String, mime: String, name: String, caption: String): Result<Unit> =
-        call { core.sendMedia(hash, path, mime, name, caption); Unit }
+    override fun sendMedia(hash: String, path: String, mime: String, name: String, caption: String, important: Boolean): Result<String> =
+        call {
+            val m = org.json.JSONObject(core.sendMedia(hash, path, mime, name, caption, important))
+            m.optJSONObject("media")?.optString("note").orEmpty()
+        }
     override fun fetchMedia(id: String): Result<Unit> = call { core.fetchMedia(id) }
     override fun mediaPath(id: String): Result<String> = call { core.mediaPath(id) }
 

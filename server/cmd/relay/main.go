@@ -52,13 +52,14 @@ type Config struct {
 	TLSCert    string            `json:"tls_cert"`    // optional: serve TLS directly
 	TLSKey     string            `json:"tls_key"`
 	Log        bool              `json:"log"` // default off: no request logs
-	// Media (encrypted files): off unless media_max_mb > 0. Files are deleted
-	// once every recipient fetched them, or after media_max_hours (files up
-	// to 1 MB; bigger ones sooner, down to media_min_hours).
-	MediaMaxMB    int `json:"media_max_mb"`
-	MediaStoreMB  int `json:"media_store_mb"`  // total cap, default 2048
-	MediaMaxHours int `json:"media_max_hours"` // default 8
-	MediaMinHours int `json:"media_min_hours"` // default 1
+	// Media (important encrypted files only): off unless media_max_mb > 0.
+	// Files are deleted once every recipient fetched them, or after
+	// media_important_hours. Each account may upload media_important_per_day
+	// files per UTC day.
+	MediaMaxMB          int `json:"media_max_mb"`
+	MediaStoreMB        int `json:"media_store_mb"`          // total cap, default 2048
+	MediaImportantHours int `json:"media_important_hours"`   // default 168
+	MediaPerDay         int `json:"media_important_per_day"` // default 5
 	// MediaAccounts: if set, only these accounts (identity hashes, as
 	// "mesh id" shows them) may upload media. Empty: anyone (with PoW).
 	MediaAccounts []string `json:"media_accounts"`
@@ -176,8 +177,8 @@ func applySettings(cfg *Config) error {
 	set(&cfg.TTLHours, s.TTLHours)
 	set(&cfg.MediaMaxMB, s.MediaMaxMB)
 	set(&cfg.MediaStoreMB, s.MediaStoreMB)
-	set(&cfg.MediaMaxHours, s.MediaMaxHours)
-	set(&cfg.MediaMinHours, s.MediaMinHours)
+	set(&cfg.MediaPerDay, s.MediaPerDay)
+	set(&cfg.MediaImportantHours, s.MediaImportantHours)
 	if s.MediaAccounts != nil {
 		cfg.MediaAccounts = s.MediaAccounts
 	}
@@ -247,7 +248,7 @@ func run(cfg *Config) error {
 		SyncTokens: cfg.SyncTokens, Relays: cfg.Relays, Logf: logf,
 		Media: api.MediaConfig{
 			Dir: filepath.Join(cfg.DataDir, "media"), MaxMB: cfg.MediaMaxMB, StoreMB: cfg.MediaStoreMB,
-			MaxHours: cfg.MediaMaxHours, MinHours: cfg.MediaMinHours, Accounts: cfg.MediaAccounts,
+			ImportantHours: cfg.MediaImportantHours, PerDay: cfg.MediaPerDay, Accounts: cfg.MediaAccounts,
 		},
 	})
 
@@ -265,10 +266,11 @@ func run(cfg *Config) error {
 		},
 		DataDir: cfg.DataDir, Identity: key, Relay: rl, API: h,
 		Effective: func() map[string]any {
+			perDay, hours := h.MediaLimits()
 			return map[string]any{
 				"pow_bits": cfg.PowBits, "ttl_hours": cfg.TTLHours, "log": cfg.Log,
 				"media_max_mb": cfg.MediaMaxMB, "media_store_mb": cmp.Or(cfg.MediaStoreMB, 2048),
-				"media_max_hours": cmp.Or(cfg.MediaMaxHours, 8), "media_min_hours": cmp.Or(cfg.MediaMinHours, 1),
+				"media_important_per_day": perDay, "media_important_hours": hours,
 				"media_accounts": cfg.MediaAccounts,
 			}
 		},

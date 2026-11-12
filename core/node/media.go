@@ -29,9 +29,11 @@ import (
 // moves outside the packet mesh, so it never floods LoRa or delays chats:
 //   - directly between neighbours (LAN, Bluetooth): the receiver pulls the
 //     blob in small windows (frames below), interleaved with packets;
-//   - through relays that accept media (relay info media_max_mb). The sender
-//     uploads it, a relay deletes it once every recipient fetched it or after
-//     a few hours.
+//   - only files the sender marks important also go through relays that
+//     accept media (relay info media_max_mb), within the account's daily
+//     allowance there; a relay deletes it once every recipient fetched it or
+//     after a week. Normal files never touch a relay: the receiver waits for
+//     a direct path to the sender (or anyone who has it).
 //
 // Every node keeps the blobs it sent or fetched (data dir media/) and serves
 // them to neighbours that ask, so a file also spreads hop by hop in a group.
@@ -56,6 +58,11 @@ type MediaInfo struct {
 	// Outgoing: relays it is uploaded to / chosen.
 	Uploaded int `json:"uploaded,omitempty"`
 	Relays   int `json:"relays,omitempty"`
+	// Important: it goes through relays too (reaches offline receivers).
+	Important bool `json:"important,omitempty"`
+	// Note: set on a just-sent file that was asked to be important but went
+	// as a normal one (allowance used up, no relay takes media).
+	Note string `json:"note,omitempty"`
 }
 
 // Kind is image | audio | video | round | file, from the type ("round": a
@@ -86,7 +93,8 @@ CREATE TABLE IF NOT EXISTS media (
 	state    TEXT NOT NULL,              -- ready | remote | downloading | missing
 	wanted   INTEGER NOT NULL DEFAULT 0, -- the user asked for it (or auto)
 	created  INTEGER NOT NULL,
-	last_try INTEGER NOT NULL DEFAULT 0
+	last_try INTEGER NOT NULL DEFAULT 0,
+	important INTEGER NOT NULL DEFAULT 0 -- goes through relays (protocol.md §6b)
 );`
 
 func lines(s string) []string {
@@ -109,14 +117,15 @@ type mediaRow struct {
 	state             string
 	wanted            bool
 	created, lastTry  int64
+	important         bool
 }
 
 func (d *appDB) mediaRow(id string) (mediaRow, bool) {
 	var r mediaRow
 	var key []byte
 	var urls, pending string
-	err := d.db.QueryRow(`SELECT id,key,size,mime,name,urls,pending,uploaded,readers,state,wanted,created,last_try FROM media WHERE id=?`, id).
-		Scan(&r.id, &key, &r.size, &r.mime, &r.name, &urls, &pending, &r.uploaded, &r.readers, &r.state, &r.wanted, &r.created, &r.lastTry)
+	err := d.db.QueryRow(`SELECT id,key,size,mime,name,urls,pending,uploaded,readers,state,wanted,created,last_try,important FROM media WHERE id=?`, id).
+		Scan(&r.id, &key, &r.size, &r.mime, &r.name, &urls, &pending, &r.uploaded, &r.readers, &r.state, &r.wanted, &r.created, &r.lastTry, &r.important)
 	if err != nil || len(key) != 32 {
 		return r, false
 	}
@@ -126,8 +135,8 @@ func (d *appDB) mediaRow(id string) (mediaRow, bool) {
 }
 
 func (d *appDB) putMediaRow(r mediaRow) error {
-	_, err := d.db.Exec(`INSERT OR IGNORE INTO media(id,key,size,mime,name,urls,pending,readers,state,wanted,created) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
-		r.id, r.key[:], r.size, r.mime, r.name, strings.Join(r.urls, "\n"), strings.Join(r.pending, "\n"), r.readers, r.state, r.wanted, time.Now().Unix())
+	_, err := d.db.Exec(`INSERT OR IGNORE INTO media(id,key,size,mime,name,urls,pending,readers,state,wanted,created,important) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
+		r.id, r.key[:], r.size, r.mime, r.name, strings.Join(r.urls, "\n"), strings.Join(r.pending, "\n"), r.readers, r.state, r.wanted, time.Now().Unix(), r.important)
 	return err
 }
 
@@ -138,7 +147,7 @@ func (d *appDB) mediaInfo(id string) (MediaInfo, bool) {
 	}
 	return MediaInfo{
 		ID: r.id, Mime: r.mime, Name: r.name, Size: media.PlainSize(r.size), State: r.state, Total: r.size,
-		Uploaded: r.uploaded, Relays: len(r.urls),
+		Uploaded: r.uploaded, Relays: len(r.urls), Important: r.important,
 	}, true
 }
 
@@ -159,8 +168,12 @@ func (n *Node) haveBlob(id string) (int64, bool) {
 // ---- sending ----
 
 // SendMedia sends a file (photo, voice or video message, any file) to a
-// contact or private group; caption may be empty.
-func (n *Node) SendMedia(ref string, file []byte, mime, name, caption string) (Message, error) {
+// contact or private group; caption may be empty. A normal file moves only
+// over direct paths (both sides online); an important one is also uploaded
+// to relays and reaches receivers who are offline, a few per day (relay
+// allowance). When no relay takes it (allowance used up, no media relay) it
+// goes as a normal file and the returned Media.Note says so.
+func (n *Node) SendMedia(ref string, file []byte, mime, name, caption string, important bool) (Message, error) {
 	c, g, err := n.resolveChat(ref)
 	if err != nil {
 		return Message{}, err
@@ -188,11 +201,17 @@ func (n *Node) SendMedia(ref string, file []byte, mime, name, caption string) (M
 	if g != nil {
 		readers = max(1, len(g.Members)-1)
 	}
-	urls := n.mediaRelays(len(blob))
+	var urls []string
+	note := ""
+	if important {
+		if urls, note = n.mediaRelays(len(blob)); len(urls) == 0 {
+			important = false
+		}
+	}
 	if mime == "" {
 		mime = "application/octet-stream"
 	}
-	row := mediaRow{id: id.String(), key: key, size: len(blob), mime: mime, name: filepath.Base(name), urls: urls, pending: urls, readers: readers, state: "ready", wanted: true}
+	row := mediaRow{id: id.String(), key: key, size: len(blob), mime: mime, name: filepath.Base(name), urls: urls, pending: urls, readers: readers, state: "ready", wanted: true, important: important}
 	if err := n.db.putMediaRow(row); err != nil {
 		return Message{}, err
 	}
@@ -229,14 +248,16 @@ func (n *Node) SendMedia(ref string, file []byte, mime, name, caption string) (M
 	if err := n.db.putMessage(m); err != nil {
 		return m, err
 	}
+	mi.Note = note
 	n.mediaPoke()
 	return m, nil
 }
 
-// mediaRelays picks up to two relays (configured first) that take a blob of
-// this size, by their last known info.
-func (n *Node) mediaRelays(size int) []string {
-	var out []string
+// mediaRelays picks up to two relays (configured first) for an important
+// file of this size: they take media that big and, when they can be asked,
+// still have allowance for this account today. note explains an empty list.
+func (n *Node) mediaRelays(size int) (urls []string, note string) {
+	media, used := 0, 0
 	for _, l := range n.allRelayLinks() {
 		max := l.c.KnownMediaMaxBytes()
 		if max == 0 && l.isUp() {
@@ -244,14 +265,32 @@ func (n *Node) mediaRelays(size int) []string {
 			max = l.c.MediaMaxBytes(ctx)
 			cancel()
 		}
-		if max > 0 && size <= max+max/1000+64 {
-			out = append(out, l.c.URL())
+		if max <= 0 || size > max+max/1000+64 {
+			continue
 		}
-		if len(out) == 2 {
+		media++
+		if l.isUp() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			q, err := l.c.MediaQuota(ctx, n.id)
+			cancel()
+			if err == nil && q.Left <= 0 {
+				used++
+				continue // allowance used up (or not allowed) here
+			}
+		}
+		urls = append(urls, l.c.URL())
+		if len(urls) == 2 {
 			break
 		}
 	}
-	return out
+	switch {
+	case len(urls) > 0:
+	case used > 0:
+		note = "Today's allowance of important files is used up: sent as a normal file (it arrives when you are both online on a direct path)."
+	case media == 0:
+		note = "No relay takes files this big: sent as a normal file (it arrives when you are both online on a direct path)."
+	}
+	return urls, note
 }
 
 // ---- receiving ----
@@ -282,7 +321,7 @@ func (n *Node) onMedia(m *Message, refBytes []byte) {
 		limit = max(limit, 8<<20) // round video messages play in the chat like voice
 	}
 	wanted := auto > 0 && r.FileSize() <= limit
-	n.db.putMediaRow(mediaRow{id: r.ID.String(), key: r.Key, size: r.Size, mime: r.Mime, name: r.Name, urls: urls, state: state, wanted: wanted})
+	n.db.putMediaRow(mediaRow{id: r.ID.String(), key: r.Key, size: r.Size, mime: r.Mime, name: r.Name, urls: urls, state: state, wanted: wanted, important: len(r.URLs) > 0})
 	m.Text = r.Caption
 	mi, _ := n.db.mediaInfo(r.ID.String())
 	m.Media = &mi
@@ -402,7 +441,7 @@ func (n *Node) mediaPoke() {
 
 const (
 	mediaRetry   = 2 * time.Minute
-	mediaGiveUp  = 24 * time.Hour
+	mediaGiveUp  = 7 * 24 * time.Hour // a normal file waits this long for a direct path
 	parallelGets = 2
 )
 
@@ -458,8 +497,8 @@ func (n *Node) mediaUploads(ctx context.Context) {
 			switch {
 			case err == nil:
 				n.db.db.Exec(`UPDATE media SET uploaded=uploaded+1 WHERE id=?`, id)
-			case errors.As(err, &se) && se.Code/100 == 4 && se.Code != 429:
-				n.cfg.Logf("media: %s refused %s: %v", u, id, err) // too large etc.: don't retry
+			case relayclient.IsAllowanceUsed(err) || (errors.As(err, &se) && se.Code/100 == 4 && se.Code != 429):
+				n.cfg.Logf("media: %s refused %s: %v", u, id, err) // too large, allowance used etc.: don't retry
 			default:
 				left = append(left, u)
 			}

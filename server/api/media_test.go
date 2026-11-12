@@ -7,12 +7,15 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/media"
+	"github.com/Aryalleh/mesh-msg/core/pow"
 	"github.com/Aryalleh/mesh-msg/core/relayclient"
+	"github.com/Aryalleh/mesh-msg/core/wire"
 	"github.com/Aryalleh/mesh-msg/server/api"
 	"github.com/Aryalleh/mesh-msg/server/relay"
 )
@@ -46,11 +49,12 @@ func is404(err error) bool {
 func TestMediaDeletedAfterAllReaders(t *testing.T) {
 	ctx := context.Background()
 	c := mediaRelay(t, api.MediaConfig{MaxMB: 2})
+	me, _ := identity.Generate()
 	if c.MediaMaxBytes(ctx) != 2<<20 {
 		t.Fatal("info does not announce media")
 	}
 	b, id := blob(t, 300_000)
-	if err := c.PutMedia(ctx, id, b, 2, nil); err != nil {
+	if err := c.PutMedia(ctx, id, b, 2, me); err != nil {
 		t.Fatal(err)
 	}
 	// Reader 1 is cut off half way and resumes.
@@ -72,38 +76,78 @@ func TestMediaDeletedAfterAllReaders(t *testing.T) {
 func TestMediaLimits(t *testing.T) {
 	ctx := context.Background()
 	c := mediaRelay(t, api.MediaConfig{MaxMB: 1, StoreMB: 1})
+	me, _ := identity.Generate()
 	big, id := blob(t, 1<<20+100)
-	if err := c.PutMedia(ctx, id, big, 1, nil); err == nil {
+	if err := c.PutMedia(ctx, id, big, 1, me); err == nil {
 		t.Fatal("file over the relay's limit accepted")
 	}
 	b1, id1 := blob(t, 700_000)
-	if err := c.PutMedia(ctx, id1, b1, 1, nil); err != nil {
+	if err := c.PutMedia(ctx, id1, b1, 1, me); err != nil {
 		t.Fatal(err)
 	}
 	b2, id2 := blob(t, 700_000)
 	var se *relayclient.StatusError
-	if err := c.PutMedia(ctx, id2, b2, 1, nil); !errors.As(err, &se) || se.Code != http.StatusInsufficientStorage {
+	if err := c.PutMedia(ctx, id2, b2, 1, me); !errors.As(err, &se) || se.Code != http.StatusInsufficientStorage {
 		t.Fatalf("store cap: %v", err)
 	}
 	// Content must match its id.
-	if err := c.PutMedia(ctx, id2, b1, 1, nil); err == nil {
+	if err := c.PutMedia(ctx, id2, b1, 1, me); err == nil {
 		t.Fatal("blob under another id accepted")
 	}
 	// No media relay: refused before uploading.
 	off := mediaRelay(t, api.MediaConfig{})
-	if err := off.PutMedia(ctx, id1, b1, 1, nil); err == nil {
+	if err := off.PutMedia(ctx, id1, b1, 1, me); err == nil {
 		t.Fatal("media accepted by a relay without media")
 	}
 }
 
-func TestMediaTTL(t *testing.T) {
-	c := api.MediaConfig{MaxMB: 16}
-	for size, want := range map[int64]time.Duration{
-		10_000: 8 * time.Hour, 1 << 20: 8 * time.Hour, 2 << 20: 4 * time.Hour, 4 << 20: 2 * time.Hour, 16 << 20: time.Hour,
-	} {
-		if got := c.TTL(size); got != want {
-			t.Errorf("%d bytes: %v, want %v", size, got, want)
+func TestMediaAllowance(t *testing.T) {
+	ctx := context.Background()
+	c := mediaRelay(t, api.MediaConfig{MaxMB: 1, PerDay: 2})
+	me, _ := identity.Generate()
+	other, _ := identity.Generate()
+	if in, _ := c.Info(ctx); in.MediaPerDay != 2 || in.MediaImportantHours != 168 {
+		t.Fatalf("info: %+v", in)
+	}
+	q, err := c.MediaQuota(ctx, me)
+	if err != nil || q.PerDay != 2 || q.Left != 2 || !q.Allowed {
+		t.Fatalf("quota %+v %v", q, err)
+	}
+	b1, id1 := blob(t, 1000)
+	b2, id2 := blob(t, 1000)
+	b3, id3 := blob(t, 1000)
+	for _, f := range []struct {
+		b  []byte
+		id string
+	}{{b1, id1}, {b2, id2}} {
+		if err := c.PutMedia(ctx, f.id, f.b, 3, me); err != nil {
+			t.Fatal(err)
 		}
+	}
+	// The same file again (another try, or to a group) counts once.
+	if err := c.PutMedia(ctx, id1, b1, 3, me); err != nil {
+		t.Fatal(err)
+	}
+	err = c.PutMedia(ctx, id3, b3, 1, me)
+	if !relayclient.IsAllowanceUsed(err) {
+		t.Fatalf("third file: %v", err)
+	}
+	if q, _ := c.MediaQuota(ctx, me); q.Used != 2 || q.Left != 0 || q.Resets <= time.Now().Unix() {
+		t.Fatalf("quota after: %+v", q)
+	}
+	// Another account has its own allowance.
+	if err := c.PutMedia(ctx, id3, b3, 1, other); err != nil {
+		t.Fatal(err)
+	}
+	// Unsigned uploads are refused.
+	if err := c.PutMedia(ctx, id3, b3, 1, nil); err == nil {
+		t.Fatal("unsigned upload accepted")
+	}
+	b4, id4 := blob(t, 1000)
+	req, _ := http.NewRequest("PUT", c.URL()+"/v1/media/"+id4, bytes.NewReader(b4))
+	req.Header.Set(wire.HeaderPoW, strconv.FormatUint(pow.Solve(wire.MediaPoWBody(id4), 8), 10))
+	if resp, err := http.DefaultClient.Do(req); err != nil || resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("raw unsigned PUT: %v %v", resp, err)
 	}
 }
 

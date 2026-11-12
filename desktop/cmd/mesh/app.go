@@ -39,7 +39,7 @@ const appHelp = `In a chat, type and press Enter to send. Anywhere:
   /relay add <name> <url> [via] | rm <name>          /bridge add <a> <b> [MB/day] | rm <a> <b>
   /lora | /lora set k=v… | /lora plans               /ports               USB serial ports
   /backup [file]            back up your account     /restore             restore one
-  /file <path> [caption]    send a photo, voice/video message or file    /save <id> [path]  save one
+  /file [-i] <path> [cap.]  send a file (-i: important) /save <id> [path]  save one
   /ui                       open the web UI          /clear               clear the screen
   /help                     this help                /quit (or Ctrl+D)    leave (meshd keeps running)`
 
@@ -665,13 +665,18 @@ func (a *app) handle(line string) {
 	case "restore":
 		err = a.restore()
 	case "file", "photo", "voice", "video":
+		var imp bool
+		args, imp = importantFlag(args)
 		if cur == nil || len(args) == 0 {
-			err = errors.New("usage: /file <path> [caption…] inside a chat (photos, voice and video messages, any file)")
+			err = errors.New("usage: /file [-i] <path> [caption…] inside a chat (photos, voice and video messages, any file; -i important: also through relays, reaches someone offline, a few per day)")
 			break
 		}
 		var m node.Message
-		if m, err = sendFile(cur.Hash, args[0], strings.Join(args[1:], " ")); err == nil {
+		if m, err = sendFile(cur.Hash, args[0], strings.Join(args[1:], " "), imp); err == nil {
 			a.printMsg(m)
+			if m.Media != nil && m.Media.Note != "" {
+				a.printf("%s\n", m.Media.Note)
+			}
 		}
 	case "save", "get":
 		if len(args) == 0 {

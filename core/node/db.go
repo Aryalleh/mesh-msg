@@ -59,6 +59,15 @@ func openAppDB(path string) (*appDB, error) {
 		db.Close()
 		return nil, err
 	}
+	// v3: important media (protocol.md §6b).
+	var imp int
+	db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('media') WHERE name='important'`).Scan(&imp)
+	if imp == 0 {
+		if _, err := db.Exec(`ALTER TABLE media ADD COLUMN important INTEGER NOT NULL DEFAULT 0`); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
 	for _, col := range []string{"sender BLOB", "sender_name TEXT NOT NULL DEFAULT ''", "media TEXT NOT NULL DEFAULT ''"} {
 		var n int
 		db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name=?`, strings.Fields(col)[0]).Scan(&n)

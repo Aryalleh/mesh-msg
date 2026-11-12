@@ -303,8 +303,10 @@ func (c *Core) Groups() (string, error) {
 // remote (tap to download) | downloading | missing. "media" events report
 // changes.
 
-// SendMedia sends the file at path to a contact or private group.
-func (c *Core) SendMedia(peer, path, mime, name, caption string) (string, error) {
+// SendMedia sends the file at path to a contact or private group. important:
+// also through relays (reaches offline receivers, a few per day); the
+// message's media "note" says when it went as a normal file instead.
+func (c *Core) SendMedia(peer, path, mime, name, caption string, important bool) (string, error) {
 	st, err := os.Stat(path)
 	if err != nil {
 		return "", err
@@ -316,7 +318,7 @@ func (c *Core) SendMedia(peer, path, mime, name, caption string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	return toJSON(c.n.SendMedia(peer, b, mime, name, caption))
+	return toJSON(c.n.SendMedia(peer, b, mime, name, caption, important))
 }
 
 // FetchMedia downloads a received file in the background.

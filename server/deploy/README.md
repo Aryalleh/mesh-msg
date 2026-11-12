@@ -11,14 +11,33 @@ or download `meshmsg-relay-<version>-linux-<arch>.tar.gz` from the releases and 
 and **your Mava account id** (Mava → Me, or `mesh id`). Running it again updates the binary
 and keeps the config.
 
+## Ports (same on every relay)
+
+| Port | Protocol | Use |
+|---|---|---|
+| 80, 443 | TCP | API and admin panel (HTTP, HTTPS) |
+| 3478, 3479 | UDP | address reflector for direct links (coming) |
+| 3478 | TCP + UDP | TURN for the relay's admins (coming, off by default) |
+| 61000–61999 | UDP | TURN relayed addresses (only with TURN on) |
+
+`install.sh` opens them in ufw or firewalld if one is active (it never turns a firewall
+on); open the same in your provider's cloud firewall. Details: docs/server.md §6d.
+
 ## Admin panel
 
 Every relay has a panel at `/admin`. Log in with your account id: the relay sends a
 one-time code (8 digits, 10 minutes, 5 tries) to that account **as a Mava message**, so only
 the person holding the account can log in. The relay must know the account's keys, which it
 learns when the account's Mava app uses this relay. In the panel: traffic counters, media
-storage and files (delete), settings (proof-of-work, keep times, media limits, media upload
-accounts, logs; saved in `data_dir/panel.json`, applied on restart), admins, restart.
+storage and files (delete), settings (proof-of-work, keep times, media limits, important
+files per account per day, media upload accounts, logs; saved in `data_dir/panel.json`,
+applied on restart, except the daily allowance and keep time, which apply at once),
+admins, restart.
+
+Relays carry only files the sender marked **important** (they reach someone who is
+offline): each account may upload `media_important_per_day` of them per UTC day (default 5;
+one file to a group counts once), kept until every reader has it or for
+`media_important_hours` (default 168). Normal files go only phone to phone.
 
 The network owner's account `ad2107c8e944bf2a99b3f0cdb2c40903` is an admin of every relay
 built from this code and can't be removed. Other admins:

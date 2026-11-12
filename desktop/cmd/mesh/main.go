@@ -35,7 +35,8 @@ Usage:
   mesh rename <contact> <name>   rename a contact
   mesh rm <contact>              remove a contact
   mesh send <chat> <text…>       send a message ("-" reads text from stdin)
-  mesh send-file <chat> <path> [caption…]   send a photo, voice or video message, or any file
+  mesh send-file [-i] <chat> <path> [caption…]   send a photo, voice or video message, or any file
+                                          (-i important: also through relays, reaches someone offline; a few per day)
   mesh media get <id> [path]     download and save a received file (ids are in mesh read)
   mesh groups                    joined groups and public chats
   mesh group new <name> [contact…]  create a private group with these contacts
@@ -234,14 +235,18 @@ func run(args []string) error {
 		}
 		return call("DELETE", "/contacts/"+url.PathEscape(rest[0]), nil, nil)
 	case "send-file", "file", "sendfile":
+		rest, imp := importantFlag(rest)
 		if len(rest) < 2 {
-			return errors.New("usage: mesh send-file <contact|group> <path> [caption…]")
+			return errors.New("usage: mesh send-file [-i] <contact|group> <path> [caption…]")
 		}
-		m, err := sendFile(rest[0], rest[1], strings.Join(rest[2:], " "))
+		m, err := sendFile(rest[0], rest[1], strings.Join(rest[2:], " "), imp)
 		if err != nil {
 			return err
 		}
 		fmt.Fprintf(out, "queued %s (%s)\n", m.ID, mediaLabel(m))
+		if m.Media != nil && m.Media.Note != "" {
+			fmt.Fprintln(out, m.Media.Note)
+		}
 		return nil
 	case "media":
 		return mediaCmd(rest)

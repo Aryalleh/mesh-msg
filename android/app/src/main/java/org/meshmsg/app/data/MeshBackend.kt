@@ -19,8 +19,11 @@ interface MeshBackend {
     fun openChat(hash: String)
     fun closeChat()
     fun send(hash: String, text: String): Result<Unit>
-    /** Sends the file at path (a contact or private group). */
-    fun sendMedia(hash: String, path: String, mime: String, name: String, caption: String): Result<Unit> =
+    /**
+     * Sends the file at path (a contact or private group). important: also through relays.
+     * Returns a note when it went as a normal file instead (allowance used up), else "".
+     */
+    fun sendMedia(hash: String, path: String, mime: String, name: String, caption: String, important: Boolean): Result<String> =
         Result.failure(UnsupportedOperationException())
     fun fetchMedia(id: String): Result<Unit> = Result.failure(UnsupportedOperationException())
     /** A downloaded file's path on this phone (decrypted into the app's storage). */

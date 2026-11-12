@@ -357,7 +357,8 @@ func (d *Daemon) apiHandler() http.Handler {
 		}
 		writeJSON(w, m)
 	}))
-	// Files: the body is the file itself; to, name, mime, caption in the query.
+	// Files: the body is the file itself; to, name, mime, caption, important
+	// (1: also through relays) in the query.
 	mux.HandleFunc("POST /send-media", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		file, err := io.ReadAll(http.MaxBytesReader(w, r.Body, media.MaxFileBytes))
@@ -369,7 +370,7 @@ func (d *Daemon) apiHandler() http.Handler {
 		if mime == "" {
 			mime = http.DetectContentType(file)
 		}
-		m, err := n.SendMedia(q.Get("to"), file, mime, q.Get("name"), q.Get("caption"))
+		m, err := n.SendMedia(q.Get("to"), file, mime, q.Get("name"), q.Get("caption"), q.Get("important") == "1")
 		if err != nil {
 			httpErr(w, err, 400)
 			return

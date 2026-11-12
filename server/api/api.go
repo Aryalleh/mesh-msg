@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/identity"
@@ -51,6 +52,8 @@ type Server struct {
 	lim *limiter
 
 	media *mediaStore
+	// important-media limits, changeable at run time (admin panel)
+	mediaPerDay, mediaHours atomic.Int64
 }
 
 // New builds the handler.
@@ -71,12 +74,14 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("POST /v1/gateway", s.gateway)
 	s.mux.HandleFunc("POST /v1/sync/push", s.syncPush)
 	s.mux.HandleFunc("GET /v1/sync/pull", s.syncPull)
+	s.SetMediaLimits(cfg.Media.PerDay, cfg.Media.ImportantHours)
 	if cfg.Media.MaxMB > 0 && cfg.Media.Dir != "" {
 		if err := s.openMedia(); err != nil {
 			cfg.Logf("media: %v (media off)", err)
 		} else {
 			s.mux.HandleFunc("PUT /v1/media/{id}", s.mediaPut)
 			s.mux.HandleFunc("GET /v1/media/{id}", s.mediaGet)
+			s.mux.HandleFunc("GET /v1/media/quota", s.mediaQuota)
 		}
 	}
 	return s
@@ -103,12 +108,16 @@ func clientIP(r *http.Request) string {
 }
 
 func (s *Server) info(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, wire.Info{
+	in := wire.Info{
 		Name: s.cfg.Relay.Name(), Region: s.cfg.Relay.Region(), PowBits: s.cfg.PowBits,
 		Version: Version, PubKey: hex.EncodeToString(s.cfg.Identity.Bytes()),
-		MediaMaxMB: s.mediaMaxMB(), MediaMaxHours: s.cfg.Media.maxHours(),
+		MediaMaxMB:        s.mediaMaxMB(),
 		MediaAccountsOnly: s.media != nil && len(s.cfg.Media.Accounts) > 0,
-	})
+	}
+	if s.media != nil {
+		in.MediaPerDay, in.MediaImportantHours = s.MediaLimits()
+	}
+	writeJSON(w, in)
 }
 
 // RelayListPayload and VerifyRelayList: see relayclient (clients verify lists).

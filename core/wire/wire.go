@@ -5,8 +5,23 @@ package wire
 import (
 	"encoding/binary"
 	"errors"
+	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/packet"
+)
+
+// Relay ports: the same on every relay, so one firewall rule set fits all
+// (docs/server.md §6d). 3478/3479 are the IANA STUN/TURN ports; the TURN
+// range lies in the IANA dynamic range but above Linux's default ephemeral
+// ports (32768–60999), so it never collides with the relay's own outgoing
+// connections.
+const (
+	PortHTTP         = 80    // TCP: API (behind a proxy) and admin panel
+	PortHTTPS        = 443   // TCP: API over TLS
+	PortReflector    = 3478  // UDP: address reflector; UDP+TCP: TURN
+	PortReflectorAlt = 3479  // UDP: second reflector port (NAT type detection)
+	PortTURNMin      = 61000 // UDP: TURN relayed addresses, first
+	PortTURNMax      = 61999 // UDP: TURN relayed addresses, last
 )
 
 // HTTP headers.
@@ -98,19 +113,46 @@ type Info struct {
 	PowBits int    `json:"pow_bits"`
 	Version string `json:"version"`
 	PubKey  string `json:"pubkey"` // relay identity (hex X||Ed)
-	// Media: the largest file this relay holds (0 = no media) and how long
-	// it keeps a 1 MB file nobody fetched (bigger files: less).
-	MediaMaxMB    int `json:"media_max_mb,omitempty"`
-	MediaMaxHours int `json:"media_max_hours,omitempty"`
-	// MediaAccountsOnly: only listed accounts may upload (signed uploads).
+	// Media (important files only, protocol.md §6b): the largest file this
+	// relay holds (0 = no media), how long it keeps one for its readers and
+	// how many one account may upload per UTC day.
+	MediaMaxMB          int `json:"media_max_mb,omitempty"`
+	MediaImportantHours int `json:"media_important_hours,omitempty"`
+	MediaPerDay         int `json:"media_important_per_day,omitempty"`
+	// MediaAccountsOnly: only listed accounts may upload.
 	MediaAccountsOnly bool `json:"media_accounts_only,omitempty"`
 }
 
-// Media upload signature (relays that allow only some accounts).
+// Media uploads are always signed by the uploading account (X-Account,
+// X-Day, X-Signature over DomainMediaUpload and MediaSigBody), so a relay
+// can count each account's important files per day.
 const (
 	HeaderAccount     = "X-Account" // uploader's public key (hex X||Ed)
+	HeaderDay         = "X-Day"     // UTC day number (Unix time / 86400)
 	DomainMediaUpload = "MESHMSG-MEDIA-PUT"
+	DomainMediaQuota  = "MESHMSG-MEDIA-QUOTA"
 )
+
+// Day is the UTC day number of t.
+func Day(t time.Time) uint32 { return uint32(t.Unix() / 86400) }
+
+// MediaSigBody is what an upload signature covers: the id (hex) and the day.
+func MediaSigBody(id string, day uint32) []byte {
+	return binary.BigEndian.AppendUint32([]byte(id), day)
+}
+
+// QuotaSigBody is what a quota request signature covers.
+func QuotaSigBody(day uint32) []byte { return binary.BigEndian.AppendUint32(nil, day) }
+
+// MediaQuota is the answer of GET /v1/media/quota: an account's important
+// files today on this relay.
+type MediaQuota struct {
+	PerDay  int   `json:"per_day"`
+	Used    int   `json:"used"`
+	Left    int   `json:"left"`
+	Resets  int64 `json:"resets"`  // Unix time the count starts again
+	Allowed bool  `json:"allowed"` // false: this account may not upload here (media_accounts)
+}
 
 // MediaPoWBody is what the proof of work of a media upload covers (the
 // file's id, not its bytes, so big files cost the same).

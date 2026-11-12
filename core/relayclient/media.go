@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -58,10 +59,27 @@ func (c *Client) MediaAccountsOnly() bool {
 	return c.info != nil && c.info.MediaAccountsOnly
 }
 
-// PutMedia uploads a blob; readers is how many downloads the relay waits
-// for before deleting it. as signs the upload for relays that take media
-// only from their accounts (it is not sent to other relays).
+// signMedia sets the account signature headers of a media request.
+func signMedia(req *http.Request, as *identity.Identity, domain string, body []byte, day uint32) {
+	req.Header.Set(wire.HeaderAccount, hex.EncodeToString(as.Public.Bytes()))
+	req.Header.Set(wire.HeaderDay, strconv.FormatUint(uint64(day), 10))
+	req.Header.Set(wire.HeaderSignature, hex.EncodeToString(as.SignDomain(domain, body)))
+}
+
+// IsAllowanceUsed tells whether an upload error means the account's daily
+// allowance of important files on that relay is used up.
+func IsAllowanceUsed(err error) bool {
+	var se *StatusError
+	return errors.As(err, &se) && se.Code == http.StatusTooManyRequests && strings.Contains(se.Msg, "allowance")
+}
+
+// PutMedia uploads an important file's blob, signed by as (relays count
+// each account's files per day); readers is how many downloads the relay
+// waits for before deleting it.
 func (c *Client) PutMedia(ctx context.Context, id string, blob []byte, readers int, as *identity.Identity) error {
+	if as == nil {
+		return errors.New("relay: media uploads are signed by an account")
+	}
 	in, err := c.Info(ctx)
 	if err != nil {
 		return err
@@ -78,13 +96,8 @@ func (c *Client) PutMedia(ctx context.Context, id string, blob []byte, readers i
 	req.ContentLength = int64(len(blob))
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set(wire.HeaderReaders, strconv.Itoa(readers))
-	if in.MediaAccountsOnly {
-		if as == nil {
-			return errors.New("relay: media only for its accounts")
-		}
-		req.Header.Set(wire.HeaderAccount, hex.EncodeToString(as.Public.Bytes()))
-		req.Header.Set(wire.HeaderSignature, hex.EncodeToString(as.SignDomain(wire.DomainMediaUpload, []byte(id))))
-	}
+	day := wire.Day(time.Now())
+	signMedia(req, as, wire.DomainMediaUpload, wire.MediaSigBody(id, day), day)
 	if in.PowBits > 0 {
 		req.Header.Set(wire.HeaderPoW, strconv.FormatUint(pow.Solve(wire.MediaPoWBody(id), in.PowBits), 10))
 	}
@@ -98,6 +111,28 @@ func (c *Client) PutMedia(ctx context.Context, id string, blob []byte, readers i
 		return &StatusError{resp.StatusCode, strings.TrimSpace(string(b))}
 	}
 	return nil
+}
+
+// MediaQuota asks the relay how many important files the account may still
+// upload today.
+func (c *Client) MediaQuota(ctx context.Context, as *identity.Identity) (wire.MediaQuota, error) {
+	var q wire.MediaQuota
+	req, err := c.mediaReq(ctx, "GET", "quota", nil)
+	if err != nil {
+		return q, err
+	}
+	day := wire.Day(time.Now())
+	signMedia(req, as, wire.DomainMediaQuota, wire.QuotaSigBody(day), day)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return q, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return q, &StatusError{resp.StatusCode, strings.TrimSpace(string(b))}
+	}
+	return q, json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&q)
 }
 
 // GetMedia downloads a blob from byte offset from into w and returns the

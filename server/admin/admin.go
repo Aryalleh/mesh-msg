@@ -50,15 +50,17 @@ var panelHTML []byte
 // Settings are what the panel (and the admin CLI) may change. They are kept
 // in data_dir/panel.json and override relay.json.
 type Settings struct {
-	Admins        []string `json:"admins,omitempty"` // besides the owner
-	PowBits       *int     `json:"pow_bits,omitempty"`
-	TTLHours      *int     `json:"ttl_hours,omitempty"`
-	MediaMaxMB    *int     `json:"media_max_mb,omitempty"`
-	MediaStoreMB  *int     `json:"media_store_mb,omitempty"`
-	MediaMaxHours *int     `json:"media_max_hours,omitempty"`
-	MediaMinHours *int     `json:"media_min_hours,omitempty"`
-	MediaAccounts []string `json:"media_accounts,omitempty"`
-	Log           *bool    `json:"log,omitempty"`
+	Admins       []string `json:"admins,omitempty"` // besides the owner
+	PowBits      *int     `json:"pow_bits,omitempty"`
+	TTLHours     *int     `json:"ttl_hours,omitempty"`
+	MediaMaxMB   *int     `json:"media_max_mb,omitempty"`
+	MediaStoreMB *int     `json:"media_store_mb,omitempty"`
+	// Important media: files per account per day and keep time; both
+	// apply at once, without a restart.
+	MediaPerDay         *int     `json:"media_important_per_day,omitempty"`
+	MediaImportantHours *int     `json:"media_important_hours,omitempty"`
+	MediaAccounts       []string `json:"media_accounts,omitempty"`
+	Log                 *bool    `json:"log,omitempty"`
 }
 
 // SettingsPath is where the overrides live.
@@ -431,8 +433,8 @@ func (p *Panel) saveSettings(w http.ResponseWriter, r *http.Request, _ string) {
 		check("ttl_hours", in.TTLHours, 1, 24*30),
 		check("media_max_mb", in.MediaMaxMB, 0, 64),
 		check("media_store_mb", in.MediaStoreMB, 16, 1<<20),
-		check("media_max_hours", in.MediaMaxHours, 1, 72),
-		check("media_min_hours", in.MediaMinHours, 1, 72),
+		check("media_important_per_day", in.MediaPerDay, 1, 1000),
+		check("media_important_hours", in.MediaImportantHours, 1, 24*30),
 	} {
 		if err != nil {
 			fail(w, http.StatusBadRequest, err.Error())
@@ -460,7 +462,15 @@ func (p *Panel) saveSettings(w http.ResponseWriter, r *http.Request, _ string) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	jsonOut(w, http.StatusOK, map[string]string{"info": "Saved. Restart the relay to apply."})
+	perDay, hours := p.cfg.API.MediaLimits()
+	if in.MediaPerDay != nil {
+		perDay = *in.MediaPerDay
+	}
+	if in.MediaImportantHours != nil {
+		hours = *in.MediaImportantHours
+	}
+	p.cfg.API.SetMediaLimits(perDay, hours)
+	jsonOut(w, http.StatusOK, map[string]string{"info": "Saved. Daily allowance and keep time apply now; restart the relay for the rest."})
 }
 
 func (p *Panel) changeAdmins(w http.ResponseWriter, r *http.Request, _ string) {

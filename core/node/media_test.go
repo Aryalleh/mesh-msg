@@ -15,12 +15,12 @@ import (
 	"github.com/Aryalleh/mesh-msg/server/relay"
 )
 
-func startMediaRelay(t *testing.T, name string) (url, dir string) {
+func startMediaRelay(t *testing.T, name string, perDay ...int) (url, dir string) {
 	key, _ := identity.Generate()
 	dir = t.TempDir()
 	srv := httptest.NewServer(api.New(api.Config{
 		Relay: relay.New(relay.Config{Name: name, Region: "global"}), Identity: key, PowBits: 4, RateLimit: 1000,
-		Media: api.MediaConfig{Dir: dir, MaxMB: 4},
+		Media: api.MediaConfig{Dir: dir, MaxMB: 4, PerDay: append(perDay, 0)[0]},
 	}))
 	t.Cleanup(srv.Close)
 	return srv.URL, dir
@@ -77,15 +77,15 @@ func TestPhotoThroughRelay(t *testing.T) {
 	time.Sleep(time.Second) // relay info (media limit) known
 
 	photo := randomFile(300_000)
-	m, err := ali.SendMedia("sara", photo, "image/jpeg", "dinner.jpg", "شام")
+	m, err := ali.SendMedia("sara", photo, "image/jpeg", "dinner.jpg", "شام", true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Media == nil || m.Media.Kind() != "image" || m.Media.Size != len(photo) || m.Media.Relays != 1 {
+	if m.Media == nil || m.Media.Kind() != "image" || m.Media.Size != len(photo) || m.Media.Relays != 1 || !m.Media.Important || m.Media.Note != "" {
 		t.Fatalf("sent %+v", m.Media)
 	}
 	got := waitText(t, ev, "شام", 30*time.Second)
-	if got.Media == nil || got.Media.Name != "dinner.jpg" || got.Media.Mime != "image/jpeg" {
+	if got.Media == nil || got.Media.Name != "dinner.jpg" || got.Media.Mime != "image/jpeg" || !got.Media.Important {
 		t.Fatalf("received %+v", got.Media)
 	}
 	// Small: fetched without asking, identical, and the relay forgot it.
@@ -97,8 +97,71 @@ func TestPhotoThroughRelay(t *testing.T) {
 	}
 	// Public chats take no files.
 	ali.JoinGroup("global")
-	if _, err := ali.SendMedia("#global", photo, "image/jpeg", "x.jpg", ""); err == nil {
+	if _, err := ali.SendMedia("#global", photo, "image/jpeg", "x.jpg", "", true); err == nil {
 		t.Fatal("file sent to a public chat")
+	}
+}
+
+// Normal files never touch a relay: with only a relay between them the
+// receiver learns of the file but can't get it until a direct path appears.
+// An important file over the daily allowance goes as a normal one.
+func TestNormalFileSkipsRelayAndAllowance(t *testing.T) {
+	url, dir := startMediaRelay(t, "m-1", 1)
+	relays := []node.RelayConfig{{Name: "m-1", URL: url}}
+	ali := startNode(t, node.Config{Name: "Ali", Relays: relays, Discovery: local})
+	sara := startNode(t, node.Config{Name: "Sara", Relays: relays, Discovery: local})
+	befriend(t, ali, sara, "ali", "sara")
+	ev, cancel := sara.Subscribe()
+	defer cancel()
+	time.Sleep(time.Second)
+
+	m, err := ali.SendMedia("sara", randomFile(50_000), "image/jpeg", "normal.jpg", "normal", false)
+	if err != nil || m.Media.Relays != 0 || m.Media.Important {
+		t.Fatal(err, m.Media)
+	}
+	got := waitText(t, ev, "normal", 30*time.Second)
+	if got.Media == nil || got.Media.Important {
+		t.Fatalf("received %+v", got.Media)
+	}
+	time.Sleep(2 * time.Second)
+	if mi, _ := sara.MediaInfo(got.Media.ID); mi.State == "ready" {
+		t.Fatal("normal file arrived without a direct path")
+	}
+	if blobsIn(dir) != 0 {
+		t.Fatal("normal file uploaded to the relay")
+	}
+
+	// Allowance 1: the first important file goes through, the second not.
+	if m, err := ali.SendMedia("sara", randomFile(1000), "image/jpeg", "a.jpg", "first", true); err != nil || !m.Media.Important {
+		t.Fatal(err, m.Media)
+	}
+	waitText(t, ev, "first", 30*time.Second)
+	deadline := time.Now().Add(10 * time.Second)
+	for blobsIn(dir) == 0 && !hasReady(sara, ev) {
+		if time.Now().After(deadline) {
+			t.Fatal("first important file never uploaded")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	m, err = ali.SendMedia("sara", randomFile(1000), "image/jpeg", "b.jpg", "second", true)
+	if err != nil || m.Media.Important || m.Media.Relays != 0 || m.Media.Note == "" {
+		t.Fatalf("over the allowance: %v %+v", err, m.Media)
+	}
+}
+
+// hasReady drains events; true once any media became ready.
+func hasReady(n *node.Node, ev <-chan node.Event) bool {
+	for {
+		select {
+		case e := <-ev:
+			if e.Type == "media" {
+				if mi, ok := n.MediaInfo(e.Info); ok && mi.State == "ready" {
+					return true
+				}
+			}
+		default:
+			return false
+		}
 	}
 }
 
@@ -124,7 +187,7 @@ func TestBigFileOnRequestAndGroupReaders(t *testing.T) {
 	time.Sleep(time.Second)
 
 	voice := randomFile(3_000_000) // over the 2 MB auto limit
-	if _, err := ali.SendMedia("Family", voice, "audio/ogg", "voice.ogg", ""); err != nil {
+	if _, err := ali.SendMedia("Family", voice, "audio/ogg", "voice.ogg", "", true); err != nil {
 		t.Fatal(err)
 	}
 	var id string
@@ -181,7 +244,7 @@ func TestVideoOverLANWithoutRelay(t *testing.T) {
 	defer cancel()
 	time.Sleep(time.Second)
 	video := randomFile(1_500_000)
-	m, err := a.SendMedia("b", video, "video/mp4", "clip.mp4", "ویدیو")
+	m, err := a.SendMedia("b", video, "video/mp4", "clip.mp4", "ویدیو", false)
 	if err != nil || m.Media.Relays != 0 {
 		t.Fatal(err, m.Media)
 	}

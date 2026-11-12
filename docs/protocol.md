@@ -239,7 +239,8 @@ ref     = id(16) | key(32) | blob_size(4) | mime_len(1) | mime | name_len(1) | n
 Content type 6 (to a contact) or group op 4 (to a private group) carries the ref; public
 chats take no files. The URLs are relays (at most 4) the sender uploaded the blob to.
 
-**Two classes** (requirement, not implemented yet; today every file may go to a relay):
+**Two classes** (implemented in v0.1.0-alpha10; direct IP links are still to come, so a
+normal file moves over LAN and Bluetooth until then):
 
 | | Normal | Important |
 |---|---|---|

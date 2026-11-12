@@ -228,4 +228,8 @@
     <string name="round_switch">Switch camera</string>
     <string name="round_hint">Up to 60 seconds</string>
     <string name="round_permission">Allow the camera and microphone to record video messages.</string>
+    <string name="important_toggle">Important</string>
+    <string name="important_hint">The next file also goes through a relay and reaches them while they are offline. A few per day.</string>
+    <string name="important_on">Important: the next file also goes through a relay. Tap to cancel.</string>
+    <string name="media_waits_direct">Arrives when you are both online on a direct connection</string>
 </resources>

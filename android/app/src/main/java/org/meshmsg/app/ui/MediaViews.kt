@@ -61,8 +61,9 @@ import java.io.File
 
 /** What the chat needs to show and send files; no-ops in previews and tests. */
 class MediaActions(
-    val pick: (Uri, caption: String) -> Unit = { _, _ -> },
-    val sendFile: (File, mime: String, name: String, caption: String) -> Unit = { _, _, _, _ -> },
+    /** important: also through relays (reaches someone offline, a few per day). */
+    val pick: (Uri, caption: String, important: Boolean) -> Unit = { _, _, _ -> },
+    val sendFile: (File, mime: String, name: String, caption: String, important: Boolean) -> Unit = { _, _, _, _, _ -> },
     val fetch: (String) -> Unit = {},
     val path: suspend (String) -> String? = { null },
     val error: (String) -> Unit = {},
@@ -162,6 +163,9 @@ private fun FileRow(m: Media, fg: Color, path: String?, actions: MediaActions) {
                 )
             }
             if ((m.kind == MediaKind.Video || m.kind == MediaKind.Round) && path != null) Icon(Icons.Filled.PlayArrow, stringResource(R.string.media_play), tint = fg)
+        }
+        if (m.state == MediaState.Remote && !m.important) {
+            Text(stringResource(R.string.media_waits_direct), color = fg.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
         }
         when (m.state) {
             MediaState.Remote -> TextButton(onClick = { actions.fetch(m.id) }) {

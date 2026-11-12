@@ -93,19 +93,22 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     fun send(hash: String, text: String) = io { it.send(hash, text) }
 
     /** Sends what a picker returned (photos are shrunk first). */
-    fun sendUri(hash: String, uri: android.net.Uri, caption: String) = io { b ->
+    fun sendUri(hash: String, uri: android.net.Uri, caption: String, important: Boolean) = io { b ->
         runCatching { org.meshmsg.app.data.MediaFiles.copyIn(app, uri) }.mapCatching { p ->
-            try { b.sendMedia(hash, p.file.path, p.mime, p.name, caption).getOrThrow() } finally { p.file.delete() }
-        }
+            try { b.sendMedia(hash, p.file.path, p.mime, p.name, caption, important).getOrThrow() } finally { p.file.delete() }
+        }.map(::note)
     }
 
+    /** Shows why an important file went as a normal one. */
+    private fun note(n: String) { if (n.isNotEmpty()) _errors.trySend(n) }
+
     /** Sends a recorded voice message or video, then deletes the copy (the core keeps its own). */
-    fun sendFile(hash: String, file: java.io.File, mime: String, name: String, caption: String) = io { b ->
+    fun sendFile(hash: String, file: java.io.File, mime: String, name: String, caption: String, important: Boolean) = io { b ->
         if (file.length() > org.meshmsg.app.data.MediaFiles.MAX_BYTES) {
             file.delete()
             Result.failure<Unit>(IllegalArgumentException("File larger than 64 MB"))
         } else {
-            b.sendMedia(hash, file.path, mime, name, caption).also { file.delete() }
+            b.sendMedia(hash, file.path, mime, name, caption, important).also { file.delete() }.map(::note)
         }
     }
 

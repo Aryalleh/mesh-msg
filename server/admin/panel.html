@@ -75,7 +75,7 @@
 
     <section>
       <h2>Settings</h2>
-      <p class="hint">Saved settings override relay.json and apply after a restart. Empty fields keep relay.json's value.</p>
+      <p class="hint">Saved settings override relay.json and apply after a restart (the important-files allowance and keep time apply at once). Empty fields keep relay.json's value. Relays carry only files the sender marked important; normal files go phone to phone.</p>
       <div class="row">
         <div><label for="s_pow_bits">Proof-of-work bits (0–28)</label><input id="s_pow_bits" type="number" min="0" max="28"></div>
         <div><label for="s_ttl_hours">Message keep time, hours</label><input id="s_ttl_hours" type="number" min="1"></div>
@@ -84,8 +84,8 @@
       <div class="row">
         <div><label for="s_media_max_mb">Largest file, MB (0 = media off)</label><input id="s_media_max_mb" type="number" min="0" max="64"></div>
         <div><label for="s_media_store_mb">Total storage, MB</label><input id="s_media_store_mb" type="number" min="16"></div>
-        <div><label for="s_media_max_hours">Keep small files, hours</label><input id="s_media_max_hours" type="number" min="1" max="72"></div>
-        <div><label for="s_media_min_hours">Keep big files at least, hours</label><input id="s_media_min_hours" type="number" min="1" max="72"></div>
+        <div><label for="s_media_important_per_day">Important files per account per day</label><input id="s_media_important_per_day" type="number" min="1" max="1000"></div>
+        <div><label for="s_media_important_hours">Keep important files, hours</label><input id="s_media_important_hours" type="number" min="1" max="720"></div>
       </div>
       <label for="s_media_accounts">Accounts allowed to upload media (one id per line; empty = anyone)</label>
       <textarea id="s_media_accounts" spellcheck="false"></textarea>
@@ -154,7 +154,7 @@ $("loginCode").onkeydown = (e) => { if (e.key === "Enter") $("btnLogin").click()
 $("loginId").onkeydown = (e) => { if (e.key === "Enter") $("btnCode").click(); };
 $("btnLogout").onclick = async () => { await api("logout", {}).catch(() => {}); load(); };
 
-const fields = ["pow_bits", "ttl_hours", "media_max_mb", "media_store_mb", "media_max_hours", "media_min_hours"];
+const fields = ["pow_bits", "ttl_hours", "media_max_mb", "media_store_mb", "media_important_per_day", "media_important_hours"];
 let state = null;
 
 async function load() {

@@ -220,4 +220,8 @@
     <string name="round_switch">تعویض دوربین</string>
     <string name="round_hint">تا ۶۰ ثانیه</string>
     <string name="round_permission">برای ضبط پیام ویدیویی، اجازهٔ دوربین و میکروفون را بدهید.</string>
+    <string name="important_toggle">مهم</string>
+    <string name="important_hint">فایل بعدی از راه رله هم می‌رود و وقتی آفلاین‌اند هم به دستشان می‌رسد. چند تا در روز.</string>
+    <string name="important_on">مهم: فایل بعدی از راه رله هم می‌رود. برای لغو بزنید.</string>
+    <string name="media_waits_direct">وقتی هر دو با اتصال مستقیم آنلاین باشید می‌رسد</string>
 </resources>

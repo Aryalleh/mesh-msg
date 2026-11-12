@@ -200,6 +200,7 @@
     <input type="file" id="fileIn" hidden>
     <button type="button" class="ghost icon" id="btnRound" title="Record a round video message">◉</button>
     <button type="button" class="ghost icon" id="btnVoice" title="Record a voice message (click again to send)">🎤</button>
+    <button type="button" class="ghost icon" id="btnImportant" aria-pressed="false" title="Important: the next file also goes through a relay and reaches someone who is offline (a few per day). Normal files go only when you are both online on a direct path.">⚑</button>
     <textarea id="text" placeholder="Message… / پیام…" dir="auto" autocomplete="off"></textarea>
     <button type="submit">Send</button>
   </form>
@@ -406,27 +407,41 @@ function mediaView(m) {
   } else if (mi.state === "missing") {
     box.append(el("small", {textContent: "no longer available"}));
   } else {
+    if (!m.outgoing && !mi.important) box.append(el("small", {textContent: "arrives when you are both online on a direct connection"}));
     box.append(el("button", {className: "ghost", textContent: "Download", on: {click: async (e) => {
       e.target.disabled = true; e.target.textContent = "waiting…";
       try { await api("/media/" + mi.id + "/fetch", {method: "POST"}); } catch (err) { alert(err.message); }
     }}}));
   }
   if (m.outgoing && mi.relays && mi.uploaded < mi.relays) box.append(el("small", {textContent: "uploading…"}));
+  if (mi.important) box.append(el("small", {textContent: "⚑ important"}));
   return box;
 }
 
 async function sendFile(file, name, mime) {
   if (!current) return;
   const q = new URLSearchParams({to: current.hash, name: name || file.name, mime: mime || file.type || "", caption: $("text").value.trim()});
+  if (important) q.set("important", "1");
   try {
     const r = await fetch("/api/send-media?" + q, {method: "POST", body: file, headers: {"X-Meshd": "1"}});
     const body = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(body.error || r.statusText);
+    setImportant(false);
+    if (body.media && body.media.note) alert(body.media.note);
     $("text").value = "";
     addMessage(body);
     loadContacts();
   } catch (err) { alert(err.message); }
 }
+// Important files also go through relays (a few per day); the toggle holds
+// for the next file only.
+let important = false;
+function setImportant(on) {
+  important = on;
+  $("btnImportant").classList.toggle("on", on);
+  $("btnImportant").setAttribute("aria-pressed", String(on));
+}
+$("btnImportant").onclick = () => setImportant(!important);
 $("btnAttach").onclick = () => $("fileIn").click();
 $("fileIn").onchange = () => { const f = $("fileIn").files[0]; $("fileIn").value = ""; if (f) sendFile(f); };
 
@@ -523,7 +538,7 @@ async function openChat(c) {
   $("compose").hidden = false;
   // Files go to contacts and private groups, not to public chats.
   const files = c.kind === "contact" || c.kind === "private";
-  $("btnAttach").hidden = !files; $("btnVoice").hidden = !files; $("btnRound").hidden = !files;
+  $("btnAttach").hidden = !files; $("btnVoice").hidden = !files; $("btnRound").hidden = !files; $("btnImportant").hidden = !files;
   $("messages").replaceChildren();
   renderContacts();
   for (const m of await api("/messages?with=" + c.hash + "&limit=200")) addMessage(m);

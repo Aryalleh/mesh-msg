@@ -493,7 +493,7 @@ func TestPhotoOverBLE(t *testing.T) {
 	crand.Read(photo)
 	path := filepath.Join(t.TempDir(), "photo.jpg")
 	os.WriteFile(path, photo, 0o600)
-	if _, err := a.SendMedia(b.Hash(), path, "image/jpeg", "photo.jpg", "عکس"); err != nil {
+	if _, err := a.SendMedia(b.Hash(), path, "image/jpeg", "photo.jpg", "عکس", false); err != nil {
 		t.Fatal(err)
 	}
 	e := bev.wait(t, "message", 30*time.Second)

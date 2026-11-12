@@ -15,8 +15,8 @@
   ],
   "media_max_mb": 16,
   "media_store_mb": 2048,
-  "media_max_hours": 8,
-  "media_min_hours": 1,
+  "media_important_per_day": 5,
+  "media_important_hours": 168,
   "media_accounts": [],
   "log": false
 }

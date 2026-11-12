@@ -87,6 +87,8 @@ data class Media(
     /** Outgoing: relays it should go to, and how many have it. */
     val relays: Int = 0,
     val uploaded: Int = 0,
+    /** Also goes through relays (reaches someone offline); normal files go only over direct paths. */
+    val important: Boolean = false,
 ) {
     val kind: MediaKind get() = when (mime.substringBefore('/')) {
         "image" -> MediaKind.Image
@@ -196,6 +198,7 @@ object Json {
         },
         have = o.optLong("have"), total = o.optLong("total"),
         relays = o.optInt("relays"), uploaded = o.optInt("uploaded"),
+        important = o.optBoolean("important"),
     )
 
     fun messages(json: String, linkUp: Boolean): List<Message> {

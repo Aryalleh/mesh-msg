@@ -41,7 +41,7 @@ direct path is found as often as possible.
   (new content type), sent over any path that already works: relay, LAN, BLE, even LoRa if
   small enough. The relay sees ciphertext only and does not know it is signaling.
 - **Reflector**: a relay may answer a UDP probe with the source address and port it saw
-  (STUN-like, no state). This only tells a client its outer mapping. It never forwards
+  (STUN-like, no state), on UDP 3478 and 3479 on every relay (server.md §6d). This only tells a client its outer mapping. It never forwards
   anything to another client.
 - **No TURN, no relaying of a direct session.** No component forwards bytes of a direct
   session on behalf of the two peers. The existing store-and-forward message path stays as

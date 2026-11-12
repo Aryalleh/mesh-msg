@@ -26,11 +26,12 @@ Needs hardware now, for both open milestones:
 
 Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
 + Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
-Design done, code not started (owner: don't change code yet): the plan of record is
-docs/roadmap.md "Code changes required by the 2026-11-12 design decisions" — two media
-classes, important-media allowance/PoW/ledger, direct links across any NAT (+ TURN for
-relay admins), voice calls. Alpha only: **no compatibility with old alpha builds is kept**;
-replace old apps and relays.
+Plan of record: docs/roadmap.md "Code changes required by the 2026-11-12 design decisions".
+**Step 1 done** (owner said "start step 1"): two media classes, signed uploads, per-relay
+daily allowance + quota, 7-day keep; fixed relay ports (server.md §6d). **Next: step 2**
+(account age, PoW by age/uploads, usage ledger), then step 3 direct links, step 4 calls —
+each only when the owner says. Alpha only: **no compatibility with old alpha builds is
+kept**; replace old apps and relays (old apps can't upload to new relays: unsigned).
 
 ## Resuming in a fresh container
 
@@ -554,3 +555,26 @@ replace old apps and relays.
 - decisions D18: alpha, lab-tested only → no compatibility or transition period for old
   alpha apps and relays until the first beta. README.fa.md media paragraph updated.
 - Owner asked not to change code yet. Previous commit `c2d543c`.
+
+### 2026-11-12 — Roadmap step 1: two media classes, per-relay allowance; relay ports
+
+- Apps: a file is **normal** by default (no relay upload, ref with no URLs, the sender keeps
+  and serves it over LAN/Bluetooth; receivers wait up to 7 days for a direct path) or
+  **important** (sender marks it: Android attach menu "Important", web UI ⚑ toggle, CLI
+  `send-file -i` / `/file -i`). Before sending, the node asks each media relay
+  `GET /v1/media/quota`; with no allowance anywhere the file goes as normal and
+  `Media.Note` says so (Android snackbar, web alert, CLI line). `MediaInfo.Important`;
+  incoming normal files show "arrives when you are both online on a direct connection".
+  `SendMedia(…, important)` in node, mobile, daemon (`important=1`).
+- Relay: every upload signed (`X-Account`, `X-Day`, `X-Signature` over
+  `MESHMSG-MEDIA-PUT`|id|day), 401 unsigned; `media_important_per_day` (default 5, per UTC
+  day, one file counts once, slot reserved during upload) → 429 + Retry-After;
+  `GET /v1/media/quota`; keep `media_important_hours` (default 168) replaces
+  `media_max_hours`/`media_min_hours` (removed); per-day and hours change at once from the
+  panel (`api.SetMediaLimits`). Info: `media_important_per_day`, `media_important_hours`.
+- Ports, same on every relay: TCP 80/443, UDP 3478+3479 reflector, TCP+UDP 3478 TURN, UDP
+  61000–61999 TURN relayed (above Linux ephemeral range). `core/wire` `Port*`, server.md §6d,
+  deploy README; `install.sh` opens them in an active ufw/firewalld (asks, `MAVA_FIREWALL`).
+- Tests: api TestMediaAllowance (quota, dedupe, 429, other account, raw unsigned 401);
+  node TestNormalFileSkipsRelayAndAllowance; existing media tests use important=true; Android
+  JsonTest important. All Go + firmware tests pass.

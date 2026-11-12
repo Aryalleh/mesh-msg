@@ -186,8 +186,8 @@ class MainActivity : ComponentActivity() {
                             onSend = { vm.send(hash, it) },
                             media = remember(hash) {
                                 org.meshmsg.app.ui.MediaActions(
-                                    pick = { uri, caption -> vm.sendUri(hash, uri, caption) },
-                                    sendFile = { f, mime, name, caption -> vm.sendFile(hash, f, mime, name, caption) },
+                                    pick = { uri, caption, important -> vm.sendUri(hash, uri, caption, important) },
+                                    sendFile = { f, mime, name, caption, important -> vm.sendFile(hash, f, mime, name, caption, important) },
                                     fetch = { vm.fetchMedia(it) },
                                     path = { vm.mediaPath(it) },
                                     error = { vm.error(it) },

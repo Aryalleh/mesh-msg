@@ -29,6 +29,12 @@ func mediaLabel(m node.Message) string {
 	}
 	state := map[string]string{"remote": "not downloaded", "downloading": "downloading", "missing": "unavailable"}[mi.State]
 	s := fmt.Sprintf("[%s %s, %s", kind, mi.Name, humanSize(mi.Size))
+	if !m.Outgoing && !mi.Important && mi.State == "remote" {
+		state = "waits for a direct connection"
+	}
+	if mi.Important {
+		s += ", important"
+	}
 	if m.Outgoing && mi.Relays > 0 && mi.Uploaded < mi.Relays {
 		state = "uploading"
 	}
@@ -60,8 +66,23 @@ func humanSize(n int) string {
 	return fmt.Sprintf("%d B", n)
 }
 
-// sendFile sends a file through meshd.
-func sendFile(to, path, caption string) (node.Message, error) {
+// importantFlag removes -i / --important from args and tells if it was there.
+func importantFlag(args []string) ([]string, bool) {
+	var out []string
+	imp := false
+	for _, a := range args {
+		if a == "-i" || a == "--important" {
+			imp = true
+			continue
+		}
+		out = append(out, a)
+	}
+	return out, imp
+}
+
+// sendFile sends a file through meshd; important also sends it through
+// relays (reaches someone offline, a few per day).
+func sendFile(to, path, caption string, important bool) (node.Message, error) {
 	var m node.Message
 	f, err := os.Open(path)
 	if err != nil {
@@ -69,6 +90,9 @@ func sendFile(to, path, caption string) (node.Message, error) {
 	}
 	defer f.Close()
 	q := url.Values{"to": {to}, "name": {filepath.Base(path)}, "caption": {caption}}
+	if important {
+		q.Set("important", "1")
+	}
 	if t := mime.TypeByExtension(strings.ToLower(filepath.Ext(path))); t != "" {
 		q.Set("mime", strings.SplitN(t, ";", 2)[0])
 	}

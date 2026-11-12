@@ -8,7 +8,12 @@
 # account gets one-time login codes for the admin panel, sent as Mava
 # messages. (The network owner's account is always an admin too.)
 # Non-interactive: set MAVA_ADMIN_ID, MAVA_NAME, MAVA_REGION, MAVA_URL,
-# MAVA_MEDIA_MB (0 = no media) and run with MAVA_YES=1.
+# MAVA_MEDIA_MB (0 = no media), MAVA_FIREWALL (y/n) and run with MAVA_YES=1.
+#
+# Mava relay ports (the same on every relay, docs/server.md §6d):
+#   TCP 80, 443         HTTP(S) API, admin panel
+#   UDP 3478, 3479      address reflector (direct links); TCP+UDP 3478 TURN
+#   UDP 61000-61999     TURN relayed addresses (only used when TURN is on)
 set -eu
 
 REPO=Aryalleh/mesh-msg
@@ -110,8 +115,8 @@ else
   ],
   "media_max_mb": $MAVA_MEDIA_MB,
   "media_store_mb": 2048,
-  "media_max_hours": 8,
-  "media_min_hours": 1,
+  "media_important_per_day": 5,
+  "media_important_hours": 168,
   "media_accounts": [],
   "log": false
 }
@@ -152,6 +157,29 @@ fi
 systemctl start meshmsg-relay
 sleep 2
 systemctl is-active --quiet meshmsg-relay || { journalctl -u meshmsg-relay -n 20 --no-pager; die "the relay did not start"; }
+
+# Firewall: open the Mava relay ports if ufw or firewalld is active. It only
+# adds rules; it never turns a firewall on (that could lock out SSH).
+PORTS_TCP="80 443 3478"
+PORTS_UDP="3478 3479 61000-61999"
+ask MAVA_FIREWALL "Open the Mava relay ports in the firewall (TCP 80,443,3478; UDP 3478,3479,61000-61999)? y/n" y
+case "$MAVA_FIREWALL" in
+y* | Y*)
+	if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+		for p in $PORTS_TCP; do ufw allow "$p/tcp" >/dev/null; done
+		for p in $PORTS_UDP; do ufw allow "$(echo "$p" | tr - :)/udp" >/dev/null; done
+		say "Opened the Mava ports in ufw."
+	elif command -v firewall-cmd >/dev/null && firewall-cmd --state >/dev/null 2>&1; then
+		for p in $PORTS_TCP; do firewall-cmd -q --permanent --add-port="$p/tcp"; done
+		for p in $PORTS_UDP; do firewall-cmd -q --permanent --add-port="$p/udp"; done
+		firewall-cmd -q --reload
+		say "Opened the Mava ports in firewalld."
+	else
+		say "No active ufw/firewalld found: nothing changed here."
+	fi
+	say "If your provider has a cloud firewall, open the same ports there."
+	;;
+esac
 
 say ""
 say "Mava relay $NEWVER is running (127.0.0.1:8080)."
