@@ -50,6 +50,15 @@ via  = "direct"
 # url  = "https://relay-ir.example"
 # via  = "direct"
 
+# Relay discovery: on top of the relays above, use relays from the official
+# list (network/relays.json in the repository, eu-1 first), from the lists
+# relays share, and from nearby devices and LoRa nodes, which pass on the
+# relays they use. Each one is checked (and its key pinned) before use.
+# Share yours too. See them with:  mesh relay known
+[discovery]
+off = false
+max_auto = 6
+
 # Gateway: carry relay traffic into your local mesh (LAN / LoRa). On by default:
 # without it, nodes near you that have no internet never get their replies.
 [gateway]

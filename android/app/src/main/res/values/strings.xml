@@ -110,8 +110,6 @@
     <string name="settings_name_helper">Sent with your announces so contacts see it. Leave empty to stay anonymous.</string>
     <string name="settings_your_id">Your ID</string>
     <string name="settings_mesh">Mesh</string>
-    <string name="settings_stealth">Stealth mode</string>
-    <string name="settings_stealth_body">This phone stops announcing itself over Bluetooth. It can still find others.</string>
     <string name="settings_gateway">Share my internet with the mesh</string>
     <string name="settings_gateway_body">Phones around you without internet send through yours, and only get their replies if this is on. Uses a little data; messages stay encrypted.</string>
     <string name="settings_battery">Battery use</string>
@@ -202,4 +200,6 @@
     <string name="group_no_contacts">Add contacts first: a group\'s members are your contacts.</string>
     <string name="delivered_to_n">Delivered to %1$d of %2$d members</string>
     <string name="close">Close</string>
+    <string name="settings_discovery">Find relays automatically</string>
+    <string name="settings_discovery_body">Use relays from the official list and ones nearby phones and LoRa nodes share, and share the relay you use. Each is checked first.</string>
 </resources>

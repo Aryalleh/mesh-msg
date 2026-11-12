@@ -70,6 +70,7 @@ type Config struct {
 	Bridges         []BridgeConfig                   `toml:"bridge" json:"bridges"`
 	LAN             LANConfig                        `toml:"lan" json:"lan"`
 	LoRa            LoRaConfig                       `toml:"lora" json:"lora"`
+	Discovery       DiscoveryConfig                  `toml:"discovery" json:"discovery"`
 	Logf            func(format string, args ...any) `toml:"-" json:"-"`
 }
 
@@ -96,6 +97,7 @@ type Node struct {
 	bridges []*bridge
 	lan     *lanLink
 	loras   map[string]*hostLinkLink
+	disc    *discovery // nil when relay discovery is off
 }
 
 // Open loads or creates the node's identity and databases in cfg.DataDir.
@@ -141,8 +143,12 @@ func Open(cfg Config) (*Node, error) {
 		OnMessage:      n.onMessage,
 		OnReceipt:      n.onReceipt,
 		OnGroupMessage: n.onGroupMessage,
+		OnAnnounce:     n.onAnnounce,
 		Logf:           cfg.Logf,
 	})
+	if !cfg.Discovery.Off {
+		n.disc = &discovery{n: n, cfg: cfg.Discovery, kick: make(chan struct{}, 1), auto: map[string]*autoRelay{}}
+	}
 	n.router.AddLocal(id)
 	n.loadGroups()
 	for _, k := range n.contactKeys() {
@@ -454,6 +460,10 @@ func (n *Node) Run(ctx context.Context) error {
 	if n.lan != nil {
 		wg.Add(1)
 		go func() { defer wg.Done(); n.lan.run(ctx) }()
+	}
+	if n.disc != nil {
+		wg.Add(1)
+		go func() { defer wg.Done(); n.disc.run(ctx) }()
 	}
 	if n.cfg.LoRa.Enabled && n.cfg.LoRa.Port != "" {
 		port := n.cfg.LoRa.Port

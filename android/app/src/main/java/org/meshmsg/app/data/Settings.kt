@@ -36,10 +36,10 @@ class Settings(context: Context) {
         get() = p.getBoolean("gateway", true)
         set(v) = p.edit { putBoolean("gateway", v) }
 
-    /** No BLE advertising: the phone is not discoverable (docs/android.md §8). */
-    var stealth: Boolean
-        get() = p.getBoolean("stealth", false)
-        set(v) = p.edit { putBoolean("stealth", v) }
+    /** Find relays automatically and share ours with nearby devices (on by default). */
+    var discovery: Boolean
+        get() = p.getBoolean("discovery", true)
+        set(v) = p.edit { putBoolean("discovery", v) }
 
     var batteryMode: BatteryMode
         get() = runCatching { BatteryMode.valueOf(p.getString("battery", "") ?: "") }.getOrDefault(BatteryMode.Active)
@@ -68,6 +68,7 @@ class Settings(context: Context) {
             .put("delegate", true)
             .put("relays", relays)
             .put("gateway", JSONObject().put("enabled", gateway).put("mode", "targeted").put("quota_kb_per_hour", 512))
+            .put("discovery", JSONObject().put("off", !discovery))
             .toString()
     }
 

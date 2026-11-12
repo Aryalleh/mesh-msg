@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/identity"
@@ -25,6 +26,10 @@ const (
 const (
 	TagName  byte = 1
 	TagFlags byte = 2
+	// TagRelay is a relay the announcer reaches right now, so the mesh
+	// learns working relays: scheme(1: 0 http, 1 https) | host[:port][/path].
+	// Receivers must check it before use (it is only the announcer's word).
+	TagRelay byte = 3
 )
 
 // Flags carried in app data.
@@ -40,6 +45,7 @@ const (
 type AppData struct {
 	Name  string
 	Flags byte
+	Relay string // http(s)://host[:port][/path]; left out if it doesn't fit
 }
 
 func (a AppData) encode() []byte {
@@ -55,7 +61,28 @@ func (a AppData) encode() []byte {
 		b = append(b, TagName, byte(len(name)))
 		b = append(b, name...)
 	}
+	if v := encodeRelay(a.Relay); v != nil && len(b)+2+len(v) <= maxAppData {
+		b = append(b, TagRelay, byte(len(v)))
+		b = append(b, v...)
+	}
 	return b
+}
+
+func encodeRelay(u string) []byte {
+	switch {
+	case strings.HasPrefix(u, "http://"):
+		return append([]byte{0}, u[len("http://"):]...)
+	case strings.HasPrefix(u, "https://"):
+		return append([]byte{1}, u[len("https://"):]...)
+	}
+	return nil
+}
+
+func decodeRelay(v []byte) string {
+	if len(v) < 2 || v[0] > 1 {
+		return ""
+	}
+	return [...]string{"http://", "https://"}[v[0]] + string(v[1:])
 }
 
 func decodeAppData(b []byte) (AppData, error) {
@@ -72,6 +99,8 @@ func decodeAppData(b []byte) (AppData, error) {
 			if len(val) > 0 {
 				a.Flags = val[0]
 			}
+		case TagRelay:
+			a.Relay = decodeRelay(val)
 		}
 		b = b[2+int(b[1]):]
 	}

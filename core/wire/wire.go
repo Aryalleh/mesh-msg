@@ -103,7 +103,8 @@ type Info struct {
 type RelayEntry struct {
 	Name   string   `json:"name"`
 	Region string   `json:"region"`
-	URLs   []string `json:"urls"` // direct, fronted, onion …
+	URLs   []string `json:"urls"`             // direct, fronted, onion …
+	PubKey string   `json:"pubkey,omitempty"` // hex X||Ed, pins the relay
 }
 
 // RelayList is returned by GET /v1/relays, signed by the serving relay.

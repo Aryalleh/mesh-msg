@@ -54,16 +54,16 @@ import org.meshmsg.app.ui.theme.Space
 data class SettingsState(
     val displayName: String = "",
     val myHash: String = "",
-    val stealth: Boolean = false,
     val gateway: Boolean = false,
+    val discovery: Boolean = true,
     val battery: BatteryMode = BatteryMode.Active,
     val relays: List<Relay> = emptyList(),
 )
 
 interface SettingsActions {
     fun setName(name: String)
-    fun setStealth(on: Boolean)
     fun setGateway(on: Boolean)
+    fun setDiscovery(on: Boolean)
     fun setBattery(mode: BatteryMode)
     fun addRelay(relay: Relay)
     fun removeRelay(relay: Relay)
@@ -110,8 +110,8 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
             ) { Text(stringResource(R.string.backup_title)) }
 
             SectionHeader(stringResource(R.string.settings_mesh))
-            SwitchRow(stringResource(R.string.settings_stealth), stringResource(R.string.settings_stealth_body), state.stealth, actions::setStealth)
             SwitchRow(stringResource(R.string.settings_gateway), stringResource(R.string.settings_gateway_body), state.gateway, actions::setGateway)
+            SwitchRow(stringResource(R.string.settings_discovery), stringResource(R.string.settings_discovery_body), state.discovery, actions::setDiscovery)
 
             SectionHeader(stringResource(R.string.settings_battery))
             BatteryMode.entries.forEach { mode ->

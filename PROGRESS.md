@@ -375,3 +375,29 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 - Tests: node (relay, 3 users: ✓✓ per member, reply between non-contacts, remove/re-add,
   leave; LAN; persistence), CLI/app, mobile BLE chain with a non-member in the middle.
 - Commit `eec822a`. CI green (run 43223369347: desktop + Android lint/tests/screenshots/APKs). Released **v0.1.0-alpha6** (run 43226454991: APKs arm64/armv7/x86_64/universal + desktop linux amd64/arm64). Relay eu-1 updated to the current build (old binary kept as `/usr/local/bin/meshmsg-relay.prev`); live check: member-list group (✓✓ from both members) and #global through it.
+
+### 2026-11-12 — Self-updating relay list; stealth mode removed
+
+- `network/relays.json`: the official relay list (eu-1 first, `origin: true`, its key pinned).
+  Embedded in every build (package `network`) and refreshed every 6 h from
+  `raw.githubusercontent.com/Aryalleh/mesh-msg/main/network/relays.json`. To add an official
+  relay: append it with its `/v1/info` pubkey and push.
+- Relay discovery (`core/node/discovery.go`, on by default, `[discovery] off|max_auto|list_url`):
+  candidates from the official list, relays' signed lists (`/v1/relays`, verified; a relay
+  vouches only for its own key; relays now fill in their own pubkey), and **relay hints in
+  announces** — new announce TLV tag 3 (`scheme | host[:port][/path]`, fits next to a 32-byte
+  name in 64 bytes). Every node puts a relay it reaches now into its announces; phones, PCs and
+  LoRa nodes forward announces, so hints cross BLE, LAN and LoRa (firmware already skips
+  unknown tags, unchanged). A candidate is used only after `/v1/info` answers; key pinned
+  (official list, else first contact), key change → dropped; private/loopback hints refused;
+  ≤300 candidates, ≤6 automatic relays, dropped after a day unreachable; `forget` sticks.
+- API: meshd `GET /relays/known`, `POST /relays/forget`; CLI `mesh relay known|forget`,
+  `mesh config set discovery=on|off`; web UI settings toggle + found relays; mobile
+  `KnownRelays/ForgetRelay`; Android setting "Find relays automatically" (en + fa).
+- relay-list signing moved to `core/relayclient` (server/api aliases it).
+- Tests: relay learned from a nearby device over LAN and a message delivered through it;
+  learned from a relay's list; loopback hint ignored without AllowPrivate; announce hint
+  round trip; URL checks; bootstrap list starts with eu-1. Test nodes use `list_url = "none"`
+  so they never touch the real relays.
+- Stealth mode (Android: no BLE advertising) removed at the user's request: setting, strings,
+  `BleMesh`/`BleProto.shouldConnect` parameter, tests, docs (threat model notes the residual risk).

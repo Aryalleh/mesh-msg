@@ -54,7 +54,14 @@ func (e *events) wait(t *testing.T, typ string, d time.Duration) node.Event {
 
 func phone(t *testing.T, cfg string) (*Core, *events) {
 	t.Helper()
-	c, err := Open(t.TempDir(), cfg)
+	// Tests never reach the real relays.
+	m := map[string]any{}
+	if cfg != "" {
+		json.Unmarshal([]byte(cfg), &m)
+	}
+	m["discovery"] = map[string]any{"list_url": "none"}
+	b, _ := json.Marshal(m)
+	c, err := Open(t.TempDir(), string(b))
 	if err != nil {
 		t.Fatal(err)
 	}

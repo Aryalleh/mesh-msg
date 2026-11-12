@@ -45,7 +45,6 @@ import java.security.SecureRandom
 class BleMesh(
     private val context: Context,
     private val core: Core,
-    private val stealth: Boolean,
     private val saver: Boolean,
 ) : Transport {
     private val thread = HandlerThread("ble-mesh").apply { start() }
@@ -84,7 +83,7 @@ class BleMesh(
         handler.post {
             running = true
             openServer()
-            if (!stealth) advertise()
+            advertise()
             scan(true)
         }
         return true
@@ -155,7 +154,7 @@ class BleMesh(
     }
 
     private fun found(device: BluetoothDevice, theirs: ByteArray) {
-        if (!running || !BleProto.shouldConnect(session, theirs, stealth)) return
+        if (!running || !BleProto.shouldConnect(session, theirs)) return
         val id = BleProto.peerId(theirs)
         if (id in peers || id in connecting || peers.size + connecting.size >= BleProto.MAX_PEERS) return
         connecting += id

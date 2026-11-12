@@ -103,10 +103,27 @@ sender can poll for them.
 ## 5. ANNOUNCE (≈ 190 bytes, fits one frame)
 
 ```
-x25519_pub (32) | ed25519_pub (32) | timestamp (4) | app_data_len (1) | app_data (≤32) | sig (64)
+x25519_pub (32) | ed25519_pub (32) | timestamp (4) | app_data_len (1) | app_data (≤64) | sig (64)
 ```
 
-`app_data` (TLV): nickname (optional, off by default), `gateway_delegation` flag, capability bits.
+`app_data` is TLV (`tag(1) | len(1) | value`); receivers skip unknown tags.
+
+| Tag | Value |
+|---|---|
+| 1 | nickname (≤ 32 bytes, optional) |
+| 2 | flags: `gateway_delegation` 0x01, node 0x02, relay 0x04 |
+| 3 | **relay hint**: a relay the announcer reaches right now: `scheme(1: 0 http, 1 https) \| host[:port][/path]`; left out when it doesn't fit in 64 bytes |
+
+**Relay discovery.** Clients learn relays from (1) the official list `network/relays.json`
+(built in, refreshed from the repository; eu-1 is the original relay and comes first),
+(2) relays' signed lists (`GET /v1/relays`; a relay vouches only for its own key), and
+(3) relay hints in announces, which every node, phone and LoRa node passes on like any
+announce. A hint is only the announcer's word, so a client uses a candidate only after it
+reached it (`GET /v1/info`); the key from the official list, or else from first contact, is
+pinned, and a relay that changes key is dropped. Hints to private, loopback or link-local
+addresses are ignored, candidates from strangers are capped, at most 6 discovered relays are
+used at once (on top of configured ones), and one unreachable for a day is dropped. Users can
+turn discovery off or forget a relay.
 Announces are rate-limited per interface (see firmware/android docs) and are **opt-in for
 visibility outside Tier 0** (privacy: see threat-model.md).
 

@@ -137,6 +137,9 @@ class JsonTest {
         assertEquals("Ali", o.getString("name"))
         assertTrue(o.getBoolean("delegate"))
         assertTrue(o.getJSONObject("gateway").getBoolean("enabled"))
+        assertFalse(o.getJSONObject("discovery").getBoolean("off")) // relay discovery on by default
+        s.discovery = false
+        assertTrue(JSONObject(s.coreConfig()).getJSONObject("discovery").getBoolean("off"))
         assertEquals("https://relay.example", o.getJSONArray("relays").getJSONObject(0).getString("url"))
         assertEquals(s.relays, Settings(RuntimeEnvironment.getApplication()).relays) // persisted
         s.clear()

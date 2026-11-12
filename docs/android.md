@@ -76,7 +76,6 @@ interface lives inside the Go core, identical to desktop.
 
 - Database encrypted with SQLCipher; key in Android Keystore, optional app PIN.
 - **Panic wipe**: PIN-duress code or long-press gesture erases keys + DB.
-- **Stealth mode**: no BLE advertising (only connects to known peers / paired node).
 - Optional disguised launcher icon/name.
 - **Offline app sharing**: send the APK to a nearby phone over Wi-Fi Direct/Bluetooth,
   with the signing certificate fingerprint shown for verification.
@@ -86,4 +85,4 @@ interface lives inside the Go core, identical to desktop.
 
 Onboarding (create identity, permissions) · Chats list · Chat · Add contact (QR / link) ·
 Network status (neighbours, LoRa node, internet, store size) · LoRa node settings · Settings
-(battery mode, stealth, panic wipe, relays).
+(battery mode, panic wipe, relays).

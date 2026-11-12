@@ -27,8 +27,11 @@ identities and has no accounts. Relays are grouped by **region** and federate wi
 
 Every relay has a config `region = "ir" | "global" | ...` and a signed relay identity
 (Ed25519). Relays publish a signed **relay list** (address, region, transports, pubkey),
-spread both via `/v1/relays` and as a mesh announce, so offline users learn new addresses
-when old ones are blocked.
+spread via `/v1/relays`; clients also put the relay they use into their announces (tag 3,
+protocol.md "Relay discovery"), and the official list lives in `network/relays.json`. So
+users learn new addresses when old ones are blocked, even over Bluetooth and LoRa. A relay
+fills in its own `pubkey` in the list it serves. To add an official relay, append it to
+`network/relays.json` (with its `/v1/info` pubkey) and push to main.
 
 ## 3. Replication and routing between relays
 

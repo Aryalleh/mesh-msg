@@ -33,14 +33,12 @@ class BleProtoTest {
             val x = ByteArray(4).also(rnd::nextBytes)
             val y = ByteArray(4).also(rnd::nextBytes)
             if (!x.contentEquals(y)) {
-                assertTrue(BleProto.shouldConnect(x, y, false) != BleProto.shouldConnect(y, x, false))
+                assertTrue(BleProto.shouldConnect(x, y) != BleProto.shouldConnect(y, x))
             }
         }
         val s = b(1, 2, 3, 4)
-        assertFalse(BleProto.shouldConnect(s, s, false))           // our own advert
-        assertFalse(BleProto.shouldConnect(s, b(0, 0), true))      // not a mesh-msg advert
-        // A stealth phone is invisible, so it must be the one that connects.
-        assertTrue(BleProto.shouldConnect(b(0, 0, 0, 1), b(0xff, 0xff, 0xff, 0xff), true))
+        assertFalse(BleProto.shouldConnect(s, s))           // our own advert
+        assertFalse(BleProto.shouldConnect(s, b(0, 0)))     // not a mesh-msg advert
     }
 
     @Test fun splitKeepsBytesAndFitsMtu() {

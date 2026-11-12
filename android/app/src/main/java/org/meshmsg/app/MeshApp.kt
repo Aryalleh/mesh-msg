@@ -77,7 +77,7 @@ class MeshApp : Application() {
         }
     }
 
-    /** Applies changed settings (relays, gateway, name, stealth, battery): reopens the core. */
+    /** Applies changed settings (relays, gateway, name, battery): reopens the core. */
     fun restartSoon() {
         restartJob?.cancel()
         restartJob = scope.launch {
@@ -114,7 +114,7 @@ class MeshApp : Application() {
         ble = null
         val core = _backend.value?.core ?: return
         if (!bluetoothAllowed()) return
-        ble = BleMesh(this, core, stealth = settings.stealth, saver = settings.batteryMode == BatteryMode.Saver).takeIf { it.start() }
+        ble = BleMesh(this, core, saver = settings.batteryMode == BatteryMode.Saver).takeIf { it.start() }
     }
 
     /** Looks for a LoRa node on USB; returns false if there is none. */

@@ -26,6 +26,7 @@ const configKeys = `keys for mesh config set key=value…:
   lan.peers=a:1,b:2      fixed LAN peers (host:port, comma separated; empty = none)
   lora=on|off            use a LoRa node on USB
   lora.port=/dev/ttyACM0 (mesh ports lists them)
+  discovery=on|off       find relays automatically and share yours (mesh relay known)
 relays: mesh relay add|rm …   bridges: mesh bridge add|rm …   the node itself: mesh lora set …`
 
 func getConfig() (*daemon.Config, error) {
@@ -113,6 +114,10 @@ func applyKeys(c *daemon.Config, kvs []string) error {
 			c.Delegate, err = parseBool(k, v)
 		case "announce", "announce_minutes":
 			c.AnnounceMinutes, err = parseInt(k, v)
+		case "discovery":
+			var on bool
+			on, err = parseBool(k, v)
+			c.Discovery.Off = !on
 		case "gateway":
 			c.Gateway.Enabled, err = parseBool(k, v)
 		case "gateway.mode":
@@ -158,6 +163,7 @@ func printConfig(c *daemon.Config) {
 	fmt.Fprintf(out, "delegate      %s\n", onOff(c.Delegate))
 	fmt.Fprintf(out, "announce      every %d min\n", c.AnnounceMinutes)
 	fmt.Fprintf(out, "gateway       %s, %s, %d KB/h\n", onOff(c.Gateway.Enabled), c.Gateway.Mode, c.Gateway.QuotaKBPerHour)
+	fmt.Fprintf(out, "discovery     %s (relays from the official list, other relays and nearby devices)\n", onOff(!c.Discovery.Off))
 	peers := strings.Join(c.LAN.StaticPeers, ", ")
 	if peers == "" {
 		peers = "none"
@@ -197,7 +203,7 @@ func viaOf(r node.RelayConfig) string {
 }
 
 func relayCmd(args []string) error {
-	const usage = "usage: mesh relay [list] | add <name> <url> [direct|tor|socks5://host:port] | rm <name>"
+	const usage = "usage: mesh relay [list] | known | forget <name|url> | add <name> <url> [direct|tor|socks5://host:port] | rm <name>"
 	c, err := getConfig()
 	if err != nil {
 		return err
@@ -212,6 +218,30 @@ func relayCmd(args []string) error {
 		return nil
 	}
 	switch args[0] {
+	case "known", "discovered":
+		var ks []node.KnownRelay
+		if err := call("GET", "/relays/known", nil, &ks); err != nil {
+			return err
+		}
+		if len(ks) == 0 {
+			fmt.Fprintln(out, "no relays discovered yet (or discovery is off)")
+		}
+		for _, k := range ks {
+			use := ""
+			switch {
+			case k.Config:
+				use = "configured"
+			case k.Active:
+				use = "in use"
+			}
+			fmt.Fprintf(out, "%-10s %-28s %-9s %-10s %s\n", k.Name, k.URL, k.State, "from "+k.Source, use)
+		}
+		return nil
+	case "forget":
+		if len(args) != 2 {
+			return errors.New(usage)
+		}
+		return call("POST", "/relays/forget", map[string]string{"relay": args[1]}, nil)
 	case "add":
 		if len(args) < 3 || len(args) > 4 {
 			return errors.New(usage)

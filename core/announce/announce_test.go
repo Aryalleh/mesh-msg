@@ -55,3 +55,28 @@ func TestFetch(t *testing.T) {
 		t.Fatal("fetch signature rejected")
 	}
 }
+
+func TestRelayHint(t *testing.T) {
+	id, _ := identity.Generate()
+	for _, tc := range []struct{ name, relay, want string }{
+		{"Sara", "http://87.106.5.192", "http://87.106.5.192"},
+		{"", "https://relay.example.org:8443/m", "https://relay.example.org:8443/m"},
+		{"ن ن ن ن ن ن ن ن ن ن ن", "http://87.106.5.192", "http://87.106.5.192"}, // 32-byte name still fits
+		{"x", "ftp://nope", ""},
+		{"Sara", "https://" + string(make([]byte, 60)), ""}, // too long: left out, announce still valid
+	} {
+		p := Build(id, time.Unix(1700000000, 0), AppData{Name: tc.name, Flags: FlagDelegate, Relay: tc.relay}, 8)
+		raw := p.MustEncode()
+		if len(raw) > packet.LoRaMTU {
+			t.Fatalf("announce does not fit LoRa: %d", len(raw))
+		}
+		q, _ := packet.Decode(raw)
+		a, err := Parse(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if a.App.Relay != tc.want || a.App.Flags != FlagDelegate {
+			t.Fatalf("%q: got %+v", tc.relay, a.App)
+		}
+	}
+}

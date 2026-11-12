@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,10 +20,27 @@ type relayLink struct {
 	name string
 	c    *relayclient.Client
 
-	mu    sync.Mutex
-	queue [][]byte
-	kick  chan struct{}
-	up    bool
+	// Discovered relays: the key it must answer with, and its URL.
+	pin, auto string
+
+	mu     sync.Mutex
+	queue  [][]byte
+	kick   chan struct{}
+	up     bool
+	lastUp time.Time
+}
+
+func (l *relayLink) isUp() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.up
+}
+
+// downSince reports whether the link has not been up for d.
+func (l *relayLink) downSince(d time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return !l.up && time.Since(l.lastUp) > d
 }
 
 const maxQueue = 20000
@@ -32,7 +50,7 @@ func newRelayLink(n *Node, rc RelayConfig) (*relayLink, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &relayLink{n: n, name: "relay:" + rc.Name, c: c, kick: make(chan struct{}, 1)}, nil
+	return &relayLink{n: n, name: "relay:" + rc.Name, c: c, kick: make(chan struct{}, 1), lastUp: time.Now()}, nil
 }
 
 func (l *relayLink) Name() string                { return l.name }
@@ -56,9 +74,15 @@ func (l *relayLink) setUp(up bool) {
 	l.mu.Lock()
 	was := l.up
 	l.up = up
+	if up {
+		l.lastUp = time.Now()
+	}
 	l.mu.Unlock()
 	if up && !was {
 		l.n.setLinkStatus(l.name, "connected")
+		if d := l.n.disc; d != nil {
+			d.poke() // share it in our announces, fetch its relay list
+		}
 		// Carry the store backlog (our announce first, then held packets).
 		l.n.router.LinkUp(l.name)
 	} else if !up && was {
@@ -93,7 +117,15 @@ func (l *relayLink) uploader(ctx context.Context) {
 		case <-l.kick:
 		case <-time.After(30 * time.Second):
 		}
-		if _, err := l.c.Info(ctx); err != nil {
+		info, err := l.c.Info(ctx)
+		if err == nil && l.pin != "" && !strings.EqualFold(info.PubKey, l.pin) {
+			l.setUp(false)
+			if d := l.n.disc; d != nil {
+				d.pinMismatch(l)
+			}
+			return
+		}
+		if err != nil {
 			l.setUp(false)
 			if !sleepCtx(ctx, backoff) {
 				return

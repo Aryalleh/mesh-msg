@@ -23,6 +23,9 @@ func startRelay(t *testing.T, name, region string) string {
 
 func startNode(t *testing.T, cfg node.Config) *node.Node {
 	cfg.DataDir = t.TempDir()
+	if cfg.Discovery.ListURL == "" {
+		cfg.Discovery.ListURL = "none" // tests never reach the real relays
+	}
 	n, err := node.Open(cfg)
 	if err != nil {
 		t.Fatal(err)

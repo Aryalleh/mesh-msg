@@ -21,6 +21,11 @@ Any phone or PC that can reach a relay can register as a **gateway** ("I'm onlin
 traffic for the mesh around me"). Clients: Android, and desktop (Linux first, then Windows
 and macOS).
 
+The relay list updates itself: apps ship the official list ([network/relays.json](network/relays.json),
+starting with the original relay eu-1), refresh it, learn relays from other relays, and pass the
+relay they use to nearby phones, PCs and LoRa nodes, so a new relay spreads through the mesh even
+where the old one is blocked. Each relay is checked before use.
+
 ```
    City A                          ~10 km                         City B
  ┌──────────────────┐                                    ┌──────────────────┐

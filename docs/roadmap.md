@@ -8,7 +8,7 @@
 | **M3 Linux desktop** | `meshd` + `mesh` CLI: client, gateway, bridge roles, LAN interface | two Linux PCs chat via IR-style relay ↔ bridge ↔ EU-style relay |
 | **M4 LoRa link** | firmware radio, codec, router, store, hop ACK; USB serial to meshd | text crosses PC → node → repeater → node → PC |
 | **M5 Android** | gomobile core, BLE mesh, LoRa-over-BLE, gateway mode, chat UI | message: phone (BLE) → phone gateway → relay → desktop |
-| **M6 Hardening** | panic wipe, stealth, APK sharing, Tor path, reproducible builds, security review | external review findings addressed |
+| **M6 Hardening** | panic wipe, APK sharing, Tor path, reproducible builds, security review | external review findings addressed |
 | **M7 Field test** | 10 km LoRa test + simulated domestic-only network test | measured delivery report |
 | **M8 Windows / macOS** | desktop builds + installers | |
 

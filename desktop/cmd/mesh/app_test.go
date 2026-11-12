@@ -30,6 +30,7 @@ func startMeshd(t *testing.T) *bytes.Buffer {
 		t.Fatal(err)
 	}
 	cfg.Relays, cfg.UI, cfg.LAN.Discovery = nil, "", false
+	cfg.Discovery.ListURL = "none" // never reach the real relays from tests
 	d, err := daemon.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -67,6 +68,16 @@ func TestConfigRelayBridgeCommands(t *testing.T) {
 	}
 	if c.Name != "Ali" || c.Gateway.Enabled || c.AnnounceMinutes != 15 || len(c.LAN.StaticPeers) != 2 || c.LoRa.Port != "/dev/ttyUSB0" {
 		t.Fatalf("not applied: %+v", c)
+	}
+	buf.Reset()
+	if err := run([]string{"relay", "known"}); err != nil || !strings.Contains(buf.String(), "no relays discovered") {
+		t.Fatal(err, buf.String())
+	}
+	if err := run([]string{"config", "set", "discovery=off"}); err != nil {
+		t.Fatal(err)
+	}
+	if c, _ := getConfig(); !c.Discovery.Off || c.Discovery.ListURL != "none" {
+		t.Fatalf("discovery: %+v", c.Discovery)
 	}
 	for _, bad := range [][]string{{"config", "set", "nope=1"}, {"config", "set", "gateway=maybe"}, {"config", "set", "gateway.mode=x"}, {"config", "set", "announce=-1"}} {
 		if err := run(bad); err == nil {

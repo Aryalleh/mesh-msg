@@ -18,6 +18,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/packet"
 	"github.com/Aryalleh/mesh-msg/core/pow"
+	"github.com/Aryalleh/mesh-msg/core/relayclient"
 	"github.com/Aryalleh/mesh-msg/core/wire"
 	"github.com/Aryalleh/mesh-msg/server/relay"
 )
@@ -94,39 +95,24 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// RelayListPayload is the signed part of a relay list.
-func RelayListPayload(relays []wire.RelayEntry, issued int64) []byte {
-	b, _ := json.Marshal(struct {
-		Relays []wire.RelayEntry `json:"relays"`
-		Issued int64             `json:"issued"`
-	}{relays, issued})
-	return b
-}
-
-const domainRelayList = "MESHMSG-RELAYS"
-
-// VerifyRelayList checks a list's signature against its embedded key.
-func VerifyRelayList(l wire.RelayList) bool {
-	pk, err := hex.DecodeString(l.PubKey)
-	if err != nil {
-		return false
-	}
-	pub, err := identity.PublicFromBytes(pk)
-	if err != nil {
-		return false
-	}
-	sig, err := hex.DecodeString(l.Signature)
-	if err != nil {
-		return false
-	}
-	return pub.Verify(domainRelayList, RelayListPayload(l.Relays, l.Issued), sig)
-}
+// RelayListPayload and VerifyRelayList: see relayclient (clients verify lists).
+var (
+	RelayListPayload = relayclient.RelayListPayload
+	VerifyRelayList  = relayclient.VerifyRelayList
+)
 
 func (s *Server) relays(w http.ResponseWriter, r *http.Request) {
 	issued := time.Now().Unix()
-	sig := s.cfg.Identity.SignDomain(domainRelayList, RelayListPayload(s.cfg.Relays, issued))
+	// Our own entry carries our key, so clients can pin us.
+	list := append([]wire.RelayEntry(nil), s.cfg.Relays...)
+	for i := range list {
+		if list[i].Name == s.cfg.Relay.Name() && list[i].PubKey == "" {
+			list[i].PubKey = hex.EncodeToString(s.cfg.Identity.Bytes())
+		}
+	}
+	sig := s.cfg.Identity.SignDomain(relayclient.DomainRelayList, RelayListPayload(list, issued))
 	writeJSON(w, wire.RelayList{
-		Relays: s.cfg.Relays, Issued: issued,
+		Relays: list, Issued: issued,
 		PubKey: hex.EncodeToString(s.cfg.Identity.Bytes()), Signature: hex.EncodeToString(sig),
 	})
 }

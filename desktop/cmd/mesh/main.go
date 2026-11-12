@@ -55,6 +55,7 @@ Usage:
   mesh config                    show all settings
   mesh config set key=value…     change settings (mesh config keys lists them)
   mesh relay add <name> <url> [via] | rm <name>
+  mesh relay known | forget <name>  relays found automatically (official list, relays, nearby devices)
                                  relays; via = direct | tor | socks5://host:port
   mesh bridge add <a> <b> [MB/day] | rm <a> <b>
                                  sync two relays that can't reach each other

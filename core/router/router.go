@@ -489,6 +489,18 @@ func (r *Router) SendContent(from *identity.Identity, to identity.Public, ct uin
 	return pkts[0].ID, nil
 }
 
+// SetRelayHint sets the relay URL our announces carry (empty: none). It
+// reports whether it changed.
+func (r *Router) SetRelayHint(url string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.cfg.AppData.Relay == url {
+		return false
+	}
+	r.cfg.AppData.Relay = url
+	return true
+}
+
 // Announce sends a fresh announce for every local identity.
 func (r *Router) Announce() {
 	var acts actions

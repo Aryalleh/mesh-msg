@@ -132,6 +132,8 @@
         <p class="help">Servers that hold encrypted messages until the other side picks them up. "Via" is how to reach them: direct, tor, or a proxy such as socks5://127.0.0.1:1080 (a VPN or Psiphon client).</p>
         <div id="relays"></div>
         <div class="actions"><button class="ghost" id="addRelay">+ Add relay</button></div>
+        <label class="check"><input type="checkbox" id="discOn"><span>Find relays automatically<small>Use relays from the official list (eu-1 first), from other relays and from nearby devices and LoRa nodes, and share the one you use. Each is checked before use; messages stay end-to-end encrypted.</small></span></label>
+        <div id="knownRelays"></div>
       </div>
 
       <div class="card">
@@ -565,7 +567,20 @@ function fillSettings() {
   $("lanOn").checked = cfg.lan.enabled; $("lanDisc").checked = cfg.lan.discovery; $("lanPort").value = cfg.lan.port || 0;
   $("lanPeers").value = cfg.lan.static_peers.join("\n");
   $("loraOn").checked = cfg.lora.enabled; $("loraPort").value = cfg.lora.port || "";
-  renderRelays(); renderBridges();
+  $("discOn").checked = !(cfg.discovery && cfg.discovery.off);
+  renderRelays(); renderBridges(); renderKnown();
+}
+
+async function renderKnown() {
+  const box = $("knownRelays");
+  let ks = [];
+  try { ks = await api("/relays/known"); } catch (e) { return; }
+  const shown = ks.filter((k) => !k.config && k.state !== "forgotten");
+  if (!shown.length) { box.replaceChildren(); return; }
+  box.replaceChildren(el("p", {className: "help", textContent: "Found automatically:"}), ...shown.map((k) =>
+    el("div", {className: "row"},
+      el("span", {textContent: `${k.name || "?"} — ${k.url} · ${k.active ? "in use" : k.state} · from ${k.source}`, dir: "ltr"}),
+      el("button", {className: "x", title: "Never use", textContent: "✕", on: {click: async () => { await api("/relays/forget", {method: "POST", body: JSON.stringify({relay: k.url})}); renderKnown(); }}}))));
 }
 
 function readSettings() {
@@ -574,6 +589,7 @@ function readSettings() {
   cfg.lan = {enabled: $("lanOn").checked, discovery: $("lanDisc").checked, port: +$("lanPort").value || 0,
              static_peers: $("lanPeers").value.split(/\s+/).filter(Boolean)};
   cfg.lora = {enabled: $("loraOn").checked, port: $("loraPort").value.trim()};
+  cfg.discovery = Object.assign(cfg.discovery || {}, {off: !$("discOn").checked});
   cfg.relays = cfg.relays.filter((r) => r.name || r.url);
   return cfg;
 }

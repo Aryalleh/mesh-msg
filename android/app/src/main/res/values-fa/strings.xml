@@ -104,8 +104,6 @@
     <string name="settings_name_helper">همراه اعلان‌های شما فرستاده می‌شود تا مخاطبان ببینند. برای ناشناس ماندن خالی بگذارید.</string>
     <string name="settings_your_id">شناسه‌ی شما</string>
     <string name="settings_mesh">شبکه</string>
-    <string name="settings_stealth">حالت پنهان</string>
-    <string name="settings_stealth_body">این گوشی دیگر خودش را روی بلوتوث اعلام نمی‌کند. هنوز می‌تواند دیگران را پیدا کند.</string>
     <string name="settings_gateway">اینترنتم را با شبکه شریک شو</string>
     <string name="settings_gateway_body">گوشی‌های اطراف که اینترنت ندارند از راه گوشی شما پیام می‌فرستند و فقط اگر این روشن باشد پاسخ‌هایشان را می‌گیرند. کمی داده مصرف می‌کند؛ پیام‌ها رمزشده می‌مانند.</string>
     <string name="settings_battery">مصرف باتری</string>
@@ -194,4 +192,6 @@
     <string name="group_no_contacts">اول مخاطب اضافه کنید: اعضای گروه از مخاطبان شما هستند.</string>
     <string name="delivered_to_n">به %1$d از %2$d عضو رسید</string>
     <string name="close">بستن</string>
+    <string name="settings_discovery">یافتن خودکار رله‌ها</string>
+    <string name="settings_discovery_body">از رله‌های فهرست رسمی و رله‌هایی که گوشی‌ها و گره‌های لورای نزدیک معرفی می‌کنند استفاده کن و رله‌ی خودت را هم معرفی کن. هر کدام اول بررسی می‌شود.</string>
 </resources>

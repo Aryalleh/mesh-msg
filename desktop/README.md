@@ -74,6 +74,18 @@ mesh ports                       # USB serial ports for a LoRa node
 Settings changed from the app, `mesh config`/`relay`/`bridge` or the web UI are the
 same: applied at once and written to `config.toml`.
 
+### Relays found automatically
+
+Besides the relays in your config, meshd uses relays from the official list
+(`network/relays.json`, eu-1 first), from other relays' lists, and from nearby devices and
+LoRa nodes, which share the relay they use. Each one is checked before use.
+
+```sh
+mesh relay known            # what was found, and which are in use
+mesh relay forget <name>    # never use one
+mesh config set discovery=off
+```
+
 ### Groups and public chats
 
 ```bash

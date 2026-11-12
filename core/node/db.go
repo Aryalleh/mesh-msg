@@ -46,6 +46,10 @@ func openAppDB(path string) (*appDB, error) {
 		db.Close()
 		return nil, err
 	}
+	if _, err := db.Exec(relaysSchema); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := migrateGroups(db); err != nil {
 		db.Close()
 		return nil, err

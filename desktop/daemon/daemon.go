@@ -174,6 +174,25 @@ func (d *Daemon) apiHandler() http.Handler {
 	mux.HandleFunc("GET /status", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, n.Status())
 	}))
+	mux.HandleFunc("GET /relays/known", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		ks := n.KnownRelays()
+		if ks == nil {
+			ks = []node.KnownRelay{}
+		}
+		writeJSON(w, ks)
+	}))
+	mux.HandleFunc("POST /relays/forget", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		var req struct{ Relay string }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		if err := n.ForgetRelay(req.Relay); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		w.WriteHeader(204)
+	}))
 	mux.HandleFunc("GET /lora", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, n.LoRa())
 	}))

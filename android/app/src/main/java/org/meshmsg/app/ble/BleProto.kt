@@ -9,8 +9,7 @@ import java.util.UUID
  * Every phone advertises [SERVICE] plus 4 random bytes (a session ID, new on
  * every start, unrelated to the user's identity) and scans for the same. Of
  * two phones that see each other, the one with the larger session ID connects
- * as GATT client, so a pair never ends up with two connections. A phone in
- * stealth mode does not advertise and therefore always connects itself.
+ * as GATT client, so a pair never ends up with two connections.
  *
  *   client → server: writes (with response) to [RX]
  *   server → client: notifications on [TX]
@@ -58,8 +57,8 @@ object BleProto {
     }
 
     /** Whether this phone is the one that connects (see the class comment). */
-    fun shouldConnect(mine: ByteArray, theirs: ByteArray, stealth: Boolean): Boolean =
-        theirs.size == SESSION_BYTES && (stealth || compare(mine, theirs) > 0)
+    fun shouldConnect(mine: ByteArray, theirs: ByteArray): Boolean =
+        theirs.size == SESSION_BYTES && compare(mine, theirs) > 0
 
     /** Payload bytes per write / notification for an ATT MTU. */
     fun payload(mtu: Int): Int = (mtu - 3).coerceIn(DEFAULT_MTU - 3, 512)

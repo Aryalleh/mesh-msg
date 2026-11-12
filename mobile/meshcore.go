@@ -295,6 +295,20 @@ func (c *Core) Groups() (string, error) {
 	return toJSON(gs, err)
 }
 
+// KnownRelays returns the relays found automatically (official list, relays'
+// lists, nearby devices) as JSON [{url,name,region,source,state,active,config,…}].
+func (c *Core) KnownRelays() string {
+	ks := c.n.KnownRelays()
+	if ks == nil {
+		ks = []node.KnownRelay{}
+	}
+	s, _ := toJSON(ks, nil)
+	return s
+}
+
+// ForgetRelay stops using a discovered relay and never picks it up again.
+func (c *Core) ForgetRelay(ref string) error { return c.n.ForgetRelay(ref) }
+
 // CreateGroup makes a private group with contacts (a JSON array of hashes or
 // names) and returns it as JSON. Each message goes to every member separately.
 func (c *Core) CreateGroup(name, membersJSON string) (string, error) {
