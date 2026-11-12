@@ -401,4 +401,4 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   so they never touch the real relays.
 - Stealth mode (Android: no BLE advertising) removed at the user's request: setting, strings,
   `BleMesh`/`BleProto.shouldConnect` parameter, tests, docs (threat model notes the residual risk).
-- Commit `4a831cd`. Next: watch CI; redeploy relay eu-1 (fills its pubkey into /v1/relays); release when asked.
+- Commit `4a831cd`. CI green (run 43235193027: desktop + Android). Next: optionally redeploy relay eu-1 (fills its pubkey into /v1/relays); release when asked.
