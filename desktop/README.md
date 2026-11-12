@@ -3,7 +3,23 @@
 `meshd` runs in the background (client, gateway, bridge, LAN mesh); `mesh` is
 the command-line client; a web UI is served on `127.0.0.1` only.
 
-## Install
+## Install from a release
+
+Download `meshmsg-desktop-<version>-linux-amd64.tar.gz` (or `arm64`) from the
+[releases](https://github.com/Aryalleh/mesh-msg/releases), then:
+
+```bash
+tar xzf meshmsg-desktop-*-linux-*.tar.gz && cd meshmsg-desktop-*/
+./install.sh          # copies meshd + mesh to ~/.local/bin, starts meshd as a user service
+mesh ui               # open the web UI
+```
+
+`meshd` must keep running for `mesh` to work. Without the service, run `./meshd` in its
+own terminal (or `./meshd &`) and use `./mesh` from another; Ctrl+C stops meshd.
+To update, run the new release's `./install.sh` (it restarts meshd; your config,
+identity and messages stay).
+
+## Install from source
 
 ```bash
 go build -o ~/.local/bin/ ./desktop/cmd/meshd ./desktop/cmd/mesh

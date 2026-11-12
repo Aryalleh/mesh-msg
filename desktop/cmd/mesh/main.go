@@ -90,7 +90,7 @@ func call(method, path string, in, out any) error {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("cannot reach meshd (is it running?): %w", err)
+		return notRunning(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
@@ -105,6 +105,15 @@ func call(method, path string, in, out any) error {
 		return json.NewDecoder(resp.Body).Decode(out)
 	}
 	return nil
+}
+
+// notRunning explains how to start meshd when its socket is not there.
+func notRunning(err error) error {
+	return fmt.Errorf(`meshd is not running (%v)
+start it and leave it running, then retry:
+  systemctl --user start meshd    # if installed as a service (see README)
+  meshd &                         # or in the background of this terminal
+  meshd                           # or in a second terminal`, err)
 }
 
 func run(args []string) error {
@@ -254,7 +263,7 @@ func watch() error {
 	req, _ := http.NewRequest("GET", "http://meshd/events", nil)
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("cannot reach meshd: %w", err)
+		return notRunning(err)
 	}
 	defer resp.Body.Close()
 	names := contactNames()

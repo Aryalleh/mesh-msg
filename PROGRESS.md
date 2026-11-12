@@ -263,3 +263,12 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   `[gateway] enabled = true` (targeted mode). Switch kept so it can be turned off. Clearer
   en/fa text. Tests updated (`JsonTest`, `TestDefaultConfigParses`).
 - Release: `v0.1.0-alpha5` after CI on main is green.
+
+### 2026-11-12 — desktop release usability
+- User ran `./meshd` in the foreground, typed `mesh ui` into it, Ctrl+C'd it, then `mesh`
+  could not connect. Fixes: `mesh` explains how to start meshd (service, `meshd &`, second
+  terminal) instead of a bare socket error; the desktop tarball now ships `meshd.service`
+  and `install.sh` (installs to ~/.local/bin, enables + restarts the user service, works
+  for updates); README has "Install from a release".
+- `v0.1.0-alpha5` was not tagged: pushing the tag was blocked by the permission classifier;
+  user to push it or allow it. These changes go into the next tag.
