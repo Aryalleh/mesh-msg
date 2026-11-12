@@ -513,3 +513,6 @@ not implemented; no TURN, relays never carry a direct session).
   pushed to and pulled from origin relays (`POST/GET /v1/usage`), also carried in `/v1/sync`
   and through bridges; allowance counted network-wide, number set per relay in the panel.
   decisions D14. Not implemented. Previous docs commit `f2f8848`.
+- Proof-of-work for important media now also depends on account age: +3 bits under 3 days,
+  +2 under 30, +1 under 180, 0 after; base 20 bits, +1 per upload today, cap 28; all panel
+  settings (server.md §6a). Previous docs commit `27887bf`.

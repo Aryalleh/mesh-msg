@@ -173,10 +173,29 @@ the admin panel.
    network (announces are already replicated to every relay, so all relays agree). Accounts
    younger than `media_new_account_days` (default 3) get `media_new_account_per_day`
    (default 1) instead of the full allowance.
-2. **Proof-of-work that grows with use.** Every important upload carries hashcash. The
-   difficulty grows with the account's network-wide uploads today (from the ledger below) and
-   with the relay's load: the first file costs a phone a few seconds, each further one about
-   twice as much. Making many accounts no longer pays.
+2. **Proof-of-work that grows with use and shrinks with age.** Every important upload
+   carries hashcash. Each extra bit doubles the work:
+
+   ```
+   bits = media_pow_base_bits                      (default 20: a few seconds on a phone)
+        + age_bits(account age)                    (table below)
+        + uploads_today                            (network-wide, from the ledger: +1 per file)
+        + load_bits                                (0–2, from the relay's storage/traffic use)
+   bits = min(bits, media_pow_max_bits)            (default 28: a few minutes, never more)
+   ```
+
+   | Account age (first announce in the network) | `age_bits` | First file of the day, roughly |
+   |---|---|---|
+   | under 3 days | +3 | ~8× base (≈ 30 s) |
+   | 3–30 days | +2 | ~4× base |
+   | 30–180 days | +1 | ~2× base |
+   | over 180 days | 0 | base (a few seconds) |
+
+   The tier limits and their bits are panel settings (`media_pow_age_tiers`). The relay tells
+   the client the required bits before the upload (`GET /v1/media/quota` returns them), so the
+   app can show "preparing…" instead of failing. The work is bound to the media id, the
+   account and the day, so it can't be reused. New accounts pay the most, so making many
+   accounts no longer pays, while long-standing users barely notice it.
 3. **Network-wide usage ledger** (below). The allowance counts uploads on **all** relays, not
    only this one: `used = sum of the account's entries for today in the ledger`.
 
@@ -223,7 +242,8 @@ need the `X-Mava-Panel` header. The owner account (`server/admin.OwnerID`) is al
 and can't be removed; other admins live in `data_dir/panel.json` (panel or `meshmsg-relay
 admin add|rm|list`). Settings changed in the panel go to the same file and override
 relay.json after a restart. The important-media settings (`media_important_per_day`, `media_important_hours`,
-`media_new_account_days`, `media_new_account_per_day`, §6a) are set in the panel and take
+`media_new_account_days`, `media_new_account_per_day`, `media_pow_base_bits`,
+`media_pow_max_bits`, `media_pow_age_tiers`, §6a) are set in the panel and take
 effect immediately; the panel also shows the ledger's state and relays sending invalid entries.
 
 ## 7. Data model
