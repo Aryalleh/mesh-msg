@@ -16,7 +16,9 @@ import (
 type Config struct {
 	node.Config
 	// UI is the web UI listen address ("" disables). Must be loopback.
-	UI string `toml:"ui"`
+	UI string `toml:"ui" json:"ui"`
+	// Path is the file the config was loaded from ("" = not saved).
+	Path string `toml:"-" json:"path"`
 }
 
 // DefaultConfig is written on first start.
@@ -91,6 +93,7 @@ func LoadConfig(path, dataDir string) (*Config, error) {
 		return nil, fmt.Errorf("config %s: %w", path, err)
 	}
 	cfg.DataDir = dataDir
+	cfg.Path = path
 	return cfg, nil
 }
 

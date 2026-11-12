@@ -452,6 +452,9 @@ func (n *Node) Run(ctx context.Context) error {
 
 // Close releases databases (after Run returns).
 func (n *Node) Close() error {
+	if n.lan != nil {
+		n.lan.ln.Close() // free a fixed port now, for a restart in this process
+	}
 	return errors.Join(n.store.Close(), n.db.close())
 }
 

@@ -9,30 +9,42 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Aryalleh/mesh-msg/core/hostlink"
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/Aryalleh/mesh-msg/core/hostlink"
 	"github.com/Aryalleh/mesh-msg/core/node"
 )
 
 //go:embed ui/index.html
 var uiFS embed.FS
 
-// Daemon runs a node plus its control interfaces.
+// Daemon runs a node plus its control interfaces. Settings changes from the
+// UI restart the node in place (see apply), so the node is behind mu.
 type Daemon struct {
-	cfg   *Config
-	node  *node.Node
 	token string
+	ctx   context.Context // daemon lifetime, set by Run
+
+	opMu sync.Mutex   // serialises restarts
+	mu   sync.RWMutex // guards the fields below; held (R) by API requests
+	cfg  *Config
+	node *node.Node
+	stop context.CancelFunc
+	done chan struct{} // closed when the running node has stopped
 }
 
 // New opens the node.
 func New(cfg *Config) (*Daemon, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
 	n, err := node.Open(cfg.Config)
 	if err != nil {
 		return nil, err
@@ -56,11 +68,46 @@ func loadOrCreateToken(path string) (string, error) {
 }
 
 // Node returns the running node.
-func (d *Daemon) Node() *node.Node { return d.node }
+func (d *Daemon) Node() *node.Node {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.node
+}
+
+// startNode runs d.node until stopNode. Callers hold d.mu.
+func (d *Daemon) startNode() {
+	ctx, cancel := context.WithCancel(d.ctx)
+	done := make(chan struct{})
+	n := d.node
+	d.stop, d.done = cancel, done
+	go func() {
+		defer close(done)
+		if err := n.Run(ctx); err != nil {
+			log.Printf("meshd: %v", err)
+		}
+	}()
+}
+
+// stopNode stops and closes d.node. Callers hold d.mu.
+func (d *Daemon) stopNode() {
+	d.stop()
+	<-d.done
+	d.node.Close()
+}
 
 // Run serves until ctx is cancelled.
 func (d *Daemon) Run(ctx context.Context) error {
-	defer d.node.Close()
+	d.ctx = ctx
+	d.mu.Lock()
+	d.startNode()
+	d.mu.Unlock()
+	defer func() {
+		d.opMu.Lock()
+		d.mu.Lock()
+		d.stopNode()
+		d.mu.Unlock()
+		d.opMu.Unlock()
+	}()
 	api := d.apiHandler()
 
 	sock := SocketPath(d.cfg.DataDir)
@@ -87,7 +134,8 @@ func (d *Daemon) Run(ctx context.Context) error {
 		go uiSrv.Serve(uiLn)
 		defer uiSrv.Close()
 	}
-	return d.node.Run(ctx)
+	<-ctx.Done()
+	return nil
 }
 
 // UIURL is the URL that logs the browser into the web UI.
@@ -110,19 +158,28 @@ func httpErr(w http.ResponseWriter, err error, code int) {
 }
 
 // apiHandler is the JSON control API (shared by the socket and the web UI).
+// Requests hold d.mu (read) so the node can't be swapped under them; the
+// event stream and the calls that restart the node don't.
 func (d *Daemon) apiHandler() http.Handler {
-	n := d.node
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /status", func(w http.ResponseWriter, r *http.Request) {
+	d.settingsAPI(mux)
+	h := func(f func(n *node.Node, w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			d.mu.RLock()
+			defer d.mu.RUnlock()
+			f(d.node, w, r)
+		}
+	}
+	mux.HandleFunc("GET /status", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, n.Status())
-	})
-	mux.HandleFunc("GET /lora", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("GET /lora", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, n.LoRa())
-	})
-	mux.HandleFunc("GET /lora/plans", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("GET /lora/plans", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"regions": hostlink.Regions, "presets": hostlink.Presets})
-	})
-	mux.HandleFunc("POST /lora/{name}/config", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("POST /lora/{name}/config", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		var p node.LoRaPatch
 		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
 			httpErr(w, err, 400)
@@ -133,20 +190,20 @@ func (d *Daemon) apiHandler() http.Handler {
 			return
 		}
 		writeJSON(w, map[string]bool{"ok": true})
-	})
-	mux.HandleFunc("GET /id", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("GET /id", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		id := n.Identity()
 		writeJSON(w, map[string]string{"hash": id.Hash().String(), "uri": id.URI(), "ui": d.UIURL()})
-	})
-	mux.HandleFunc("GET /contacts", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("GET /contacts", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		cs, err := n.Contacts()
 		if err != nil {
 			httpErr(w, err, 500)
 			return
 		}
 		writeJSON(w, cs)
-	})
-	mux.HandleFunc("POST /contacts", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("POST /contacts", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		var req struct{ URI, Name string }
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			httpErr(w, err, 400)
@@ -158,8 +215,8 @@ func (d *Daemon) apiHandler() http.Handler {
 			return
 		}
 		writeJSON(w, c)
-	})
-	mux.HandleFunc("POST /contacts/{ref}/rename", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("POST /contacts/{ref}/rename", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		var req struct{ Name string }
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			httpErr(w, err, 400)
@@ -170,15 +227,15 @@ func (d *Daemon) apiHandler() http.Handler {
 			return
 		}
 		writeJSON(w, map[string]bool{"ok": true})
-	})
-	mux.HandleFunc("DELETE /contacts/{ref}", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("DELETE /contacts/{ref}", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		if err := n.RemoveContact(r.PathValue("ref")); err != nil {
 			httpErr(w, err, 400)
 			return
 		}
 		writeJSON(w, map[string]bool{"ok": true})
-	})
-	mux.HandleFunc("POST /send", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("POST /send", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		var req struct{ To, Text string }
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			httpErr(w, err, 400)
@@ -194,8 +251,8 @@ func (d *Daemon) apiHandler() http.Handler {
 			return
 		}
 		writeJSON(w, m)
-	})
-	mux.HandleFunc("GET /messages", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("GET /messages", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 		ms, err := n.Messages(r.URL.Query().Get("with"), limit)
 		if err != nil {
@@ -206,7 +263,7 @@ func (d *Daemon) apiHandler() http.Handler {
 			ms = []node.Message{}
 		}
 		writeJSON(w, ms)
-	})
+	}))
 	// Server-sent events stream.
 	mux.HandleFunc("GET /events", func(w http.ResponseWriter, r *http.Request) {
 		fl, ok := w.(http.Flusher)
@@ -216,7 +273,11 @@ func (d *Daemon) apiHandler() http.Handler {
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
-		ch, cancel := n.Subscribe()
+		// The stream ends when the node restarts; clients reconnect.
+		d.mu.RLock()
+		ch, cancel := d.node.Subscribe()
+		stopped := d.done
+		d.mu.RUnlock()
 		defer cancel()
 		fmt.Fprint(w, ": ok\n\n")
 		fl.Flush()
@@ -225,6 +286,8 @@ func (d *Daemon) apiHandler() http.Handler {
 		for {
 			select {
 			case <-r.Context().Done():
+				return
+			case <-stopped:
 				return
 			case <-ping.C:
 				fmt.Fprint(w, ": ping\n\n")

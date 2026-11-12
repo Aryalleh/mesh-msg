@@ -272,3 +272,20 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   for updates); README has "Install from a release".
 - `v0.1.0-alpha5` tagged at the user's request after main CI was green (`ad5911b`); release run
   43129249502 published APKs + desktop tarballs (with install.sh).
+
+### 2026-11-12 — desktop settings in the web UI
+- `mesh ui` → ⚙ Settings covers everything in `config.toml`: name, delegate, announce
+  interval, relays (direct / tor / proxy), gateway (on/off, mode, quota), bridges, LAN
+  (port, discovery, fixed peers), USB LoRa (enable + port with detected `/dev/ttyACM*`/
+  `ttyUSB*`; live node form for role/region/preset/freq/power/name/announce via
+  `/lora/{name}/config`), and account backup / restore (passphrase, copy, save file,
+  load file).
+- Daemon: node is swappable behind `Daemon.mu`; `apply` validates (`Config.Validate`),
+  stops the node, opens it with the new config, rewrites `config.toml` (`Config.Save`,
+  comments not kept), and falls back to the old settings if the new node can't open. New
+  API: `GET/PUT /config`, `GET /serial-ports`, `POST /identity/export`,
+  `POST /identity/import` (works while meshd runs). Event stream ends on restart; UI
+  reconnects. `Node.Close` now frees the LAN port. Tests: `desktop/daemon/settings_test.go`;
+  checked end to end in headless Chromium (save, bad relay refused, backup, wrong
+  passphrase, restore, phone width).
+- Android: settings already covers relays/gateway/backup; LoRa there waits for LoRa-over-BLE.

@@ -43,6 +43,14 @@ mesh status                      # links, peers, stored packets
 mesh ui                          # open the web UI
 ```
 
+### Settings from the web UI
+
+`mesh ui` → **⚙** has everything that is in `config.toml`: your name, relays (with
+direct / tor / proxy), the gateway (share your internet with the mesh), bridges, LAN
+mesh, the USB LoRa node (port, plus role, region, preset, frequency, power and name of
+the attached node), and account backup / restore. Saving applies the change at once
+(links reconnect for a moment) and rewrites `config.toml` (its comments are not kept).
+
 ### Back up and restore your account
 
 Your account is the secret key in `identity.key`. Back it up sealed with a passphrase:
@@ -52,6 +60,9 @@ mesh identity export -o backup.txt   # asks for a passphrase twice; prints to st
 # on the new machine, with meshd stopped:
 mesh identity import backup.txt      # or paste it: mesh identity import
 ```
+
+Or in the web UI: **⚙ → Account → Back up account / Restore from backup** (works
+while meshd runs).
 
 The backup (`meshkey1:…`, one line) also restores on Android ("I have a backup" when
 setting up the app), and Android backups restore here. Contacts and messages are not

@@ -77,7 +77,7 @@ func exportIdentity(outPath string, stdout io.Writer) error {
 
 func importIdentity(src string, replace bool, stdin io.Reader) error {
 	if meshdRunning() {
-		return errors.New("meshd is running: stop it first, then import")
+		return errors.New("meshd is running: restore from the web UI (mesh ui → ⚙ Settings → Restore from backup), or stop meshd first")
 	}
 	var text string
 	switch src {
