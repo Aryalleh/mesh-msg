@@ -214,4 +214,10 @@
     <string name="media_play">پخش</string>
     <string name="media_pause">توقف</string>
     <string name="media_no_app">برنامه‌ای در این گوشی این فایل را باز نمی‌کند.</string>
+    <string name="media_round">پیام ویدیویی</string>
+    <string name="round_record">ضبط پیام ویدیویی گرد</string>
+    <string name="round_send">فرستادن پیام ویدیویی</string>
+    <string name="round_switch">تعویض دوربین</string>
+    <string name="round_hint">تا ۶۰ ثانیه</string>
+    <string name="round_permission">برای ضبط پیام ویدیویی، اجازهٔ دوربین و میکروفون را بدهید.</string>
 </resources>

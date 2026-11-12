@@ -226,3 +226,12 @@ func DecodeRef(b []byte) (*Ref, error) {
 	}, r.Name)
 	return r, nil
 }
+
+// RoundPrefix starts the name of a round video message (recorded in the app
+// with the front camera, shown as a circle that plays in the chat).
+const RoundPrefix = "round-"
+
+// IsRound tells whether a file is a round video message.
+func IsRound(mime, name string) bool {
+	return strings.HasPrefix(mime, "video/") && strings.HasPrefix(name, RoundPrefix)
+}

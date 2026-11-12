@@ -82,6 +82,9 @@ func New(cfg Config) *Server {
 	return s
 }
 
+// Handle mounts another handler (the admin panel) behind the same rate limit.
+func (s *Server) Handle(pattern string, h http.Handler) { s.mux.Handle(pattern, h) }
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !s.lim.allow(clientIP(r)) {
 		http.Error(w, "rate limited", http.StatusTooManyRequests)

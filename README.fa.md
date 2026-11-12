@@ -1,5 +1,7 @@
 <div dir="rtl">
 
+<p align="center"><img src="assets/logo.png" alt="Mava" width="160"></p>
+
 # Mava (ماوا) — پیام‌رسان آفلاین «شبکهٔ شبکه‌ها»
 
 [English](README.md) | فارسی

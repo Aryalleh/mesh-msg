@@ -64,6 +64,15 @@ object MeshIcons {
         icon("File", "M6,2c-1.1,0 -1.99,0.9 -1.99,2L4,20c0,1.1 0.89,2 1.99,2H18c1.1,0 2,-0.9 2,-2V8l-6,-6H6zM13,9V3.5L18.5,9H13z")
     }
 
+    val SwitchCamera by lazy {
+        icon("SwitchCamera", "M20,4h-3.17L15,2H9L7.17,4H4c-1.1,0 -2,0.9 -2,2v12c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V6c0,-1.1 -0.9,-2 -2,-2zM15,15.5V13H9v2.5L5.5,12 9,8.5V11h6V8.5l3.5,3.5 -3.5,3.5z")
+    }
+
+    /** Round video message. */
+    val RoundVideo by lazy {
+        icon("RoundVideo", "M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,20c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8zM10,8.5v7l5.5,-3.5z")
+    }
+
     val Download by lazy { icon("Download", "M19,9h-4V3H9v6H5l7,7 7,-7zM5,18v2h14v-2H5z") }
 
     val Videocam by lazy {

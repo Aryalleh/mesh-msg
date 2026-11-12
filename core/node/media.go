@@ -58,8 +58,12 @@ type MediaInfo struct {
 	Relays   int `json:"relays,omitempty"`
 }
 
-// Kind is image | audio | video | file, from the type.
+// Kind is image | audio | video | round | file, from the type ("round": a
+// round video message, shown as a circle that plays in the chat).
 func (m MediaInfo) Kind() string {
+	if media.IsRound(m.Mime, m.Name) {
+		return "round"
+	}
 	for _, k := range []string{"image", "audio", "video"} {
 		if strings.HasPrefix(m.Mime, k+"/") {
 			return k
@@ -273,7 +277,11 @@ func (n *Node) onMedia(m *Message, refBytes []byte) {
 	if auto == 0 {
 		auto = 2
 	}
-	wanted := auto > 0 && r.FileSize() <= auto<<20
+	limit := auto << 20
+	if media.IsRound(r.Mime, r.Name) {
+		limit = max(limit, 8<<20) // round video messages play in the chat like voice
+	}
+	wanted := auto > 0 && r.FileSize() <= limit
 	n.db.putMediaRow(mediaRow{id: r.ID.String(), key: r.Key, size: r.Size, mime: r.Mime, name: r.Name, urls: urls, state: state, wanted: wanted})
 	m.Text = r.Caption
 	mi, _ := n.db.mediaInfo(r.ID.String())
@@ -365,8 +373,8 @@ func (n *Node) resolveMedia(ref string) string {
 type mediaWorker struct {
 	kick  chan struct{}
 	retry atomic.Bool // a link came up: retry everything now
-	mu   sync.Mutex
-	busy map[string]bool // downloads in progress
+	mu    sync.Mutex
+	busy  map[string]bool // downloads in progress
 
 	// waiters for neighbours' answers (p2p): link|peer|id → frames
 	wmu     sync.Mutex

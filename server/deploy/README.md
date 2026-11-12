@@ -1,5 +1,39 @@
 # Deploying a relay
 
+## Quick install (Linux amd64/arm64, systemd)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Aryalleh/mesh-msg/main/server/deploy/install.sh | sudo sh
+```
+
+or download `meshmsg-relay-<version>-linux-<arch>.tar.gz` from the releases and run
+`sudo sh install.sh` inside. It asks for the relay's name, region, public URL, media size
+and **your Mava account id** (Mava → Me, or `mesh id`). Running it again updates the binary
+and keeps the config.
+
+## Admin panel
+
+Every relay has a panel at `/admin`. Log in with your account id: the relay sends a
+one-time code (8 digits, 10 minutes, 5 tries) to that account **as a Mava message**, so only
+the person holding the account can log in. The relay must know the account's keys, which it
+learns when the account's Mava app uses this relay. In the panel: traffic counters, media
+storage and files (delete), settings (proof-of-work, keep times, media limits, media upload
+accounts, logs; saved in `data_dir/panel.json`, applied on restart), admins, restart.
+
+The network owner's account `ad2107c8e944bf2a99b3f0cdb2c40903` is an admin of every relay
+built from this code and can't be removed. Other admins:
+
+```bash
+meshmsg-relay -config /etc/meshmsg/relay.json admin list
+meshmsg-relay -config /etc/meshmsg/relay.json admin add <account id>
+meshmsg-relay -config /etc/meshmsg/relay.json admin rm <account id>
+```
+
+Serve the relay over HTTPS (Caddy below): on plain HTTP the code and the session cookie
+cross the network unencrypted.
+
+## By hand
+
 ```bash
 # build (any Linux, no cgo needed)
 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o meshmsg-relay ./server/cmd/relay

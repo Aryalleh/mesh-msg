@@ -143,6 +143,17 @@ The uploader says how many people will download it (`X-Readers`). **The relay de
 file as soon as that many complete downloads happened**, or when its time runs out, whichever
 comes first. Nothing is kept after that.
 
+## 6b. Admin panel
+
+`/admin` on every relay. Login: account id → the relay encrypts an 8-digit code to that
+account (Noise X, like any first message) and puts it in the account's mailbox → the admin
+types it in. Codes last 10 minutes and allow 5 tries; one per account per minute, 30 per
+hour per relay. Sessions: random token in an HttpOnly, SameSite=Strict cookie, 12 h; POSTs
+need the `X-Mava-Panel` header. The owner account (`server/admin.OwnerID`) is always an admin
+and can't be removed; other admins live in `data_dir/panel.json` (panel or `meshmsg-relay
+admin add|rm|list`). Settings changed in the panel go to the same file and override
+relay.json after a restart.
+
 ## 7. Data model
 
 ```

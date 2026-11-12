@@ -181,6 +181,9 @@ func (r *Relay) publicFor(dest packet.Hash) (pub identity.Public, ok bool) {
 	return a.Public, ok
 }
 
+// PublicFor returns dest's public key from its latest announce here.
+func (r *Relay) PublicFor(dest packet.Hash) (identity.Public, bool) { return r.publicFor(dest) }
+
 // HomeRegion returns the region where dest's announces enter the network.
 func (r *Relay) HomeRegion(dest packet.Hash) (string, bool) {
 	_, it, ok := r.announceFor(dest)

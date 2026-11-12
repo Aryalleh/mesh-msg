@@ -23,7 +23,7 @@ func mediaLabel(m node.Message) string {
 	if mi == nil {
 		return ""
 	}
-	kind := map[string]string{"image": "photo", "audio": "voice", "video": "video"}[mi.Kind()]
+	kind := map[string]string{"image": "photo", "audio": "voice", "video": "video", "round": "round video"}[mi.Kind()]
 	if kind == "" {
 		kind = "file"
 	}

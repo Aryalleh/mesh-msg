@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.png" alt="Mava logo" width="160"></p>
+
 # Mava (mesh-msg)
 
 English | [فارسی](README.fa.md)

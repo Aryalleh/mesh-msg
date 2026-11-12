@@ -444,3 +444,28 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 - Relay eu-1 still runs without media (`media_max_mb` unset), so files move phone to phone only until it is turned on and the relay redeployed.
 - Repo description not set (no API token here); the user sets it on GitHub.
 - Next: turn on media on eu-1 when the user agrees; real-device tests of BLE + voice/video.
+
+### 2026-11-12 — relay admin panel, install script, round video messages, logo
+
+- **Admin panel** (`server/admin`, `/admin` on every relay): login = account id → the relay
+  sends an 8-digit code (10 min, 5 tries, 1/min per account, 30/h) as an encrypted Mava
+  message (Noise X from the relay's key, into the account's mailbox; key from its announce)
+  → session cookie (HttpOnly, SameSite=Strict, 12 h), POSTs need `X-Mava-Panel`. Owner
+  `ad2107c8e944bf2a99b3f0cdb2c40903` (`admin.OwnerID`) is admin everywhere, can't be removed.
+  Panel: counters, media storage/files (delete), settings (pow, ttl, media limits/accounts,
+  log) saved to `data_dir/panel.json` (overrides relay.json, applied on restart), admins,
+  restart (clean exit; systemd restarts). CLI: `meshmsg-relay admin list|add|rm`, `-version`.
+- **Install script** `server/deploy/install.sh` (curl | sudo sh, or inside the release
+  tarball): downloads the newest `meshmsg-relay-…-linux-<arch>.tar.gz` (checksum), asks name,
+  region, URL, media size and the admin's account id; keeps an existing config (update mode).
+  CI now publishes relay tarballs.
+- **Round video messages** (Telegram-style): file name prefix `round-` (`media.IsRound`), node
+  kind "round", auto-download up to 8 MB. Android: CameraX recorder (front camera, circle
+  preview, ≤ 60 s, SD at 450 kbit/s, mirrored), circular inline player (TextureView, center
+  crop, progress ring), no bubble. Web UI: ◉ button records with the webcam (WebM), circle
+  playback. CLI shows "round video".
+- **Logo** (`assets/logo.png`, pushed by the user): Android adaptive icon (black background,
+  PNG foreground per density), web UI and panel favicon/header, READMEs.
+- Tests: admin login end to end (code arrives in a real node's Mava, wrong/reused code
+  refused, owner not removable, settings validated, restart); CLI checked by hand; web UI
+  round video recorded with Chromium's fake camera and played as a circle on the receiver.

@@ -123,6 +123,11 @@ jobs:
             done
             cp desktop/README.md desktop/deploy/meshd.service desktop/deploy/install.sh "$d/"
             tar czf "dist/$d.tar.gz" "$d"
+            r=meshmsg-relay-$ver-linux-$arch
+            mkdir -p "$r"
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$ver" -o "$r/meshmsg-relay" ./server/cmd/relay
+            cp server/deploy/install.sh server/deploy/meshmsg-relay.service server/deploy/relay.example.json server/deploy/README.md "$r/"
+            tar czf "dist/$r.tar.gz" "$r"
           done
           ls -la dist
 
@@ -149,12 +154,14 @@ jobs:
           files: dist/*
           prerelease: ${{ contains(github.ref_name, '-') }}
           body: |
-            mesh-msg ${{ needs.version.outputs.name }} (Android versionCode ${{ needs.version.outputs.code }}).
+            Mava ${{ needs.version.outputs.name }} (Android versionCode ${{ needs.version.outputs.code }}).
 
             **Android** — `arm64-v8a` for almost every phone, `universal` if unsure. Installs as an
             update over earlier test builds (same public test key; not a release key).
             **Desktop** — `meshmsg-desktop-…-linux-amd64.tar.gz` (or arm64): `meshd` + `mesh`,
             see the README inside.
+            **Relay server** — `meshmsg-relay-…-linux-amd64.tar.gz`: run `sudo sh install.sh` inside
+            (asks for your Mava account id for the admin panel at `/admin`).
 
             Default relay: `eu-1` (http://87.106.5.192). Account backup: Settings → Back up
             account on Android, `mesh identity export` on desktop.

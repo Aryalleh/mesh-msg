@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,6 +49,13 @@ func (c MediaConfig) allowed(h string) bool {
 		}
 	}
 	return false
+}
+
+func (c MediaConfig) storeBytes() int64 {
+	if c.StoreMB <= 0 {
+		return 2048 << 20
+	}
+	return int64(c.StoreMB) << 20
 }
 
 func (c MediaConfig) maxHours() int {
@@ -200,10 +208,7 @@ func (s *Server) mediaPut(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	capB := int64(s.cfg.Media.StoreMB) << 20
-	if capB <= 0 {
-		capB = 2048 << 20
-	}
+	capB := s.cfg.Media.storeBytes()
 	if r.ContentLength > 0 && m.used+r.ContentLength > capB {
 		m.mu.Unlock()
 		http.Error(w, "relay media store is full", http.StatusInsufficientStorage)
@@ -305,4 +310,43 @@ func (s *Server) mediaGet(w http.ResponseWriter, r *http.Request) {
 			m.save(id, mm)
 		}
 	}
+}
+
+// MediaFile describes a stored file, for the admin panel.
+type MediaFile struct {
+	ID      string    `json:"id"`
+	Size    int64     `json:"size"`
+	Readers int       `json:"readers"`
+	Served  int       `json:"served"`
+	Expires time.Time `json:"expires"`
+}
+
+// MediaFiles lists stored files, oldest expiry first; on reports media is on.
+func (s *Server) MediaFiles() (files []MediaFile, used, capBytes int64, on bool) {
+	m := s.media
+	if m == nil {
+		return nil, 0, 0, false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, mm := range m.meta {
+		files = append(files, MediaFile{id, mm.Size, mm.Readers, mm.Served, mm.Expires})
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].Expires.Before(files[j].Expires) })
+	return files, m.used, s.cfg.Media.storeBytes(), true
+}
+
+// DeleteMedia removes a stored file now.
+func (s *Server) DeleteMedia(id string) bool {
+	m := s.media
+	if m == nil {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.meta[id]; !ok {
+		return false
+	}
+	m.remove(id)
+	return true
 }

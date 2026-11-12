@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mava relay admin</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
+<style>
+  :root { --bg:#f5f6f8; --panel:#fff; --ink:#1b1f24; --muted:#5f6b7a; --line:#dde2e8; --accent:#0f766e; --accent-ink:#fff; --warn:#b42318; --warn-bg:#fdecea; --ok:#127a3d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1317; --panel:#171c21; --ink:#e6eaee; --muted:#93a0ad; --line:#2a323a; --accent:#2dd4bf; --accent-ink:#04211e; --warn:#ff8a7a; --warn-bg:#3a1714; --ok:#4ade80; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, -apple-system, "Segoe UI", Vazirmatn, Tahoma, sans-serif; }
+  header { display:flex; align-items:center; gap:12px; padding:14px 20px; background:var(--panel); border-bottom:1px solid var(--line); }
+  header h1 { font-size:17px; margin:0; flex:1; }
+  header .who { color:var(--muted); font-size:13px; font-family:ui-monospace, monospace; }
+  main { max-width:960px; margin:0 auto; padding:20px 16px 60px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:16px; }
+  h2 { font-size:15px; margin:0 0 12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+  .stat { border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .stat b { display:block; font-size:20px; font-variant-numeric:tabular-nums; }
+  .stat span { color:var(--muted); font-size:12px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input, textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; }
+  textarea { min-height:70px; font-family:ui-monospace, monospace; font-size:13px; }
+  .row { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:0 14px; }
+  button { padding:9px 16px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); font:inherit; font-weight:600; cursor:pointer; min-height:40px; }
+  button.ghost { background:transparent; color:var(--accent); }
+  button.danger { background:transparent; color:var(--warn); border-color:var(--warn); }
+  button:disabled { opacity:.5; cursor:default; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+  .msg { font-size:14px; color:var(--muted); }
+  .err { color:var(--warn); }
+  .banner { background:var(--warn-bg); color:var(--warn); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:14px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:start; padding:7px 6px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  td.mono, .mono { font-family:ui-monospace, monospace; overflow-wrap:anywhere; }
+  .tag { font-size:11px; border:1px solid var(--line); border-radius:999px; padding:1px 8px; color:var(--muted); margin-inline-start:6px; }
+  #login { max-width:420px; margin:40px auto; }
+  .hint { font-size:13px; color:var(--muted); margin:6px 0 0; }
+  .scroll { overflow-x:auto; }
+</style>
+</head>
+<body>
+<header>
+  <img src="data:image/png;base64,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" alt="" width="28" height="28" style="border-radius:7px">
+  <h1 id="title">Mava relay admin</h1>
+  <span class="who" id="who"></span>
+  <button class="ghost" id="btnLogout" hidden>Log out</button>
+</header>
+<main>
+  <section id="login" hidden>
+    <h2>Log in</h2>
+    <p class="hint">Enter your Mava account id. The relay sends a one-time code to that account as a Mava message.</p>
+    <label for="loginId">Account id</label>
+    <input id="loginId" class="mono" placeholder="32 hex characters" autocomplete="username" spellcheck="false">
+    <div class="actions"><button id="btnCode">Send code</button></div>
+    <div id="codeStep" hidden>
+      <label for="loginCode">Code from Mava</label>
+      <input id="loginCode" inputmode="numeric" autocomplete="one-time-code" maxlength="12">
+      <div class="actions"><button id="btnLogin">Log in</button></div>
+    </div>
+    <p class="msg" id="loginMsg" role="status"></p>
+  </section>
+
+  <div id="dash" hidden>
+    <div class="banner" id="insecure" hidden>This page is not served over HTTPS: the login code and session can be read on the network. Put the relay behind Caddy (server/deploy/Caddyfile) with a domain.</div>
+
+    <section>
+      <h2 id="relayName">Relay</h2>
+      <div class="grid" id="stats"></div>
+      <p class="hint mono" id="relayKey"></p>
+    </section>
+
+    <section>
+      <h2>Settings</h2>
+      <p class="hint">Saved settings override relay.json and apply after a restart. Empty fields keep relay.json's value.</p>
+      <div class="row">
+        <div><label for="s_pow_bits">Proof-of-work bits (0–28)</label><input id="s_pow_bits" type="number" min="0" max="28"></div>
+        <div><label for="s_ttl_hours">Message keep time, hours</label><input id="s_ttl_hours" type="number" min="1"></div>
+      </div>
+      <h2 style="margin-top:18px">Media</h2>
+      <div class="row">
+        <div><label for="s_media_max_mb">Largest file, MB (0 = media off)</label><input id="s_media_max_mb" type="number" min="0" max="64"></div>
+        <div><label for="s_media_store_mb">Total storage, MB</label><input id="s_media_store_mb" type="number" min="16"></div>
+        <div><label for="s_media_max_hours">Keep small files, hours</label><input id="s_media_max_hours" type="number" min="1" max="72"></div>
+        <div><label for="s_media_min_hours">Keep big files at least, hours</label><input id="s_media_min_hours" type="number" min="1" max="72"></div>
+      </div>
+      <label for="s_media_accounts">Accounts allowed to upload media (one id per line; empty = anyone)</label>
+      <textarea id="s_media_accounts" spellcheck="false"></textarea>
+      <label><input type="checkbox" id="s_log" style="width:auto"> Request logs (off is safer)</label>
+      <div class="actions">
+        <button id="btnSave">Save</button>
+        <button class="ghost" id="btnRestart">Restart relay</button>
+        <span class="msg" id="saveMsg" role="status"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Admins</h2>
+      <p class="hint">Admins log in with a code sent to their Mava account. The owner can't be removed. Also: <span class="mono">meshmsg-relay admin add|rm|list</span>.</p>
+      <table><tbody id="admins"></tbody></table>
+      <div class="actions">
+        <input id="newAdmin" class="mono" placeholder="account id" style="flex:1; min-width:220px" spellcheck="false">
+        <button id="btnAddAdmin">Add admin</button>
+      </div>
+      <p class="msg" id="adminMsg" role="status"></p>
+    </section>
+
+    <section>
+      <h2>Stored media</h2>
+      <p class="hint" id="mediaSummary"></p>
+      <div class="scroll"><table>
+        <thead><tr><th>File</th><th>Size</th><th>Downloads</th><th>Deleted at the latest</th><th></th></tr></thead>
+        <tbody id="media"></tbody>
+      </table></div>
+    </section>
+  </div>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+async function api(path, body) {
+  const opts = body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json", "X-Mava-Panel": "1"}, body: JSON.stringify(body)};
+  const r = await fetch("/admin/api/" + path, Object.assign({credentials: "same-origin"}, opts));
+  const j = r.status === 204 ? {} : await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || r.statusText); e.status = r.status; throw e; }
+  return j;
+}
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+const size = (n) => n >= 1 << 30 ? (n / (1 << 30)).toFixed(1) + " GB" : n >= 1 << 20 ? (n / (1 << 20)).toFixed(1) + " MB" : n >= 1024 ? Math.round(n / 1024) + " KB" : n + " B";
+const dur = (s) => { const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return (d ? d + "d " : "") + (d || h ? h + "h " : "") + m + "m"; };
+function say(id, text, err) { $(id).textContent = text; $(id).classList.toggle("err", !!err); }
+
+let lastID = "";
+try { lastID = localStorage.getItem("mavaAdminId") || ""; } catch (e) {}
+$("loginId").value = lastID;
+
+$("btnCode").onclick = async () => {
+  $("btnCode").disabled = true;
+  try {
+    const r = await api("code", {id: $("loginId").value});
+    try { localStorage.setItem("mavaAdminId", $("loginId").value.trim()); } catch (e) {}
+    say("loginMsg", r.info); $("codeStep").hidden = false; $("loginCode").focus();
+  } catch (e) { say("loginMsg", e.message, true); }
+  setTimeout(() => $("btnCode").disabled = false, 3000);
+};
+$("btnLogin").onclick = async () => {
+  try { await api("login", {id: $("loginId").value, code: $("loginCode").value}); $("loginCode").value = ""; load(); }
+  catch (e) { say("loginMsg", e.message, true); }
+};
+$("loginCode").onkeydown = (e) => { if (e.key === "Enter") $("btnLogin").click(); };
+$("loginId").onkeydown = (e) => { if (e.key === "Enter") $("btnCode").click(); };
+$("btnLogout").onclick = async () => { await api("logout", {}).catch(() => {}); load(); };
+
+const fields = ["pow_bits", "ttl_hours", "media_max_mb", "media_store_mb", "media_max_hours", "media_min_hours"];
+let state = null;
+
+async function load() {
+  try { state = await api("state"); }
+  catch (e) {
+    $("login").hidden = false; $("dash").hidden = true; $("btnLogout").hidden = true; $("who").textContent = "";
+    if (e.status !== 401) say("loginMsg", e.message, true);
+    return;
+  }
+  $("login").hidden = true; $("dash").hidden = false; $("btnLogout").hidden = false;
+  $("who").textContent = state.you.slice(0, 12) + (state.you === state.owner ? " · owner" : "");
+  const i = state.info;
+  document.title = "Mava relay " + i.Name + " · admin";
+  $("title").textContent = "Mava relay admin · " + i.Name;
+  $("insecure").hidden = state.secure;
+  $("relayName").textContent = `${i.Name} · region ${i.Region} · v${i.Version}`;
+  $("relayKey").textContent = "Relay key " + i.PubKey.slice(0, 32) + "…  ·  peers: " + (i.Peers.length ? i.Peers.join(", ") : "none");
+  const m = state.media, st = state.stats;
+  const stat = (v, l) => el("div", {className: "stat"}, el("b", {textContent: v}), el("span", {textContent: l}));
+  $("stats").replaceChildren(
+    stat(dur(state.uptime), "up"),
+    stat(st.Accepted, "packets accepted"),
+    stat(st.Duplicate, "duplicates"),
+    stat(st.Rejected, "rejected"),
+    stat(st.Purged, "purged by receipts"),
+    stat(m.on ? m.count : "off", "media files"),
+    stat(m.on ? size(m.used) + " / " + size(m.cap) : "—", "media storage"));
+  // Settings: show saved overrides, with the value in use as placeholder.
+  const cur = state.current, saved = state.saved;
+  for (const f of fields) { $("s_" + f).value = saved[f] ?? ""; $("s_" + f).placeholder = cur[f] ?? ""; }
+  $("s_media_accounts").value = (saved.media_accounts ?? cur.media_accounts ?? []).join("\n");
+  $("s_log").checked = saved.log ?? cur.log ?? false;
+  renderAdmins(state.admins);
+  $("mediaSummary").textContent = m.on
+    ? `${m.count} files, ${size(m.used)} of ${size(m.cap)}. Each is deleted when all its readers downloaded it, or at the time shown.`
+    : "Media is off on this relay (largest file = 0).";
+  $("media").replaceChildren(...(m.files || []).map((f) => el("tr", {},
+    el("td", {className: "mono", textContent: f.id}),
+    el("td", {textContent: size(f.size)}),
+    el("td", {textContent: f.served + " / " + f.readers}),
+    el("td", {textContent: new Date(f.expires).toLocaleString()}),
+    el("td", {}, el("button", {className: "danger", textContent: "Delete", onclick: async () => {
+      try { await api("media/delete", {id: f.id}); load(); } catch (e) { alert(e.message); }
+    }})))));
+}
+
+function renderAdmins(list) {
+  $("admins").replaceChildren(...list.map((id) => el("tr", {},
+    el("td", {className: "mono"}, id,
+      ...(id === state.owner ? [el("span", {className: "tag", textContent: "owner"})] : []),
+      ...(id === state.you ? [el("span", {className: "tag", textContent: "you"})] : [])),
+    el("td", {style: "text-align:end"}, id === state.owner ? "" : el("button", {className: "danger", textContent: "Remove", onclick: async () => {
+      if (!confirm("Remove admin " + id + "?")) return;
+      try { renderAdmins((await api("admins", {remove: id})).admins); say("adminMsg", ""); } catch (e) { say("adminMsg", e.message, true); }
+    }})))));
+}
+
+$("btnAddAdmin").onclick = async () => {
+  try { renderAdmins((await api("admins", {add: $("newAdmin").value})).admins); $("newAdmin").value = ""; say("adminMsg", "Added."); }
+  catch (e) { say("adminMsg", e.message, true); }
+};
+$("btnSave").onclick = async () => {
+  const body = {};
+  for (const f of fields) { const v = $("s_" + f).value.trim(); if (v !== "") body[f] = Number(v); }
+  body.media_accounts = $("s_media_accounts").value.split(/[\s,]+/).filter(Boolean);
+  body.log = $("s_log").checked;
+  try { say("saveMsg", (await api("settings", body)).info); load(); } catch (e) { say("saveMsg", e.message, true); }
+};
+$("btnRestart").onclick = async () => {
+  if (!confirm("Restart the relay now? Clients reconnect by themselves.")) return;
+  try { say("saveMsg", (await api("restart", {})).info); setTimeout(load, 6000); } catch (e) { say("saveMsg", e.message, true); }
+};
+load();
+</script>
+</body>
+</html>

@@ -222,4 +222,10 @@
     <string name="media_play">Play</string>
     <string name="media_pause">Pause</string>
     <string name="media_no_app">No app on this phone opens this file.</string>
+    <string name="media_round">Video message</string>
+    <string name="round_record">Record a round video message</string>
+    <string name="round_send">Send video message</string>
+    <string name="round_switch">Switch camera</string>
+    <string name="round_hint">Up to 60 seconds</string>
+    <string name="round_permission">Allow the camera and microphone to record video messages.</string>
 </resources>

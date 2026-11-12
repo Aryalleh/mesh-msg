@@ -321,12 +321,14 @@ private fun Bubble(m: Message, showSender: Boolean = false, media: MediaActions 
     val meta = fg.copy(alpha = 0.72f)
     // The corner next to the sender's edge is the tail.
     val shape = if (m.outgoing) RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp) else RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp)
+    // A round video message stands alone, without a bubble (once it is here).
+    val bare = m.media?.kind == org.meshmsg.app.data.MediaKind.Round && m.media.state == org.meshmsg.app.data.MediaState.Ready && m.text.isEmpty()
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         Column(
             Modifier
                 .align(if (m.outgoing) Alignment.CenterEnd else Alignment.CenterStart)
                 .widthIn(max = maxWidth * 0.82f)
-                .background(bg, shape)
+                .background(if (bare) Color.Transparent else bg, shape)
                 .padding(horizontal = Space.m, vertical = Space.s),
         ) {
             if (showSender && !m.outgoing && m.fromName.isNotBlank()) {
@@ -377,6 +379,27 @@ private fun Composer(
     var recorder by remember { mutableStateOf<VoiceRecorder?>(null) }
     var videoFile by rememberSaveable { mutableStateOf<String?>(null) }
     val micDenied = stringResource(R.string.mic_denied)
+    val camDenied = stringResource(R.string.round_permission)
+    var roundOpen by rememberSaveable { mutableStateOf(false) }
+    var afterCamera by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val askCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
+        val go = afterCamera
+        afterCamera = null
+        if (res[Manifest.permission.CAMERA] == true) go?.invoke() else media?.error(camDenied)
+    }
+    fun withCamera(perms: Array<String>, go: () -> Unit) {
+        if (perms.all { ContextCompat.checkSelfPermission(ctx, it) == PackageManager.PERMISSION_GRANTED }) go()
+        else { afterCamera = go; askCamera.launch(perms) }
+    }
+    if (roundOpen && media != null) {
+        RoundVideoRecorder(
+            onDone = { f ->
+                roundOpen = false
+                if (f != null) media.sendFile(f, RoundVideo.MIME, f.name, "")
+            },
+            onError = { media.error(it) },
+        )
+    }
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null && media != null) { media.pick(uri, draft.trim()); onMediaSent() }
     }
@@ -455,10 +478,13 @@ private fun Composer(
                             })
                             DropdownMenuItem(text = { Text(stringResource(R.string.attach_video)) }, onClick = {
                                 attachMenu = false
-                                val f = MediaFiles.newOutgoing(ctx, "video", "mp4")
-                                videoFile = f.path
-                                runCatching { recordVideo.launch(MediaFiles.uriFor(ctx, f)) }
-                                    .onFailure { videoFile = null; media.error(ctx.getString(R.string.media_no_app)) }
+                                // The app declares CAMERA, so the camera app needs it granted too.
+                                withCamera(arrayOf(Manifest.permission.CAMERA)) {
+                                    val f = MediaFiles.newOutgoing(ctx, "video", "mp4")
+                                    videoFile = f.path
+                                    runCatching { recordVideo.launch(MediaFiles.uriFor(ctx, f)) }
+                                        .onFailure { videoFile = null; media.error(ctx.getString(R.string.media_no_app)) }
+                                }
                             })
                             DropdownMenuItem(text = { Text(stringResource(R.string.attach_file)) }, onClick = {
                                 attachMenu = false
@@ -486,6 +512,10 @@ private fun Composer(
                     ),
                 )
                 if (media != null && draft.isBlank()) {
+                    IconButton(
+                        onClick = { withCamera(RoundVideo.permissions) { roundOpen = true } },
+                        modifier = Modifier.size(48.dp),
+                    ) { Icon(MeshIcons.RoundVideo, stringResource(R.string.round_record)) }
                     FilledIconButton(onClick = {
                         if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startRecording()
                         else askMic.launch(Manifest.permission.RECORD_AUDIO)

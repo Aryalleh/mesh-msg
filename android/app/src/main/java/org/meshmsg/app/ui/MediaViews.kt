@@ -88,6 +88,7 @@ fun mediaLabel(m: Media): String = stringResource(
         MediaKind.Image -> R.string.media_photo
         MediaKind.Audio -> R.string.media_voice
         MediaKind.Video -> R.string.media_video
+        MediaKind.Round -> R.string.media_round
         MediaKind.File -> R.string.media_file
     },
 )
@@ -122,6 +123,7 @@ fun MediaContent(m: Media, outgoing: Boolean, fg: Color, actions: MediaActions) 
                 }
             }
             p != null && m.kind == MediaKind.Audio -> VoicePlayer(p, fg)
+            p != null && m.kind == MediaKind.Round -> RoundVideoPlayer(p)
             else -> FileRow(m, fg, p, actions)
         }
         if (outgoing && m.relays > 0 && m.uploaded < m.relays) {
@@ -143,6 +145,7 @@ private fun FileRow(m: Media, fg: Color, path: String?, actions: MediaActions) {
             Icon(
                 when (m.kind) {
                     MediaKind.Video -> MeshIcons.Videocam
+                    MediaKind.Round -> MeshIcons.RoundVideo
                     MediaKind.Audio -> MeshIcons.Mic
                     else -> MeshIcons.FileIcon
                 },
@@ -158,7 +161,7 @@ private fun FileRow(m: Media, fg: Color, path: String?, actions: MediaActions) {
                     color = fg.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall,
                 )
             }
-            if (m.kind == MediaKind.Video && path != null) Icon(Icons.Filled.PlayArrow, stringResource(R.string.media_play), tint = fg)
+            if ((m.kind == MediaKind.Video || m.kind == MediaKind.Round) && path != null) Icon(Icons.Filled.PlayArrow, stringResource(R.string.media_play), tint = fg)
         }
         when (m.state) {
             MediaState.Remote -> TextButton(onClick = { actions.fetch(m.id) }) {

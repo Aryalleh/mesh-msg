@@ -70,7 +70,7 @@ data class Message(
     val timeMs: Long get() = if (outgoing) sentMs else receivedMs
 }
 
-enum class MediaKind { Image, Audio, Video, File }
+enum class MediaKind { Image, Audio, Video, Round, File }
 
 /** ready: on this phone; remote: tap to download; downloading; missing: gone everywhere. */
 enum class MediaState { Ready, Remote, Downloading, Missing }
@@ -91,7 +91,7 @@ data class Media(
     val kind: MediaKind get() = when (mime.substringBefore('/')) {
         "image" -> MediaKind.Image
         "audio" -> MediaKind.Audio
-        "video" -> MediaKind.Video
+        "video" -> if (name.startsWith("round-")) MediaKind.Round else MediaKind.Video
         else -> MediaKind.File
     }
     val progress: Float get() = if (total > 0) (have.toFloat() / total).coerceIn(0f, 1f) else 0f

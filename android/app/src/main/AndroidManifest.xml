@@ -21,6 +21,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Voice messages. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Round video messages, recorded in the app. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />

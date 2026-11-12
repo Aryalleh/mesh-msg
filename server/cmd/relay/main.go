@@ -1,12 +1,16 @@
-// Command relay runs a mesh-msg relay server.
+// Command relay runs a Mava (mesh-msg) relay server.
 //
 //	relay -config /etc/meshmsg/relay.json
+//	relay -config /etc/meshmsg/relay.json admin list|add <id>|rm <id>
+//
+// The admin panel is at /admin (log in with a code sent to your Mava account).
 //
 // See server/deploy/ for an example config, systemd unit, Dockerfile,
 // Caddyfile (TLS) and torrc (onion service).
 package main
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -19,6 +23,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -27,6 +33,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/relayclient"
 	"github.com/Aryalleh/mesh-msg/core/store"
 	"github.com/Aryalleh/mesh-msg/core/wire"
+	"github.com/Aryalleh/mesh-msg/server/admin"
 	"github.com/Aryalleh/mesh-msg/server/api"
 	"github.com/Aryalleh/mesh-msg/server/relay"
 )
@@ -66,10 +73,17 @@ type Peer struct {
 	EverySecs int    `json:"every_secs"` // default 15
 }
 
+var version = "dev"
+
 func main() {
 	cfgPath := flag.String("config", "relay.json", "config file")
 	genToken := flag.Bool("gen-token", false, "print a random sync token and exit")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 	if *genToken {
 		var b [24]byte
 		rand.Read(b[:])
@@ -80,9 +94,97 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if flag.Arg(0) == "admin" {
+		if err := adminCmd(cfg, flag.Args()[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(cfg); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// adminCmd lists or changes the panel's admins (data_dir/panel.json).
+func adminCmd(cfg *Config, args []string) error {
+	const usage = "usage: meshmsg-relay -config FILE admin list | add <account id> | rm <account id>"
+	if len(args) == 0 {
+		return errors.New(usage)
+	}
+	if err := os.MkdirAll(cfg.DataDir, 0o700); err != nil {
+		return err
+	}
+	s, err := admin.LoadSettings(cfg.DataDir)
+	if err != nil {
+		return err
+	}
+	switch args[0] {
+	case "list", "ls":
+	case "add", "rm", "remove":
+		if len(args) < 2 {
+			return errors.New(usage)
+		}
+		id, err := admin.ParseID(args[1])
+		if err != nil {
+			return err
+		}
+		if args[0] == "add" {
+			s.Admins = append(s.Admins, id)
+		} else {
+			if id == admin.OwnerID {
+				return errors.New("the owner account can't be removed")
+			}
+			s.Admins = slices.DeleteFunc(s.Admins, func(a string) bool { return strings.EqualFold(a, id) })
+		}
+		if err := admin.SaveSettings(cfg.DataDir, s); err != nil {
+			return err
+		}
+		matchOwner(cfg.DataDir)
+	default:
+		return errors.New(usage)
+	}
+	fmt.Println(admin.OwnerID + "  (owner)")
+	for _, a := range admin.CleanAdmins(s.Admins) {
+		fmt.Println(a)
+	}
+	return nil
+}
+
+// matchOwner gives panel.json to the data dir's owner (the CLI runs as root,
+// the service as its own user).
+func matchOwner(dataDir string) {
+	if st, err := os.Stat(dataDir); err == nil {
+		if sys, ok := st.Sys().(*syscall.Stat_t); ok {
+			os.Chown(admin.SettingsPath(dataDir), int(sys.Uid), int(sys.Gid))
+		}
+	}
+}
+
+// applySettings lays the panel's saved settings over relay.json.
+func applySettings(cfg *Config) error {
+	s, err := admin.LoadSettings(cfg.DataDir)
+	if err != nil {
+		return fmt.Errorf("%s: %w", admin.SettingsPath(cfg.DataDir), err)
+	}
+	set := func(dst *int, v *int) {
+		if v != nil {
+			*dst = *v
+		}
+	}
+	set(&cfg.PowBits, s.PowBits)
+	set(&cfg.TTLHours, s.TTLHours)
+	set(&cfg.MediaMaxMB, s.MediaMaxMB)
+	set(&cfg.MediaStoreMB, s.MediaStoreMB)
+	set(&cfg.MediaMaxHours, s.MediaMaxHours)
+	set(&cfg.MediaMinHours, s.MediaMinHours)
+	if s.MediaAccounts != nil {
+		cfg.MediaAccounts = s.MediaAccounts
+	}
+	if s.Log != nil {
+		cfg.Log = *s.Log
+	}
+	return nil
 }
 
 func loadConfig(path string) (*Config, error) {
@@ -119,6 +221,9 @@ func run(cfg *Config) error {
 	if err := os.MkdirAll(cfg.DataDir, 0o700); err != nil {
 		return err
 	}
+	if err := applySettings(cfg); err != nil {
+		return err
+	}
 	key, err := loadOrCreateKey(filepath.Join(cfg.DataDir, "relay.key"))
 	if err != nil {
 		return err
@@ -148,6 +253,28 @@ func run(cfg *Config) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	var peers []string
+	for _, p := range cfg.Peers {
+		peers = append(peers, p.Name)
+	}
+	admin.New(admin.Config{
+		Info: admin.Info{
+			Name: cfg.Name, Region: cfg.Region, Version: version, PubKey: hex.EncodeToString(key.Bytes()),
+			Listen: cfg.Listen, Peers: peers, Started: time.Now(),
+		},
+		DataDir: cfg.DataDir, Identity: key, Relay: rl, API: h,
+		Effective: func() map[string]any {
+			return map[string]any{
+				"pow_bits": cfg.PowBits, "ttl_hours": cfg.TTLHours, "log": cfg.Log,
+				"media_max_mb": cfg.MediaMaxMB, "media_store_mb": cmp.Or(cfg.MediaStoreMB, 2048),
+				"media_max_hours": cmp.Or(cfg.MediaMaxHours, 8), "media_min_hours": cmp.Or(cfg.MediaMinHours, 1),
+				"media_accounts": cfg.MediaAccounts,
+			}
+		},
+		// Exit cleanly; systemd (Restart=always) or Docker starts it again.
+		Restart: stop,
+	}).Routes(h.Handle)
 
 	var wg sync.WaitGroup
 	for _, p := range cfg.Peers {
@@ -179,7 +306,7 @@ func run(cfg *Config) error {
 		defer cancel()
 		srv.Shutdown(sctx)
 	}()
-	log.Printf("relay %s (region %s) listening on %s, pubkey %s", cfg.Name, cfg.Region, cfg.Listen, hex.EncodeToString(key.Bytes())[:16])
+	log.Printf("relay %s %s (region %s) listening on %s, pubkey %s, admin panel at /admin", cfg.Name, version, cfg.Region, cfg.Listen, hex.EncodeToString(key.Bytes())[:16])
 	if cfg.TLSCert != "" {
 		err = srv.ListenAndServeTLS(cfg.TLSCert, cfg.TLSKey)
 	} else {
