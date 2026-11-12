@@ -45,7 +45,7 @@ where the old one is blocked. Each relay is checked before use.
 - **End-to-end encryption above every transport** — relays, LoRa nodes and servers carry only ciphertext. No custom crypto.
 - **Transport-agnostic routing** — each tier is just an interface; pick the cheapest one that works.
 - **Survives server loss** — Tier 2 is optional; Tiers 0 and 1 work without any internet.
-- **Photos, voice and video messages, files** — sent apart from messages so chats never lag: phone to phone over Bluetooth/Wi-Fi, or through relays that allow media (they delete each file once its readers have it, after 8 h at most). Never over LoRa.
+- **Photos, voice and video messages, files** — sent apart from messages so chats never lag: phone to phone over Bluetooth/Wi-Fi/direct internet links (both online). Files marked *important* also go through a relay and reach someone who is offline, a few per day per user. Never over LoRa.
 
 ## Threat model highlights
 

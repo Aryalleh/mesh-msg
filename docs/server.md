@@ -143,6 +143,29 @@ The uploader says how many people will download it (`X-Readers`). **The relay de
 file as soon as that many complete downloads happened**, or when its time runs out, whichever
 comes first. Nothing is kept after that.
 
+### Important media only, with a daily allowance (requirement, not implemented yet)
+
+Relays carry only **important** media (protocol.md §6b); normal media moves directly
+between devices and never touches a relay. Every upload is signed (`X-Account`,
+`X-Signature`, as with `media_accounts`), so the relay can count per account:
+
+| Config | Default | |
+|---|---|---|
+| `media_important_per_day` | 5 | files one account may upload per UTC day; one file to a group counts once |
+| `media_important_hours` | 168 (7 days, as text) | how long an important file waits for its readers |
+
+- Over the allowance → `429` with the time it resets; `GET /v1/media/quota` (signed) returns
+  used / left so the app can show it before sending.
+- An accepted file is **never evicted** before its readers have it or its time runs out.
+  When storage would not allow that, the relay refuses the upload (`507`) and the client
+  tries another relay; it never drops a file it accepted.
+- `media_max_hours` / `media_min_hours` no longer apply to relay media.
+
+Open: identities are free, so a new account gets a new allowance, and each relay counts on
+its own (a client could use the allowance on several relays). Options: proof-of-work per
+upload that grows with use, accounts vouched for by contacts, or syncing counters between
+relays.
+
 ## 6b. Admin panel
 
 `/admin` on every relay. Login: account id → the relay encrypts an 8-digit code to that

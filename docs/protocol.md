@@ -239,6 +239,20 @@ ref     = id(16) | key(32) | blob_size(4) | mime_len(1) | mime | name_len(1) | n
 Content type 6 (to a contact) or group op 4 (to a private group) carries the ref; public
 chats take no files. The URLs are relays (at most 4) the sender uploaded the blob to.
 
+**Two classes** (requirement, not implemented yet; today every file may go to a relay):
+
+| | Normal | Important |
+|---|---|---|
+| Chosen by | default | the sender marks the file ("deliver even if offline") |
+| Paths | direct only: direct IP link (connectivity.md), LAN, Wi-Fi Direct, Bluetooth | relay, plus every direct path |
+| Receiver offline | waits: the sender keeps the blob and serves it when a direct path appears | delivered: the relay holds it until downloaded |
+| Ref URLs | none (`n = 0`) | the relays it was uploaded to |
+| Limit | none | a daily allowance per account, enforced by the relay (server.md §6a) |
+
+When the allowance is used up the app says so and the file is sent as normal media. The
+message with the ref itself is text and goes the usual way (relays included), so the
+receiver always learns a file is waiting.
+
 **Getting the blob**, in this order: a neighbour over Wi-Fi/LAN, a relay from the ref, then
 a Bluetooth neighbour. Every node keeps the blobs it sent or fetched and serves them to its
 neighbours. Between neighbours, link frames with version bits `11` (older nodes drop them):

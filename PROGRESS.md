@@ -493,3 +493,12 @@ not implemented; no TURN, relays never carry a direct session).
   E2E message over any working path, authenticated hole-punch checks, path order, re-check on
   network change, "no direct path" when checks fail, required netns test scenarios.
 - architecture.md §5b, decisions.md D12. No code changed.
+
+### 2026-11-12 — Requirement: two media classes (docs only)
+
+- Normal media: direct paths only (direct IP link, LAN, Wi-Fi Direct, Bluetooth), both sides
+  online. Important media: sender marks it, goes through relays, reaches offline receivers,
+  allowance per account per day (`media_important_per_day` = 5, kept 7 days, never evicted
+  once accepted, `GET /v1/media/quota`). protocol.md §6b, server.md §6a, connectivity.md §2,
+  README, decisions D13. Open: sybil accounts / per-relay counting. Not implemented; today
+  any file may go to a relay. Previous docs commit `53891c9`.

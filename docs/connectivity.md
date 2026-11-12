@@ -41,6 +41,12 @@ public, IPv6 ULA/global): only a successful, authenticated check proves a path.
 - **No TURN, no relaying of a direct session.** No component forwards bytes of a direct
   session on behalf of the two peers. The existing store-and-forward message path stays as
   it is; it is not a fallback for a direct session and is not used to carry one.
+- **Media has two classes** (protocol.md §6b, server.md §6a). *Normal* media moves only over
+  direct paths (this document, LAN, Wi-Fi Direct, Bluetooth), so both devices must be online
+  at the same time. *Important* media is the one exception: the sender marks it, it goes
+  through a relay, reaches the receiver even if they are offline, and each account has a
+  small daily allowance of it. This is store-and-forward of a finished file, not a relay for
+  a live session.
 
 ## 3. Candidates
 
