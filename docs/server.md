@@ -115,6 +115,8 @@ bridge ── /v1/sync ───────────────────
 | GET  | `/v1/relays` | signed relay list |
 | PUT  | `/v1/media/{id}` | store an encrypted file (only on relays with media on; §6a) |
 | GET  | `/v1/media/{id}` | fetch it (`Range: bytes=N-` resumes) |
+| POST | `/v1/usage` | push signed important-media usage entries (§6a ledger) |
+| GET  | `/v1/usage?since=` | pull the usage ledger (anyone) |
 
 Bodies are binary (length-prefixed packets), not JSON, to stay small on throttled links.
 
@@ -161,10 +163,55 @@ between devices and never touches a relay. Every upload is signed (`X-Account`,
   tries another relay; it never drops a file it accepted.
 - `media_max_hours` / `media_min_hours` no longer apply to relay media.
 
-Open: identities are free, so a new account gets a new allowance, and each relay counts on
-its own (a client could use the allowance on several relays). Options: proof-of-work per
-upload that grows with use, accounts vouched for by contacts, or syncing counters between
-relays.
+### Abuse control for important media (requirement, not implemented yet)
+
+Identities are free, so one person can make many accounts (a Sybil attack), and a person can
+upload to several relays. Three measures work together; every number is set per relay in
+the admin panel.
+
+1. **Account age.** An account's age is the time of its first announce anywhere in the
+   network (announces are already replicated to every relay, so all relays agree). Accounts
+   younger than `media_new_account_days` (default 3) get `media_new_account_per_day`
+   (default 1) instead of the full allowance.
+2. **Proof-of-work that grows with use.** Every important upload carries hashcash. The
+   difficulty grows with the account's network-wide uploads today (from the ledger below) and
+   with the relay's load: the first file costs a phone a few seconds, each further one about
+   twice as much. Making many accounts no longer pays.
+3. **Network-wide usage ledger** (below). The allowance counts uploads on **all** relays, not
+   only this one: `used = sum of the account's entries for today in the ledger`.
+
+#### Usage ledger: open, verifiable, no owner
+
+Like Bitcoin's ledger, every relay holds a full copy, anyone can read it, and nobody has to
+be trusted: each entry carries the **account's own signature** over its upload, so a relay
+can't invent uploads to block someone, and any relay can check every entry itself. Unlike
+Bitcoin it needs no mining or global agreement on order: entries only add up, and copies
+that met each other converge (a grow-only set).
+
+```
+entry = day(4) | media_id(16) | account_pubkey(32) | account_sig(64)  (the X-Signature of the
+        upload: "MESHMSG-MEDIA-PUT" | media_id | day) | relay_pubkey(32) | relay_sig(64)
+```
+
+- Entries are deduplicated by (account, media_id): uploading the same file to four relays
+  counts once. A day's entries are dropped after 2 days.
+- **Spread:** every relay reports its new entries to the **origin relays** (`origin: true`
+  in `network/relays.json`, the list kept in this GitHub repository) and pulls everything new
+  from them; origin relays serve the merged ledger to every relay. Entries also travel in
+  the ordinary `/v1/sync` between peers and through bridges, so when origin relays are
+  blocked or gone, relays still exchange the ledger directly. Origin relays are meeting
+  points (like Bitcoin's seed nodes), not authorities: they can't forge or hide-and-alter
+  entries, only be slow, and any relay can serve the ledger.
+- API: `POST /v1/usage` (a relay pushes signed entries), `GET /v1/usage?since=<cursor>`
+  (anyone pulls). A relay that sends invalid entries is ignored and shown in the panel.
+- Each relay still applies its own number: an account over this relay's
+  `media_important_per_day` (counted network-wide) gets `429` here, even if another relay
+  with a higher number would take it.
+- Privacy cost: the ledger is public, so anyone who knows an account id can see how many
+  important files it uploaded on a day and to which relays (not to whom, nor what). Ids are
+  already public in announces. Accepting that is the price of a ledger nobody controls.
+- A relay that does not report weakens only its own count; it can't raise anyone's
+  allowance elsewhere.
 
 ## 6b. Admin panel
 
@@ -175,8 +222,9 @@ hour per relay. Sessions: random token in an HttpOnly, SameSite=Strict cookie, 1
 need the `X-Mava-Panel` header. The owner account (`server/admin.OwnerID`) is always an admin
 and can't be removed; other admins live in `data_dir/panel.json` (panel or `meshmsg-relay
 admin add|rm|list`). Settings changed in the panel go to the same file and override
-relay.json after a restart. The important-media allowance (`media_important_per_day`, §6a)
-and `media_important_hours` are set in the panel and take effect immediately.
+relay.json after a restart. The important-media settings (`media_important_per_day`, `media_important_hours`,
+`media_new_account_days`, `media_new_account_per_day`, §6a) are set in the panel and take
+effect immediately; the panel also shows the ledger's state and relays sending invalid entries.
 
 ## 7. Data model
 

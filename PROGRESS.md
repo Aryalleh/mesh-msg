@@ -504,3 +504,12 @@ not implemented; no TURN, relays never carry a direct session).
   any file may go to a relay. Previous docs commit `53891c9`.
 - User confirmed: one important file to a group counts once; the daily allowance is set per
   relay in its admin panel (server.md §6a, §6b). Previous docs commit `05fb69b`.
+
+### 2026-11-12 — Requirement: important-media abuse control (docs only)
+
+- server.md §6a: account age (first announce network-wide; new accounts get a smaller
+  allowance), proof-of-work growing with today's network-wide uploads, and a public usage
+  ledger: entries signed by the uploading account and the relay, deduplicated per file,
+  pushed to and pulled from origin relays (`POST/GET /v1/usage`), also carried in `/v1/sync`
+  and through bridges; allowance counted network-wide, number set per relay in the panel.
+  decisions D14. Not implemented. Previous docs commit `f2f8848`.
