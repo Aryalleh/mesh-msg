@@ -525,3 +525,7 @@ not implemented; no TURN, relays never carry a direct session).
   6–24 kbps with FEC/DTX, adaptive jitter buffer, path switch mid-call; Android first
   (libopus via NDK, self-managed ConnectionService); IP exposure in threat model; tests.
 - roadmap M9, decisions D15, architecture §5b link; `core/e2e` comment reserving type 7.
+- Calls made upgradeable for video (calls.md §2, §3, §4a, §7): per-stream caps with media
+  kind and codec ids, stream id + fragmentation in every frame, ops UPDATE/CONTROL, unknown
+  fields ignored (v1 voice clients interoperate), shared bandwidth estimator, `core/call`
+  layout with MediaSource/MediaSink. decisions D16. Previous commit `79ba2d8`.
