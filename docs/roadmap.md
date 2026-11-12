@@ -16,3 +16,28 @@
 Order rationale: the Go core and relay come first because desktop, Android and the
 simulator all reuse them, and Linux desktop + relay is the fastest way to a working
 end-to-end system with no special hardware.
+
+## Code changes required by the 2026-11-12 design decisions (not started)
+
+The app is **alpha, tested in the lab only**; no beta or original release exists yet. Until
+the first beta there is **no backward compatibility with alpha builds**: formats, APIs and
+relay rules may change at once, old alpha apps and relays are simply replaced, and no
+transition period for them is built. (The forward-compatibility rules of calls.md — ignore
+unknown ops, streams, codecs — are still built in, for versions after the beta.)
+
+Existing code that must change:
+
+| # | Where | Today | Must become |
+|---|---|---|---|
+| 1 | `core/node/media.go` `SendMedia` (+ Android, web UI, CLI) | every file is uploaded to relays | normal media: no upload (`n = 0` URLs), sender keeps and serves it over direct paths; important media: user marks it, uploaded to relays (protocol.md §6b) |
+| 2 | `server/api/media.go`, `server/cmd/relay`, `server/admin` | files kept ≤ 8 h (`media_max_hours`, panel cap 72 h) | important files kept 7 days, never evicted once accepted (server.md §6a) |
+| 3 | same | account signature only with `media_accounts`; fixed PoW bits | signature always required; daily allowance per account set in the panel; PoW by account age + uploads today; first-announce time per account; `GET /v1/media/quota`; usage ledger `POST/GET /v1/usage`, also in `/v1/sync` (server.md §6a) |
+| 4 | `core/node/lan.go` | UDP multicast discovery + TCP, one subnet | stays, and becomes one candidate source of the new direct-link module (connectivity.md) |
+| 5 | new `core/direct`, relay UDP reflector, TURN in `meshmsg-relay` | none | connectivity.md §3–§7, server.md §6c |
+| 6 | new `core/call`, Android audio | none (content type 7 reserved) | calls.md |
+| 7 | `README.fa.md`, app strings | describe the old media rule | updated (README.fa.md done with these docs) |
+| 8 | relay `eu-1` server | TCP only | a UDP port for the reflector; TURN ports if its admins turn TURN on |
+
+Order: (1)+(2)+per-relay allowance → (3) age, PoW, ledger → (5) direct links with netns NAT
+tests, then TURN for admins → (6) calls (core first; audio needs phones). Each step ships as a
+new tag.

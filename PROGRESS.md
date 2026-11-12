@@ -26,8 +26,11 @@ Needs hardware now, for both open milestones:
 
 Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
 + Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
-Also: direct IP links across NAT/CGNAT/hotspots (docs/connectivity.md — requirement fixed,
-not implemented; no TURN, relays never carry a direct session).
+Design done, code not started (owner: don't change code yet): the plan of record is
+docs/roadmap.md "Code changes required by the 2026-11-12 design decisions" — two media
+classes, important-media allowance/PoW/ledger, direct links across any NAT (+ TURN for
+relay admins), voice calls. Alpha only: **no compatibility with old alpha builds is kept**;
+replace old apps and relays.
 
 ## Resuming in a fresh container
 
@@ -542,3 +545,12 @@ not implemented; no TURN, relays never carry a direct session).
 - Owner: official/global (origin) relays may also offer TURN, but only to their own admins,
   like private relays (connectivity.md §7, calls.md, server.md §6c, D17). Previous commit
   `69f4885`.
+
+### 2026-11-12 — Plan recorded; alpha has no backward compatibility (docs only)
+
+- docs/roadmap.md: table of existing code that must change for the new design (media
+  upload, relay keep time, signatures/allowance/PoW/ledger, LAN as a candidate source, new
+  direct-link and call modules, eu-1 UDP/TURN ports) and the order of work.
+- decisions D18: alpha, lab-tested only → no compatibility or transition period for old
+  alpha apps and relays until the first beta. README.fa.md media paragraph updated.
+- Owner asked not to change code yet. Previous commit `c2d543c`.
