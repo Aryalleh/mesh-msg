@@ -94,6 +94,14 @@ once (hop-limited). On the far side:
 Airtime is tiny (≈ tens of text packets per hour per node), so relays only put on the air what
 has no other path. Details: firmware.md §2a.
 
+## 5b. Direct IP links across any topology
+
+Devices may sit behind CGNAT, mobile networks, hotspots and nested NATs. A direct link is
+chosen only by tested reachability, never by whether an address looks private or public;
+the most direct working path wins (traffic stays on a shared local network), relays only
+pass encrypted candidates and never carry a direct session, and there is no TURN fallback.
+Requirement and design: [connectivity.md](connectivity.md).
+
 ## 6. Message paths (example)
 
 Ali is in Tehran during an international blackout, offline except BLE.

@@ -26,6 +26,8 @@ Needs hardware now, for both open milestones:
 
 Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
 + Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
+Also: direct IP links across NAT/CGNAT/hotspots (docs/connectivity.md — requirement fixed,
+not implemented; no TURN, relays never carry a direct session).
 
 ## Resuming in a fresh container
 
@@ -481,3 +483,13 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 - Tagged `v0.1.0-alpha9` on `1a3b6d2` (= `eafacce` + PROGRESS). Release run 43309000887 green:
   APKs (arm64-v8a, armeabi-v7a, x86_64, universal), desktop linux amd64/arm64 and, new, relay
   server tarballs `meshmsg-relay-0.1.0-alpha9-linux-{amd64,arm64}.tar.gz` (binary + install.sh).
+
+### 2026-11-12 — Requirement: direct IP links across arbitrary topology (docs only)
+
+- `docs/connectivity.md`: binding requirement (topology is arbitrary: CGNAT, mobile, hotspots,
+  nested NAT; never decide by private/public address; test reachability; most direct path
+  wins, local traffic stays local; relays never carry a direct session; **no TURN**) and the
+  design: candidates (host / reflexive / peer-reflexive / local-discovered), signaling as an
+  E2E message over any working path, authenticated hole-punch checks, path order, re-check on
+  network change, "no direct path" when checks fail, required netns test scenarios.
+- architecture.md §5b, decisions.md D12. No code changed.
