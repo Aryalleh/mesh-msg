@@ -374,4 +374,4 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   "removed" banner, ✓ n/m marks, en + fa strings, Json/screenshot tests. Compiles in CI only.
 - Tests: node (relay, 3 users: ✓✓ per member, reply between non-contacts, remove/re-add,
   leave; LAN; persistence), CLI/app, mobile BLE chain with a non-member in the middle.
-- Commit `eec822a`. CI green (run 43223369347: desktop + Android lint/tests/screenshots/APKs). Next: release when the user asks (v0.1.0-alpha6 still untagged).
+- Commit `eec822a`. CI green (run 43223369347: desktop + Android lint/tests/screenshots/APKs). Released **v0.1.0-alpha6** (run 43226454991: APKs arm64/armv7/x86_64/universal + desktop linux amd64/arm64). Relay eu-1 still on the Nov 11 build (works with groups); new binary built but deploy not yet allowed.
