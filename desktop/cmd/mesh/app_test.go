@@ -159,7 +159,7 @@ func TestApp(t *testing.T) {
 	if a.unread[reza.Hash().String()] != 1 {
 		t.Fatal("unread not counted")
 	}
-	expect("/back", "● 1 new")
+	expect("/back", "Chats") // unread counts come from meshd (see core/node group tests)
 
 	expect("/backup", "meshkey1:")
 	backup := ""
@@ -200,4 +200,100 @@ func TestApp(t *testing.T) {
 	if !a.quit {
 		t.Fatal("/quit did not quit")
 	}
+}
+
+func TestGroupCommands(t *testing.T) {
+	buf := startMeshd(t)
+	must := func(args ...string) string {
+		t.Helper()
+		buf.Reset()
+		if err := run(args); err != nil {
+			t.Fatal(args, err)
+		}
+		return buf.String()
+	}
+	if o := must("group", "new", "Family"); !strings.Contains(o, "meshgroup:") {
+		t.Fatalf("no invite link: %s", o)
+	}
+	if o := must("group", "join", "global"); !strings.Contains(o, "#global") || !strings.Contains(o, "public") {
+		t.Fatal(o)
+	}
+	must("group", "join", "#Tehran")
+	o := must("groups")
+	for _, w := range []string{"Family", "private", "#global", "global", "#tehran", "regional"} {
+		if !strings.Contains(o, w) {
+			t.Fatalf("groups lacks %q:\n%s", w, o)
+		}
+	}
+	if o := must("group", "invite", "#global"); !strings.HasPrefix(o, "meshgroup:#global") {
+		t.Fatal(o)
+	}
+	must("send", "Family", "سلام خانواده")
+	if o := must("read", "Family"); !strings.Contains(o, "Family you: سلام خانواده") {
+		t.Fatal(o)
+	}
+	must("group", "leave", "#tehran")
+	if o := must("groups"); strings.Contains(o, "tehran") {
+		t.Fatal("still in #tehran")
+	}
+	if err := run([]string{"group", "join", "meshgroup:garbage"}); err == nil {
+		t.Fatal("bad link accepted")
+	}
+	if o := must("regions"); !strings.Contains(o, "tehran") {
+		t.Fatal(o)
+	}
+}
+
+func TestAppGroups(t *testing.T) {
+	buf := startMeshd(t)
+	answer := "y"
+	a := &app{w: buf, unread: map[string]int{}, readLine: func(string) (string, error) { return answer, nil }}
+	expect := func(line string, wants ...string) {
+		t.Helper()
+		buf.Reset()
+		a.handle(line)
+		for _, w := range wants {
+			if !strings.Contains(buf.String(), w) {
+				t.Fatalf("%q: output lacks %q:\n%s", line, w, buf)
+			}
+		}
+	}
+	expect("/chats", "/global")
+	expect("/global", "joined #global", "public", "── #global")
+	expect("hello world", "you: hello world")
+	if strings.Contains(buf.String(), "✓") {
+		t.Fatal("group message shows a delivery mark")
+	}
+	expect("/region Tehran", "joined #tehran", "regional public chat")
+	expect("/group Family", "joined Family", "private group", "meshgroup:")
+	expect("/invite", "Invite link for Family", "meshgroup:")
+	expect("/rm", "that is a group")
+	expect("/back", "#global", "→ hello world", "#tehran", "Family")
+	expect("#glo", "── #global", "you: hello world")
+
+	// A message from someone else in #tehran while #global is open.
+	other, _ := identity.Generate()
+	var gs []node.Group
+	call("GET", "/groups", nil, &gs)
+	var tehran string
+	for _, g := range gs {
+		if g.Title == "#tehran" {
+			tehran = g.Hash
+		}
+	}
+	buf.Reset()
+	a.event(node.Event{Type: "message", Message: &node.Message{Peer: tehran, Group: true, From: other.Hash().String(), FromName: "Sara", Text: "نان هست"}})
+	if !strings.Contains(buf.String(), "● #tehran · Sara: نان هست") {
+		t.Fatalf("notification: %s", buf)
+	}
+
+	answer = "n"
+	expect("/leave", "stayed")
+	answer = "y"
+	expect("/leave", "left #global")
+	expect("/groups", "#tehran", "Family")
+	if strings.Contains(buf.String(), "#global") {
+		t.Fatal("still in #global")
+	}
+	expect("/join meshgroup:#kabul", "joined #kabul")
 }

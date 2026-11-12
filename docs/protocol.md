@@ -138,6 +138,47 @@ announced by phones in its local cluster in the last N hours (k=3, ~1% FP at ~10
 Gateway nodes report heard summaries to their relay, so a relay knows which destinations are
 reachable over its LoRa side and prioritises those packets for broadcast.
 
+## 6a. Groups and public chats
+
+A group is addressed like a person. Its 32-byte secret derives, with HKDF-SHA256:
+
+```
+group identity = identity.FromSeed(HKDF(secret, info "mesh-msg group identity", 64 bytes))
+group key      = HKDF(secret, info "mesh-msg group key", 32 bytes)
+dest_hash      = hash of the group identity (as in §1)
+```
+
+Every member holds the group identity, so members **announce** it (no name; delegation flag
+as for their own announce) and **fetch its relay mailbox** with it (signed challenge), and
+gateways fetch it for members who are offline. Relays and LoRa nodes need no changes and
+cannot tell a group from a person.
+
+| Kind | Secret | Joined by |
+|---|---|---|
+| private | 32 random bytes | invite link `meshgroup:<base64url secret>?n=<name>` |
+| regional | `SHA-256("mesh-msg public channel v1|" + lower(name))` | `meshgroup:#tehran`, or typing the name |
+| global | same, name `global` | `meshgroup:#global` |
+
+Public chats are readable by anyone who knows the name. That is the point.
+
+DATA body to a group (no Noise; one symmetric key per group):
+
+```
+ChaCha20-Poly1305(group key, nonce = 0x00000000 || packet_id, ad = prologue (§3),
+  sender_x(32) | sender_ed(32) | name_len(1) | name(≤32) | content_type(1) | timestamp(4) | content
+  | sig(64))
+sig = Ed25519(sender, "mesh-msg group v1" || dest_hash || packet_id || everything before sig)
+```
+
+Overhead 149 bytes plus the name, so a short message fits one LoRa frame. The signature
+stops members (and anyone, in public chats) from posting in someone else's name. The name
+is the sender's own label; clients show a saved contact name instead when they have one.
+
+Groups send **no RECEIPTs**: a receipt purges stored copies, which the other members still
+need. Members deliver a group packet *and keep forwarding it*; copies expire with the
+store TTL. Global chat packets carry `NO_LORA` (their volume would swamp LoRa airtime);
+private and regional groups use every link.
+
 ## 7. Link layers (framing per interface)
 
 | Interface | Framing | Max packet |

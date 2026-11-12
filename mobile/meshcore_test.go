@@ -76,14 +76,17 @@ type ble struct {
 func (b *ble) Send(_ string, chunk []byte) { b.q <- append([]byte(nil), chunk...) }
 
 // connectBLE joins two phones with a chunk size of mtu.
-func connectBLE(t *testing.T, a, b *Core, mtu int) {
+func connectBLE(t *testing.T, a, b *Core, mtu int) { connectBLEAs(t, a, b, mtu, "ble") }
+
+// connectBLEAs joins two phones over a transport called name.
+func connectBLEAs(t *testing.T, a, b *Core, mtu int, name string) {
 	t.Helper()
 	ab := &ble{to: b, self: "phone-a", q: make(chan []byte, 4096)}
 	ba := &ble{to: a, self: "phone-b", q: make(chan []byte, 4096)}
-	if err := a.AddTransport("ble", mtu, ab); err != nil {
+	if err := a.AddTransport(name, mtu, ab); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.AddTransport("ble", mtu, ba); err != nil {
+	if err := b.AddTransport(name, mtu, ba); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -95,15 +98,15 @@ func connectBLE(t *testing.T, a, b *Core, mtu int) {
 				case <-ctx.Done():
 					return
 				case c := <-e.q:
-					e.to.Receive("ble", e.self, c)
+					e.to.Receive(name, e.self, c)
 				}
 			}
 		}()
 	}
-	if err := a.PeerUp("ble", "phone-b"); err != nil {
+	if err := a.PeerUp(name, "phone-b"); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.PeerUp("ble", "phone-a"); err != nil {
+	if err := b.PeerUp(name, "phone-a"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -406,5 +409,59 @@ func TestExportRestoreIdentity(t *testing.T) {
 	}
 	if _, err := RestoreIdentity(other, backup, "correct horse", true); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A group over BLE only: A and C are members, B in the middle is not and
+// still carries the group's packets (it can't read them).
+func TestGroupOverBLEThroughNonMember(t *testing.T) {
+	a, _ := phone(t, `{"name":"Ali"}`)
+	b, bev := phone(t, "")
+	c, cev := phone(t, "")
+	var g node.Group
+	s, err := a.CreateGroup("Family")
+	if err != nil || json.Unmarshal([]byte(s), &g) != nil || !strings.HasPrefix(g.URI, "meshgroup:") {
+		t.Fatal(err, s)
+	}
+	if _, err := c.JoinGroup(g.URI); err != nil {
+		t.Fatal(err)
+	}
+	connectBLE(t, a, b, 20)
+	connectBLEAs(t, b, c, 20, "ble2")
+	if _, err := a.Send(g.Hash, "از طریق بلوتوث"); err != nil {
+		t.Fatal(err)
+	}
+	e := cev.wait(t, "message", 20*time.Second)
+	if e.Message.Text != "از طریق بلوتوث" || !e.Message.Group || e.Message.FromName != "Ali" || e.Message.Peer != g.Hash {
+		t.Fatalf("got %+v", e.Message)
+	}
+	select {
+	case ev := <-bev.ch:
+		if ev.Type == "message" {
+			t.Fatal("non-member got the message")
+		}
+	default:
+	}
+	var chats []node.Chat
+	s, _ = c.Chats()
+	json.Unmarshal([]byte(s), &chats)
+	if len(chats) != 1 || chats[0].Group == nil || chats[0].Group.Title != "Family" || chats[0].Unread != 1 {
+		t.Fatalf("chats: %s", s)
+	}
+	if _, err := c.JoinGroup("global"); err != nil {
+		t.Fatal(err)
+	}
+	var gs []node.Group
+	s, _ = c.Groups()
+	json.Unmarshal([]byte(s), &gs)
+	if len(gs) != 2 {
+		t.Fatalf("groups: %s", s)
+	}
+	if err := c.LeaveGroup("#global"); err != nil {
+		t.Fatal(err)
+	}
+	var rs []string
+	if json.Unmarshal([]byte(Regions()), &rs) != nil || len(rs) == 0 {
+		t.Fatal("regions")
 	}
 }

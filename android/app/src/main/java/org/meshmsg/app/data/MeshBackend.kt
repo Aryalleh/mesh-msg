@@ -23,4 +23,10 @@ interface MeshBackend {
     fun renameContact(hash: String, name: String): Result<Unit>
     fun removeContact(hash: String): Result<Unit>
     fun configureLoRa(node: String, patchJson: String): Result<Unit>
+
+    /** Creates a private group; its [Contact.uri] is the invite link. */
+    fun createGroup(name: String): Result<Contact>
+    /** Joins by invite link (meshgroup:…) or public chat name ("global", "#tehran"). */
+    fun joinGroup(link: String): Result<Contact>
+    fun leaveGroup(hash: String): Result<Unit>
 }

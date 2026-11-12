@@ -44,6 +44,8 @@ mesh> 1                       open chat 1 (or type a name)
 Sara> سلام                    type and press Enter to send
 Sara> /back                   back to the chat list
 mesh> /add meshmsg:… Reza     add a contact
+mesh> /global                 join the global public chat (/region tehran for your area)
+mesh> /group Family           start a private group; /invite shows its link
 mesh> /set gateway=off        change a setting (/settings shows them all, /keys lists keys)
 mesh> /relay add ir-1 https://relay-ir.example
 mesh> /backup                 back up your account   (/restore to switch to a backup)
@@ -71,6 +73,23 @@ mesh ports                       # USB serial ports for a LoRa node
 
 Settings changed from the app, `mesh config`/`relay`/`bridge` or the web UI are the
 same: applied at once and written to `config.toml`.
+
+### Groups and public chats
+
+```bash
+mesh group new Family            # private group; prints its invite link (meshgroup:…)
+mesh group join 'meshgroup:…'    # join a private group by its link
+mesh group join global           # the global public chat
+mesh group join '#tehran'        # a regional public chat (any city / country name)
+mesh send Family "شام ساعت ۸"    # send / read work with groups too
+mesh groups                      # joined groups;  mesh group invite|leave <group>
+```
+
+In the app: `/group <name>`, `/join <link>`, `/global`, `/region <name>`, `/invite`,
+`/leave`. In the web UI: **+ → New group / Join group / Public chats**.
+
+Anyone holding a private group's link can read and post, so share it only with members.
+Public chats are open to everyone. Groups have no delivery receipts (✓ only).
 
 ### Settings from the web UI
 

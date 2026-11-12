@@ -27,6 +27,9 @@ import (
 const appHelp = `In a chat, type and press Enter to send. Anywhere:
   /chats  (or /back)        the chat list           <number> or <name>   open a chat
   /add <meshmsg:…> [name]   add a contact            /id                  your contact link
+  /group <name>             new private group        /invite              its invite link
+  /join <link|#name>        join a group or channel  /leave               leave this group
+  /global                   the global public chat   /region <name>       your city's / country's chat
   /rename <name>            rename this chat's contact (or /rename <contact> <name>)
   /rm                       remove this chat's contact (or /rm <contact>)
   /history [N]              show the last N messages of this chat
@@ -45,8 +48,11 @@ type app struct {
 	readLine   func(prompt string) (string, error)
 	setPrompt  func(string)
 
-	mu       sync.Mutex
+	mu sync.Mutex
+	// contacts holds every chat: real contacts, and groups as pseudo-contacts
+	// (Name = "#global", "Family"; their details are in groups).
 	contacts []node.Contact
+	groups   map[string]node.Group
 	listed   []node.Contact // the chat list as last shown; numbers index it
 	cur      *node.Contact
 	unread   map[string]int
@@ -177,15 +183,38 @@ func linkSummary(s node.Status) string {
 	return "links: " + strings.Join(parts, ", ")
 }
 
+// loadContacts fetches the chat list (contacts and groups, most recent first).
 func (a *app) loadContacts() error {
-	var cs []node.Contact
-	if err := call("GET", "/contacts", nil, &cs); err != nil {
-		return err
+	_, err := a.loadChats()
+	return err
+}
+
+func (a *app) loadChats() ([]node.Chat, error) {
+	var chats []node.Chat
+	if err := call("GET", "/chats", nil, &chats); err != nil {
+		return nil, err
+	}
+	cs := make([]node.Contact, 0, len(chats))
+	gs := map[string]node.Group{}
+	for _, ch := range chats {
+		if ch.Group != nil {
+			gs[ch.Group.Hash] = *ch.Group
+			cs = append(cs, node.Contact{Hash: ch.Group.Hash, Name: ch.Group.Title, URI: ch.Group.URI})
+		} else {
+			cs = append(cs, ch.Contact)
+		}
 	}
 	a.mu.Lock()
-	a.contacts = cs
+	a.contacts, a.groups = cs, gs
 	a.mu.Unlock()
-	return nil
+	return chats, nil
+}
+
+func (a *app) groupOf(hash string) (node.Group, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	g, ok := a.groups[hash]
+	return g, ok
 }
 
 // showChats lists contacts, most recent conversation first, numbered.
@@ -194,48 +223,52 @@ func (a *app) showChats() {
 	a.cur = nil
 	a.mu.Unlock()
 	defer a.updatePrompt()
-	if err := a.loadContacts(); err != nil {
+	chats, err := a.loadChats()
+	if err != nil {
 		a.printf("%v\n", err)
 		return
 	}
-	var ms []node.Message
-	call("GET", "/messages?limit=1000", nil, &ms)
-	last := map[string]node.Message{}
-	for _, m := range ms {
-		last[m.Peer] = m // oldest first, so the last one wins
-	}
 	a.mu.Lock()
-	sort.SliceStable(a.contacts, func(i, j int) bool {
-		return msgTime(last[a.contacts[i].Hash]).After(msgTime(last[a.contacts[j].Hash]))
-	})
 	cs := append([]node.Contact(nil), a.contacts...)
 	a.listed = cs
-	unread := map[string]int{}
-	for k, v := range a.unread {
-		unread[k] = v
-	}
+	a.unread = map[string]int{}
 	a.mu.Unlock()
 
 	if len(cs) == 0 {
 		a.printf("\nNo chats yet. Share your link (/id) and add a contact: /add meshmsg:… Name\n")
+		a.printf("Or join a public chat: /global, or /region tehran (any city or country name).\n")
 		return
 	}
 	a.printf("\nChats\n")
-	for i, c := range cs {
+	for i, ch := range chats {
+		c := cs[i]
 		line := fmt.Sprintf("%3d  %-16s", i+1, trunc(displayName(c), 16))
-		if m, ok := last[c.Hash]; ok {
+		if m := ch.Last; m != nil {
 			arrow := "←"
 			if m.Outgoing {
 				arrow = "→"
 			}
-			line += fmt.Sprintf(" %s %s  %s", arrow, trunc(oneLine(m.Text), 40), msgTime(m).Local().Format("01-02 15:04"))
+			if ch.Group != nil && !m.Outgoing {
+				arrow += " " + trunc(senderName(*m), 10) + ":"
+			}
+			line += fmt.Sprintf(" %s %s  %s", arrow, trunc(oneLine(m.Text), 40), msgTime(*m).Local().Format("01-02 15:04"))
 		}
-		if n := unread[c.Hash]; n > 0 {
-			line += fmt.Sprintf("  ● %d new", n)
+		if ch.Unread > 0 {
+			line += fmt.Sprintf("  ● %d new", ch.Unread)
 		}
 		a.printf("%s\n", line)
 	}
 	a.printf("Type a number or a name to open a chat, /help for everything.\n")
+}
+
+func senderName(m node.Message) string {
+	if m.FromName != "" {
+		return m.FromName
+	}
+	if len(m.From) > 8 {
+		return m.From[:8]
+	}
+	return m.From
 }
 
 func msgTime(m node.Message) time.Time {
@@ -297,8 +330,14 @@ func (a *app) open(c *node.Contact) {
 	a.cur = c
 	delete(a.unread, c.Hash)
 	a.mu.Unlock()
-	a.printf("\n── %s · %s ── /back for the chat list\n", displayName(*c), c.Hash[:12])
+	kind := c.Hash[:12]
+	if g, ok := a.groupOf(c.Hash); ok {
+		kind = map[string]string{"private": "private group · /invite to add people", "regional": "regional public chat",
+			"global": "global public chat"}[string(g.Kind)] + " · /leave to leave"
+	}
+	a.printf("\n── %s · %s ── /back for the chat list\n", displayName(*c), kind)
 	a.history(20)
+	call("POST", "/read/"+url.PathEscape(c.Hash), nil, nil)
 	a.updatePrompt()
 }
 
@@ -327,9 +366,12 @@ func (a *app) printMsg(m node.Message) {
 	who := "you"
 	if !m.Outgoing {
 		who = a.nameOf(m.Peer)
+		if m.Group {
+			who = senderName(m)
+		}
 	}
 	mark := ""
-	if m.Outgoing {
+	if m.Outgoing && !m.Group { // groups have no delivery receipts
 		mark = " ✓"
 		if m.Delivered {
 			mark = " ✓✓"
@@ -418,13 +460,105 @@ func (a *app) handle(line string) {
 			err = errors.New("usage: /add <meshmsg:…> [name]")
 			break
 		}
+		if strings.HasPrefix(args[0], "meshgroup:") {
+			err = a.join(args[0])
+			break
+		}
 		var c node.Contact
 		if err = call("POST", "/contacts", map[string]string{"uri": args[0], "name": strings.Join(args[1:], " ")}, &c); err == nil {
 			a.loadContacts()
 			a.printf("added %s — opening the chat\n", displayName(c))
 			a.open(&c)
 		}
+	case "group", "newgroup":
+		if len(args) > 0 && args[0] == "new" {
+			args = args[1:]
+		}
+		if len(args) == 0 {
+			err = errors.New("usage: /group <name> — creates a private group and shows its invite link")
+			break
+		}
+		var g node.Group
+		if err = call("POST", "/groups", map[string]string{"name": strings.Join(args, " ")}, &g); err == nil {
+			a.joined(g)
+			a.printf("Invite people with this link (anyone holding it can read and post):\n%s\n", g.URI)
+		}
+	case "join":
+		if len(args) == 0 {
+			err = errors.New("usage: /join <meshgroup:… invite link | #region | global>")
+			break
+		}
+		err = a.join(strings.Join(args, " "))
+	case "global":
+		err = a.join("global")
+	case "region", "regional":
+		if len(args) == 0 {
+			var rs []string
+			call("GET", "/regions", nil, &rs)
+			a.printf("usage: /region <name> — any city, province or country; everyone using the same name meets there.\nsuggestions: %s\n", strings.Join(rs, " "))
+			break
+		}
+		err = a.join("#" + strings.TrimPrefix(strings.Join(args, "-"), "#"))
+	case "groups":
+		var gs []node.Group
+		if err = call("GET", "/groups", nil, &gs); err == nil {
+			if len(gs) == 0 {
+				a.printf("no groups — /group <name>, /join <link>, /global, /region <name>\n")
+			}
+			for _, g := range gs {
+				a.printf("%-20s %-9s %s\n", g.Title, g.Kind, g.Hash[:12])
+			}
+		}
+	case "invite", "share":
+		ref := strings.Join(args, " ")
+		if ref == "" && cur != nil {
+			ref = cur.Hash
+		}
+		var c *node.Contact
+		if c, err = a.find(ref); err != nil {
+			break
+		}
+		if g, ok := a.groupOf(c.Hash); ok {
+			if g.Kind == "private" {
+				a.printf("Invite link for %s — anyone holding it can read and post, send it only to members:\n%s\n", g.Title, g.URI)
+			} else {
+				a.printf("%s is public: anyone can join with /join %s or this link:\n%s\n", g.Title, g.Title, g.URI)
+			}
+		} else {
+			err = fmt.Errorf("%s is a contact, not a group (/id shows your own link)", displayName(*c))
+		}
+	case "leave":
+		ref := strings.Join(args, " ")
+		if ref == "" && cur != nil {
+			ref = cur.Hash
+		}
+		var c *node.Contact
+		if c, err = a.find(ref); err != nil {
+			break
+		}
+		if _, ok := a.groupOf(c.Hash); !ok {
+			err = fmt.Errorf("%s is not a group (/rm removes a contact)", displayName(*c))
+			break
+		}
+		var ans string
+		if ans, err = a.readLine(fmt.Sprintf("Leave %s? You stop receiving its messages. [y/N] ", displayName(*c))); err != nil {
+			break
+		}
+		if !strings.HasPrefix(strings.ToLower(ans), "y") {
+			a.printf("stayed\n")
+			break
+		}
+		if err = call("DELETE", "/groups/"+url.PathEscape(c.Hash), nil, nil); err == nil {
+			a.printf("left %s\n", displayName(*c))
+			a.showChats()
+		}
 	case "rename":
+		if cur != nil && len(args) > 0 {
+			if _, ok := a.groupOf(cur.Hash); ok {
+				err = errors.New("group names come from the invite link; /rename works for contacts")
+				break
+			}
+		}
 		ref, name := "", strings.Join(args, " ")
 		if cur != nil {
 			ref = cur.Hash
@@ -456,6 +590,10 @@ func (a *app) handle(line string) {
 		}
 		var c *node.Contact
 		if c, err = a.find(ref); err != nil {
+			break
+		}
+		if _, ok := a.groupOf(c.Hash); ok {
+			err = errors.New("that is a group: /leave leaves it")
 			break
 		}
 		var ans string
@@ -503,6 +641,25 @@ func (a *app) handle(line string) {
 	if err != nil {
 		a.printf("%v\n", err)
 	}
+}
+
+func (a *app) join(link string) error {
+	var g node.Group
+	if err := call("POST", "/groups", map[string]string{"link": link}, &g); err != nil {
+		return err
+	}
+	a.joined(g)
+	if g.Kind != "private" {
+		a.printf("This chat is public: anyone can read it and post. Don't share anything private here.\n")
+	}
+	return nil
+}
+
+// joined opens a group that was just created or joined.
+func (a *app) joined(g node.Group) {
+	a.loadContacts()
+	a.printf("joined %s\n", g.Title)
+	a.open(&node.Contact{Hash: g.Hash, Name: g.Title, URI: g.URI})
 }
 
 func (a *app) send(c *node.Contact, text string) {
@@ -625,7 +782,11 @@ func (a *app) event(e node.Event) {
 			a.printMsg(*m)
 		} else {
 			a.updatePrompt() // repainted by the print below
-			a.printf("● %s: %s\n", a.nameOf(m.Peer), trunc(oneLine(m.Text), 60))
+			who := a.nameOf(m.Peer)
+			if m.Group {
+				who += " · " + senderName(*m)
+			}
+			a.printf("● %s: %s\n", who, trunc(oneLine(m.Text), 60))
 		}
 	case "delivered":
 		a.mu.Lock()
@@ -634,7 +795,7 @@ func (a *app) event(e node.Event) {
 		if open {
 			a.printf("   ✓✓ delivered\n")
 		}
-	case "contact":
+	case "contact", "group":
 		a.loadContacts()
 	case "link":
 		a.printf("   link %s\n", e.Info)
@@ -652,7 +813,7 @@ func (a *app) complete(line string, pos int, key rune) (string, int, bool) {
 		prefix, word = line[:i+1], line[i+1:]
 	}
 	if prefix == "" && strings.HasPrefix(word, "/") {
-		for _, c := range []string{"/chats", "/back", "/open", "/add", "/rename", "/rm", "/history", "/id", "/status",
+		for _, c := range []string{"/chats", "/back", "/open", "/add", "/group", "/join", "/global", "/region", "/invite", "/leave", "/groups", "/rename", "/rm", "/history", "/id", "/status",
 			"/settings", "/set", "/keys", "/relay", "/bridge", "/lora", "/ports", "/backup", "/restore", "/ui", "/clear", "/help", "/quit", "/send"} {
 			if strings.HasPrefix(c, word) {
 				cands = append(cands, c)

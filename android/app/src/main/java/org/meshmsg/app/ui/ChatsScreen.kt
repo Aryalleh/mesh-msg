@@ -55,7 +55,7 @@ fun ChatsScreen(
                 ExtendedFloatingActionButton(
                     onClick = onAdd,
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                    text = { Text(stringResource(R.string.add_contact)) },
+                    text = { Text(stringResource(R.string.new_chat)) },
                 )
             }
         },
@@ -67,7 +67,7 @@ fun ChatsScreen(
                     EmptyState(stringResource(R.string.chats_empty_title), stringResource(R.string.chats_empty_body)) {
                         Button(onClick = onAdd, modifier = Modifier.heightIn(min = 48.dp)) {
                             Icon(Icons.Filled.Add, contentDescription = null)
-                            Text(stringResource(R.string.add_contact), Modifier.padding(start = Space.s))
+                            Text(stringResource(R.string.new_chat), Modifier.padding(start = Space.s))
                         }
                     }
                 }
@@ -101,8 +101,9 @@ private fun ChatRow(chat: Chat, nowMs: Long, onClick: () -> Unit) {
             )
             Row(horizontalArrangement = Arrangement.spacedBy(Space.xs), verticalAlignment = Alignment.CenterVertically) {
                 if (last != null && last.outgoing) DeliveryMark(last.delivery, MaterialTheme.colorScheme.onSurfaceVariant)
+                val sender = if (last != null && chat.contact.isGroup && !last.outgoing && last.fromName.isNotBlank()) last.fromName + ": " else ""
                 Text(
-                    last?.text?.replace('\n', ' ') ?: stringResource(R.string.chat_no_messages),
+                    last?.text?.replace('\n', ' ')?.let { sender + it } ?: stringResource(R.string.chat_no_messages),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (unread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = if (unread) FontWeight.Medium else FontWeight.Normal,

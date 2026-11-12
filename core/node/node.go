@@ -133,15 +133,17 @@ func Open(cfg Config) (*Node, error) {
 		flags |= announce.FlagDelegate
 	}
 	n.router = router.New(router.Config{
-		Store:         st,
-		AnnounceEvery: time.Duration(cfg.AnnounceMinutes) * time.Minute,
-		AppData:       announce.AppData{Name: cfg.Name, Flags: flags},
-		Contacts:      func(packet.Hash) []identity.Public { return n.contactKeys() },
-		OnMessage:     n.onMessage,
-		OnReceipt:     n.onReceipt,
-		Logf:          cfg.Logf,
+		Store:          st,
+		AnnounceEvery:  time.Duration(cfg.AnnounceMinutes) * time.Minute,
+		AppData:        announce.AppData{Name: cfg.Name, Flags: flags},
+		Contacts:       func(packet.Hash) []identity.Public { return n.contactKeys() },
+		OnMessage:      n.onMessage,
+		OnReceipt:      n.onReceipt,
+		OnGroupMessage: n.onGroupMessage,
+		Logf:           cfg.Logf,
 	})
 	n.router.AddLocal(id)
+	n.loadGroups()
 	for _, k := range n.contactKeys() {
 		n.router.AddKnown(k)
 	}
@@ -310,9 +312,13 @@ func (n *Node) findContact(ref string) (Contact, error) {
 }
 
 // Send sends text to a contact (name, hash or hash prefix).
+// A group (hash, name or "#channel") works too.
 func (n *Node) Send(ref, text string) (Message, error) {
 	c, err := n.findContact(ref)
 	if err != nil {
+		if _, gerr := n.findGroup(ref); gerr == nil {
+			return n.SendGroup(ref, text)
+		}
 		return Message{}, err
 	}
 	// Noise K needs the recipient to know us; if we have never received
@@ -348,15 +354,25 @@ func (n *Node) heardFrom(peerHash string) bool {
 
 // Messages returns history with a contact ("" = all).
 func (n *Node) Messages(ref string, limit int) ([]Message, error) {
-	if ref == "" {
-		return n.db.messages(nil, limit)
+	var peer *packet.Hash
+	if ref != "" {
+		c, g, err := n.resolveChat(ref)
+		if err != nil {
+			return nil, err
+		}
+		var h packet.Hash
+		if c != nil {
+			h = c.pub.Hash()
+		} else {
+			h = g.g.Hash()
+		}
+		peer = &h
 	}
-	c, err := n.findContact(ref)
-	if err != nil {
-		return nil, err
+	ms, err := n.db.messages(peer, limit)
+	for i := range ms {
+		n.nameGroupSender(&ms[i])
 	}
-	h := c.pub.Hash()
-	return n.db.messages(&h, limit)
+	return ms, err
 }
 
 // Status is a snapshot for UIs.
@@ -371,6 +387,7 @@ type Status struct {
 	Gateway  bool              `json:"gateway"`
 	Bridges  []string          `json:"bridges"`
 	Contacts int               `json:"contacts"`
+	Groups   int               `json:"groups"`
 	LoRa     []LoRaState       `json:"lora,omitempty"`
 }
 
@@ -388,11 +405,12 @@ func (n *Node) Status() Status {
 	n.mu.Unlock()
 	stored, _ := n.store.Count()
 	cs, _ := n.db.contacts()
+	gs, _ := n.db.groups()
 	return Status{
 		Hash: n.id.Hash().String(), URI: n.Identity().URI(),
 		Uptime: time.Since(n.start).Round(time.Second).String(),
 		Links:  links, Routes: len(n.router.Routes()), Stored: stored,
-		Router: n.router.Stats(), Gateway: n.cfg.Gateway.Enabled, Bridges: br, Contacts: len(cs),
+		Router: n.router.Stats(), Gateway: n.cfg.Gateway.Enabled, Bridges: br, Contacts: len(cs), Groups: len(gs),
 		LoRa: n.LoRa(),
 	}
 }

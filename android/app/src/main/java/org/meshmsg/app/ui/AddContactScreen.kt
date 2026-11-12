@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -72,7 +74,12 @@ fun AddContactScreen(
     modifier: Modifier = Modifier,
     initialLink: String = "",
     initialError: LinkError? = null,
+    regions: List<String> = emptyList(),
+    onCreateGroup: (name: String) -> Unit = {},
+    onJoinGroup: (link: String) -> Unit = {},
 ) {
+    var groupName by rememberSaveable { mutableStateOf("") }
+    var region by rememberSaveable { mutableStateOf("") }
     var link by rememberSaveable { mutableStateOf(initialLink) }
     var name by rememberSaveable { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf(initialError) }
@@ -81,7 +88,7 @@ fun AddContactScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.add_contact)) },
+                title = { Text(stringResource(R.string.new_chat)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
                 },
@@ -127,6 +134,61 @@ fun AddContactScreen(
                 enabled = link.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) { Text(stringResource(R.string.add_contact)) }
+
+            // ---- groups and public chats ----
+            Column(
+                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(16.dp)).padding(Space.l),
+                verticalArrangement = Arrangement.spacedBy(Space.m),
+            ) {
+                Text(stringResource(R.string.groups_title), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.groups_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = groupName,
+                    onValueChange = { groupName = it.take(64) },
+                    label = { Text(stringResource(R.string.group_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(
+                    onClick = { onCreateGroup(groupName) },
+                    enabled = groupName.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.group_create)) }
+
+                Text(stringResource(R.string.public_chats_title), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    stringResource(R.string.group_public_warning),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = { onJoinGroup("global") }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(stringResource(R.string.join_global))
+                }
+                OutlinedTextField(
+                    value = region,
+                    onValueChange = { region = it.take(40) },
+                    label = { Text(stringResource(R.string.region_label)) },
+                    supportingText = { Text(stringResource(R.string.region_helper)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (regions.isNotEmpty()) {
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                        regions.take(16).forEach { r ->
+                            SuggestionChip(onClick = { onJoinGroup("#$r") }, label = { Text("#$r") })
+                        }
+                    }
+                }
+                OutlinedButton(
+                    onClick = { onJoinGroup("#" + region.trim().removePrefix("#")) },
+                    enabled = region.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.join_region)) }
+            }
 
             // ---- my link ----
             Column(

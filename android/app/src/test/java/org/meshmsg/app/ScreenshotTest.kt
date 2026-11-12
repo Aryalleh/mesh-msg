@@ -11,6 +11,7 @@ import org.meshmsg.app.data.BatteryMode
 import org.meshmsg.app.data.Chat
 import org.meshmsg.app.data.Contact
 import org.meshmsg.app.data.Delivery
+import org.meshmsg.app.data.GroupKind
 import org.meshmsg.app.data.LoRaNode
 import org.meshmsg.app.data.Message
 import org.meshmsg.app.data.NetStatus
@@ -100,6 +101,23 @@ class ScreenshotTest(private val variant: Variant) {
             msg(6, true, "If I don't answer I'm still on the road", 1 * MIN, Delivery.Queued),
         )
 
+    private val family = Contact("b520a8985244aa01", if (fa) "خانواده" else "Family", "meshgroup:x", GroupKind.Private)
+    private val tehran = Contact("9c1d3e5f7a9b0c2d", "#tehran", "meshgroup:#tehran", GroupKind.Regional)
+
+    private fun gmsg(id: Int, out: Boolean, from: String, text: String, ago: Long) =
+        Message("g$id", family.hash, out, text, NOW - ago, NOW - ago, if (out) Delivery.Sent else Delivery.Delivered, group = true, fromName = from)
+
+    private val groupConversation
+        get() = if (fa) listOf(
+            gmsg(1, false, "مامان", "شام ساعت ۸ خونه‌ی ما", 50 * MIN),
+            gmsg(2, false, "علی", "من نان می‌گیرم", 30 * MIN),
+            gmsg(3, true, "you", "منم میام", 5 * MIN),
+        ) else listOf(
+            gmsg(1, false, "Mom", "Dinner at 8 at our place", 50 * MIN),
+            gmsg(2, false, "Ali", "I'll bring bread", 30 * MIN),
+            gmsg(3, true, "you", "I'm coming too", 5 * MIN),
+        )
+
     private val limits = TextLimits(onePacket = 172, max = 1800, bytes = { it.toByteArray().size })
 
     @Test fun chats() = shot("chats") {
@@ -107,6 +125,8 @@ class ScreenshotTest(private val variant: Variant) {
             chats = listOf(
                 Chat(sara, conversation.last(), 0),
                 Chat(ali, Message("9", ali.hash, false, if (fa) "رسیدی خبر بده" else "Tell me when you arrive", NOW - 50 * MIN, NOW - 50 * MIN, Delivery.Delivered), 2),
+                Chat(family, groupConversation[1], 1),
+                Chat(tehran, null, 0),
                 Chat(unnamed, null, 0),
             ),
             anyPathUp = true, onOpen = {}, onAdd = {}, nowMs = NOW,
@@ -123,6 +143,14 @@ class ScreenshotTest(private val variant: Variant) {
         ChatScreen(sara, conversation, anyPathUp = true, limits = limits, onSend = {}, onBack = {}, onRename = {}, onRemove = {}, nowMs = NOW)
     }
 
+    @Test fun groupChat() = shot("group") {
+        ChatScreen(family, groupConversation, anyPathUp = true, limits = limits, onSend = {}, onBack = {}, onRename = {}, onRemove = {}, nowMs = NOW)
+    }
+
+    @Test fun publicChatEmpty() = shot("group-public") {
+        ChatScreen(tehran, emptyList(), anyPathUp = true, limits = limits, onSend = {}, onBack = {}, onRename = {}, onRemove = {}, nowMs = NOW)
+    }
+
     @Test fun chatLongDraft() = shot("chat-longdraft") {
         ChatScreen(
             sara, conversation.take(2), anyPathUp = false, limits = limits, onSend = {}, onBack = {}, onRename = {}, onRemove = {}, nowMs = NOW,
@@ -131,7 +159,10 @@ class ScreenshotTest(private val variant: Variant) {
     }
 
     @Test fun addContact() = shot("add") {
-        AddContactScreen("meshmsg:Jf3kQ0vT8mZp2xW7aYbN5cR1dE6gH9iK4lM0oP3qS8u", onBack = {}, onCopy = {}, onShare = {}, onPaste = { "" }, onAdd = { _, _ -> null })
+        AddContactScreen(
+            "meshmsg:Jf3kQ0vT8mZp2xW7aYbN5cR1dE6gH9iK4lM0oP3qS8u", onBack = {}, onCopy = {}, onShare = {}, onPaste = { "" }, onAdd = { _, _ -> null },
+            regions = listOf("iran", "tehran", "mashhad", "isfahan"),
+        )
     }
 
     @Test fun addContactError() = shot("add-error") {

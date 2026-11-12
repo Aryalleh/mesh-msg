@@ -37,6 +37,13 @@
   #contacts li.active { background: var(--mine); }
   #contacts .hash { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
   #contacts .unread { color: var(--accent); font-weight: 600; }
+  #contacts .last { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext; }
+  .msg .from { display: block; font-size: 12px; font-weight: 600; color: var(--accent); }
+  main header { display: flex; align-items: center; gap: 8px; }
+  main header .grow { flex: 1; min-width: 0; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chips button { padding: 4px 10px; font-size: 13px; }
   #status { padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
   #status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: 6px; background: var(--muted); }
   #status .ok { background: #16a34a; } #status .bad { background: var(--warn); }
@@ -94,14 +101,14 @@
     <h1>mesh-msg</h1>
     <button class="ghost" id="btnSettings" title="Settings">⚙</button>
     <button class="ghost" id="btnMe" title="My contact link">Me</button>
-    <button id="btnAdd" title="Add contact">+</button>
+    <button id="btnAdd" title="New chat: contact, group or channel">+</button>
   </header>
   <ul id="contacts"></ul>
   <div id="status">…</div>
 </aside>
 <main>
   <header id="chatHead"><h2>No chat selected</h2></header>
-  <div id="messages"><div class="empty">Add a contact with their <b>meshmsg:</b> link, or share yours with <b>Me</b>.<br>Messages travel over whatever path exists: LAN, LoRa, regional relays, bridges.</div></div>
+  <div id="messages"><div class="empty">Press <b>+</b> to add a contact by their <b>meshmsg:</b> link, start a group, or join the <b>#global</b> chat and your region's chat. Share your own link with <b>Me</b>.<br>Messages travel over whatever path exists: LAN, LoRa, regional relays, bridges.</div></div>
   <section id="settings" hidden>
     <div class="wrap">
       <div class="card">
@@ -172,11 +179,43 @@
 </main>
 
 <dialog id="dlgAdd">
-  <h3>Add contact</h3>
-  <label>Contact link<input id="addUri" placeholder="meshmsg:…" dir="ltr"></label>
-  <label style="display:block;margin-top:8px">Name<input id="addName" dir="auto"></label>
+  <h3>New chat</h3>
+  <div class="tabs">
+    <button class="ghost on" data-tab="tabContact">Contact</button>
+    <button class="ghost" data-tab="tabGroup">New group</button>
+    <button class="ghost" data-tab="tabJoin">Join group</button>
+    <button class="ghost" data-tab="tabChannels">Public chats</button>
+  </div>
+  <div id="tabContact">
+    <label class="field">Contact link<input id="addUri" placeholder="meshmsg:…" dir="ltr"></label>
+    <label class="field">Name<input id="addName" dir="auto"></label>
+    <div class="row"><button id="addOk">Add contact</button></div>
+  </div>
+  <div id="tabGroup" hidden>
+    <p class="help">A private group: only people you give the invite link to can read it.</p>
+    <label class="field">Group name<input id="grpName" dir="auto" maxlength="64"></label>
+    <div class="row"><button id="grpOk">Create group</button></div>
+  </div>
+  <div id="tabJoin" hidden>
+    <label class="field">Invite link<input id="joinUri" placeholder="meshgroup:…" dir="ltr"></label>
+    <div class="row"><button id="joinOk">Join</button></div>
+  </div>
+  <div id="tabChannels" hidden>
+    <p class="help">Public chats are open to everyone: anyone can read them and post. Don't share anything private there.</p>
+    <div class="actions"><button id="joinGlobal">Join #global</button></div>
+    <label class="field">Regional chat (your city, province or country — or type any name)<input id="regionName" list="regions" dir="auto" placeholder="tehran"><datalist id="regions"></datalist></label>
+    <div class="chips" id="regionChips"></div>
+    <div class="row"><button id="joinRegion">Join regional chat</button></div>
+  </div>
   <div class="err" id="addErr"></div>
-  <div class="row"><button class="ghost" value="cancel" formmethod="dialog" onclick="dlgAdd.close()">Cancel</button><button id="addOk">Add</button></div>
+  <div class="row"><button class="ghost" onclick="dlgAdd.close()">Close</button></div>
+</dialog>
+
+<dialog id="dlgInvite">
+  <h3 id="invTitle">Invite</h3>
+  <p id="invHelp"></p>
+  <code class="uri" id="invUri"></code>
+  <div class="row"><button class="ghost" onclick="dlgInvite.close()">Close</button><button id="invCopy">Copy</button></div>
 </dialog>
 
 <dialog id="dlgMe">
@@ -214,7 +253,8 @@
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
-let contacts = [], current = null, unread = {};
+// chats: [{hash, title, kind ("contact" | "private" | "regional" | "global"), contact?, group?, last?, unread}]
+let contacts = [], chats = [], current = null;
 
 async function api(path, opts = {}) {
   opts.headers = Object.assign({"X-Meshd": "1", "Content-Type": "application/json"}, opts.headers || {});
@@ -226,18 +266,28 @@ async function api(path, opts = {}) {
 
 function label(c) { return c.name || c.hash.slice(0, 12); }
 
+function chatOf(ch) {
+  if (ch.group) return {hash: ch.group.hash, title: ch.group.title, kind: ch.group.kind, group: ch.group, last: ch.last, unread: ch.unread};
+  return {hash: ch.contact.hash, title: label(ch.contact), kind: "contact", contact: ch.contact, last: ch.last, unread: ch.unread};
+}
+const kindIcon = {contact: "", private: "👥 ", regional: "📍 ", global: "🌐 "};
+
 function renderContacts() {
   const ul = $("contacts");
   ul.replaceChildren();
-  for (const c of contacts) {
+  for (const c of chats) {
     const li = document.createElement("li");
     if (current && current.hash === c.hash) li.className = "active";
     const n = document.createElement("span");
-    n.textContent = label(c) + (unread[c.hash] ? ` (${unread[c.hash]})` : "");
+    n.textContent = kindIcon[c.kind] + c.title + (c.unread ? ` (${c.unread})` : "");
     n.dir = "auto";
-    if (unread[c.hash]) n.className = "unread";
+    if (c.unread) n.className = "unread";
     const h = document.createElement("span");
-    h.className = "hash"; h.textContent = c.hash.slice(0, 16);
+    if (c.last) {
+      h.className = "last";
+      const who = c.last.outgoing ? "you" : (c.kind !== "contact" ? (c.last.from_name || (c.last.from || "").slice(0, 8)) : "");
+      h.textContent = (who ? who + ": " : "") + c.last.text;
+    } else { h.className = "hash"; h.textContent = c.kind === "contact" ? c.hash.slice(0, 16) : c.kind + " chat"; }
     li.append(n, h);
     li.onclick = () => openChat(c);
     ul.append(li);
@@ -255,11 +305,19 @@ function addMessage(m) {
   div.className = "msg" + (m.outgoing ? " mine" : "");
   div.dataset.id = m.id;
   div.dir = "auto";
+  if (m.group && !m.outgoing) {
+    const f = document.createElement("span");
+    f.className = "from"; f.dir = "auto";
+    f.textContent = m.from_name || (m.from || "").slice(0, 12);
+    f.title = m.from || "";
+    div.append(f);
+  }
   const t = document.createElement("span");
   t.textContent = m.text;
   const meta = document.createElement("span");
   meta.className = "meta";
   meta.textContent = fmtTime(m.outgoing ? m.sent : m.received) + (m.outgoing ? (m.delivered ? " ✓✓" : " ✓") : "");
+  if (m.group && m.outgoing) meta.title = "Sent. Groups have no delivery receipts.";
   div.append(t, meta);
   box.append(div);
   box.scrollTop = box.scrollHeight;
@@ -272,21 +330,54 @@ function showChat() {
 
 async function openChat(c) {
   showChat();
-  current = c; unread[c.hash] = 0;
+  current = c; c.unread = 0;
   const head = $("chatHead");
   head.replaceChildren();
-  const h2 = document.createElement("h2"); h2.textContent = label(c); h2.dir = "auto";
-  const hs = document.createElement("div"); hs.className = "hash"; hs.textContent = c.hash;
-  head.append(h2, hs);
+  const info = el("div", {className: "grow"});
+  const h2 = document.createElement("h2"); h2.textContent = kindIcon[c.kind] + c.title; h2.dir = "auto";
+  const hs = document.createElement("div"); hs.className = "hash";
+  hs.textContent = c.kind === "contact" ? c.hash : ({private: "private group", regional: "regional public chat", global: "global public chat"})[c.kind] + " · " + c.hash.slice(0, 12);
+  info.append(h2, hs);
+  head.append(info);
+  if (c.group) {
+    head.append(el("button", {className: "ghost", textContent: c.kind === "private" ? "Invite" : "Share", on: {click: () => showInvite(c.group)}}),
+      el("button", {className: "ghost", textContent: "Leave", on: {click: () => leaveGroup(c)}}));
+  }
   $("compose").hidden = false;
   $("messages").replaceChildren();
   renderContacts();
   for (const m of await api("/messages?with=" + c.hash + "&limit=200")) addMessage(m);
+  api("/read/" + c.hash, {method: "POST"}).catch(() => {});
   $("text").focus();
 }
 
+function showInvite(g) {
+  $("invTitle").textContent = (g.kind === "private" ? "Invite to " : "Share ") + g.title;
+  $("invHelp").textContent = g.kind === "private"
+    ? "Anyone with this link can read and post in the group. Send it only to members, over a safe channel."
+    : "This is a public chat: anyone can join it with this link or by its name.";
+  $("invUri").textContent = g.uri;
+  $("dlgInvite").showModal();
+}
+$("invCopy").onclick = () => navigator.clipboard.writeText($("invUri").textContent);
+
+async function leaveGroup(c) {
+  if (!confirm(`Leave ${c.title}? You stop receiving its messages.`)) return;
+  try {
+    await api("/groups/" + c.hash, {method: "DELETE"});
+    current = null;
+    $("chatHead").replaceChildren(el("h2", {textContent: "No chat selected"}));
+    $("messages").replaceChildren(); $("compose").hidden = true;
+    loadContacts();
+  } catch (e) { alert(e.message); }
+}
+
 async function loadContacts() {
-  contacts = await api("/contacts") || [];
+  const [cs, list] = await Promise.all([api("/contacts"), api("/chats")]);
+  contacts = cs || [];
+  const unreadOpen = current ? current.hash : null;
+  chats = (list || []).map(chatOf);
+  for (const c of chats) if (c.hash === unreadOpen) { c.unread = 0; current = Object.assign(current, {group: c.group, contact: c.contact}); }
   renderContacts();
 }
 
@@ -318,19 +409,63 @@ $("compose").onsubmit = async (e) => {
     const m = await api("/send", {method: "POST", body: JSON.stringify({to: current.hash, text})});
     $("text").value = "";
     addMessage(m);
+    loadContacts();
   } catch (err) { alert(err.message); }
 };
 $("text").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("compose").requestSubmit(); } };
 
-$("btnAdd").onclick = () => { $("addErr").textContent = ""; $("addUri").value = ""; $("addName").value = ""; $("dlgAdd").showModal(); };
+function showTab(id) {
+  for (const b of document.querySelectorAll("#dlgAdd .tabs button")) {
+    b.classList.toggle("on", b.dataset.tab === id);
+    $(b.dataset.tab).hidden = b.dataset.tab !== id;
+  }
+  $("addErr").textContent = "";
+}
+for (const b of document.querySelectorAll("#dlgAdd .tabs button")) b.onclick = () => showTab(b.dataset.tab);
+
+let regions = null;
+$("btnAdd").onclick = async () => {
+  for (const id of ["addUri", "addName", "grpName", "joinUri", "regionName"]) $(id).value = "";
+  showTab("tabContact");
+  $("dlgAdd").showModal();
+  if (!regions) {
+    regions = await api("/regions").catch(() => []);
+    $("regions").replaceChildren(...regions.map((r) => el("option", {value: r})));
+    $("regionChips").replaceChildren(...regions.slice(0, 12).map((r) => el("button", {className: "ghost", textContent: "#" + r, on: {click: () => joinGroup(r)}})));
+  }
+};
+async function openByHash(hash) {
+  await loadContacts();
+  const c = chats.find((x) => x.hash === hash);
+  if (c) openChat(c);
+}
 $("addOk").onclick = async () => {
+  const uri = $("addUri").value.trim();
+  if (uri.startsWith("meshgroup:")) return joinGroup(uri);
   try {
-    const c = await api("/contacts", {method: "POST", body: JSON.stringify({uri: $("addUri").value.trim(), name: $("addName").value.trim()})});
+    const c = await api("/contacts", {method: "POST", body: JSON.stringify({uri, name: $("addName").value.trim()})});
     $("dlgAdd").close();
-    await loadContacts();
-    openChat(contacts.find((x) => x.hash === c.hash) || c);
+    openByHash(c.hash);
   } catch (err) { $("addErr").textContent = err.message; }
 };
+async function joinGroup(link) {
+  try {
+    const g = await api("/groups", {method: "POST", body: JSON.stringify({link})});
+    $("dlgAdd").close();
+    openByHash(g.hash);
+  } catch (err) { $("addErr").textContent = err.message; }
+}
+$("grpOk").onclick = async () => {
+  try {
+    const g = await api("/groups", {method: "POST", body: JSON.stringify({name: $("grpName").value.trim()})});
+    $("dlgAdd").close();
+    await openByHash(g.hash);
+    showInvite(g);
+  } catch (err) { $("addErr").textContent = err.message; }
+};
+$("joinOk").onclick = () => joinGroup($("joinUri").value.trim());
+$("joinGlobal").onclick = () => joinGroup("global");
+$("joinRegion").onclick = () => { const r = $("regionName").value.trim(); if (r) joinGroup("#" + r.replace(/^#/, "")); };
 $("btnMe").onclick = async () => { $("myUri").textContent = (await api("/id")).uri; $("dlgMe").showModal(); };
 $("copyUri").onclick = () => navigator.clipboard.writeText($("myUri").textContent);
 
@@ -536,13 +671,16 @@ function listen() {
   es.onmessage = async (ev) => {
     const e = JSON.parse(ev.data);
     if (e.type === "message") {
-      if (!contacts.some((c) => c.hash === e.message.peer)) await loadContacts();
-      if (current && current.hash === e.message.peer) addMessage(e.message);
-      else { unread[e.message.peer] = (unread[e.message.peer] || 0) + 1; renderContacts(); }
+      const open = current && current.hash === e.message.peer;
+      if (open) {
+        if (!document.querySelector(`.msg[data-id="${e.message.id}"]`)) addMessage(e.message);
+        api("/read/" + current.hash, {method: "POST"}).catch(() => {});
+      }
+      await loadContacts();
     } else if (e.type === "delivered") {
       const el = document.querySelector(`.msg[data-id="${e.info}"] .meta`);
       if (el && !el.textContent.endsWith("✓✓")) el.textContent = el.textContent.replace(/ ✓$/, " ✓✓");
-    } else if (e.type === "contact") { loadContacts(); }
+    } else if (e.type === "contact" || e.type === "group") { loadContacts(); }
     else if (e.type === "link") { loadStatus(); }
   };
   es.onerror = () => { es.close(); setTimeout(() => { listen(); loadStatus(); }, 1500); };

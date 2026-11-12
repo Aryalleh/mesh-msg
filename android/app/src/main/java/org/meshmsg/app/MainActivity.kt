@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handle(intent: Intent?) {
         intent ?: return
-        if (intent.action == Intent.ACTION_VIEW && intent.data?.scheme == "meshmsg") pendingLink.value = intent.dataString
+        if (intent.action == Intent.ACTION_VIEW && intent.data?.scheme in setOf("meshmsg", "meshgroup")) pendingLink.value = intent.dataString
         intent.getStringExtra(EXTRA_CHAT)?.let { pendingChat.value = it }
     }
 
@@ -187,6 +187,10 @@ class MainActivity : ComponentActivity() {
                             onBack = { nav.popBackStack() },
                             onRename = { vm.rename(hash, it) },
                             onRemove = { vm.remove(hash); nav.popBackStack() },
+                            onInvite = {
+                                startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, contact.uri), null))
+                            },
+                            onLeave = { vm.leaveGroup(hash); nav.popBackStack() },
                         )
                     }
                 }
@@ -197,6 +201,10 @@ class MainActivity : ComponentActivity() {
                     val scope = rememberCoroutineScope()
                     val copied = stringResource(R.string.link_copied)
                     val myUri = backend?.myUri.orEmpty()
+                    // Creating or joining a group is a local SQLite insert: milliseconds.
+                    val openGroup = { hash: String? ->
+                        if (hash != null) nav.navigate(Routes.chat(hash)) { popUpTo(Routes.CHATS) }
+                    }
                     AddContactScreen(
                         myUri = myUri,
                         initialLink = remember { pendingLink.value.orEmpty().also { pendingLink.value = null } },
@@ -211,11 +219,20 @@ class MainActivity : ComponentActivity() {
                         },
                         onPaste = { clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty().trim() },
                         onAdd = { uri, name ->
-                            // A local SQLite insert: milliseconds.
-                            val error = runBlocking { vm.addContact(uri, name) }
-                            if (error == null) nav.popBackStack()
-                            error
+                            if (uri.trim().startsWith("meshgroup:")) {
+                                val hash = runBlocking { vm.joinGroup(uri) }
+                                openGroup(hash)
+                                if (hash == null) org.meshmsg.app.ui.LinkError.Invalid else null
+                            } else {
+                                // A local SQLite insert: milliseconds.
+                                val error = runBlocking { vm.addContact(uri, name) }
+                                if (error == null) nav.popBackStack()
+                                error
+                            }
                         },
+                        regions = vm.regions,
+                        onCreateGroup = { name -> openGroup(runBlocking { vm.createGroup(name) }) },
+                        onJoinGroup = { link -> openGroup(runBlocking { vm.joinGroup(link) }) },
                     )
                 }
             }

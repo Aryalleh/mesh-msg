@@ -8,10 +8,26 @@ import java.time.Instant
 // UI models, parsed from the JSON the Go core returns (the same JSON meshd
 // serves). All immutable, so Compose can skip unchanged rows.
 
+/** Kinds of group chat, as the core names them. */
+enum class GroupKind(val id: String) {
+    Private("private"), Regional("regional"), Global("global");
+
+    val public: Boolean get() = this != Private
+
+    companion object {
+        fun of(id: String) = entries.firstOrNull { it.id == id } ?: Private
+    }
+}
+
+/**
+ * A chat partner: a person, or a group ([group] set; then [name] is the
+ * group's title such as "#tehran" and [uri] its invite link).
+ */
 @Immutable
-data class Contact(val hash: String, val name: String, val uri: String) {
+data class Contact(val hash: String, val name: String, val uri: String, val group: GroupKind? = null) {
     /** Name to show: the saved name, or a short form of the hash. */
     val displayName: String get() = name.ifBlank { hash.take(8) }
+    val isGroup: Boolean get() = group != null
 }
 
 /** How far an outgoing message got. Never shown by colour alone. */
@@ -26,6 +42,9 @@ data class Message(
     val sentMs: Long,
     val receivedMs: Long,
     val delivery: Delivery,
+    /** Group messages: who wrote it (their chosen or saved name, "you" for us). */
+    val group: Boolean = false,
+    val fromName: String = "",
 ) {
     /** When the user saw it happen on this phone. */
     val timeMs: Long get() = if (outgoing) sentMs else receivedMs
@@ -83,6 +102,9 @@ object Json {
 
     fun contact(o: JSONObject) = Contact(o.optString("hash"), o.optString("name"), o.optString("uri"))
 
+    /** A group (core node.Group JSON) as a chat partner. */
+    fun group(o: JSONObject) = Contact(o.optString("hash"), o.optString("title"), o.optString("uri"), GroupKind.of(o.optString("kind")))
+
     /**
      * [linkUp]: whether any path existed when the list was read. The core
      * hands a message to every link at once, so an outgoing message that is
@@ -99,6 +121,8 @@ object Json {
             id = o.optString("id"), peer = o.optString("peer"), outgoing = outgoing, text = o.optString("text"),
             sentMs = time(o.optString("sent")), receivedMs = time(o.optString("received")),
             delivery = if (outgoing) delivery else Delivery.Delivered,
+            group = o.optBoolean("group"),
+            fromName = o.optString("from_name").ifBlank { o.optString("from").take(8) },
         )
     }
 
@@ -111,7 +135,8 @@ object Json {
         val a = JSONArray(json)
         return List(a.length()) {
             val o = a.getJSONObject(it)
-            Chat(contact(o.getJSONObject("contact")), o.optJSONObject("last")?.let { m -> message(m, linkUp) }, o.optInt("unread"))
+            val who = o.optJSONObject("group")?.let(::group) ?: contact(o.getJSONObject("contact"))
+            Chat(who, o.optJSONObject("last")?.let { m -> message(m, linkUp) }, o.optInt("unread"))
         }
     }
 

@@ -313,3 +313,37 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
   unread → backup → rm → restore). Also driven in a real pty with two meshd over LAN: live
   receive, unread prompt, receipts.
 - Commit `ef0c03d`. Next: release v0.1.0-alpha6 once main CI is green.
+
+### 2026-11-12 — group chats, regional and global public chats
+- User asked for group chat plus regional and global group chats.
+- Design (docs/protocol.md §6a): a group is addressed like a person. Its 32-byte secret derives
+  (HKDF) a group identity and a ChaCha20-Poly1305 key; dest_hash = group identity hash. Members
+  announce the group identity and fetch its relay mailbox with it, so **relays, gateways and
+  LoRa firmware are unchanged** (firmware hands every heard packet to the host). Private
+  groups: random secret, invite link `meshgroup:<b64 secret>?n=Name`. Public chats: secret =
+  SHA-256("mesh-msg public channel v1|"+name); `#global` (kind global, packets NO_LORA) and any
+  region name (`#tehran`, kind regional). Message = sender X+Ed keys, name, inner, Ed25519
+  signature (no impersonation, even in public chats). No receipts for groups (they would purge
+  copies other members need); members deliver and keep forwarding.
+- `core/group` (+tests: round trip incl. 16-fragment text, single-frame short Persian, outsiders,
+  retarget, tamper, forged sender, channel derivation pinned, name truncation). Router:
+  `AddGroup/RemoveGroup/SendGroupText`, group announces. Node: `groups` table, message columns
+  `sender`/`sender_name` (migrated), `CreateGroup/JoinGroup/LeaveGroup/Groups/SendGroup`, `Send`
+  and `Messages`/`MarkRead`/`Chats` accept groups, `Regions` list, relay link polls each group
+  mailbox every 10 s. Tests: private group via relay (3 members, no contacts, leave), #global
+  across a bridge (IR relay ↔ EU relay), #tehran over LAN only, persistence.
+- meshd API: `GET /chats`, `POST /read/{ref}`, `GET/POST /groups`, `DELETE /groups/{ref}`,
+  `GET /regions`. CLI: `mesh groups`, `mesh group new|join|invite|leave`, `mesh regions`;
+  app: `/group /join /global /region /invite /leave /groups`, sender names, no ✓ for groups.
+  Web UI: chat list from `/chats` with icons and previews, + dialog tabs (Contact / New group /
+  Join group / Public chats with region chips), Invite/Share and Leave in the chat header,
+  sender names. Checked in headless Chromium with two meshd over LAN (desktop + phone width).
+- mobile: `Groups/CreateGroup/JoinGroup/LeaveGroup/Regions`; test: group over a 3-phone BLE
+  chain where the middle phone is not a member (carries it, can't read it).
+- Android: `Contact.group` (GroupKind), `Message.group/fromName`, backend + view model group
+  calls, chat menu Invite/Share + Leave (confirm), kind subtitle, public-chat warning, sender
+  names, never "delivered" for groups, New chat screen gains Group chats (create, #global,
+  region field + chips), `meshgroup:` links open the app; en + fa strings; JsonTest and
+  screenshots (group chat, empty public chat, chat list with groups). Compiles in CI only.
+- Checked against the live relay eu-1: a private group message between two local meshd
+  arrived in ~5 s with the relay unchanged.

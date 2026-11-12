@@ -34,7 +34,14 @@ Usage:
   mesh add <meshmsg:…> [name]    add a contact
   mesh rename <contact> <name>   rename a contact
   mesh rm <contact>              remove a contact
-  mesh send <contact> <text…>    send a message ("-" reads text from stdin)
+  mesh send <chat> <text…>       send a message ("-" reads text from stdin)
+  mesh groups                    joined groups and public chats
+  mesh group new <name>          create a private group (prints its invite link)
+  mesh group join <link|#name>   join by invite link (meshgroup:…) or a public chat:
+                                 global, or a region such as #tehran
+  mesh group invite <group>      print a group's invite link
+  mesh group leave <group>       leave a group
+  mesh regions                   suggested regional chats
   mesh read [contact] [-n N]     show messages
   mesh watch                     stream incoming messages and events
   mesh ui                        open the web UI in your browser
@@ -55,7 +62,8 @@ Usage:
   mesh identity import [-replace] [file|-]
                                  restore an account from a backup (meshd must be stopped)
 
-<contact> is a name, a hash or a hash prefix (6+ chars).
+<contact> is a name, a hash or a hash prefix (6+ chars); <chat> is a contact or a group
+("#global", "#tehran", a group's name).
 Flags: -data <dir> (default ~/.local/share/meshd)
 `
 
@@ -147,6 +155,17 @@ func run(args []string) error {
 		}
 	case "app":
 		return runApp()
+	case "groups":
+		return groupCmd([]string{"list"})
+	case "group":
+		return groupCmd(rest)
+	case "regions":
+		var rs []string
+		if err := call("GET", "/regions", nil, &rs); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "Regional public chats (any other name works too): mesh group join #<name>")
+		fmt.Fprintln(out, strings.Join(rs, " "))
 	case "config":
 		return configCmd(rest)
 	case "relay", "relays":
@@ -265,6 +284,11 @@ func contactNames() map[string]string {
 	var cs []node.Contact
 	call("GET", "/contacts", nil, &cs)
 	m := map[string]string{}
+	var gs []node.Group
+	call("GET", "/groups", nil, &gs)
+	for _, g := range gs {
+		m[g.Hash] = g.Title
+	}
 	for _, c := range cs {
 		if c.Name != "" {
 			m[c.Hash] = c.Name
@@ -279,6 +303,14 @@ func printMessage(m node.Message, names map[string]string) {
 	who := names[m.Peer]
 	if who == "" {
 		who = m.Peer[:12]
+	}
+	if m.Group {
+		if m.Outgoing {
+			fmt.Fprintf(out, "%s %s you: %s\n", m.Sent.Local().Format("01-02 15:04"), who, m.Text)
+		} else {
+			fmt.Fprintf(out, "%s %s %s: %s\n", m.Received.Local().Format("01-02 15:04"), who, senderName(m), m.Text)
+		}
+		return
 	}
 	ts, arrow, mark := m.Received, "←", ""
 	if m.Outgoing {
@@ -332,4 +364,71 @@ func openBrowser(u string) {
 		cmd = exec.Command("xdg-open", u)
 	}
 	cmd.Start()
+}
+
+func groupCmd(args []string) error {
+	const usage = "usage: mesh group new <name> | join <meshgroup:…|#region|global> | invite <group> | leave <group> | list"
+	if len(args) == 0 {
+		return errors.New(usage)
+	}
+	switch args[0] {
+	case "list", "ls":
+		var gs []node.Group
+		if err := call("GET", "/groups", nil, &gs); err != nil {
+			return err
+		}
+		if len(gs) == 0 {
+			fmt.Fprintln(out, "no groups (mesh group new <name>, mesh group join global)")
+		}
+		tw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+		for _, g := range gs {
+			fmt.Fprintf(tw, "%s\t%s\t%s\n", g.Title, g.Kind, g.Hash)
+		}
+		return tw.Flush()
+	case "new", "create":
+		if len(args) < 2 {
+			return errors.New(usage)
+		}
+		var g node.Group
+		if err := call("POST", "/groups", map[string]string{"name": strings.Join(args[1:], " ")}, &g); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "created %s — invite people with this link (anyone holding it can read and post):\n%s\n", g.Title, g.URI)
+	case "join":
+		if len(args) < 2 {
+			return errors.New(usage)
+		}
+		var g node.Group
+		if err := call("POST", "/groups", map[string]string{"link": strings.Join(args[1:], " ")}, &g); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "joined %s (%s)\n", g.Title, g.Kind)
+		if g.Kind != "private" {
+			fmt.Fprintln(out, "this chat is public: anyone can read it and post")
+		}
+	case "invite", "link":
+		if len(args) < 2 {
+			return errors.New(usage)
+		}
+		var gs []node.Group
+		if err := call("GET", "/groups", nil, &gs); err != nil {
+			return err
+		}
+		ref := strings.Join(args[1:], " ")
+		for _, g := range gs {
+			if g.Hash == ref || strings.EqualFold(g.Title, ref) || strings.EqualFold(g.Name, ref) || (len(ref) >= 6 && strings.HasPrefix(g.Hash, ref)) {
+				fmt.Fprintln(out, g.URI)
+				return nil
+			}
+		}
+		return fmt.Errorf("no group %q", ref)
+	case "leave", "rm":
+		if len(args) < 2 {
+			return errors.New(usage)
+		}
+		return call("DELETE", "/groups/"+url.PathEscape(strings.Join(args[1:], " ")), nil, nil)
+	default:
+		return errors.New(usage)
+	}
+	return nil
 }

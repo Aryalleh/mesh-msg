@@ -12,7 +12,7 @@
 
     <!-- Chats -->
     <string name="chats_empty_title">No chats yet</string>
-    <string name="chats_empty_body">Add someone by their mesh-msg link. They need to add yours too — do it in person if you can.</string>
+    <string name="chats_empty_body">Add someone by their mesh-msg link, start a group, or join the global chat and your region\'s chat.</string>
     <string name="add_contact">Add contact</string>
     <string name="chat_no_messages">No messages yet</string>
     <plurals name="unread_count">
@@ -173,4 +173,24 @@
     <string name="restore_err_passphrase">Wrong passphrase, or the backup is damaged</string>
     <string name="restore_err_other">Could not restore the account</string>
     <string name="restore_confirm">Restore</string>
+    <!-- Groups -->
+    <string name="new_chat">New chat</string>
+    <string name="group_private">Private group</string>
+    <string name="group_regional">Regional public chat</string>
+    <string name="group_global">Global public chat</string>
+    <string name="group_share">Share link</string>
+    <string name="group_invite">Invite people</string>
+    <string name="group_leave">Leave group</string>
+    <string name="group_leave_title">Leave %1$s?</string>
+    <string name="group_leave_body">You stop receiving its messages. You can join again later with its link.</string>
+    <string name="group_public_warning">Public chat: anyone can read it and post. Don\'t share anything private here.</string>
+    <string name="groups_title">Group chats</string>
+    <string name="groups_body">A private group is read only by people you give its invite link to. It works over the same paths as your chats: Bluetooth, LoRa, relays.</string>
+    <string name="group_name_label">Group name</string>
+    <string name="group_create">Create group</string>
+    <string name="public_chats_title">Public chats</string>
+    <string name="join_global">Join #global</string>
+    <string name="region_label">Your city, province or country</string>
+    <string name="region_helper">Everyone who picks the same name meets in one regional chat.</string>
+    <string name="join_region">Join regional chat</string>
 </resources>

@@ -2,7 +2,9 @@ package node
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -32,6 +34,13 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS messages_peer ON messages(peer, received);
 CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS groups (
+	hash   BLOB PRIMARY KEY,
+	name   TEXT NOT NULL,
+	kind   TEXT NOT NULL,       -- private | regional | global
+	secret BLOB NOT NULL,
+	joined INTEGER NOT NULL
+);
 `
 
 func openAppDB(path string) (*appDB, error) {
@@ -43,6 +52,17 @@ func openAppDB(path string) (*appDB, error) {
 	if _, err := db.Exec(appSchema); err != nil {
 		db.Close()
 		return nil, err
+	}
+	// v2: group chats. Older databases get the new message columns.
+	for _, col := range []string{"sender BLOB", "sender_name TEXT NOT NULL DEFAULT ''"} {
+		var n int
+		db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name=?`, strings.Fields(col)[0]).Scan(&n)
+		if n == 0 {
+			if _, err := db.Exec(`ALTER TABLE messages ADD COLUMN ` + col); err != nil {
+				db.Close()
+				return nil, err
+			}
+		}
 	}
 	return &appDB{db}, nil
 }
@@ -103,6 +123,11 @@ type Message struct {
 	Sent      time.Time `json:"sent"`
 	Received  time.Time `json:"received"`
 	Delivered bool      `json:"delivered"`
+	// Group messages: Peer is the group's hash, From the sender's hash and
+	// FromName the name the sender gave (a contact's saved name wins).
+	Group    bool   `json:"group,omitempty"`
+	From     string `json:"from,omitempty"`
+	FromName string `json:"from_name,omitempty"`
 }
 
 func (d *appDB) putMessage(m Message) error {
@@ -110,8 +135,16 @@ func (d *appDB) putMessage(m Message) error {
 	if err != nil {
 		return err
 	}
-	_, err = d.db.Exec(`INSERT OR IGNORE INTO messages(id,peer,outgoing,body,sent,received,delivered) VALUES(?,?,?,?,?,?,?)`,
-		m.ID, peer[:], m.Outgoing, m.Text, m.Sent.Unix(), m.Received.UnixMilli(), m.Delivered)
+	var sender []byte
+	if m.From != "" {
+		h, err := packet.ParseHash(m.From)
+		if err != nil {
+			return err
+		}
+		sender = h[:]
+	}
+	_, err = d.db.Exec(`INSERT OR IGNORE INTO messages(id,peer,outgoing,body,sent,received,delivered,sender,sender_name) VALUES(?,?,?,?,?,?,?,?,?)`,
+		m.ID, peer[:], m.Outgoing, m.Text, m.Sent.Unix(), m.Received.UnixMilli(), m.Delivered, sender, m.FromName)
 	return err
 }
 
@@ -128,7 +161,7 @@ func (d *appDB) messages(peer *packet.Hash, limit int) ([]Message, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	q := `SELECT id,peer,outgoing,body,sent,received,delivered FROM messages`
+	q := `SELECT id,peer,outgoing,body,sent,received,delivered,sender,sender_name FROM messages`
 	var args []any
 	if peer != nil {
 		q += ` WHERE peer=?`
@@ -145,8 +178,12 @@ func (d *appDB) messages(peer *packet.Hash, limit int) ([]Message, error) {
 		var m Message
 		var pb []byte
 		var sent, recv int64
-		if err := rows.Scan(&m.ID, &pb, &m.Outgoing, &m.Text, &sent, &recv, &m.Delivered); err != nil {
+		var sender []byte
+		if err := rows.Scan(&m.ID, &pb, &m.Outgoing, &m.Text, &sent, &recv, &m.Delivered, &sender, &m.FromName); err != nil {
 			return nil, err
+		}
+		if len(sender) == len(packet.Hash{}) {
+			m.Group, m.From = true, hex.EncodeToString(sender)
 		}
 		var h packet.Hash
 		copy(h[:], pb)

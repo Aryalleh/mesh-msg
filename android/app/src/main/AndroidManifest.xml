@@ -50,6 +50,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="meshmsg" />
+                <!-- Group invite links: meshgroup:… -->
+                <data android:scheme="meshgroup" />
             </intent-filter>
             <!-- A LoRa node was plugged in: opening the app grants USB access to it. -->
             <intent-filter>

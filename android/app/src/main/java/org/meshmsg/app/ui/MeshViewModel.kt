@@ -93,6 +93,23 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     fun send(hash: String, text: String) = io { it.send(hash, text) }
     fun rename(hash: String, name: String) = io { it.renameContact(hash, name) }
     fun remove(hash: String) = io { it.removeContact(hash) }
+    fun leaveGroup(hash: String) = io { it.leaveGroup(hash) }
+
+    /** Suggested regional chats (from the core). */
+    val regions: List<String> by lazy {
+        runCatching { org.json.JSONArray(Meshcore.regions()).let { a -> List(a.length()) { a.getString(it) } } }.getOrDefault(emptyList())
+    }
+
+    /** Creates or joins a group; returns its hash, or null (the error goes to the snackbar). */
+    suspend fun createGroup(name: String): String? = groupCall { it.createGroup(name) }
+    suspend fun joinGroup(link: String): String? = groupCall { it.joinGroup(link) }
+
+    private suspend fun groupCall(f: (CoreBackend) -> Result<org.meshmsg.app.data.Contact>): String? {
+        val b = backend.value ?: return null
+        return withContext(Dispatchers.IO) {
+            f(b).onFailure { _errors.trySend(it.message ?: it.toString()) }.getOrNull()?.hash
+        }
+    }
 
     /** Returns null on success, or why the link was refused. */
     suspend fun addContact(uri: String, name: String): LinkError? {

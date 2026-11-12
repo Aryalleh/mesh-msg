@@ -162,8 +162,9 @@ func (l *relayLink) downloader(ctx context.Context) {
 			}
 		}
 	}
-	wg.Add(2)
+	wg.Add(3)
 	go loop("mailbox", 0, l.mailboxOnce)
+	go loop("groups", 10*time.Second, l.groupsOnce)
 	go loop("receipts", 5*time.Second, l.receiptsOnce)
 	if gw := l.n.cfg.Gateway; gw.Enabled {
 		wg.Add(1)
@@ -181,6 +182,30 @@ func (l *relayLink) mailboxOnce(ctx context.Context) error {
 	l.setUp(true)
 	l.deliver(raws)
 	l.n.setCursor(key, cur)
+	return nil
+}
+
+// groupsOnce fetches the mailbox of every joined group (members fetch as the
+// group's shared identity). No long poll: one quick fetch per group.
+func (l *relayLink) groupsOnce(ctx context.Context) error {
+	gs, err := l.n.db.groups()
+	if err != nil {
+		return err
+	}
+	for _, g := range gs {
+		key := l.name + ":group:" + g.Hash
+		raws, cur, err := l.c.Mailbox(ctx, g.g.Identity(), l.n.cursor(key), 0)
+		if err != nil {
+			// A 401 until the relay has seen the group's announce is expected;
+			// keep polling the other groups at the normal pace.
+			if ctx.Err() == nil {
+				l.n.cfg.Logf("%s: group %s: %v", l.name, g.Title, err)
+			}
+			continue
+		}
+		l.deliver(raws)
+		l.n.setCursor(key, cur)
+	}
 	return nil
 }
 

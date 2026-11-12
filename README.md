@@ -13,6 +13,10 @@ Messages travel over whatever path exists:
 | 2a — Regional | Phones/PCs on a country's domestic network → in-region relay | One country, even during an international blackout | Anything |
 | 2b — Global | Federated relays (EU, US, Asia, AU); regions joined by volunteer **bridges** (VPN, Starlink, unfiltered SIM) | Global | Anything |
 
+Chats are one-to-one, **private groups** (joined by invite link), **regional public chats**
+(one per city or country name, e.g. `#tehran`) and one **global public chat** (`#global`).
+All of them travel over every tier above (the global chat skips LoRa to save airtime).
+
 Any phone or PC that can reach a relay can register as a **gateway** ("I'm online — send me
 traffic for the mesh around me"). Clients: Android, and desktop (Linux first, then Windows
 and macOS).

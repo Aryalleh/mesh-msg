@@ -34,7 +34,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/router"
 )
 
-// Listener receives node events as JSON: {"type":"message|delivered|link|contact",…}.
+// Listener receives node events as JSON: {"type":"message|delivered|link|contact|group",…}.
 // Calls come from a Go thread, one at a time.
 type Listener interface {
 	OnEvent(json string)
@@ -279,6 +279,36 @@ func (c *Core) Messages(contact string, limit int) (string, error) {
 		ms = []node.Message{}
 	}
 	return toJSON(ms, err)
+}
+
+// ---- groups and public chats ----
+// Send, Messages and MarkRead take a group's hash too; Chats lists groups as
+// {"group":{hash,name,title,kind,uri},"last":…,"unread":n}.
+
+// Groups returns the joined groups as JSON [{hash,name,title,kind,uri,joined}].
+func (c *Core) Groups() (string, error) {
+	gs, err := c.n.Groups()
+	if gs == nil {
+		gs = []node.Group{}
+	}
+	return toJSON(gs, err)
+}
+
+// CreateGroup makes a private group and returns it as JSON (its "uri" is the
+// invite link).
+func (c *Core) CreateGroup(name string) (string, error) { return toJSON(c.n.CreateGroup(name)) }
+
+// JoinGroup joins by invite link (meshgroup:…) or public chat name
+// ("global", "#tehran") and returns the group as JSON.
+func (c *Core) JoinGroup(link string) (string, error) { return toJSON(c.n.JoinGroup(link)) }
+
+// LeaveGroup leaves a group (hash, name or title).
+func (c *Core) LeaveGroup(group string) error { return c.n.LeaveGroup(group) }
+
+// Regions returns suggested regional chat names as a JSON array.
+func Regions() string {
+	s, _ := toJSON(node.Regions, nil)
+	return s
 }
 
 // ---- point-to-point transports (BLE mesh) ----

@@ -8,12 +8,14 @@
 package router
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/announce"
+	"github.com/Aryalleh/mesh-msg/core/group"
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/message"
 	"github.com/Aryalleh/mesh-msg/core/packet"
@@ -62,10 +64,12 @@ type Config struct {
 	// Contacts returns the known senders for a local identity (Noise K).
 	Contacts func(local packet.Hash) []identity.Public
 
-	OnMessage  func(local *identity.Identity, m *message.Received)
-	OnReceipt  func(acked packet.ID)
-	OnAnnounce func(a announce.Announce, link string, hops uint8)
-	Logf       func(format string, args ...any)
+	OnMessage func(local *identity.Identity, m *message.Received)
+	// OnGroupMessage receives messages of joined groups (AddGroup).
+	OnGroupMessage func(m *group.Message)
+	OnReceipt      func(acked packet.ID)
+	OnAnnounce     func(a announce.Announce, link string, hops uint8)
+	Logf           func(format string, args ...any)
 }
 
 // Route is what the router learned about a destination from announces.
@@ -90,6 +94,7 @@ type Router struct {
 	order  []string // link registration order (deterministic iteration)
 	peers  map[string]map[PeerID]bool
 	locals map[packet.Hash]*identity.Identity
+	groups map[packet.Hash]*group.Group
 	known  map[packet.Hash]identity.Public
 	routes map[packet.Hash]Route
 	seen   map[packet.Key]time.Time
@@ -124,6 +129,7 @@ func New(cfg Config) *Router {
 		links:  map[string]Link{},
 		peers:  map[string]map[PeerID]bool{},
 		locals: map[packet.Hash]*identity.Identity{},
+		groups: map[packet.Hash]*group.Group{},
 		known:  map[packet.Hash]identity.Public{},
 		routes: map[packet.Hash]Route{},
 		seen:   map[packet.Key]time.Time{},
@@ -147,6 +153,45 @@ func (r *Router) AddLocal(id *identity.Identity) {
 	defer r.mu.Unlock()
 	r.locals[id.Hash()] = id
 	r.known[id.Hash()] = id.Public
+}
+
+// AddGroup joins a group: its messages are delivered (and still forwarded,
+// since other members need them; no receipts), and its identity is announced
+// so relays let members fetch its mailbox.
+func (r *Router) AddGroup(g *group.Group) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.groups[g.Hash()] = g
+	r.known[g.Hash()] = g.Identity().Public
+}
+
+// RemoveGroup leaves a group.
+func (r *Router) RemoveGroup(h packet.Hash) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.groups, h)
+}
+
+// SendGroupText sends text to a joined group as from (shown as name).
+func (r *Router) SendGroupText(from *identity.Identity, name string, h packet.Hash, text string, priority bool) (packet.ID, error) {
+	r.mu.Lock()
+	g, ok := r.groups[h]
+	r.mu.Unlock()
+	if !ok {
+		return packet.ID{}, errors.New("router: not a member of this group")
+	}
+	pkts, err := g.BuildText(from, name, text, r.cfg.MaxHops, priority, r.cfg.Now())
+	if err != nil {
+		return packet.ID{}, err
+	}
+	var acts actions
+	r.mu.Lock()
+	for _, p := range pkts {
+		r.originate(&acts, p)
+	}
+	r.mu.Unlock()
+	acts.run()
+	return pkts[0].ID, nil
 }
 
 // AddKnown registers a public identity (e.g. a contact) so receipts from it
@@ -335,6 +380,9 @@ func (r *Router) inbound(acts *actions, link string, from PeerID, raw []byte) {
 			r.deliver(acts, local, p)
 			return
 		}
+		if g, ok := r.groups[p.Dest]; ok {
+			r.deliverGroup(acts, g, p) // and keep carrying it for the other members
+		}
 		r.storeItem(p, raw, origin, r.cfg.DataTTL)
 		r.forward(acts, k, raw, p.NoLoRa(), link, from, false)
 
@@ -365,6 +413,22 @@ func (r *Router) deliver(acts *actions, local *identity.Identity, p *packet.Pack
 	r.originate(acts, rc)
 	if cb := r.cfg.OnMessage; cb != nil {
 		acts.add(func() { cb(local, m) })
+	}
+}
+
+func (r *Router) deliverGroup(acts *actions, g *group.Group, p *packet.Packet) {
+	full, err := r.reasm.Add(p, r.cfg.Now())
+	if err != nil || full == nil {
+		return
+	}
+	m, err := g.Open(full)
+	if err != nil {
+		r.cfg.Logf("router: group %s: %v", g.Hash(), err)
+		return
+	}
+	r.stats.Delivered++
+	if cb := r.cfg.OnGroupMessage; cb != nil {
+		acts.add(func() { cb(m) })
 	}
 }
 
@@ -412,8 +476,22 @@ func (r *Router) Announce() {
 	for _, id := range r.sortedLocals() {
 		r.originate(&acts, announce.Build(id, r.cfg.Now(), r.cfg.AppData, r.cfg.MaxHops))
 	}
+	// Groups announce without a name, with our delegation choice, so gateways
+	// can fetch them for members who are offline.
+	for _, g := range r.sortedGroups() {
+		r.originate(&acts, announce.Build(g.Identity(), r.cfg.Now(), announce.AppData{Flags: r.cfg.AppData.Flags}, r.cfg.MaxHops))
+	}
 	r.mu.Unlock()
 	acts.run()
+}
+
+func (r *Router) sortedGroups() []*group.Group {
+	out := make([]*group.Group, 0, len(r.groups))
+	for _, g := range r.groups {
+		out = append(out, g)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Hash().String() < out[j].Hash().String() })
+	return out
 }
 
 func (r *Router) sortedLocals() []*identity.Identity {

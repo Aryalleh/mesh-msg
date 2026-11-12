@@ -10,7 +10,8 @@ import (
 // Chat is one row of a chat list: a contact, its newest message and how many
 // incoming messages arrived since the chat was last marked read.
 type Chat struct {
-	Contact Contact  `json:"contact"`
+	Contact Contact  `json:"contact"`         // empty for a group chat
+	Group   *Group   `json:"group,omitempty"` // set for a group chat
 	Last    *Message `json:"last,omitempty"`
 	Unread  int      `json:"unread"`
 }
@@ -30,6 +31,20 @@ func (n *Node) Chats() ([]Chat, error) {
 			ch.Last = &ms[0]
 		}
 		ch.Unread, _ = n.db.unread(h, n.readMark(c.Hash))
+		out = append(out, ch)
+	}
+	gs, err := n.db.groups()
+	if err != nil {
+		return nil, err
+	}
+	for _, g := range gs {
+		h := g.g.Hash()
+		ch := Chat{Group: &g}
+		if ms, err := n.db.messages(&h, 1); err == nil && len(ms) == 1 {
+			n.nameGroupSender(&ms[0])
+			ch.Last = &ms[0]
+		}
+		ch.Unread, _ = n.db.unread(h, n.readMark(g.Hash))
 		out = append(out, ch)
 	}
 	sortChats(out)
@@ -52,11 +67,17 @@ func sortChats(cs []Chat) {
 
 // MarkRead records that the user has seen every message of a chat.
 func (n *Node) MarkRead(ref string) error {
-	c, err := n.findContact(ref)
+	c, g, err := n.resolveChat(ref)
 	if err != nil {
 		return err
 	}
-	return n.db.set("read:"+c.Hash, strconv.FormatInt(time.Now().UnixMilli(), 10))
+	hash := ""
+	if c != nil {
+		hash = c.Hash
+	} else {
+		hash = g.Hash
+	}
+	return n.db.set("read:"+hash, strconv.FormatInt(time.Now().UnixMilli(), 10))
 }
 
 func (n *Node) readMark(hash string) int64 {

@@ -236,6 +236,62 @@ func (d *Daemon) apiHandler() http.Handler {
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
+	mux.HandleFunc("GET /chats", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		cs, err := n.Chats()
+		if err != nil {
+			httpErr(w, err, 500)
+			return
+		}
+		writeJSON(w, cs)
+	}))
+	mux.HandleFunc("POST /read/{ref}", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		if err := n.MarkRead(r.PathValue("ref")); err != nil {
+			httpErr(w, err, 404)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	mux.HandleFunc("GET /groups", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		gs, err := n.Groups()
+		if err != nil {
+			httpErr(w, err, 500)
+			return
+		}
+		if gs == nil {
+			gs = []node.Group{}
+		}
+		writeJSON(w, gs)
+	}))
+	mux.HandleFunc("GET /regions", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, node.Regions)
+	})
+	mux.HandleFunc("POST /groups", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		// {"name": "…"} creates a private group; {"link": "meshgroup:…" | "#tehran" | "global"} joins.
+		var req struct{ Name, Link string }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		var g node.Group
+		var err error
+		if req.Link != "" {
+			g, err = n.JoinGroup(req.Link)
+		} else {
+			g, err = n.CreateGroup(req.Name)
+		}
+		if err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		writeJSON(w, g)
+	}))
+	mux.HandleFunc("DELETE /groups/{ref}", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		if err := n.LeaveGroup(r.PathValue("ref")); err != nil {
+			httpErr(w, err, 404)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
 	mux.HandleFunc("POST /send", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		var req struct{ To, Text string }
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

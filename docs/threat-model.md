@@ -12,6 +12,7 @@ control of national ISPs, mobile networks, app stores in-country, and police pow
 |---|---|---|
 | Read traffic on relays / LoRa / BLE | message content | Noise E2E encryption; nodes & servers hold ciphertext only |
 | Observe who talks to whom | social graph | sender hidden inside ciphertext; only dest_hash visible; Tor path to relays; v1: rotating per-epoch addresses |
+| Join a private group / read public chats | group content | a private group's link **is** its key: anyone holding it reads and posts, there is no removal (start a new group instead); public chats (#global, regional) are readable by anyone by design and the UIs say so; every group message is signed, so no one can post in another member's name; a group's dest_hash is visible like a person's |
 | Block relay servers | Tier 2 loss | multiple federated relays, CDN fronting, Tor onion, relay lists spread over the mesh; Tier 0/1 don't depend on servers |
 | Radio direction finding of LoRa | locate & seize repeaters | low duty cycle, short frames, repeaters hold no plaintext/contacts, remote wipe; operators accept the physical risk knowingly |
 | Detect app via BLE advertising | identify users in a crowd | stealth mode (no advertising); documented residual risk |

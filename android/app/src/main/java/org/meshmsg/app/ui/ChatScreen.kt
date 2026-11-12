@@ -61,6 +61,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.meshmsg.app.R
 import org.meshmsg.app.data.Contact
+import org.meshmsg.app.data.Delivery
+import org.meshmsg.app.data.GroupKind
 import org.meshmsg.app.data.Message
 import org.meshmsg.app.ui.theme.MeshTheme
 import org.meshmsg.app.ui.theme.Space
@@ -80,6 +82,8 @@ fun ChatScreen(
     onRename: (String) -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
+    onInvite: () -> Unit = {},
+    onLeave: () -> Unit = {},
     nowMs: Long = System.currentTimeMillis(),
     initialDraft: String = "",
 ) {
@@ -87,6 +91,8 @@ fun ChatScreen(
     var menu by remember { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
     var removing by rememberSaveable { mutableStateOf(false) }
+    var leaving by rememberSaveable { mutableStateOf(false) }
+    val group = contact.group
     val list = rememberLazyListState()
     LaunchedEffect(messages.size) { if (messages.isNotEmpty()) list.scrollToItem(messages.size - 1) }
 
@@ -100,17 +106,45 @@ fun ChatScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
                         Avatar(contact, size = 36.dp)
-                        Text(contact.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Column {
+                            Text(contact.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (group != null) {
+                                Text(
+                                    stringResource(
+                                        when (group) {
+                                            GroupKind.Private -> R.string.group_private
+                                            GroupKind.Regional -> R.string.group_regional
+                                            GroupKind.Global -> R.string.group_global
+                                        },
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                     }
                 },
                 actions = {
                     IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.more_options)) }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, onClick = { menu = false; renaming = true })
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.remove_contact), color = MaterialTheme.colorScheme.error) },
-                            onClick = { menu = false; removing = true },
-                        )
+                        if (group != null) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(if (group.public) R.string.group_share else R.string.group_invite)) },
+                                onClick = { menu = false; onInvite() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.group_leave), color = MaterialTheme.colorScheme.error) },
+                                onClick = { menu = false; leaving = true },
+                            )
+                        } else {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, onClick = { menu = false; renaming = true })
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.remove_contact), color = MaterialTheme.colorScheme.error) },
+                                onClick = { menu = false; removing = true },
+                            )
+                        }
                     }
                 },
             )
@@ -127,6 +161,7 @@ fun ChatScreen(
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             if (!anyPathUp) InfoBanner(stringResource(R.string.no_path_banner))
+            if (group?.public == true && messages.isEmpty()) InfoBanner(stringResource(R.string.group_public_warning))
             if (messages.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
@@ -147,7 +182,7 @@ fun ChatScreen(
                     itemsIndexed(messages, key = { _, m -> m.id }) { i, m ->
                         val newDay = i == 0 || Times.day(messages[i - 1].timeMs) != Times.day(m.timeMs)
                         if (newDay) DayHeader(m.timeMs, nowMs)
-                        Bubble(m)
+                        Bubble(m, showSender = group != null)
                     }
                 }
             }
@@ -164,6 +199,20 @@ fun ChatScreen(
             },
             confirmButton = { TextButton(onClick = { renaming = false; onRename(name) }) { Text(stringResource(R.string.save)) } },
             dismissButton = { TextButton(onClick = { renaming = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (leaving) {
+        AlertDialog(
+            onDismissRequest = { leaving = false },
+            title = { Text(stringResource(R.string.group_leave_title, contact.displayName)) },
+            text = { Text(stringResource(R.string.group_leave_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = { leaving = false; onLeave() },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.group_leave)) }
+            },
+            dismissButton = { TextButton(onClick = { leaving = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     if (removing) {
@@ -201,7 +250,7 @@ private fun DayHeader(ms: Long, nowMs: Long) {
 }
 
 @Composable
-private fun Bubble(m: Message) {
+private fun Bubble(m: Message, showSender: Boolean = false) {
     val scheme = MaterialTheme.colorScheme
     val bg = if (m.outgoing) scheme.primaryContainer else scheme.surfaceContainer
     val fg = if (m.outgoing) scheme.onPrimaryContainer else scheme.onSurface
@@ -216,6 +265,9 @@ private fun Bubble(m: Message) {
                 .background(bg, shape)
                 .padding(horizontal = Space.m, vertical = Space.s),
         ) {
+            if (showSender && !m.outgoing && m.fromName.isNotBlank()) {
+                Text(m.fromName, style = MaterialTheme.typography.labelLarge, color = scheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             Text(m.text, style = MaterialTheme.typography.bodyLarge, color = fg)
             Row(
                 Modifier.align(Alignment.End).padding(top = 2.dp),
@@ -223,7 +275,8 @@ private fun Bubble(m: Message) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(Times.clock(m.timeMs, currentLocale()), style = MaterialTheme.typography.labelSmall, color = meta)
-                if (m.outgoing) DeliveryMark(m.delivery, meta)
+                // Groups have no delivery receipts: never claim "delivered".
+                if (m.outgoing) DeliveryMark(if (m.group && m.delivery == Delivery.Delivered) Delivery.Sent else m.delivery, meta)
             }
         }
     }
