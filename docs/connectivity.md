@@ -30,9 +30,9 @@ must reach B and C on its hotspot interface, not through the internet. None of t
 decisions may come from the address class (`10/8`, `172.16/12`, `192.168/16`, `100.64/10`,
 public, IPv6 ULA/global): only a successful, authenticated check proves a path.
 
-**Amendment (owner's decision):** the one exception to "no TURN" is a **private relay
-serving its own admins** (§7). Official and origin relays never offer TURN, and nobody else
-gets it. For everyone, every method of §3a–§4 must be built into the apps, so that a
+**Amendment (owner's decision):** the one exception to "no TURN" is a **relay serving its
+own admins** (§7). Any relay may offer it — private, regional, global or official (origin) —
+but only to the accounts in its own admin list; nobody else gets it. For everyone, every method of §3a–§4 must be built into the apps, so that a
 direct path is found as often as possible.
 
 ## 2. Roles
@@ -65,7 +65,7 @@ Each side gathers, on every network change:
 | local-discovered | addresses heard from multicast/broadcast discovery on each interface |
 | mapped | a port the device asked its router to open (UPnP IGD, NAT-PMP or PCP, §3a) |
 | predicted | ports guessed for a NAT that changes ports per destination (§4a) |
-| relayed | TURN allocation on a private relay, **only for that relay's admins** (§7) |
+| relayed | TURN allocation on a relay, **only for that relay's own admins** (§7) |
 
 All candidates are sent; none is dropped because it "looks private" or "looks
 unreachable". Port mappings are kept open by the probe socket itself (one UDP socket per
@@ -125,7 +125,7 @@ Among pairs that succeeded, in order:
 3. pairs involving mapped or peer-reflexive candidates,
 4. reflexive ↔ reflexive (crosses the internet through both NATs),
 5. predicted ports (§4a),
-6. relayed (§7) — last, and only for an admin of a private relay with TURN on,
+6. relayed (§7) — last, and only for an admin of a relay with TURN on,
 
 ties broken by measured RTT. Checks keep running for a short time after the first success,
 so a better pair found later replaces it. On a network change (interface up/down, hotspot
@@ -135,7 +135,7 @@ the new best pair without dropping. Keepalives every 15 s hold NAT and CGNAT map
 If no pair succeeds, the result is **no direct path**: the session is not established, and
 the UI gives the reason from the NAT types ("both of you are behind your carriers' NAT —
 try Wi-Fi", "the other side's network blocks UDP", …). There is no relayed fallback, except
-§7 for admins of a private relay.
+§7 for a relay's own admins.
 
 ## 6. Tests that must exist
 
@@ -151,19 +151,21 @@ Simulated with network namespaces (Linux, `sim/` or a script like `scripts/e2e-l
 - one side symmetric (random ports): birthday method succeeds; sequential: prediction succeeds;
 - symmetric NAT on both sides: either connects via §4a or fails cleanly with the reason,
   nothing relayed (except §7);
-- admin of a private relay with TURN on: relayed only when everything else failed; the same
-  call by a non-admin, or through an official relay, gets no TURN;
+- admin of a relay with TURN on (private and origin relay alike): relayed only when
+  everything else failed; the same call by a non-admin of that relay gets no TURN;
 - two separate networks with the same private subnet and same host address: no false match;
 - network change mid-session: moves to the new best path;
 - the relay never forwards a session byte in any scenario except §7 (counter assertion).
 
-## 7. TURN on private relays, for their admins only
+## 7. TURN on relays, for their own admins only
 
-A relay operator can serve **their own admins** (the accounts in the relay's admin list,
-server.md §6b) with TURN, so the people who run a relay can always reach each other.
+Every relay — private, regional, global or official (origin) — can serve **its own admins**
+(the accounts in that relay's admin list, server.md §6b) with TURN, so the people who run a
+relay can always reach each other. Ordinary users never get TURN from any relay.
 
-- Off by default. `turn_enabled` is refused on relays marked `origin: true` in
-  `network/relays.json`, so official relays never carry sessions.
+- Off by default; the relay's admins turn it on in the panel.
+- The network owner's account is an admin of every relay (server/deploy/README.md), so it
+  can use TURN on every relay that has it on.
 - Built into `meshmsg-relay` (standard TURN, RFC 8656, UDP and TCP/TLS on 443). Credentials
   are short-lived (10 min) and issued only to an admin: `POST /v1/turn/credentials`, signed
   with the account key. Non-admins get `403`.

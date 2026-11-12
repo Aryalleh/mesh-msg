@@ -11,8 +11,8 @@ Status: **requirement + design, not implemented yet.** Builds on the direct IP l
 - Audio travels **only over a direct path** between the two devices: the direct IP link
   (any NAT topology, connectivity.md), LAN, or Wi-Fi Direct / Wi-Fi Aware. The path is
   chosen by tested reachability; on a shared local network the call stays local.
-- **No relay, no TURN** — with one exception: a private relay can give TURN to its own
-  admins (connectivity.md §7); official relays never do. Otherwise no relay, gateway or
+- **No relay, no TURN** — with one exception: any relay (private or official) can give
+  TURN to its own admins only (connectivity.md §7). Otherwise no relay, gateway or
   bridge carries call audio. The apps use every way to a direct path (IPv6, router port
   mapping, hole punching, symmetric-NAT port prediction, connectivity.md §3a–§4a). If none
   works, the call does not start and the app says why ("both of you are behind your

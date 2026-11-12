@@ -248,7 +248,8 @@ effect immediately; the panel also shows the ledger's state and relays sending i
 
 ## 6c. TURN for the relay's admins (optional)
 
-Off by default; refused on origin relays. When on, the relay's own admins (§6b) can relay
+Off by default; available on every relay, origin relays included. When on, only the relay's
+own admins (§6b) can relay
 calls and direct sessions through it when no direct path exists. Settings in the panel:
 `turn_enabled`, `turn_max_sessions`, `turn_max_kbps`, `turn_monthly_gb`. Credentials:
 `POST /v1/turn/credentials` (signed by an admin account, valid 10 min). Details and rules:

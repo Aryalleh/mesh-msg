@@ -539,3 +539,6 @@ not implemented; no TURN, relays never carry a direct session).
   default, refused on origin relays, short-lived signed credentials, panel limits; tests.
 - calls.md rules, server.md §6c, threat model, decisions D17. Not implemented. Previous
   commit `9075308`.
+- Owner: official/global (origin) relays may also offer TURN, but only to their own admins,
+  like private relays (connectivity.md §7, calls.md, server.md §6c, D17). Previous commit
+  `69f4885`.

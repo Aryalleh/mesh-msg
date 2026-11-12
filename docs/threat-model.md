@@ -25,7 +25,7 @@ control of national ISPs, mobile networks, app stores in-country, and police pow
 | DPI on domestic network flags connections to a known relay | identify gateways | relay traffic is plain HTTPS on an innocuous domain; rotate addresses; gateway role is opt-in and its risk is explained in the UI |
 | Detect bridge operators (VPN / Starlink / unfiltered SIM traffic patterns) | arrest of bridge operators | bridges are opt-in with clear risk warning; data budgets keep traffic small; batching + jitter; operators decide their own exposure |
 | A call partner learns your network address | location of the caller / callee | calls go over a direct path only, so each side sees the other's IP addresses; calls only from contacts by default, the first call screen warns; relays never see audio |
-| A private relay with TURN carries an admin's call | the relay operator sees both sides' IPs and call timing | only for that relay's own admins, off by default, never on official relays; content stays end-to-end encrypted; the app says when a call goes through a relay |
+| A relay with TURN carries an admin's call | the relay operator sees both sides' IPs and call timing | only for that relay's own admins, off by default; content stays end-to-end encrypted; the app says when a call goes through a relay |
 | Malicious relay or bridge | drop / delay / inject packets | E2E auth stops injection; store-and-forward over many paths survives dropping; receipts reveal non-delivery |
 
 ## Explicit non-goals (v0)
