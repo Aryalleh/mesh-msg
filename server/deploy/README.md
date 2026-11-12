@@ -37,7 +37,11 @@ admins, restart.
 Relays carry only files the sender marked **important** (they reach someone who is
 offline): each account may upload `media_important_per_day` of them per UTC day (default 5;
 one file to a group counts once), kept until every reader has it or for
-`media_important_hours` (default 168). Normal files go only phone to phone.
+`media_important_hours` (default 168). Normal files go only phone to phone. The count covers
+every relay (relays share a signed usage ledger, `data_dir/ledger.db`); young accounts get
+fewer files (`media_new_account_*`) and every upload needs proof-of-work that grows for
+young accounts and with each file that day (`media_pow_*`). All set in the panel, applied
+at once. Relays exchange the ledger with the origin relays and their peers (`usage_peers`).
 
 The network owner's account `ad2107c8e944bf2a99b3f0cdb2c40903` is an admin of every relay
 built from this code and can't be removed. Other admins:

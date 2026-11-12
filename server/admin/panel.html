@@ -75,7 +75,7 @@
 
     <section>
       <h2>Settings</h2>
-      <p class="hint">Saved settings override relay.json and apply after a restart (the important-files allowance and keep time apply at once). Empty fields keep relay.json's value. Relays carry only files the sender marked important; normal files go phone to phone.</p>
+      <p class="hint">Saved settings override relay.json and apply after a restart (the important-file rules apply at once). Empty fields keep relay.json's value. Relays carry only files the sender marked important; normal files go phone to phone.</p>
       <div class="row">
         <div><label for="s_pow_bits">Proof-of-work bits (0–28)</label><input id="s_pow_bits" type="number" min="0" max="28"></div>
         <div><label for="s_ttl_hours">Message keep time, hours</label><input id="s_ttl_hours" type="number" min="1"></div>
@@ -86,7 +86,14 @@
         <div><label for="s_media_store_mb">Total storage, MB</label><input id="s_media_store_mb" type="number" min="16"></div>
         <div><label for="s_media_important_per_day">Important files per account per day</label><input id="s_media_important_per_day" type="number" min="1" max="1000"></div>
         <div><label for="s_media_important_hours">Keep important files, hours</label><input id="s_media_important_hours" type="number" min="1" max="720"></div>
+        <div><label for="s_media_new_account_days">New account: younger than, days</label><input id="s_media_new_account_days" type="number" min="0" max="365"></div>
+        <div><label for="s_media_new_account_per_day">New account: files per day</label><input id="s_media_new_account_per_day" type="number" min="0" max="1000"></div>
+        <div><label for="s_media_pow_base_bits">Proof-of-work base bits</label><input id="s_media_pow_base_bits" type="number" min="0" max="30"></div>
+        <div><label for="s_media_pow_max_bits">Proof-of-work at most, bits</label><input id="s_media_pow_max_bits" type="number" min="0" max="32"></div>
       </div>
+      <label for="s_media_pow_age_tiers">Extra work for young accounts (days:bits, e.g. 3:3, 30:2, 180:1)</label>
+      <input id="s_media_pow_age_tiers" spellcheck="false">
+      <p class="hint">Every important file needs proof-of-work: base bits + the extra for the account's age + 1 per file it sent today on any relay + up to 2 when storage fills. Each bit doubles the work. These apply at once.</p>
       <label for="s_media_accounts">Accounts allowed to upload media (one id per line; empty = anyone)</label>
       <textarea id="s_media_accounts" spellcheck="false"></textarea>
       <label><input type="checkbox" id="s_log" style="width:auto"> Request logs (off is safer)</label>
@@ -106,6 +113,15 @@
         <button id="btnAddAdmin">Add admin</button>
       </div>
       <p class="msg" id="adminMsg" role="status"></p>
+    </section>
+
+    <section>
+      <h2>Usage ledger</h2>
+      <p class="hint" id="ledgerSummary"></p>
+      <div class="scroll"><table>
+        <thead><tr><th>Source</th><th>Valid</th><th>Invalid</th><th>Last</th><th></th></tr></thead>
+        <tbody id="ledger"></tbody>
+      </table></div>
     </section>
 
     <section>
@@ -154,7 +170,8 @@ $("loginCode").onkeydown = (e) => { if (e.key === "Enter") $("btnLogin").click()
 $("loginId").onkeydown = (e) => { if (e.key === "Enter") $("btnCode").click(); };
 $("btnLogout").onclick = async () => { await api("logout", {}).catch(() => {}); load(); };
 
-const fields = ["pow_bits", "ttl_hours", "media_max_mb", "media_store_mb", "media_important_per_day", "media_important_hours"];
+const fields = ["pow_bits", "ttl_hours", "media_max_mb", "media_store_mb", "media_important_per_day", "media_important_hours",
+  "media_new_account_days", "media_new_account_per_day", "media_pow_base_bits", "media_pow_max_bits"];
 let state = null;
 
 async function load() {
@@ -186,6 +203,18 @@ async function load() {
   const cur = state.current, saved = state.saved;
   for (const f of fields) { $("s_" + f).value = saved[f] ?? ""; $("s_" + f).placeholder = cur[f] ?? ""; }
   $("s_media_accounts").value = (saved.media_accounts ?? cur.media_accounts ?? []).join("\n");
+  $("s_media_pow_age_tiers").value = saved.media_pow_age_tiers ?? "";
+  $("s_media_pow_age_tiers").placeholder = cur.media_pow_age_tiers ?? "";
+  const lg = state.ledger || {};
+  $("ledgerSummary").textContent = `${lg.today || 0} important files today from ${lg.accounts_today || 0} accounts on all relays; ` +
+    `${lg.entries || 0} entries kept, ${lg.accounts_known || 0} accounts with a known age.` +
+    (lg.bad_sources ? ` ${lg.bad_sources} source(s) sent invalid entries.` : "");
+  $("ledger").replaceChildren(...(lg.sources || []).map((s) => el("tr", {},
+    el("td", {className: "mono", textContent: s.key.length > 40 ? s.key.slice(0, 40) + "…" : s.key, title: s.key}),
+    el("td", {textContent: s.valid}),
+    el("td", {textContent: s.invalid}),
+    el("td", {textContent: new Date(s.last).toLocaleString()}),
+    el("td", {textContent: s.blocked ? "ignored" : ""}))));
   $("s_log").checked = saved.log ?? cur.log ?? false;
   renderAdmins(state.admins);
   $("mediaSummary").textContent = m.on
@@ -220,6 +249,8 @@ $("btnSave").onclick = async () => {
   const body = {};
   for (const f of fields) { const v = $("s_" + f).value.trim(); if (v !== "") body[f] = Number(v); }
   body.media_accounts = $("s_media_accounts").value.split(/[\s,]+/).filter(Boolean);
+  const tiers = $("s_media_pow_age_tiers").value.trim();
+  if (tiers !== "") body.media_pow_age_tiers = tiers;
   body.log = $("s_log").checked;
   try { say("saveMsg", (await api("settings", body)).info); load(); } catch (e) { say("saveMsg", e.message, true); }
 };

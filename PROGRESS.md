@@ -27,9 +27,10 @@ Needs hardware now, for both open milestones:
 Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
 + Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
 Plan of record: docs/roadmap.md "Code changes required by the 2026-11-12 design decisions".
-**Step 1 done** (owner said "start step 1"): two media classes, signed uploads, per-relay
-daily allowance + quota, 7-day keep; fixed relay ports (server.md §6d). **Next: step 2**
-(account age, PoW by age/uploads, usage ledger), then step 3 direct links, step 4 calls —
+**Steps 1 and 2 done**: two media classes, signed uploads, daily allowance counted on all
+relays through the signed usage ledger, account age, proof-of-work by age and uploads,
+7-day keep; fixed relay ports (server.md §6d). Not yet released (next tag
+v0.1.0-alpha10) and eu-1 not updated. **Next: step 3** direct links, then step 4 calls —
 each only when the owner says. Alpha only: **no compatibility with old alpha builds is
 kept**; replace old apps and relays (old apps can't upload to new relays: unsigned).
 
@@ -578,3 +579,27 @@ kept**; replace old apps and relays (old apps can't upload to new relays: unsign
 - Tests: api TestMediaAllowance (quota, dedupe, 429, other account, raw unsigned 401);
   node TestNormalFileSkipsRelayAndAllowance; existing media tests use important=true; Android
   JsonTest important. All Go + firmware tests pass.
+
+### 2026-11-12 — Roadmap step 2: account age, proof-of-work, usage ledger
+
+- Step 1 commit `e2621ca`, CI run 43329012494 green (desktop + Android).
+- `server/ledger` (new): signed entries (276 bytes: day, media id, account pubkey + upload
+  signature, relay pubkey + signature over "MESHMSG-USAGE"), dedupe per (account, file),
+  days dropped after 2, account first-seen times, sources (valid/invalid/blocked; a relay
+  that signs a forged upload is ignored), sync cursors; `data_dir/ledger.db`.
+- Relay: `api.MediaPolicy` (per day 5, keep 168 h, new account < 3 days → 1/day, PoW base
+  20, max 28, age tiers 3:3, 30:2, 180:1) from defaults < relay.json < panel, all applied at
+  once (`SetMediaPolicy`). Upload: signed for the relay's day exactly, allowance from the
+  ledger (+ uploads in progress) → 429, then PoW over id|account|day → 402 + `X-PoW-Bits`;
+  accepted uploads go into the ledger signed by the relay. Quota adds `pow_bits`,
+  `age_days`. `POST/GET /v1/usage`; relays sync the ledger every minute with `usage_peers`
+  (default origin relays + federation peers). Age = first stored announce
+  (`relay.Config.OnAnnounce`, backfilled from stored announces at start). step-1
+  `usage.json` removed.
+- Client `PutMedia`: quota first (day, bits), solves the work, re-solves once on 402.
+- Panel: new rule fields (age tiers as "days:bits"), "Usage ledger" table.
+- Tests: ledger (verify, dedupe, paging, forged → relay blocked, bad relay sig, expire,
+  ages); api TestMediaAgeWorkAndLedger (new vs old account, bits grow, count across two
+  relays through push/pull, same file counts once, 4th refused, garbage refused); admin
+  policy applies at once. TestVideoOverLANWithoutRelay failed once in a full run (timing
+  under load), passed 4/4 alone and in the next full run.

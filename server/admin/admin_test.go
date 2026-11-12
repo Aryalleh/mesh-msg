@@ -148,6 +148,20 @@ func TestLoginWithCodeSentToMava(t *testing.T) {
 	if st, _ := c.do("POST", "/admin/api/settings", map[string]any{"pow_bits": 99}, true); st != 400 {
 		t.Fatal("bad pow_bits accepted")
 	}
+	if st, _ := c.do("POST", "/admin/api/settings", map[string]any{"media_pow_age_tiers": "3:x"}, true); st != 400 {
+		t.Fatal("bad age tiers accepted")
+	}
+	// Important-file rules apply at once.
+	if st, out := c.do("POST", "/admin/api/settings", map[string]any{"media_max_mb": 16, "media_accounts": []string{other},
+		"media_important_per_day": 7, "media_pow_base_bits": 9, "media_pow_age_tiers": "7:4"}, true); st != 200 {
+		t.Fatalf("settings: %d %v", st, out)
+	}
+	if p := h.MediaPolicy(); p.PerDay != 7 || p.PowBaseBits != 9 || len(p.AgeTiers) != 1 || p.AgeTiers[0] != (api.AgeTier{Days: 7, Bits: 4}) {
+		t.Fatalf("policy not applied: %+v", p)
+	}
+	if _, state := c.do("GET", "/admin/api/state", nil, false); state["ledger"] == nil {
+		t.Fatal("no ledger in state")
+	}
 	s, _ = admin.LoadSettings(dataDir)
 	if *s.MediaMaxMB != 16 || len(s.MediaAccounts) != 1 || len(s.Admins) != 2 {
 		t.Fatalf("saved %+v", s)

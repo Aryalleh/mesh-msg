@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,6 +18,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/pow"
 	"github.com/Aryalleh/mesh-msg/core/wire"
+	"github.com/Aryalleh/mesh-msg/server/ledger"
 )
 
 // Media: a relay may hold important encrypted files (core/media,
@@ -30,27 +30,23 @@ import (
 //   - GET /v1/media/{id}: the blob; "Range: bytes=N-" resumes.
 //   - GET /v1/media/quota: an account's allowance today (signed).
 //
-// Each account may upload PerDay files per UTC day (one file to a group
-// counts once). A file is deleted as soon as it was downloaded to the end
-// X-Readers times, or after ImportantHours (default 7 days). An accepted
+// Each account may upload a few files per UTC day, counted on every relay
+// through the ledger (one file to a group counts once), with proof-of-work
+// that grows for young accounts and with each upload (MediaPolicy). A file is deleted as soon as it was downloaded to the end
+// X-Readers times, or after the policy's keep time (default 7 days). An accepted
 // file is never evicted early: when the store is full, uploads get 507.
 // Media is not copied between relays.
 type MediaConfig struct {
-	Dir            string // where blobs live
-	MaxMB          int    // largest file; 0 = media off
-	StoreMB        int    // total cap (default 2048)
-	ImportantHours int    // keep time (default 168)
-	PerDay         int    // files per account per UTC day (default 5)
+	Dir     string // where blobs live
+	MaxMB   int    // largest file; 0 = media off
+	StoreMB int    // total cap (default 2048)
+	// Policy: allowance, keep time, proof-of-work (nil: DefaultMediaPolicy).
+	Policy *MediaPolicy
 	// Accounts, if set, are the only accounts (identity hashes, hex) that
 	// may upload. Anyone may download (files are encrypted and fetched by
 	// their unguessable id).
 	Accounts []string
 }
-
-const (
-	DefaultMediaPerDay = 5
-	DefaultMediaHours  = 168
-)
 
 func (c MediaConfig) allowed(h string) bool {
 	if len(c.Accounts) == 0 {
@@ -71,23 +67,12 @@ func (c MediaConfig) storeBytes() int64 {
 	return int64(c.StoreMB) << 20
 }
 
-// SetMediaLimits changes the daily allowance and keep time at once (admin
-// panel); values <= 0 mean the defaults. Files already stored keep their time.
-func (s *Server) SetMediaLimits(perDay, hours int) {
-	if perDay <= 0 {
-		perDay = DefaultMediaPerDay
-	}
-	if hours <= 0 {
-		hours = DefaultMediaHours
-	}
-	s.mediaPerDay.Store(int64(perDay))
-	s.mediaHours.Store(int64(hours))
-}
+// SetMediaPolicy changes the important-media rules at once (admin panel).
+// Files already stored keep their time.
+func (s *Server) SetMediaPolicy(p MediaPolicy) { s.policy.Store(&p) }
 
-// MediaLimits returns the allowance per day and keep time in hours in force.
-func (s *Server) MediaLimits() (perDay, hours int) {
-	return int(s.mediaPerDay.Load()), int(s.mediaHours.Load())
-}
+// MediaPolicy returns the rules in force.
+func (s *Server) MediaPolicy() MediaPolicy { return *s.policy.Load() }
 
 type mediaMeta struct {
 	Size    int64     `json:"size"`
@@ -101,37 +86,8 @@ type mediaStore struct {
 	mu   sync.Mutex
 	used int64
 	meta map[string]*mediaMeta
-	// usage: day → account hash → file ids uploaded that day (today and
-	// yesterday kept, in usage.json).
-	usage map[uint32]map[string][]string
-}
-
-func (m *mediaStore) usageCount(day uint32, acct string) int { return len(m.usage[day][acct]) }
-
-func (m *mediaStore) counted(day uint32, acct, id string) bool {
-	return slices.Contains(m.usage[day][acct], id)
-}
-
-// count adds (or with undo removes) an upload; m.mu held.
-func (m *mediaStore) count(day uint32, acct, id string, undo bool) {
-	if m.usage[day] == nil {
-		m.usage[day] = map[string][]string{}
-	}
-	ids := m.usage[day][acct]
-	if undo {
-		ids = slices.DeleteFunc(ids, func(x string) bool { return x == id })
-	} else if !slices.Contains(ids, id) {
-		ids = append(ids, id)
-	}
-	m.usage[day][acct] = ids
-	for d := range m.usage {
-		if d+1 < day {
-			delete(m.usage, d)
-		}
-	}
-	b, _ := json.Marshal(m.usage)
-	os.WriteFile(filepath.Join(m.dir, "usage.json.new"), b, 0o600)
-	os.Rename(filepath.Join(m.dir, "usage.json.new"), filepath.Join(m.dir, "usage.json"))
+	// uploads in progress per account (counted against the allowance)
+	pending map[string]map[string]bool
 }
 
 func (s *Server) mediaMaxMB() int {
@@ -146,14 +102,12 @@ func (s *Server) openMedia() error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	m := &mediaStore{dir: dir, meta: map[string]*mediaMeta{}, usage: map[uint32]map[string][]string{}}
-	if b, err := os.ReadFile(filepath.Join(dir, "usage.json")); err == nil {
-		json.Unmarshal(b, &m.usage)
-	}
+	m := &mediaStore{dir: dir, meta: map[string]*mediaMeta{}, pending: map[string]map[string]bool{}}
+	os.Remove(filepath.Join(dir, "usage.json")) // step-1 per-relay counts; the ledger counts now
 	ents, _ := os.ReadDir(dir)
 	for _, e := range ents {
 		id, ok := strings.CutSuffix(e.Name(), ".json")
-		if !ok || id == "usage" {
+		if !ok {
 			if strings.HasSuffix(e.Name(), ".tmp") {
 				os.Remove(filepath.Join(dir, e.Name()))
 			}
@@ -216,18 +170,12 @@ func (s *Server) mediaPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad id", http.StatusBadRequest)
 		return
 	}
-	if s.cfg.PowBits > 0 {
-		n, err := strconv.ParseUint(r.Header.Get(wire.HeaderPoW), 10, 64)
-		if err != nil || !pow.Check(wire.MediaPoWBody(id), n, s.cfg.PowBits) {
-			http.Error(w, "proof of work required", http.StatusPaymentRequired)
-			return
-		}
-	}
-	acct, day, ok := s.mediaSigned(w, r, wire.DomainMediaUpload, func(day uint32) []byte { return wire.MediaSigBody(id, day) })
+	// Signed for the relay's day exactly (the client takes it from the quota).
+	up, ok := s.mediaSigned(w, r, wire.DomainMediaUpload, func(day uint32) []byte { return wire.MediaSigBody(id, day) }, true)
 	if !ok {
 		return
 	}
-	if !s.cfg.Media.allowed(acct) {
+	if !s.cfg.Media.allowed(up.hash) {
 		http.Error(w, "this account may not upload media to this relay", http.StatusForbidden)
 		return
 	}
@@ -238,7 +186,9 @@ func (s *Server) mediaPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "file too large for this relay", http.StatusRequestEntityTooLarge)
 		return
 	}
-	perDay, hours := s.MediaLimits()
+	p := s.MediaPolicy()
+	var bid [16]byte
+	hex.Decode(bid[:], []byte(id))
 	m.mu.Lock()
 	if _, ok := m.meta[id]; ok {
 		m.mu.Unlock()
@@ -251,29 +201,38 @@ func (s *Server) mediaPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "relay media store is full", http.StatusInsufficientStorage)
 		return
 	}
-	// The daily allowance; the slot is taken now so parallel uploads can't
-	// pass it, and given back if the upload fails.
-	reserved := false
-	if !m.counted(day, acct, id) {
-		if m.usageCount(day, acct) >= perDay {
+	// The daily allowance, counted network-wide from the ledger; a file the
+	// account already uploaded (to any relay) counts once. The slot is taken
+	// now so parallel uploads can't pass it, and given back on failure.
+	counted := s.ledger.Has(up.pub.Bytes(), bid)
+	st := s.accountState(up.hash, up.day)
+	if !counted {
+		if st.used >= p.Allowance(st.age) {
 			m.mu.Unlock()
-			reset := time.Unix(int64(day+1)*86400, 0)
+			reset := time.Unix(int64(up.day+1)*86400, 0)
 			w.Header().Set("Retry-After", strconv.Itoa(int(time.Until(reset).Seconds())+1))
-			http.Error(w, fmt.Sprintf("daily allowance of %d important files used; resets %s", perDay, reset.UTC().Format(time.RFC3339)), http.StatusTooManyRequests)
+			http.Error(w, fmt.Sprintf("daily allowance of %d important files used; resets %s", p.Allowance(st.age), reset.UTC().Format(time.RFC3339)), http.StatusTooManyRequests)
 			return
 		}
-		m.count(day, acct, id, false)
-		reserved = true
+	}
+	// Proof of work: more for young accounts and for each file today.
+	need := p.Bits(st.age, st.used, s.loadBits())
+	nonce, err := strconv.ParseUint(r.Header.Get(wire.HeaderPoW), 10, 64)
+	if need > 0 && (err != nil || !pow.Check(wire.MediaPoWBody(id, up.hash, up.day), nonce, need)) {
+		m.mu.Unlock()
+		w.Header().Set(wire.HeaderPoWBits, strconv.Itoa(need))
+		http.Error(w, fmt.Sprintf("proof of work of %d bits required", need), http.StatusPaymentRequired)
+		return
+	}
+	if !counted {
+		m.reserve(up.hash, id, true)
+		defer func() {
+			m.mu.Lock()
+			m.reserve(up.hash, id, false)
+			m.mu.Unlock()
+		}()
 	}
 	m.mu.Unlock()
-	stored := false
-	defer func() {
-		if reserved && !stored {
-			m.mu.Lock()
-			m.count(day, acct, id, true)
-			m.mu.Unlock()
-		}
-	}()
 
 	tmp, err := os.CreateTemp(m.dir, "*.tmp")
 	if err != nil {
@@ -302,18 +261,68 @@ func (s *Server) mediaPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "store", http.StatusInternalServerError)
 		return
 	}
-	mm := &mediaMeta{Size: n, Readers: readers, Expires: time.Now().Add(time.Duration(hours) * time.Hour)}
-	stored = true
+	mm := &mediaMeta{Size: n, Readers: readers, Expires: time.Now().Add(time.Duration(p.Hours) * time.Hour)}
 	m.meta[id] = mm
 	m.used += n
 	m.save(id, mm)
+	// Into the ledger, signed by this relay; it spreads to the others.
+	if e, err := ledger.New(s.cfg.Identity, up.day, id, up.pub, up.sig); err == nil {
+		s.ledger.Add([]ledger.Entry{e}, "")
+	}
 	w.WriteHeader(http.StatusCreated)
 }
 
+// reserve marks an upload in progress (counted against the allowance until
+// it is in the ledger); m.mu held.
+func (m *mediaStore) reserve(acct, id string, on bool) {
+	if m.pending[acct] == nil {
+		m.pending[acct] = map[string]bool{}
+	}
+	if on {
+		m.pending[acct][id] = true
+	} else if delete(m.pending[acct], id); len(m.pending[acct]) == 0 {
+		delete(m.pending, acct)
+	}
+}
+
+type acctState struct {
+	age  time.Duration // since the network first saw the account
+	used int           // files today: ledger + uploads in progress here
+}
+
+// accountState: s.media.mu held.
+func (s *Server) accountState(acct string, day uint32) acctState {
+	var st acctState
+	if t, ok := s.ledger.FirstSeen(acct); ok {
+		st.age = max(time.Since(t), 0)
+	}
+	st.used = s.ledger.Used(acct, day) + len(s.media.pending[acct])
+	return st
+}
+
+// loadBits: 0–2 more bits of work when the store fills up.
+func (s *Server) loadBits() int {
+	capB := s.cfg.Media.storeBytes()
+	switch used := s.media.used; {
+	case used*5 >= capB*4:
+		return 2
+	case used*2 >= capB:
+		return 1
+	}
+	return 0
+}
+
+type signedReq struct {
+	pub  identity.Public
+	hash string
+	day  uint32
+	sig  []byte
+}
+
 // mediaSigned checks an account signature (X-Account, X-Day, X-Signature
-// over body(day)); the day must be the relay's today ± 1 (clock skew). It
-// returns the account hash and the relay's today.
-func (s *Server) mediaSigned(w http.ResponseWriter, r *http.Request, domain string, body func(uint32) []byte) (string, uint32, bool) {
+// over body(day)). The day must be the relay's today, or today ± 1 (clock
+// skew) unless strict.
+func (s *Server) mediaSigned(w http.ResponseWriter, r *http.Request, domain string, body func(uint32) []byte, strict bool) (signedReq, bool) {
 	today := wire.Day(time.Now())
 	pk, err1 := hex.DecodeString(r.Header.Get(wire.HeaderAccount))
 	sig, err2 := hex.DecodeString(r.Header.Get(wire.HeaderSignature))
@@ -321,30 +330,39 @@ func (s *Server) mediaSigned(w http.ResponseWriter, r *http.Request, domain stri
 	pub, err4 := identity.PublicFromBytes(pk)
 	if err1 != nil || err2 != nil || err3 != nil || err4 != nil {
 		http.Error(w, "signed request required (X-Account, X-Day, X-Signature)", http.StatusUnauthorized)
-		return "", 0, false
+		return signedReq{}, false
 	}
 	day := uint32(d)
-	if day+1 < today || day > today+1 || !pub.Verify(domain, body(day), sig) {
-		http.Error(w, "bad signature or day", http.StatusUnauthorized)
-		return "", 0, false
+	skew := uint32(1)
+	if strict {
+		skew = 0
 	}
-	return pub.Hash().String(), today, true
+	if day+skew < today || day > today+skew || !pub.Verify(domain, body(day), sig) {
+		http.Error(w, fmt.Sprintf("bad signature or day (relay's day is %d)", today), http.StatusUnauthorized)
+		return signedReq{}, false
+	}
+	return signedReq{pub, pub.Hash().String(), day, sig}, true
 }
 
-// mediaQuota tells an account its allowance today (signed, so only the
-// account itself asks).
+// mediaQuota tells an account its allowance today and the work the next
+// upload needs (signed, so only the account itself asks).
 func (s *Server) mediaQuota(w http.ResponseWriter, r *http.Request) {
-	acct, day, ok := s.mediaSigned(w, r, wire.DomainMediaQuota, wire.QuotaSigBody)
+	up, ok := s.mediaSigned(w, r, wire.DomainMediaQuota, wire.QuotaSigBody, false)
 	if !ok {
 		return
 	}
-	perDay, _ := s.MediaLimits()
-	q := wire.MediaQuota{PerDay: perDay, Resets: int64(day+1) * 86400, Allowed: s.cfg.Media.allowed(acct)}
+	day := wire.Day(time.Now())
+	p := s.MediaPolicy()
 	s.media.mu.Lock()
-	q.Used = s.media.usageCount(day, acct)
+	st := s.accountState(up.hash, day)
+	load := s.loadBits()
 	s.media.mu.Unlock()
+	q := wire.MediaQuota{
+		PerDay: p.Allowance(st.age), Used: st.used, Resets: int64(day+1) * 86400, Allowed: s.cfg.Media.allowed(up.hash),
+		PowBits: p.Bits(st.age, st.used, load), AgeDays: int(st.age.Hours() / 24),
+	}
 	if q.Allowed {
-		q.Left = max(perDay-q.Used, 0)
+		q.Left = max(q.PerDay-q.Used, 0)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")

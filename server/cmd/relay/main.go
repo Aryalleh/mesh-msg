@@ -30,11 +30,14 @@ import (
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/identity"
+	"github.com/Aryalleh/mesh-msg/core/packet"
 	"github.com/Aryalleh/mesh-msg/core/relayclient"
 	"github.com/Aryalleh/mesh-msg/core/store"
 	"github.com/Aryalleh/mesh-msg/core/wire"
+	"github.com/Aryalleh/mesh-msg/network"
 	"github.com/Aryalleh/mesh-msg/server/admin"
 	"github.com/Aryalleh/mesh-msg/server/api"
+	"github.com/Aryalleh/mesh-msg/server/ledger"
 	"github.com/Aryalleh/mesh-msg/server/relay"
 )
 
@@ -56,10 +59,19 @@ type Config struct {
 	// Files are deleted once every recipient fetched them, or after
 	// media_important_hours. Each account may upload media_important_per_day
 	// files per UTC day.
-	MediaMaxMB          int `json:"media_max_mb"`
-	MediaStoreMB        int `json:"media_store_mb"`          // total cap, default 2048
-	MediaImportantHours int `json:"media_important_hours"`   // default 168
-	MediaPerDay         int `json:"media_important_per_day"` // default 5
+	MediaMaxMB   int `json:"media_max_mb"`
+	MediaStoreMB int `json:"media_store_mb"` // total cap, default 2048
+	// Important-media rules (docs/server.md §6a; defaults: api.DefaultMediaPolicy).
+	MediaPerDay           *int    `json:"media_important_per_day"`   // default 5
+	MediaImportantHours   *int    `json:"media_important_hours"`     // default 168
+	MediaNewAccountDays   *int    `json:"media_new_account_days"`    // default 3
+	MediaNewAccountPerDay *int    `json:"media_new_account_per_day"` // default 1
+	MediaPowBaseBits      *int    `json:"media_pow_base_bits"`       // default 20
+	MediaPowMaxBits       *int    `json:"media_pow_max_bits"`        // default 28
+	MediaPowAgeTiers      *string `json:"media_pow_age_tiers"`       // default "3:3, 30:2, 180:1"
+	// UsagePeers: relays to exchange the usage ledger with (URLs). Default:
+	// the origin relays of network/relays.json plus the federation peers.
+	UsagePeers []string `json:"usage_peers"`
 	// MediaAccounts: if set, only these accounts (identity hashes, as
 	// "mesh id" shows them) may upload media. Empty: anyone (with PoW).
 	MediaAccounts []string `json:"media_accounts"`
@@ -177,8 +189,6 @@ func applySettings(cfg *Config) error {
 	set(&cfg.TTLHours, s.TTLHours)
 	set(&cfg.MediaMaxMB, s.MediaMaxMB)
 	set(&cfg.MediaStoreMB, s.MediaStoreMB)
-	set(&cfg.MediaPerDay, s.MediaPerDay)
-	set(&cfg.MediaImportantHours, s.MediaImportantHours)
 	if s.MediaAccounts != nil {
 		cfg.MediaAccounts = s.MediaAccounts
 	}
@@ -239,16 +249,37 @@ func run(cfg *Config) error {
 	if cfg.Log {
 		logf = log.Printf
 	}
+	// Important-media rules: defaults < relay.json < panel.json.
+	base, err := admin.Settings{
+		MediaPerDay: cfg.MediaPerDay, MediaImportantHours: cfg.MediaImportantHours,
+		MediaNewAccountDays: cfg.MediaNewAccountDays, MediaNewAccountPerDay: cfg.MediaNewAccountPerDay,
+		MediaPowBaseBits: cfg.MediaPowBaseBits, MediaPowMaxBits: cfg.MediaPowMaxBits, MediaPowAgeTiers: cfg.MediaPowAgeTiers,
+	}.Policy(api.DefaultMediaPolicy())
+	if err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+	saved, _ := admin.LoadSettings(cfg.DataDir)
+	policy, err := saved.Policy(base)
+	if err != nil {
+		return fmt.Errorf("%s: %w", admin.SettingsPath(cfg.DataDir), err)
+	}
+	led, err := ledger.Open(filepath.Join(cfg.DataDir, "ledger.db"))
+	if err != nil {
+		return err
+	}
+	defer led.Close()
 	rl := relay.New(relay.Config{
 		Name: cfg.Name, Region: cfg.Region, Store: st,
 		DataTTL: time.Duration(cfg.TTLHours) * time.Hour, Logf: logf,
+		OnAnnounce: func(dest packet.Hash, at time.Time) { led.Seen(dest.String(), at) },
 	})
+	backfillAges(st, led)
 	h := api.New(api.Config{
 		Relay: rl, Identity: key, PowBits: cfg.PowBits,
-		SyncTokens: cfg.SyncTokens, Relays: cfg.Relays, Logf: logf,
+		SyncTokens: cfg.SyncTokens, Relays: cfg.Relays, Logf: logf, Ledger: led,
 		Media: api.MediaConfig{
 			Dir: filepath.Join(cfg.DataDir, "media"), MaxMB: cfg.MediaMaxMB, StoreMB: cfg.MediaStoreMB,
-			ImportantHours: cfg.MediaImportantHours, PerDay: cfg.MediaPerDay, Accounts: cfg.MediaAccounts,
+			Policy: &policy, Accounts: cfg.MediaAccounts,
 		},
 	})
 
@@ -264,14 +295,17 @@ func run(cfg *Config) error {
 			Name: cfg.Name, Region: cfg.Region, Version: version, PubKey: hex.EncodeToString(key.Bytes()),
 			Listen: cfg.Listen, Peers: peers, Started: time.Now(),
 		},
-		DataDir: cfg.DataDir, Identity: key, Relay: rl, API: h,
+		DataDir: cfg.DataDir, Identity: key, Relay: rl, API: h, BasePolicy: base,
 		Effective: func() map[string]any {
-			perDay, hours := h.MediaLimits()
+			p := h.MediaPolicy()
 			return map[string]any{
 				"pow_bits": cfg.PowBits, "ttl_hours": cfg.TTLHours, "log": cfg.Log,
 				"media_max_mb": cfg.MediaMaxMB, "media_store_mb": cmp.Or(cfg.MediaStoreMB, 2048),
-				"media_important_per_day": perDay, "media_important_hours": hours,
-				"media_accounts": cfg.MediaAccounts,
+				"media_important_per_day": p.PerDay, "media_important_hours": p.Hours,
+				"media_new_account_days": p.NewAccountDays, "media_new_account_per_day": p.NewAccountPerDay,
+				"media_pow_base_bits": p.PowBaseBits, "media_pow_max_bits": p.PowMaxBits,
+				"media_pow_age_tiers": api.FormatTiers(p.AgeTiers),
+				"media_accounts":      cfg.MediaAccounts,
 			}
 		},
 		// Exit cleanly; systemd (Restart=always) or Docker starts it again.
@@ -279,6 +313,25 @@ func run(cfg *Config) error {
 	}).Routes(h.Handle)
 
 	var wg sync.WaitGroup
+	for _, u := range usagePeers(cfg, key) {
+		wg.Add(1)
+		go func(u string) {
+			defer wg.Done()
+			syncUsage(ctx, cfg, led, u)
+		}(u)
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			led.Expire()
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Hour):
+			}
+		}
+	}()
 	for _, p := range cfg.Peers {
 		wg.Add(1)
 		go func(p Peer) {
@@ -361,6 +414,102 @@ func federate(ctx context.Context, cfg *Config, rl *relay.Relay, p Peer) {
 		case <-ctx.Done():
 			return
 		case <-time.After(backoff):
+		}
+	}
+}
+
+// backfillAges records the accounts whose announces are already stored
+// (relays from before the ledger): their age counts from that announce.
+func backfillAges(st store.Store, led *ledger.Ledger) {
+	var after int64
+	for {
+		items, err := st.Since(after, 1000, store.Filter{Types: []packet.Type{packet.TypeAnnounce}})
+		if err != nil || len(items) == 0 {
+			return
+		}
+		for _, it := range items {
+			led.Seen(it.Dest.String(), it.Received)
+			after = it.Seq
+		}
+	}
+}
+
+// usagePeers are the relays this one exchanges the usage ledger with:
+// usage_peers if set, else the origin relays (network/relays.json, not
+// itself) and the federation peers.
+func usagePeers(cfg *Config, key *identity.Identity) []string {
+	if len(cfg.UsagePeers) > 0 {
+		return cfg.UsagePeers
+	}
+	me := hex.EncodeToString(key.Bytes())
+	var out []string
+	for _, r := range network.Bootstrap().Relays {
+		if r.Origin && !strings.EqualFold(r.PubKey, me) && len(r.URLs) > 0 {
+			out = append(out, r.URLs[0])
+		}
+	}
+	for _, p := range cfg.Peers {
+		if !slices.Contains(out, p.URL) {
+			out = append(out, p.URL)
+		}
+	}
+	return out
+}
+
+// syncUsage pushes this relay's new ledger entries to a relay and pulls
+// that relay's, every minute. Entries are self-verifying, so any relay
+// will do; the cursors live in the ledger.
+func syncUsage(ctx context.Context, cfg *Config, led *ledger.Ledger, u string) {
+	c, err := relayclient.New(u, relayclient.Options{Origin: cfg.Name, Region: cfg.Region})
+	if err != nil {
+		log.Printf("usage peer %s: %v", u, err)
+		return
+	}
+	for {
+		push, pull := led.Cursors(u)
+		err := func() error {
+			for {
+				es, next, more, err := led.Since(push, 1000)
+				if err != nil || len(es) == 0 {
+					return err
+				}
+				var b []byte
+				for _, e := range es {
+					b = append(b, e.Encode()...)
+				}
+				if _, err := c.PushUsage(ctx, b); err != nil {
+					return err
+				}
+				push = next
+				led.SetCursors(u, push, pull)
+				if !more {
+					break
+				}
+			}
+			for {
+				b, next, more, err := c.PullUsage(ctx, pull)
+				if err != nil {
+					return err
+				}
+				es, err := ledger.DecodeAll(b)
+				if err != nil {
+					return err
+				}
+				led.Add(es, u)
+				pull = next
+				led.SetCursors(u, push, pull)
+				if !more || len(es) == 0 {
+					return nil
+				}
+			}
+		}()
+		if err != nil && cfg.Log && ctx.Err() == nil {
+			log.Printf("usage peer %s: %v", u, err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Minute):
 		}
 	}
 }

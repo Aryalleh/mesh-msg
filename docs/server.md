@@ -164,14 +164,13 @@ between devices and never touches a relay. Every upload is signed (`X-Account`,
 - Over the allowance → `429` (`Retry-After`, body says when it resets); `GET /v1/media/quota`
   (signed like an upload, over `MESHMSG-MEDIA-QUOTA` | day) returns used / left; the app
   asks before sending and sends the file as normal media when nothing is left.
-- For now each relay counts only the uploads it saw (`data_dir/media/usage.json`); the
-  network-wide count (ledger) and the proof-of-work by account age below come next.
+- The count is network-wide, from the usage ledger below.
 - An accepted file is **never evicted** before its readers have it or its time runs out.
   When storage would not allow that, the relay refuses the upload (`507`) and the client
   tries another relay; it never drops a file it accepted.
 - `media_max_hours` / `media_min_hours` no longer apply to relay media.
 
-### Abuse control for important media (requirement, not implemented yet)
+### Abuse control for important media (implemented in v0.1.0-alpha10, roadmap step 2)
 
 Identities are free, so one person can make many accounts (a Sybil attack), and a person can
 upload to several relays. Three measures work together; every number is set per relay in
@@ -216,8 +215,9 @@ Bitcoin it needs no mining or global agreement on order: entries only add up, an
 that met each other converge (a grow-only set).
 
 ```
-entry = day(4) | media_id(16) | account_pubkey(32) | account_sig(64)  (the X-Signature of the
-        upload: "MESHMSG-MEDIA-PUT" | media_id | day) | relay_pubkey(32) | relay_sig(64)
+entry = day(4) | media_id(16) | account_pubkey(64) | account_sig(64)  (the X-Signature of the
+        upload: "MESHMSG-MEDIA-PUT" | media_id (hex) | day) | relay_pubkey(64)
+        | relay_sig(64)  (over the first 148 bytes, domain "MESHMSG-USAGE")     = 276 bytes
 ```
 
 - Entries are deduplicated by (account, media_id): uploading the same file to four relays
@@ -239,6 +239,30 @@ entry = day(4) | media_id(16) | account_pubkey(32) | account_sig(64)  (the X-Sig
   already public in announces. Accepting that is the price of a ledger nobody controls.
 - A relay that does not report weakens only its own count; it can't raise anyone's
   allowance elsewhere.
+
+#### How it is built (v0.1.0-alpha10)
+
+- `server/ledger`: the relay's copy in `data_dir/ledger.db` (entries, account first-seen
+  times, sources, sync cursors). Rules: `api.MediaPolicy` (defaults as above).
+- **Age**: the first time this relay stored an announce of the account (at start-up also
+  from the announces it already holds), the earliest kept. Announces are replicated, so
+  long-running relays agree closely; a new relay sees every account as young for the
+  first days.
+- **Upload** (`PUT /v1/media/{id}`): signed for the relay's day exactly (the client takes it
+  from `GET /v1/media/quota`, which accepts the day ± 1); allowance checked first (`429`),
+  then work: `X-PoW` over `"mesh-msg media|" id "|" account-hash "|"` + day(4). Too little
+  work → `402` with `X-PoW-Bits` (the bits needed now; the client solves again once).
+  Accepted → an entry signed by the relay goes into its ledger.
+- **Quota** also returns `pow_bits` and `age_days`.
+- **Spread**: every minute each relay pushes its new entries to and pulls from its usage
+  peers (`usage_peers` in relay.json; default: the origin relays of network/relays.json and
+  the federation peers) with `POST /v1/usage` / `GET /v1/usage?since=` (1000 entries per
+  request; `X-Cursor`, `X-More`). This runs beside `/v1/sync`, not inside it.
+- **Invalid entries**: an entry whose account signature fails but whose relay signature is
+  valid means that relay signed an upload the account never made: the relay is ignored from
+  then on. A broken relay signature counts against the peer that sent it. Both show in the
+  panel's "Usage ledger" table. Entries older than yesterday or dated in the future are not
+  taken; days are dropped after two days.
 
 ## 6b. Admin panel
 

@@ -29,6 +29,9 @@ type Config struct {
 	// handed to carrier gateways once they are this old (default 10 min).
 	CarrierMinAge time.Duration
 	Logf          func(format string, args ...any)
+	// OnAnnounce is told about every new announce stored (the account's
+	// destination hash); the ledger keeps the first time (account age).
+	OnAnnounce func(dest packet.Hash, at time.Time)
 }
 
 // Relay is safe for concurrent use.
@@ -158,6 +161,9 @@ func (r *Relay) ingestOne(raw []byte, origin, region string, now time.Time) resu
 			r.cfg.Logf("relay: store: %v", err)
 		}
 		return resDuplicate
+	}
+	if p.Type == packet.TypeAnnounce && r.cfg.OnAnnounce != nil {
+		r.cfg.OnAnnounce(p.Dest, now)
 	}
 	return resAccepted
 }

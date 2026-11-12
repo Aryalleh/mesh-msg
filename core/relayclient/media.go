@@ -96,21 +96,38 @@ func (c *Client) PutMedia(ctx context.Context, id string, blob []byte, readers i
 	req.ContentLength = int64(len(blob))
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set(wire.HeaderReaders, strconv.Itoa(readers))
-	day := wire.Day(time.Now())
-	signMedia(req, as, wire.DomainMediaUpload, wire.MediaSigBody(id, day), day)
-	if in.PowBits > 0 {
-		req.Header.Set(wire.HeaderPoW, strconv.FormatUint(pow.Solve(wire.MediaPoWBody(id), in.PowBits), 10))
-	}
-	resp, err := c.http.Do(req)
+	// The work the relay wants now (it grows with today's uploads) and the
+	// relay's day, which the upload is signed for.
+	q, err := c.MediaQuota(ctx, as)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode/100 != 2 {
+	day := uint32(q.Resets/86400) - 1
+	signMedia(req, as, wire.DomainMediaUpload, wire.MediaSigBody(id, day), day)
+	powBody := wire.MediaPoWBody(id, as.Public.Hash().String(), day)
+	bits := q.PowBits
+	for try := 0; ; try++ {
+		if bits > 0 {
+			req.Header.Set(wire.HeaderPoW, strconv.FormatUint(pow.Solve(powBody, bits), 10))
+		}
+		req.Body = io.NopCloser(bytes.NewReader(blob))
+		resp, err := c.http.Do(req)
+		if err != nil {
+			return err
+		}
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return &StatusError{resp.StatusCode, strings.TrimSpace(string(b))}
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusPaymentRequired && try == 0 {
+			if nb, err := strconv.Atoi(resp.Header.Get(wire.HeaderPoWBits)); err == nil && nb > bits && nb <= 32 {
+				bits = nb // another upload raised it meanwhile
+				continue
+			}
+		}
+		if resp.StatusCode/100 != 2 {
+			return &StatusError{resp.StatusCode, strings.TrimSpace(string(b))}
+		}
+		return nil
 	}
-	return nil
 }
 
 // MediaQuota asks the relay how many important files the account may still

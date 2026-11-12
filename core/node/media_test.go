@@ -20,10 +20,17 @@ func startMediaRelay(t *testing.T, name string, perDay ...int) (url, dir string)
 	dir = t.TempDir()
 	srv := httptest.NewServer(api.New(api.Config{
 		Relay: relay.New(relay.Config{Name: name, Region: "global"}), Identity: key, PowBits: 4, RateLimit: 1000,
-		Media: api.MediaConfig{Dir: dir, MaxMB: 4, PerDay: append(perDay, 0)[0]},
+		Media: api.MediaConfig{Dir: dir, MaxMB: 4, Policy: easyPolicy(append(perDay, 5)[0])},
 	}))
 	t.Cleanup(srv.Close)
 	return srv.URL, dir
+}
+
+// easyPolicy: little proof-of-work and no new-account limit, for tests.
+func easyPolicy(perDay int) *api.MediaPolicy {
+	p := api.DefaultMediaPolicy()
+	p.PerDay, p.NewAccountDays, p.PowBaseBits, p.AgeTiers = perDay, 0, 4, nil
+	return &p
 }
 
 // The test relays run on 127.0.0.1, which clients normally refuse.

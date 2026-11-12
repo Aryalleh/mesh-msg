@@ -17,6 +17,11 @@
   "media_store_mb": 2048,
   "media_important_per_day": 5,
   "media_important_hours": 168,
+  "media_new_account_days": 3,
+  "media_new_account_per_day": 1,
+  "media_pow_base_bits": 20,
+  "media_pow_max_bits": 28,
+  "media_pow_age_tiers": "3:3, 30:2, 180:1",
   "media_accounts": [],
   "log": false
 }

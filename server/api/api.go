@@ -21,6 +21,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/pow"
 	"github.com/Aryalleh/mesh-msg/core/relayclient"
 	"github.com/Aryalleh/mesh-msg/core/wire"
+	"github.com/Aryalleh/mesh-msg/server/ledger"
 	"github.com/Aryalleh/mesh-msg/server/relay"
 )
 
@@ -42,7 +43,10 @@ type Config struct {
 	Relays     []wire.RelayEntry // published relay list
 	RateLimit  float64           // requests/second per IP (0 = 20)
 	Media      MediaConfig       // encrypted files (off unless MaxMB > 0)
-	Logf       func(format string, args ...any)
+	// Ledger: important-media usage shared by all relays, and account ages
+	// (nil: an in-memory one, for tests).
+	Ledger *ledger.Ledger
+	Logf   func(format string, args ...any)
 }
 
 // Server is an http.Handler.
@@ -51,9 +55,9 @@ type Server struct {
 	mux *http.ServeMux
 	lim *limiter
 
-	media *mediaStore
-	// important-media limits, changeable at run time (admin panel)
-	mediaPerDay, mediaHours atomic.Int64
+	media  *mediaStore
+	ledger *ledger.Ledger
+	policy atomic.Pointer[MediaPolicy] // changeable at run time (admin panel)
 }
 
 // New builds the handler.
@@ -74,7 +78,20 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("POST /v1/gateway", s.gateway)
 	s.mux.HandleFunc("POST /v1/sync/push", s.syncPush)
 	s.mux.HandleFunc("GET /v1/sync/pull", s.syncPull)
-	s.SetMediaLimits(cfg.Media.PerDay, cfg.Media.ImportantHours)
+	p := DefaultMediaPolicy()
+	if cfg.Media.Policy != nil {
+		p = *cfg.Media.Policy
+	}
+	s.SetMediaPolicy(p)
+	if s.ledger = cfg.Ledger; s.ledger == nil {
+		l, err := ledger.Open(":memory:")
+		if err != nil {
+			panic(err)
+		}
+		s.ledger = l
+	}
+	s.mux.HandleFunc("POST /v1/usage", s.usagePush)
+	s.mux.HandleFunc("GET /v1/usage", s.usagePull)
 	if cfg.Media.MaxMB > 0 && cfg.Media.Dir != "" {
 		if err := s.openMedia(); err != nil {
 			cfg.Logf("media: %v (media off)", err)
@@ -115,7 +132,8 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 		MediaAccountsOnly: s.media != nil && len(s.cfg.Media.Accounts) > 0,
 	}
 	if s.media != nil {
-		in.MediaPerDay, in.MediaImportantHours = s.MediaLimits()
+		p := s.MediaPolicy()
+		in.MediaPerDay, in.MediaImportantHours = p.PerDay, p.Hours
 	}
 	writeJSON(w, in)
 }

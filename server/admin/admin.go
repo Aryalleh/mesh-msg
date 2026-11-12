@@ -55,12 +55,42 @@ type Settings struct {
 	TTLHours     *int     `json:"ttl_hours,omitempty"`
 	MediaMaxMB   *int     `json:"media_max_mb,omitempty"`
 	MediaStoreMB *int     `json:"media_store_mb,omitempty"`
-	// Important media: files per account per day and keep time; both
-	// apply at once, without a restart.
-	MediaPerDay         *int     `json:"media_important_per_day,omitempty"`
-	MediaImportantHours *int     `json:"media_important_hours,omitempty"`
-	MediaAccounts       []string `json:"media_accounts,omitempty"`
-	Log                 *bool    `json:"log,omitempty"`
+	// Important media (api.MediaPolicy): apply at once, without a restart.
+	MediaPerDay           *int     `json:"media_important_per_day,omitempty"`
+	MediaImportantHours   *int     `json:"media_important_hours,omitempty"`
+	MediaNewAccountDays   *int     `json:"media_new_account_days,omitempty"`
+	MediaNewAccountPerDay *int     `json:"media_new_account_per_day,omitempty"`
+	MediaPowBaseBits      *int     `json:"media_pow_base_bits,omitempty"`
+	MediaPowMaxBits       *int     `json:"media_pow_max_bits,omitempty"`
+	MediaPowAgeTiers      *string  `json:"media_pow_age_tiers,omitempty"` // "3:3, 30:2, 180:1" (days:bits)
+	MediaAccounts         []string `json:"media_accounts,omitempty"`
+	Log                   *bool    `json:"log,omitempty"`
+}
+
+// Policy lays the saved important-media settings over base (relay.json's)
+// and checks the result.
+func (s Settings) Policy(base api.MediaPolicy) (api.MediaPolicy, error) {
+	p := base
+	for _, f := range []struct {
+		dst *int
+		v   *int
+	}{
+		{&p.PerDay, s.MediaPerDay}, {&p.Hours, s.MediaImportantHours},
+		{&p.NewAccountDays, s.MediaNewAccountDays}, {&p.NewAccountPerDay, s.MediaNewAccountPerDay},
+		{&p.PowBaseBits, s.MediaPowBaseBits}, {&p.PowMaxBits, s.MediaPowMaxBits},
+	} {
+		if f.v != nil {
+			*f.dst = *f.v
+		}
+	}
+	if s.MediaPowAgeTiers != nil {
+		ts, err := api.ParseTiers(*s.MediaPowAgeTiers)
+		if err != nil {
+			return base, err
+		}
+		p.AgeTiers = ts
+	}
+	return p, p.Check()
 }
 
 // SettingsPath is where the overrides live.
@@ -131,6 +161,9 @@ type Config struct {
 	Identity *identity.Identity
 	Relay    *relay.Relay
 	API      *api.Server
+	// BasePolicy: the important-media rules from relay.json (panel
+	// settings are laid over it).
+	BasePolicy api.MediaPolicy
 	// Effective returns the settings in use (relay.json + panel.json).
 	Effective func() map[string]any
 	// Restart asks the process to exit so its supervisor restarts it with
@@ -163,6 +196,9 @@ type session struct {
 
 // New builds the panel.
 func New(cfg Config) *Panel {
+	if cfg.BasePolicy.PerDay == 0 {
+		cfg.BasePolicy = api.DefaultMediaPolicy()
+	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
@@ -413,6 +449,7 @@ func (p *Panel) state(w http.ResponseWriter, r *http.Request, admin string) {
 		"media": map[string]any{
 			"on": on, "used": used, "cap": capB, "count": len(files), "files": files[:min(len(files), 200)],
 		},
+		"ledger": p.cfg.API.Ledger().Stats(),
 	})
 }
 
@@ -433,8 +470,6 @@ func (p *Panel) saveSettings(w http.ResponseWriter, r *http.Request, _ string) {
 		check("ttl_hours", in.TTLHours, 1, 24*30),
 		check("media_max_mb", in.MediaMaxMB, 0, 64),
 		check("media_store_mb", in.MediaStoreMB, 16, 1<<20),
-		check("media_important_per_day", in.MediaPerDay, 1, 1000),
-		check("media_important_hours", in.MediaImportantHours, 1, 24*30),
 	} {
 		if err != nil {
 			fail(w, http.StatusBadRequest, err.Error())
@@ -455,6 +490,11 @@ func (p *Panel) saveSettings(w http.ResponseWriter, r *http.Request, _ string) {
 			accounts = append(accounts, id)
 		}
 	}
+	policy, err := in.Policy(p.cfg.BasePolicy)
+	if err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	cur, _ := LoadSettings(p.cfg.DataDir)
 	in.Admins = cur.Admins // changed only through /admins
 	in.MediaAccounts = accounts
@@ -462,15 +502,8 @@ func (p *Panel) saveSettings(w http.ResponseWriter, r *http.Request, _ string) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	perDay, hours := p.cfg.API.MediaLimits()
-	if in.MediaPerDay != nil {
-		perDay = *in.MediaPerDay
-	}
-	if in.MediaImportantHours != nil {
-		hours = *in.MediaImportantHours
-	}
-	p.cfg.API.SetMediaLimits(perDay, hours)
-	jsonOut(w, http.StatusOK, map[string]string{"info": "Saved. Daily allowance and keep time apply now; restart the relay for the rest."})
+	p.cfg.API.SetMediaPolicy(policy)
+	jsonOut(w, http.StatusOK, map[string]string{"info": "Saved. Important-file rules apply now; restart the relay for the rest."})
 }
 
 func (p *Panel) changeAdmins(w http.ResponseWriter, r *http.Request, _ string) {

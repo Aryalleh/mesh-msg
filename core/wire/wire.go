@@ -152,11 +152,22 @@ type MediaQuota struct {
 	Left    int   `json:"left"`
 	Resets  int64 `json:"resets"`  // Unix time the count starts again
 	Allowed bool  `json:"allowed"` // false: this account may not upload here (media_accounts)
+	// PowBits is the proof-of-work the next upload needs (grows with today's
+	// uploads, shrinks with the account's age).
+	PowBits int `json:"pow_bits"`
+	// AgeDays: days since the network first saw the account (its announce).
+	AgeDays int `json:"age_days"`
 }
 
-// MediaPoWBody is what the proof of work of a media upload covers (the
-// file's id, not its bytes, so big files cost the same).
-func MediaPoWBody(id string) []byte { return []byte("mesh-msg media|" + id) }
+// MediaPoWBody is what the proof of work of a media upload covers: the
+// file's id (not its bytes, so big files cost the same), the account (hash)
+// and the day, so work can't be reused.
+func MediaPoWBody(id, account string, day uint32) []byte {
+	return binary.BigEndian.AppendUint32([]byte("mesh-msg media|"+id+"|"+account+"|"), day)
+}
+
+// HeaderPoWBits is sent with a 402 on media uploads: the bits required now.
+const HeaderPoWBits = "X-PoW-Bits"
 
 // RelayEntry is one relay in a relay list.
 type RelayEntry struct {
