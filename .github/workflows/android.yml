@@ -50,7 +50,19 @@ jobs:
 
       - name: Lint, tests, APKs
         working-directory: android
-        run: ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug 2>&1 | tee ../gradle.log
+      - name: Report build errors
+        if: failure()
+        run: |
+          # Kotlin compile errors, lint errors and failed tests as annotations (readable without logs access).
+          grep -E '^e: |Error: |FAILED|Exception|What went wrong' -A2 gradle.log | head -40 | while IFS= read -r l; do
+            echo "::error::${l//%/%25}"
+          done
+          for f in android/app/build/reports/lint-results-debug.txt; do
+            [ -f "$f" ] && grep -E 'Error:' -A1 "$f" | head -20 | while IFS= read -r l; do echo "::error::lint ${l//%/%25}"; done
+          done
 
       - name: Collect APKs
         run: |
