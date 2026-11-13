@@ -810,3 +810,7 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   with `java.net.NetworkInterface` (covers hotspot interfaces) and the core merges them;
   `Gather` logs when there are no local addresses. Test `TestMoreAddrs`. Go and firmware
   tests pass; Android compiles in CI only; not yet run on a phone. Next tag v0.1.0-alpha13.
+- Fix commit `91f2061`; CI green on main (run 43351536790: desktop + Android). Tag
+  **v0.1.0-alpha13** pushed by the owner on `91f2061` (release run 43352305873). Next: phone
+  test on one Wi-Fi (voice message, then call); `adb logcat -s NetBinder` shows the
+  `local addresses:` line.
