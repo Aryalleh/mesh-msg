@@ -10,7 +10,7 @@ import org.json.JSONObject
 data class Relay(val name: String, val url: String, val via: String = "direct")
 
 /** The project's default relay, used until the user edits the relay list. */
-val DEFAULT_RELAYS = listOf(Relay("eu-1", "http://87.106.5.192"))
+val DEFAULT_RELAYS = listOf(Relay("eu-1", "https://eu-1.mfadem.ir"))
 
 enum class BatteryMode { Active, Saver, Off }
 

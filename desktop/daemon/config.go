@@ -38,11 +38,12 @@ ui = "127.0.0.1:7878"
 
 # Relays you can reach. "via" selects the network path:
 #   "direct", "tor", or a proxy such as "socks5://127.0.0.1:1080" (VPN client).
-# eu-1 is the project's default relay (plain HTTP for now; messages are
-# end-to-end encrypted either way).
+# eu-1 is the project's default relay (HTTPS; messages are end-to-end
+# encrypted either way). If the domain is blocked, http://87.106.5.192 is
+# the same relay.
 [[relay]]
 name = "eu-1"
-url  = "http://87.106.5.192"
+url  = "https://eu-1.mfadem.ir"
 via  = "direct"
 
 # [[relay]]

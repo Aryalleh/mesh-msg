@@ -17,7 +17,7 @@ func TestDefaultConfigParses(t *testing.T) {
 	if !cfg.Gateway.Enabled || cfg.Gateway.Mode != "targeted" {
 		t.Fatalf("gateway should be on (targeted) by default: %+v", cfg.Gateway)
 	}
-	if len(cfg.Relays) != 1 || cfg.Relays[0].Name != "eu-1" || cfg.Relays[0].URL != "http://87.106.5.192" || cfg.Relays[0].Via != "direct" {
+	if len(cfg.Relays) != 1 || cfg.Relays[0].Name != "eu-1" || cfg.Relays[0].URL != "https://eu-1.mfadem.ir" || cfg.Relays[0].Via != "direct" {
 		t.Fatalf("default relay: %+v", cfg.Relays)
 	}
 }

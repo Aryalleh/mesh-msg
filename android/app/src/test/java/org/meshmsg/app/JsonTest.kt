@@ -129,7 +129,7 @@ class JsonTest {
 
     @Test fun settingsMakeCoreConfig() {
         val s = Settings(RuntimeEnvironment.getApplication())
-        assertEquals(listOf(Relay("eu-1", "http://87.106.5.192")), s.relays) // default relay
+        assertEquals(listOf(Relay("eu-1", "https://eu-1.mfadem.ir")), s.relays) // default relay
         s.displayName = "  Ali "
         s.gateway = true
         s.relays = listOf(Relay("ir-1", "https://relay.example", "direct"))

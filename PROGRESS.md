@@ -10,7 +10,7 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 |---|---|
 | M0 Spec | done — Go core and C++ firmware library both pass `spec/test-vectors/vectors.json` |
 | M1 Core + sim | done |
-| M2 Relay | done — relay `eu-1` (`http://87.106.5.192`, plain HTTP, no domain yet) runs and is the default relay in meshd and the Android app |
+| M2 Relay | done — relay `eu-1` (`https://eu-1.mfadem.ir`, Let's Encrypt via Caddy; `http://87.106.5.192` is the same relay) runs and is the default relay in meshd and the Android app |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
 | M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`); board layer builds for all four boards (`pio run`), **not yet run on hardware** |
 | M5 Android | **in progress** — core binding + app built and tested on the JVM (65 tests, screenshots); exit scenario passes in Go; **radio code never run on a phone** |
@@ -881,3 +881,19 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   ground pour, stitching vias, LCD SPI at 40 MHz first, USB full speed only); BOM ~50–65 USD.
   Model P stays 6 layers (MIPI/USB HS pairs and the P4's 0.4 mm QFN can't be done on 2); the
   2-layer path for Model P is a P4 + C6 core module on a carrier board.
+
+### 2026-11-13 — eu-1 on its domain
+
+- eu-1 is reachable as **`https://eu-1.mfadem.ir`** (DNS A → 87.106.5.192). The TLS error was
+  Caddy having no site block for the name (handshake aborted with "internal error"); added
+  `eu-1.mfadem.ir { reverse_proxy 127.0.0.1:8080 … }` to `/etc/caddy/Caddyfile` (backup
+  `Caddyfile.bak-*` next to it), Caddy got a Let's Encrypt cert (renews itself). The plain
+  `http://87.106.5.192` block stays for old clients.
+- eu-1 relay updated from alpha10 to the official **0.1.0-alpha13** binary (SHA256 checked;
+  old binary at `/usr/local/bin/meshmsg-relay.bak-alpha10`). Its own list (`/etc/meshmsg/relay.json`,
+  served at `/v1/relays`) now has `urls: [https://eu-1.mfadem.ir, http://87.106.5.192]`.
+- `network/relays.json` lists the domain first and the IP second, so running clients and
+  relays pick it up from GitHub (key-pinned; discovery skips a second link to the same key).
+  New builds default to `https://eu-1.mfadem.ir` (meshd config, Android `DEFAULT_RELAYS`).
+- Seen while testing: `core/node` `TestNormalMediaOverAutoDirectLink` fails on clean HEAD
+  too (not caused by this change); needs a look.

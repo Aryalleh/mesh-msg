@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "updated": "2026-11-12",
+  "updated": "2026-11-13",
   "comment": "Official mesh-msg relays. Clients ship this file and refresh it from GitHub; relays they learn from each other and from nearby devices are added on top. The first entry is the original relay. pubkey pins each relay's identity (GET /v1/info).",
   "relays": [
     {
       "name": "eu-1",
       "region": "global",
-      "urls": ["http://87.106.5.192"],
+      "urls": ["https://eu-1.mfadem.ir", "http://87.106.5.192"],
       "pubkey": "8f45fed2b1fb509400ff6bf5b9ae546962995857503ddbac0dad6ec8c2f37279b79e07092170963fc0f2142ce9ed0996c4004baa2ebf7cfe763e7a428bec8143",
       "origin": true
     }

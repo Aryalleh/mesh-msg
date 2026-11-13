@@ -4,7 +4,7 @@ import "testing"
 
 func TestBootstrap(t *testing.T) {
 	l := Bootstrap()
-	if r := l.Relays[0]; r.Name != "eu-1" || !r.Origin || r.URLs[0] != "http://87.106.5.192" || len(r.PubKey) != 128 {
+	if r := l.Relays[0]; r.Name != "eu-1" || !r.Origin || r.URLs[0] != "https://eu-1.mfadem.ir" || len(r.PubKey) != 128 {
 		t.Fatalf("first relay must be the original eu-1: %+v", r)
 	}
 }
