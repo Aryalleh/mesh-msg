@@ -1,0 +1,12 @@
+# regenerated on every run
+out/
+routing/work/
+*.log
+.schgen-backup/
+.pcbgen-backup/
+*-backups/
+fp-info-cache
+*.lck
+~*
+__pycache__/
+*.kicad_prl

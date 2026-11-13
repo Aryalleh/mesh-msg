@@ -970,3 +970,12 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
 - Next: owner adds the new seed as the GitHub secret `RELEASE_SIGNING_KEY`, then push tag
   `v0.1.1-beta2` from main; after it publishes, put the beta2 relay on eu-1 (`GET /v1/release`).
 
+
+### 2026-11-13: Model S power board (hardware/power-s), work in progress
+- Separate 2-layer power board, 54 × 36 mm: AXP2101 (charger, power path, fuel gauge over
+  I2C + PMU_IRQ to the ESP32-S3), USB-C, JST-PH battery, PCF85063A RTC on a TPS7A02, 2 × 14 1.27 mm
+  header J3 to the main board. Generated: generate_schematic.py (netlist == spec, ERC 0 errors),
+  place_board.py (no overlaps, parity clean), setup_fab.py (JLC rules), route_board.py
+  (power copper + ground scripted, rest Freerouting), build_package.py (Gerbers/BOM/CPL), ASSEMBLY.md.
+- Next: finish routing (Freerouting run 1 left 10 connections open: route them by hand in
+  route_board.py), DRC to zero, `python3 build_package.py`, commit jlc/.
