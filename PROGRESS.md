@@ -1130,3 +1130,10 @@ links. Chose: quick items in beta3; calls follow in later betas.
   signaling + direct link (100 KB keyframe), Android `CallVideoTest` (Annex-B split, YUV
   plane copy). Full Go race suite, firmware tests, Android unit tests pass.
 - **Not run on real phones yet** — the camera/encoder/decoder path needs two phones (beta5).
+- CI's Go job failed on the video commit (log needs a GitHub login; not reproduced locally:
+  video tests 10/10 under load). Hardened: video tests resend a frame as a keyframe when
+  datagrams of a burst are dropped (what the app does on a keyframe request); direct-link UDP
+  sockets ask for 2 MB receive / 1 MB send buffers (keyframe bursts on real phones too); a
+  media download that failed on a present neighbour (e.g. the sender hadn't registered us
+  yet) retries after 10 s up to 3 times instead of waiting 2 minutes — the suspected cause of
+  the rare `TestVideoOverLANWithoutRelay` failure (0/6 more full runs).

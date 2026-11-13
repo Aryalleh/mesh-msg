@@ -42,6 +42,7 @@ func (o OSNet) ListenUDPAddr(ip netip.Addr) (net.PacketConn, error) {
 	if err != nil {
 		return nil, err
 	}
+	bigBuffers(c)
 	if o.Bind != nil {
 		if rc, err := c.SyscallConn(); err == nil {
 			rc.Control(func(fd uintptr) { o.Bind(int(fd), ip) })
@@ -51,7 +52,18 @@ func (o OSNet) ListenUDPAddr(ip netip.Addr) (net.PacketConn, error) {
 }
 
 func (o OSNet) ListenUDP(port int) (net.PacketConn, error) {
-	return net.ListenUDP("udp", &net.UDPAddr{Port: port})
+	c, err := net.ListenUDP("udp", &net.UDPAddr{Port: port})
+	if err == nil {
+		bigBuffers(c)
+	}
+	return c, err
+}
+
+// bigBuffers lets a burst of datagrams (a video keyframe is up to a few
+// hundred) wait in the socket instead of being dropped; the OS caps it.
+func bigBuffers(c *net.UDPConn) {
+	c.SetReadBuffer(2 << 20)
+	c.SetWriteBuffer(1 << 20)
 }
 
 func (o OSNet) Addrs() ([]netip.Addr, error) {

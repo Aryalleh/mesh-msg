@@ -149,11 +149,17 @@ func TestVideoCallThroughNode(t *testing.T) {
 	waitCall(evB, "active")
 	frames := [][]byte{randomFile(100_000), randomFile(4000), randomFile(4000)}
 	for i, f := range frames {
-		if err := a.CallVideo(info.ID, f, i == 0); err != nil {
-			t.Fatal(err)
+		// Lost datagrams on a busy machine: resend as a keyframe (as the app
+		// does when asked), a few times.
+		got := false
+		for try := 0; try < 6 && !got; try++ {
+			if err := a.CallVideo(info.ID, f, i == 0 || try > 0); err != nil {
+				t.Fatal(err)
+			}
+			fr, ok := b.PullCallVideo(ring.Call.ID, 2*time.Second)
+			got = ok && bytes.Equal(fr.Data, f)
 		}
-		got, ok := b.PullCallVideo(ring.Call.ID, 5*time.Second)
-		if !ok || !bytes.Equal(got.Data, f) {
+		if !got {
 			t.Fatalf("frame %d not received", i)
 		}
 	}

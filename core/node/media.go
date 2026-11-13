@@ -415,6 +415,7 @@ type mediaWorker struct {
 	retry atomic.Bool // a link came up: retry everything now
 	mu    sync.Mutex
 	busy  map[string]bool // downloads in progress
+	quick map[string]int  // quick retries used per download (after a neighbour failed)
 
 	// waiters for neighbours' answers (p2p): link|peer|id → frames
 	wmu     sync.Mutex
@@ -444,6 +445,9 @@ const (
 	mediaRetry   = 2 * time.Minute
 	mediaGiveUp  = 7 * 24 * time.Hour // a normal file waits this long for a direct path
 	parallelGets = 2
+
+	quickRetries    = 3
+	quickRetryAfter = 10 * time.Second
 )
 
 func (n *Node) runMedia(ctx context.Context) {
@@ -628,6 +632,23 @@ func (n *Node) download(ctx context.Context, id string) {
 		return
 	}
 	n.setMediaState(id, "remote") // retried later, and when a link comes up
+	// A neighbour that was there but didn't answer (it may not have
+	// registered us yet, or was busy): try again soon instead of after
+	// mediaRetry, a few times.
+	if len(nbs) > 0 {
+		n.mw.mu.Lock()
+		k := n.mw.quick[id]
+		if k < quickRetries {
+			n.mw.quick[id] = k + 1
+		}
+		n.mw.mu.Unlock()
+		if k < quickRetries {
+			time.AfterFunc(quickRetryAfter, func() {
+				n.db.db.Exec(`UPDATE media SET last_try=0 WHERE id=? AND wanted=1 AND state='remote'`, id)
+				n.mediaPoke()
+			})
+		}
+	}
 }
 
 func (n *Node) setMediaState(id, state string) {

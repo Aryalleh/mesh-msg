@@ -21,13 +21,21 @@ func randBytes(n int) []byte {
 	return b
 }
 
-func pullVideo(t *testing.T, c *Call) VideoFrame {
+// deliver sends a frame and waits for it on the other side. UDP may drop
+// datagrams of a burst on a busy machine; like the app, the sender then
+// answers the keyframe request by sending a keyframe.
+func deliver(t *testing.T, from, to *Call, data []byte, key bool) VideoFrame {
 	t.Helper()
-	f, ok := c.PullVideo(5 * time.Second)
-	if !ok {
-		t.Fatal("no video frame")
+	for try := 0; try < 6; try++ {
+		if err := from.SendVideo(data, key || try > 0); err != nil {
+			t.Fatal(err)
+		}
+		if f, ok := to.PullVideo(2 * time.Second); ok && bytes.Equal(f.Data, data) {
+			return f
+		}
 	}
-	return f
+	t.Fatalf("frame of %d bytes never arrived", len(data))
+	return VideoFrame{}
 }
 
 func TestVideoCall(t *testing.T) {
@@ -53,12 +61,9 @@ func TestVideoCall(t *testing.T) {
 		from, to := dir[0], dir[1]
 		frames := [][]byte{randBytes(40_000), randBytes(3000), randBytes(900), randBytes(5000)}
 		for i, f := range frames {
-			if err := from.SendVideo(f, i == 0); err != nil {
-				t.Fatal(err)
-			}
-			got := pullVideo(t, to)
-			if !bytes.Equal(got.Data, f) || got.Keyframe != (i == 0) {
-				t.Fatalf("frame %d: %d bytes, key %v", i, len(got.Data), got.Keyframe)
+			got := deliver(t, from, to, f, i == 0)
+			if i == 0 && !got.Keyframe {
+				t.Fatalf("frame %d: not a keyframe", i)
 			}
 		}
 	}

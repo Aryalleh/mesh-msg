@@ -157,7 +157,7 @@ func Open(cfg Config) (*Node, error) {
 		Logf:           cfg.Logf,
 	})
 	n.av = &avatars{pending: map[string]bool{}, busy: map[string]bool{}}
-	n.mw = &mediaWorker{kick: make(chan struct{}, 1), busy: map[string]bool{}, waiters: map[string]chan []byte{}, serving: map[string]bool{}}
+	n.mw = &mediaWorker{kick: make(chan struct{}, 1), busy: map[string]bool{}, quick: map[string]int{}, waiters: map[string]chan []byte{}, serving: map[string]bool{}}
 	if !cfg.Discovery.Off {
 		n.disc = &discovery{n: n, cfg: cfg.Discovery, kick: make(chan struct{}, 1), auto: map[string]*autoRelay{}}
 	}
