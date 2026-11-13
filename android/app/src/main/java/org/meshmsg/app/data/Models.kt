@@ -157,6 +157,8 @@ data class CallInfo(
     /** Six digits both people can compare by voice. */
     val code: String = "",
     val relayed: Boolean = false,
+    /** connectivity.md §5: 1 local network … 5 peer to peer across NAT, 6 relay; 0 = no path yet. */
+    val pathClass: Int = 0,
     val reason: String = "",
     val missed: Boolean = false,
     /** When it became active (ms), 0 before. */
@@ -175,6 +177,7 @@ object Json {
         codec = o.optInt("codec"),
         code = o.optString("code"),
         relayed = o.optBoolean("relayed"),
+        pathClass = o.optInt("path_class"),
         reason = o.optString("reason"),
         missed = o.optBoolean("missed"),
         started = o.optLong("started"),

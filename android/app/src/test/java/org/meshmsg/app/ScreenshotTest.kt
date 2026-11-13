@@ -7,7 +7,6 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.meshmsg.app.data.BatteryMode
 import org.meshmsg.app.data.Chat
 import org.meshmsg.app.data.Contact
 import org.meshmsg.app.data.Delivery
@@ -203,9 +202,6 @@ class ScreenshotTest(private val variant: Variant) {
 
     private val noActions = object : SettingsActions {
         override fun setName(name: String) {}
-        override fun setGateway(on: Boolean) {}
-        override fun setDiscovery(on: Boolean) {}
-        override fun setBattery(mode: BatteryMode) {}
         override fun addRelay(relay: Relay) {}
         override fun removeRelay(relay: Relay) {}
         override fun wipe() {}
@@ -214,8 +210,8 @@ class ScreenshotTest(private val variant: Variant) {
 
     private val settingsState
         get() = SettingsState(
-            displayName = if (fa) "رضا" else "Reza", myHash = "3bb4c2a7e6a56b04fe21bf96da1c4c67", gateway = false,
-            battery = BatteryMode.Saver, relays = listOf(Relay("ir-1", "https://relay-ir.example")),
+            displayName = if (fa) "رضا" else "Reza", myHash = "3bb4c2a7e6a56b04fe21bf96da1c4c67",
+            relays = listOf(Relay("ir-1", "https://relay-ir.example")),
         )
 
     @Test fun settings() = shot("settings") { SettingsScreen(settingsState, noActions) }

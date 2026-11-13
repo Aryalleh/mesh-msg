@@ -32,18 +32,13 @@ class Settings(context: Context) {
      * On by default: without it, phones nearby that have no internet can send
      * through this one but never get their replies.
      */
-    var gateway: Boolean
-        get() = p.getBoolean("gateway", true)
-        set(v) = p.edit { putBoolean("gateway", v) }
+    val gateway: Boolean get() = true // always on (owner's decision for the beta)
 
     /** Find relays automatically and share ours with nearby devices (on by default). */
-    var discovery: Boolean
-        get() = p.getBoolean("discovery", true)
-        set(v) = p.edit { putBoolean("discovery", v) }
+    val discovery: Boolean get() = true // always on (owner's decision for the beta)
 
-    var batteryMode: BatteryMode
-        get() = runCatching { BatteryMode.valueOf(p.getString("battery", "") ?: "") }.getOrDefault(BatteryMode.Active)
-        set(v) = p.edit { putString("battery", v.name) }
+    /** Always Active: the mesh keeps running in the background (not user-changeable). */
+    val batteryMode: BatteryMode get() = BatteryMode.Active
 
     var relays: List<Relay>
         get() {

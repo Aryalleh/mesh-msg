@@ -942,6 +942,20 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
 - `32f31a6` B7 pushed; CI green (Go + firmware, Android lint/tests/APKs). Owner said "release it":
   tag **v0.1.1-beta1** pushed on the commit that adds this line.
 
+### 2026-11-13 — beta2 changes (owner's requests)
+
+- v0.1.1-beta1's release job failed at "Signed release manifest": the GitHub secret
+  `RELEASE_SIGNING_KEY` isn't set yet (owner will add it). No release was published for
+  beta1; the tag stays as is (tags are never moved).
+- Android: battery mode fixed to Active; gateway ("share my internet") and relay discovery
+  always on; their switches and the battery radio buttons removed from Settings (one
+  explanatory line instead). `Settings.gateway/discovery/batteryMode` are now constant.
+- Calls: `call.Info` gains `path_class` (connectivity.md §5); the call screen shows a badge
+  "Peer to peer (direct)" / "Peer to peer on this network" (class 1) / "Through a relay"
+  (class 6, TURN) while the call has a path.
+- Added these two items to the beta2 release notes (written by the eu-1 session after the key rotation, `f647a0c`). Tag v0.1.1-beta2 (pushed by that session) waits for CI and
+  for the secret.
+
 ### 2026-11-13 — release key rotated, beta1 never published → v0.1.1-beta2
 
 - `v0.1.1-beta1` (tag on `483138f`) was **not published**: its release job failed at "Signed

@@ -87,9 +87,29 @@ fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier
                 Text(stringResource(R.string.call_code_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 Text(call.code, style = MaterialTheme.typography.displaySmall)
             }
-            if (call.relayed) {
+            // How the audio goes: peer to peer or through a relay (owner asked to always show it).
+            if (!call.ended && (call.pathClass > 0 || call.relayed)) {
                 Spacer(Modifier.height(Space.m))
-                Text(stringResource(R.string.call_relayed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                val relayed = call.relayed || call.pathClass >= 6
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = if (relayed) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        stringResource(
+                            when {
+                                relayed -> R.string.call_path_relay
+                                call.pathClass == 1 -> R.string.call_path_local
+                                else -> R.string.call_path_p2p
+                            },
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = Space.m, vertical = Space.xs),
+                    )
+                }
+                if (relayed) {
+                    Text(stringResource(R.string.call_relayed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
             }
             if (call.peerMuted) {
                 Spacer(Modifier.height(Space.m))

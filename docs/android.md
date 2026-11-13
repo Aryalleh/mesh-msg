@@ -70,7 +70,8 @@ interface lives inside the Go core, identical to desktop.
   user is prompted to exempt the app from battery optimisation.
 - Android 12+: `BLUETOOTH_SCAN` (with `neverForLocation`), `BLUETOOTH_CONNECT`,
   `BLUETOOTH_ADVERTISE`; Android 13+: `NEARBY_WIFI_DEVICES`.
-- Battery modes: *Active* (full meshing), *Saver* (scan bursts every N minutes), *Off*.
+- Battery mode is fixed to *Active* (full meshing, foreground service) since v0.1.1-beta2 (owner's decision); *Saver*/*Off* remain in code but are not selectable. Sharing internet with the mesh (gateway) and automatic relay discovery are likewise always on, with no switch in Settings.
+- Calls show their path: "Peer to peer (direct)", "Peer to peer on this network" (class 1) or "Through a relay" (TURN, class 6).
 
 ## 8. Security & safety UX
 
@@ -85,4 +86,4 @@ interface lives inside the Go core, identical to desktop.
 
 Onboarding (create identity, permissions) · Chats list · Chat · Add contact (QR / link) ·
 Network status (neighbours, LoRa node, internet, store size) · LoRa node settings · Settings
-(battery mode, panic wipe, relays).
+(relays, about / update check, panic wipe).

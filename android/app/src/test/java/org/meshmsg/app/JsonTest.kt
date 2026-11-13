@@ -11,6 +11,7 @@ import org.meshmsg.app.data.GroupKind
 import org.meshmsg.app.data.Json
 import org.meshmsg.app.data.PathInfo
 import org.meshmsg.app.data.PathState
+import org.meshmsg.app.data.BatteryMode
 import org.meshmsg.app.data.DEFAULT_RELAYS
 import org.meshmsg.app.data.Settings
 import org.meshmsg.app.data.Relay
@@ -131,19 +132,17 @@ class JsonTest {
         val s = Settings(RuntimeEnvironment.getApplication())
         assertEquals(listOf(Relay("eu-1", "https://eu-1.mfadem.ir")), s.relays) // default relay
         s.displayName = "  Ali "
-        s.gateway = true
         s.relays = listOf(Relay("ir-1", "https://relay.example", "direct"))
         val o = JSONObject(s.coreConfig())
         assertEquals("Ali", o.getString("name"))
         assertTrue(o.getBoolean("delegate"))
         assertTrue(o.getJSONObject("gateway").getBoolean("enabled"))
-        assertFalse(o.getJSONObject("discovery").getBoolean("off")) // relay discovery on by default
-        s.discovery = false
-        assertTrue(JSONObject(s.coreConfig()).getJSONObject("discovery").getBoolean("off"))
+        assertFalse(o.getJSONObject("discovery").getBoolean("off")) // relay discovery always on
+        assertEquals(BatteryMode.Active, s.batteryMode) // always Active
         assertEquals("https://relay.example", o.getJSONArray("relays").getJSONObject(0).getString("url"))
         assertEquals(s.relays, Settings(RuntimeEnvironment.getApplication()).relays) // persisted
         s.clear()
-        assertTrue(s.relays == DEFAULT_RELAYS && s.gateway && !s.onboarded) // gateway on by default
+        assertTrue(s.relays == DEFAULT_RELAYS && s.gateway && !s.onboarded) // gateway always on
         s.relays = emptyList() // removing the default sticks
         assertTrue(Settings(RuntimeEnvironment.getApplication()).relays.isEmpty())
     }

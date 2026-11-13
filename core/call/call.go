@@ -56,10 +56,13 @@ type Info struct {
 	Code     string `json:"code,omitempty"`    // compare by voice
 	Path     string `json:"path,omitempty"`    // how the audio goes
 	Relayed  bool   `json:"relayed,omitempty"` // through a relay's TURN (admins)
-	Reason   string `json:"reason,omitempty"`  // why it ended
-	Missed   bool   `json:"missed,omitempty"`
-	Started  int64  `json:"started,omitempty"` // unix ms when it became active
-	Muted    bool   `json:"peer_muted,omitempty"`
+	// PathClass: connectivity.md §5, 1 local network … 5 peer to peer across
+	// NAT, 6 through a relay; 0 while no path is chosen yet.
+	PathClass int    `json:"path_class,omitempty"`
+	Reason    string `json:"reason,omitempty"` // why it ended
+	Missed    bool   `json:"missed,omitempty"`
+	Started   int64  `json:"started,omitempty"` // unix ms when it became active
+	Muted     bool   `json:"peer_muted,omitempty"`
 }
 
 // Manager runs this device's calls (one at a time).
@@ -312,7 +315,7 @@ func (c *Call) Info() Info {
 	}
 	if c.link != nil {
 		p := c.link.Path()
-		in.Path, in.Relayed = p.String(), p.Relayed()
+		in.Path, in.Relayed, in.PathClass = p.String(), p.Relayed(), p.Class
 	}
 	if !c.started.IsZero() {
 		in.Started = c.started.UnixMilli()

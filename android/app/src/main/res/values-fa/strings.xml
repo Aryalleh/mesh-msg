@@ -104,12 +104,6 @@
     <string name="settings_name_helper">همراه اعلان‌های شما فرستاده می‌شود تا مخاطبان ببینند. برای ناشناس ماندن خالی بگذارید.</string>
     <string name="settings_your_id">شناسه‌ی شما</string>
     <string name="settings_mesh">شبکه</string>
-    <string name="settings_gateway">اینترنتم را با شبکه شریک شو</string>
-    <string name="settings_gateway_body">گوشی‌های اطراف که اینترنت ندارند از راه گوشی شما پیام می‌فرستند و فقط اگر این روشن باشد پاسخ‌هایشان را می‌گیرند. کمی داده مصرف می‌کند؛ پیام‌ها رمزشده می‌مانند.</string>
-    <string name="settings_battery">مصرف باتری</string>
-    <string name="battery_active">فعال — همیشه در شبکه</string>
-    <string name="battery_saver">کم‌مصرف — جستجوی کوتاه هر چند دقیقه</string>
-    <string name="battery_off">خاموش — فقط وقتی برنامه باز است</string>
     <string name="settings_relays">رله‌ها</string>
     <string name="settings_relays_empty">رله‌ای نیست. برنامه بدون رله هم با بلوتوث و LoRa کار می‌کند.</string>
     <string name="relay_add">افزودن رله</string>
@@ -192,8 +186,6 @@
     <string name="group_no_contacts">اول مخاطب اضافه کنید: اعضای گروه از مخاطبان شما هستند.</string>
     <string name="delivered_to_n">به %1$d از %2$d عضو رسید</string>
     <string name="close">بستن</string>
-    <string name="settings_discovery">یافتن خودکار رله‌ها</string>
-    <string name="settings_discovery_body">از رله‌های فهرست رسمی و رله‌هایی که گوشی‌ها و گره‌های لورای نزدیک معرفی می‌کنند استفاده کن و رله‌ی خودت را هم معرفی کن. هر کدام اول بررسی می‌شود.</string>
     <!-- Media -->
     <string name="attach">پیوست</string>
     <string name="attach_media">عکس یا ویدیو</string>
@@ -262,4 +254,8 @@
     <string name="update_up_to_date">Mava %1$s به‌روز است</string>
     <string name="settings_about">درباره</string>
     <string name="settings_version">نسخهٔ %1$s</string>
+    <string name="call_path_p2p">مستقیم (نقطه به نقطه)</string>
+    <string name="call_path_local">مستقیم در همین شبکه</string>
+    <string name="call_path_relay">از طریق رله</string>
+    <string name="settings_mesh_fixed">همیشه روشن: Mava در پس‌زمینه شبکهٔ مش را نگه می‌دارد، اینترنت این گوشی را با گوشی‌های اطراف به اشتراک می‌گذارد (پیام‌ها رمزنگاری‌شده می‌مانند) و رله‌ها را خودکار پیدا می‌کند.</string>
 </resources>

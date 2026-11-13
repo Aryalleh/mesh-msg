@@ -110,12 +110,6 @@
     <string name="settings_name_helper">Sent with your announces so contacts see it. Leave empty to stay anonymous.</string>
     <string name="settings_your_id">Your ID</string>
     <string name="settings_mesh">Mesh</string>
-    <string name="settings_gateway">Share my internet with the mesh</string>
-    <string name="settings_gateway_body">Phones around you without internet send through yours, and only get their replies if this is on. Uses a little data; messages stay encrypted.</string>
-    <string name="settings_battery">Battery use</string>
-    <string name="battery_active">Active — always meshing</string>
-    <string name="battery_saver">Saver — short scans every few minutes</string>
-    <string name="battery_off">Off — only while the app is open</string>
     <string name="settings_relays">Relays</string>
     <string name="settings_relays_empty">No relays. The app works without them over Bluetooth and LoRa.</string>
     <string name="relay_add">Add relay</string>
@@ -200,8 +194,6 @@
     <string name="group_no_contacts">Add contacts first: a group\'s members are your contacts.</string>
     <string name="delivered_to_n">Delivered to %1$d of %2$d members</string>
     <string name="close">Close</string>
-    <string name="settings_discovery">Find relays automatically</string>
-    <string name="settings_discovery_body">Use relays from the official list and ones nearby phones and LoRa nodes share, and share the relay you use. Each is checked first.</string>
     <!-- Media: photos, voice and video messages, files -->
     <string name="attach">Attach</string>
     <string name="attach_media">Photo or video</string>
@@ -270,4 +262,8 @@
     <string name="update_up_to_date">Mava %1$s is up to date</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %1$s</string>
+    <string name="call_path_p2p">Peer to peer (direct)</string>
+    <string name="call_path_local">Peer to peer on this network</string>
+    <string name="call_path_relay">Through a relay</string>
+    <string name="settings_mesh_fixed">Always on: Mava keeps meshing in the background, shares this phone\'s internet with phones around you (messages stay encrypted), and finds relays automatically.</string>
 </resources>

@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.meshmsg.app.MeshApp
-import org.meshmsg.app.data.BatteryMode
 import org.meshmsg.app.data.Chat
 import org.meshmsg.app.data.CoreBackend
 import org.meshmsg.app.data.Message
@@ -56,7 +55,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
 
     private fun readSettings() = SettingsState(
         displayName = settings.displayName, myHash = app.backend.value?.myHash.orEmpty(),
-        gateway = settings.gateway, discovery = settings.discovery, battery = settings.batteryMode, relays = settings.relays,
+        relays = settings.relays,
         appVersion = app.updates.currentVersion,
     )
 
@@ -176,9 +175,6 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
 
     // ---- SettingsActions ----
     override fun setName(name: String) { settings.displayName = name; changed() }
-    override fun setGateway(on: Boolean) { settings.gateway = on; changed() }
-    override fun setDiscovery(on: Boolean) { settings.discovery = on; changed() }
-    override fun setBattery(mode: BatteryMode) { settings.batteryMode = mode; changed() }
     override fun addRelay(relay: Relay) { settings.relays = settings.relays.filter { it.name != relay.name } + relay; changed() }
     override fun removeRelay(relay: Relay) { settings.relays = settings.relays - relay; changed() }
     override suspend fun exportIdentity(passphrase: String): Result<String> {

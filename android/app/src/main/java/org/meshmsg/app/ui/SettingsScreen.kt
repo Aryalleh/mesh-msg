@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,9 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -41,12 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.meshmsg.app.R
-import org.meshmsg.app.data.BatteryMode
 import org.meshmsg.app.data.Relay
 import org.meshmsg.app.ui.theme.MeshTheme
 import org.meshmsg.app.ui.theme.Space
@@ -54,18 +48,12 @@ import org.meshmsg.app.ui.theme.Space
 data class SettingsState(
     val displayName: String = "",
     val myHash: String = "",
-    val gateway: Boolean = false,
-    val discovery: Boolean = true,
-    val battery: BatteryMode = BatteryMode.Active,
     val relays: List<Relay> = emptyList(),
     val appVersion: String = "",
 )
 
 interface SettingsActions {
     fun setName(name: String)
-    fun setGateway(on: Boolean)
-    fun setDiscovery(on: Boolean)
-    fun setBattery(mode: BatteryMode)
     fun addRelay(relay: Relay)
     fun removeRelay(relay: Relay)
     fun wipe()
@@ -114,29 +102,12 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
             ) { Text(stringResource(R.string.backup_title)) }
 
             SectionHeader(stringResource(R.string.settings_mesh))
-            SwitchRow(stringResource(R.string.settings_gateway), stringResource(R.string.settings_gateway_body), state.gateway, actions::setGateway)
-            SwitchRow(stringResource(R.string.settings_discovery), stringResource(R.string.settings_discovery_body), state.discovery, actions::setDiscovery)
-
-            SectionHeader(stringResource(R.string.settings_battery))
-            BatteryMode.entries.forEach { mode ->
-                val label = stringResource(
-                    when (mode) {
-                        BatteryMode.Active -> R.string.battery_active
-                        BatteryMode.Saver -> R.string.battery_saver
-                        BatteryMode.Off -> R.string.battery_off
-                    },
-                )
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                        .selectable(selected = state.battery == mode, role = Role.RadioButton, onClick = { actions.setBattery(mode) })
-                        .padding(horizontal = Space.l),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Space.m),
-                ) {
-                    RadioButton(selected = state.battery == mode, onClick = null)
-                    Text(label, style = MaterialTheme.typography.bodyLarge)
-                }
-            }
+            Text(
+                stringResource(R.string.settings_mesh_fixed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s),
+            )
 
             SectionHeader(stringResource(R.string.settings_relays))
             if (state.relays.isEmpty()) {
@@ -197,23 +168,6 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
     if (addingRelay) RelayDialog(onDismiss = { addingRelay = false }, onAdd = { addingRelay = false; actions.addRelay(it) })
     if (backingUp) BackupDialog(export = actions::exportIdentity, onDismiss = { backingUp = false })
     if (wiping) WipeDialog(onDismiss = { wiping = false }, onConfirm = { wiping = false; actions.wipe() })
-}
-
-@Composable
-private fun SwitchRow(title: String, body: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp)
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
-            .padding(horizontal = Space.l, vertical = Space.m),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Space.l),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(checked = checked, onCheckedChange = null)
-    }
 }
 
 @Composable
