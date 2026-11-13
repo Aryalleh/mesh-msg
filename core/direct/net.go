@@ -14,10 +14,36 @@ type Net interface {
 	Addrs() ([]netip.Addr, error)
 }
 
+// addrNet is a Net that can also open a socket on one local address. The
+// agent then checks every path from the socket of the interface it leaves by.
+type addrNet interface {
+	ListenUDPAddr(ip netip.Addr) (net.PacketConn, error)
+}
+
 // OSNet is the real network.
 type OSNet struct {
 	// Loopback: also offer 127.0.0.1 / ::1 (two apps on one machine, tests).
 	Loopback bool
+	// Bind is called for every socket opened on one local address, with its
+	// file descriptor. Android needs it: there the routing table is chosen
+	// per network, not by destination, so a socket that is not bound to the
+	// Wi-Fi network sends through the default network (mobile data when the
+	// Wi-Fi has no internet) and never reaches a phone on the same Wi-Fi.
+	Bind func(fd int, ip netip.Addr)
+}
+
+// ListenUDPAddr opens a UDP socket on one local address, any port.
+func (o OSNet) ListenUDPAddr(ip netip.Addr) (net.PacketConn, error) {
+	c, err := net.ListenUDP("udp", &net.UDPAddr{IP: ip.AsSlice(), Zone: ip.Zone()})
+	if err != nil {
+		return nil, err
+	}
+	if o.Bind != nil {
+		if rc, err := c.SyscallConn(); err == nil {
+			rc.Control(func(fd uintptr) { o.Bind(int(fd), ip) })
+		}
+	}
+	return c, nil
 }
 
 func (o OSNet) ListenUDP(port int) (net.PacketConn, error) {

@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.meshmsg.meshcore.Core
 import org.meshmsg.meshcore.Listener
+import org.meshmsg.meshcore.NetworkBinder
 import org.meshmsg.meshcore.Meshcore
 
 /**
@@ -18,7 +19,7 @@ import org.meshmsg.meshcore.Meshcore
  * IO thread; the flows are refreshed when the core reports an event, and the
  * status also every few seconds (link details change without events).
  */
-class CoreBackend(dataDir: String, configJson: String) : MeshBackend, Listener {
+class CoreBackend(dataDir: String, configJson: String, binder: NetworkBinder? = null) : MeshBackend, Listener {
     val core: Core = Meshcore.open(dataDir, configJson)
 
     override val myUri: String = core.uri()
@@ -43,6 +44,7 @@ class CoreBackend(dataDir: String, configJson: String) : MeshBackend, Listener {
 
     init {
         core.setListener(this)
+        if (binder != null) core.setNetworkBinder(binder)
         core.start()
         scope.launch {
             for (u in refresh) reload()

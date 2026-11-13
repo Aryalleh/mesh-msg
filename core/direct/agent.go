@@ -73,6 +73,7 @@ type Agent struct {
 
 type sock struct {
 	pc      net.PacketConn
+	bound   bool // opened on one local address (leaves by that interface)
 	relayed bool
 	extra   bool // birthday socket, closed after the choice
 }
@@ -93,6 +94,9 @@ type pair struct {
 	rtt      time.Duration
 	seenAs   netip.AddrPort // our address as the peer saw it
 }
+
+// maxBoundSocks limits the per-address sockets of one session.
+const maxBoundSocks = 8
 
 // ErrNoPath: no authenticated check succeeded.
 var ErrNoPath = errors.New("direct: no direct path")
@@ -170,6 +174,23 @@ func (a *Agent) Gather(ctx context.Context) Offer {
 	var cands []Candidate
 	for _, ip := range addrs {
 		cands = append(cands, Candidate{Kind: Host, Addr: netip.AddrPortFrom(ip, port), Priority: priority(Host, ip)})
+	}
+	// One more socket per local address (connectivity.md §3): its packets
+	// leave by that interface whatever the system's default network is, and
+	// IPv6 addresses get a socket of their own family.
+	if an, ok := a.cfg.Net.(addrNet); ok {
+		for i, ip := range addrs {
+			if i >= maxBoundSocks {
+				break
+			}
+			pc, err := an.ListenUDPAddr(ip)
+			if err != nil {
+				a.cfg.Logf("direct: socket on %s: %v", ip, err)
+				continue
+			}
+			a.addSock(&sock{pc: pc, bound: true})
+			cands = append(cands, Candidate{Kind: Host, Addr: netip.AddrPortFrom(ip, addrPort(pc.LocalAddr()).Port()), Priority: priority(Host, ip)})
+		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
@@ -686,7 +707,10 @@ func (a *Agent) choose() (*Link, error) {
 		}
 		lk := a.localKind(p)
 		c := class(lk, p.remote.Kind, p.remote.Addr.Addr())
-		if best == nil || c < bestClass || (c == bestClass && p.rtt < best.rtt) {
+		// Same class: a socket bound to its interface keeps working when the
+		// default network changes; then the faster pair.
+		better := best != nil && c == bestClass && (p.s.bound != best.s.bound && p.s.bound || p.s.bound == best.s.bound && p.rtt < best.rtt)
+		if best == nil || c < bestClass || better {
 			best, bestClass = p, c
 		}
 	}

@@ -23,6 +23,7 @@ import kotlinx.coroutines.sync.withLock
 import org.meshmsg.app.ble.BleMesh
 import org.meshmsg.app.data.BatteryMode
 import org.meshmsg.app.data.CoreBackend
+import org.meshmsg.app.data.NetBinder
 import org.meshmsg.app.data.Settings
 import org.meshmsg.app.lora.UsbLoRa
 import org.meshmsg.app.service.MeshService
@@ -68,7 +69,7 @@ class MeshApp : Application() {
         scope.launch {
             lock.withLock {
                 if (_backend.value == null) {
-                    _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig()).also(::watchCalls)
+                    _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig(), NetBinder(this@MeshApp)).also(::watchCalls)
                     restartBle()
                     usb = UsbLoRa(this@MeshApp).also { it.attachIfPresent(_backend.value!!.core) }
                 }
@@ -114,7 +115,7 @@ class MeshApp : Application() {
             delay(1_500) // the user may still be typing
             lock.withLock {
                 stopLocked()
-                _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig()).also(::watchCalls)
+                _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig(), NetBinder(this@MeshApp)).also(::watchCalls)
                 restartBle()
                 usb = UsbLoRa(this@MeshApp).also { it.attachIfPresent(_backend.value!!.core) }
             }

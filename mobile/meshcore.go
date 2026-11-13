@@ -44,6 +44,23 @@ type Listener interface {
 	OnEvent(json string)
 }
 
+// NetworkBinder ties a UDP socket to the network that owns a local address
+// (Android: Network.bindSocket on the descriptor). Without it Android sends
+// the socket's packets through the default network, which is mobile data
+// when the Wi-Fi has no internet, and phones on one Wi-Fi can't reach each
+// other. The descriptor is only valid during the call.
+type NetworkBinder interface {
+	BindSocket(fd int32, ip string)
+}
+
+// SetNetworkBinder sets the binder; call it before Start.
+func (c *Core) SetNetworkBinder(b NetworkBinder) {
+	if b == nil {
+		return
+	}
+	c.n.SetSocketBinder(func(fd int, ip string) { b.BindSocket(int32(fd), ip) })
+}
+
 // Transport is a point-to-point link implemented in Kotlin. Send must not
 // block for long (queue the chunk); chunks for one peer must go out in order.
 type Transport interface {

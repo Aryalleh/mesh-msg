@@ -761,3 +761,21 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   called "direct". `Models.kt` now leaves it out of the path list. Compiles in CI only.
 - Tag `v0.1.0-alpha11` (pushed by the owner on `219809c`) contains the call audio fix
   `b074d61`, not this change.
+
+### 2026-11-13 — Calls on one Wi-Fi: "no direct connection" (owner's report, alpha11)
+
+- Report: with alpha10 a call between two phones on one network worked (signaling through
+  the relay); with alpha11 it ends with "No direct connection could be made".
+- alpha10 → alpha11 changed only `CallAudio.kt` and the relay installer; the path code is
+  the same. So this is not a regression in code but a path check that only sometimes works.
+- Most likely cause (not confirmed on a phone): `core/direct` used one UDP socket on all
+  interfaces. Android routes by the app's default network, so whenever that is mobile data
+  (Wi-Fi without internet, or the phone prefers mobile data) probes for the other phone's
+  Wi-Fi address leave through mobile data and are lost. Same cause as candidate 1 of issue #2.
+- Change: one extra UDP socket per local address (`OSNet.ListenUDPAddr`, at most 8), each a
+  host candidate; hook `OSNet.Bind` → `Node.SetSocketBinder` → `mobile.NetworkBinder`; Android
+  `NetBinder` binds each socket to the `Network` that owns the address (`Network.bindSocket`);
+  between equal paths the bound socket wins. IPv6 addresses now get a socket of their own
+  family (the dual-stack socket skipped IPv6 pairs). Test `TestBoundSocketPerAddress`.
+  All Go and firmware tests pass; Android compiles in CI only. Needs a phone test
+  (`adb logcat -s NetBinder`), then the next tag v0.1.0-alpha12.

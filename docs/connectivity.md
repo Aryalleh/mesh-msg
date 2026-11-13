@@ -87,6 +87,13 @@ interface for gathering and for the session).
   ports are allocated in sequence (predictable) or at random. The type is sent with the
   candidates, chooses the method of §4a, and is shown in diagnostics.
 
+**As built:** besides the session socket on all interfaces, `core/direct` opens one UDP
+socket per local address and offers each as a host candidate. On Android the app binds
+each of these to the network that owns the address (`Network.bindSocket`, through
+`mobile.NetworkBinder`): Android routes by network, not by destination, so an unbound socket
+sends through the default network (mobile data when the Wi-Fi has no internet) and would
+never reach a phone on the same Wi-Fi. Between equal paths the bound socket wins.
+
 ## 4. Connectivity checks
 
 - Every local candidate is paired with every remote candidate of the same family. Both sides

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"time"
@@ -86,6 +87,17 @@ type reasm struct {
 
 func newDirectLink(n *Node) *directLink {
 	return &directLink{n: n, sess: map[string]*directSess{}, lastTry: map[string]time.Time{}, lastFail: map[string]string{}}
+}
+
+// SetSocketBinder sets the hook that ties a socket to the network of its
+// local address (Android, direct.OSNet.Bind). Call it before Start.
+func (n *Node) SetSocketBinder(bind func(fd int, ip string)) {
+	if n.direct == nil {
+		return
+	}
+	n.direct.mu.Lock()
+	n.direct.net = direct.OSNet{Bind: func(fd int, ip netip.Addr) { bind(fd, ip.String()) }}
+	n.direct.mu.Unlock()
 }
 
 func (d *directLink) Name() string          { return "direct" }
@@ -196,7 +208,10 @@ func (d *directLink) newSess(peer identity.Public) *directSess {
 
 func (d *directLink) config(ctx context.Context) direct.Config {
 	cfg := d.n.cfg.Direct
-	c := direct.Config{Net: d.net, PortMapping: !cfg.NoPortMapping, Reflectors: cfg.Reflectors, Logf: d.n.cfg.Logf}
+	d.mu.Lock()
+	dnet := d.net
+	d.mu.Unlock()
+	c := direct.Config{Net: dnet, PortMapping: !cfg.NoPortMapping, Reflectors: cfg.Reflectors, Logf: d.n.cfg.Logf}
 	d.n.mu.Lock()
 	var relays []*relayLink
 	for _, rl := range d.n.relays {
