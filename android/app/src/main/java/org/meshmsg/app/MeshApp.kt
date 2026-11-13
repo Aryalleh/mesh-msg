@@ -102,7 +102,7 @@ class MeshApp : Application() {
                     if (ringing != c.id) {
                         ringing = c.id
                         val name = b.chats.value.firstOrNull { it.contact.hash == c.peer }?.contact?.displayName ?: c.peer.take(8)
-                        org.meshmsg.app.service.CallService.ring(this@MeshApp, name, c.videoCall)
+                        org.meshmsg.app.service.CallService.ring(this@MeshApp, c.id, name, c.videoCall)
                     }
                 } else if (ringing != null) {
                     ringing = null
@@ -110,7 +110,8 @@ class MeshApp : Application() {
                 }
                 if (c != null && c.state == "active" && active != c.id) {
                     active = c.id
-                    org.meshmsg.app.service.CallService.start(this@MeshApp, c.id, c.codec)
+                    val name = b.chats.value.firstOrNull { it.contact.hash == c.peer }?.contact?.displayName ?: c.peer.take(8)
+                    org.meshmsg.app.service.CallService.start(this@MeshApp, c.id, c.codec, name)
                 } else if (active != null && (c == null || c.ended || c.id != active)) {
                     active = null
                     org.meshmsg.app.service.CallService.stop(this@MeshApp)

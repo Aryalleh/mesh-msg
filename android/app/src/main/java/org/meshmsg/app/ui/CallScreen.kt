@@ -6,6 +6,9 @@ import android.view.Surface
 import android.view.TextureView
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.material3.FilledTonalIconButton
@@ -31,6 +34,8 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
@@ -68,6 +73,10 @@ class CallActions(
     /** Turns the camera on or off (asks for the permission first if needed). */
     val camera: (Boolean) -> Unit = {},
     val switchCamera: () -> Unit = {},
+    /** Picks where the audio plays (Bluetooth headset, earpiece, speaker). */
+    val route: (org.meshmsg.app.data.AudioRoute) -> Unit = {},
+    /** Hides the call screen; the app shows the ongoing-call bar. Null: can't minimize. */
+    val minimize: (() -> Unit)? = null,
 )
 
 /**
@@ -75,7 +84,10 @@ class CallActions(
  * compare, and the buttons for this state.
  */
 @Composable
-fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier: Modifier = Modifier, video: CallVideo? = null) {
+fun CallScreen(
+    call: CallInfo, contact: Contact?, actions: CallActions, modifier: Modifier = Modifier, video: CallVideo? = null,
+    audio: org.meshmsg.app.data.AudioRoutes? = null,
+) {
     val remote by (video?.remote ?: remember { MutableStateFlow(RemoteVideo()) }).collectAsState()
     val cameraOn by (video?.cameraOn ?: remember { MutableStateFlow(false) }).collectAsState()
     val showRemote = video != null && call.state == "active" && remote.active
@@ -84,7 +96,18 @@ fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier
             // Kept in the layout (invisible until frames come) so its Surface is ready.
             RemoteVideoView(video, remote, Modifier.fillMaxSize().alpha(if (showRemote) 1f else 0f))
         }
-        CallControls(call, contact, actions, video, remote, cameraOn, showRemote)
+        CallControls(call, contact, actions, video, remote, cameraOn, showRemote, audio)
+        if (actions.minimize != null && call.state == "active") {
+            androidx.compose.material3.IconButton(
+                onClick = actions.minimize,
+                modifier = Modifier.align(Alignment.TopStart).systemBarsPadding().padding(Space.s),
+            ) {
+                Icon(
+                    androidx.compose.material.icons.Icons.Filled.KeyboardArrowDown, stringResource(R.string.call_minimize),
+                    tint = if (showRemote) Color.White else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
         if (video != null && cameraOn && call.state == "active") {
             SelfView(video, Modifier.align(Alignment.TopEnd).systemBarsPadding().padding(Space.l).size(width = 108.dp, height = 144.dp))
         }
@@ -92,9 +115,11 @@ fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier
 }
 
 @Composable
-private fun CallControls(call: CallInfo, contact: Contact?, actions: CallActions, video: CallVideo?, remote: RemoteVideo, cameraOn: Boolean, showRemote: Boolean) {
+private fun CallControls(
+    call: CallInfo, contact: Contact?, actions: CallActions, video: CallVideo?, remote: RemoteVideo, cameraOn: Boolean, showRemote: Boolean,
+    audio: org.meshmsg.app.data.AudioRoutes?,
+) {
     var muted by remember(call.id) { mutableStateOf(false) }
-    var speaker by remember(call.id) { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(call.state) {
         while (call.state == "active") {
@@ -175,9 +200,7 @@ private fun CallControls(call: CallInfo, contact: Contact?, actions: CallActions
                             FilledTonalIconToggleButton(checked = muted, onCheckedChange = { muted = it; actions.mute(it) }, modifier = Modifier.size(64.dp)) {
                                 Icon(if (muted) MeshIcons.MicOff else MeshIcons.Mic, stringResource(R.string.call_mute))
                             }
-                            FilledTonalIconToggleButton(checked = speaker, onCheckedChange = { speaker = it; actions.speaker(it) }, modifier = Modifier.size(64.dp)) {
-                                Icon(MeshIcons.VolumeUp, stringResource(R.string.call_speaker))
-                            }
+                            RouteButton(audio, actions)
                             if (call.video) {
                                 FilledTonalIconToggleButton(checked = cameraOn, onCheckedChange = { actions.camera(it) }, modifier = Modifier.size(64.dp)) {
                                     Icon(if (cameraOn) MeshIcons.Videocam else MeshIcons.VideocamOff, stringResource(R.string.call_camera))
@@ -265,4 +288,85 @@ private fun endReason(c: CallInfo): String = when (c.reason) {
     "missed", "no answer" -> stringResource(R.string.call_end_no_answer)
     "connection lost" -> stringResource(R.string.call_end_lost)
     else -> stringResource(R.string.call_ended)
+}
+
+/**
+ * Speaker on/off; with a headset connected it shows where the audio goes and
+ * opens a list: the headset(s), the phone (or wired headset) and the speaker.
+ */
+@Composable
+private fun RouteButton(audio: org.meshmsg.app.data.AudioRoutes?, actions: CallActions) {
+    val routes by (audio?.routes ?: remember { MutableStateFlow(emptyList()) }).collectAsState()
+    val current by (audio?.current ?: remember { MutableStateFlow(org.meshmsg.app.data.AudioRoute(org.meshmsg.app.data.RouteKind.Earpiece)) }).collectAsState()
+    val choice = routes.any { it.kind == org.meshmsg.app.data.RouteKind.Bluetooth }
+    if (!choice) {
+        val on = current.kind == org.meshmsg.app.data.RouteKind.Speaker
+        FilledTonalIconToggleButton(checked = on, onCheckedChange = { actions.speaker(it) }, modifier = Modifier.size(64.dp)) {
+            Icon(MeshIcons.VolumeUp, stringResource(R.string.call_speaker))
+        }
+        return
+    }
+    var open by remember { mutableStateOf(false) }
+    Box {
+        FilledTonalIconToggleButton(checked = current.kind != org.meshmsg.app.data.RouteKind.Earpiece, onCheckedChange = { open = true }, modifier = Modifier.size(64.dp)) {
+            Icon(routeIcon(current.kind), stringResource(R.string.call_audio_route, routeLabel(current)))
+        }
+        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            routes.forEach { r ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(routeLabel(r)) },
+                    leadingIcon = { Icon(routeIcon(r.kind), null) },
+                    trailingIcon = { if (r == current) Icon(androidx.compose.material.icons.Icons.Filled.Check, null) },
+                    onClick = { open = false; actions.route(r) },
+                )
+            }
+        }
+    }
+}
+
+private fun routeIcon(k: org.meshmsg.app.data.RouteKind) = when (k) {
+    org.meshmsg.app.data.RouteKind.Bluetooth -> MeshIcons.Bluetooth
+    org.meshmsg.app.data.RouteKind.Speaker -> MeshIcons.VolumeUp
+    org.meshmsg.app.data.RouteKind.Wired -> MeshIcons.Headset
+    org.meshmsg.app.data.RouteKind.Earpiece -> Icons.Filled.Call
+}
+
+@Composable
+private fun routeLabel(r: org.meshmsg.app.data.AudioRoute): String = when (r.kind) {
+    org.meshmsg.app.data.RouteKind.Bluetooth -> r.name.ifBlank { stringResource(R.string.call_route_bluetooth) }
+    org.meshmsg.app.data.RouteKind.Speaker -> stringResource(R.string.call_route_speaker)
+    org.meshmsg.app.data.RouteKind.Wired -> stringResource(R.string.call_route_wired)
+    org.meshmsg.app.data.RouteKind.Earpiece -> stringResource(R.string.call_route_phone)
+}
+
+/** The green bar at the top of the app while a minimized call goes on: tap to return. */
+@Composable
+fun OngoingCallBar(call: CallInfo, name: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(call.id) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(1_000)
+        }
+    }
+    val time = if (call.state == "active") duration(((now - call.started) / 1000).coerceAtLeast(0)) else stringResource(R.string.call_connecting)
+    Surface(
+        color = Color(0xFF2E7D32), contentColor = Color.White,
+        modifier = modifier.fillMaxWidth().clickable(onClickLabel = stringResource(R.string.call_return), onClick = onOpen),
+    ) {
+        Row(
+            Modifier.statusBarsPadding().padding(horizontal = Space.l, vertical = Space.s),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.s),
+        ) {
+            Icon(Icons.Filled.Call, null, modifier = Modifier.size(18.dp))
+            Text(
+                stringResource(R.string.call_bar, name, time),
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            Text(stringResource(R.string.call_return), style = MaterialTheme.typography.labelMedium)
+        }
+    }
 }

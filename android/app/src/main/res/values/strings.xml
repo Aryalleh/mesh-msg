@@ -332,4 +332,18 @@
     <string name="merge_done_body">%1$d messages are now in the chat with %2$s.</string>
     <string name="merge_open">Open chat</string>
     <string name="photo_view">View profile picture</string>
+    <string name="not_now">Not now</string>
+    <string name="call_minimize">Minimize call</string>
+    <string name="call_return">Tap to return</string>
+    <string name="call_bar">%1$s · %2$s</string>
+    <string name="call_audio_route">Audio: %1$s</string>
+    <string name="call_route_bluetooth">Bluetooth headset</string>
+    <string name="call_route_speaker">Speaker</string>
+    <string name="call_route_wired">Headset</string>
+    <string name="call_route_phone">Phone</string>
+    <string name="call_full_screen_title">Show incoming calls full screen?</string>
+    <string name="call_full_screen_body">Android needs your permission to show an incoming call over the lock screen, like a phone call. Without it, calls only appear as a notification.</string>
+    <string name="call_full_screen_allow">Allow</string>
+    <string name="settings_full_screen">Full-screen incoming calls</string>
+    <string name="settings_full_screen_off">Not allowed: calls only appear as a notification. Tap to allow.</string>
 </resources>

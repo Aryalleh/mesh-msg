@@ -39,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -136,6 +137,7 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                 supportingContent = { Text(stringResource(R.string.storage_entry_help)) },
                 modifier = Modifier.clickable(onClick = actions::openStorage),
             )
+            FullScreenCallsItem()
             ListItem(
                 headlineContent = { Text(stringResource(R.string.read_receipts)) },
                 supportingContent = { Text(stringResource(R.string.read_receipts_help)) },
@@ -322,4 +324,27 @@ private fun ProfilePicture(state: SettingsState, actions: SettingsActions) {
             )
         }
     }
+}
+
+/** Shown only while Android (14+) refuses full-screen incoming calls; opens the system page. */
+@Composable
+private fun FullScreenCallsItem() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var allowed by remember { mutableStateOf(true) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        allowed = org.meshmsg.app.service.CallService.canFullScreen(ctx)
+        onPauseOrDispose {}
+    }
+    if (allowed || android.os.Build.VERSION.SDK_INT < 34) return
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_full_screen)) },
+        supportingContent = { Text(stringResource(R.string.settings_full_screen_off), color = MaterialTheme.colorScheme.error) },
+        modifier = Modifier.clickable {
+            runCatching {
+                ctx.startActivity(
+                    android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:" + ctx.packageName)),
+                )
+            }
+        },
+    )
 }

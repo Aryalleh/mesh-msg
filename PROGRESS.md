@@ -1201,3 +1201,23 @@ links. Chose: quick items in beta3; calls follow in later betas.
   4/4 passes alone (unrelated to these changes). Firmware tests pass.
 - Next: calls (WhatsApp-style notification with Answer/Decline, ongoing-call bar,
   Bluetooth headset, full-screen call permission), then beta6 release notes and tag.
+
+### 2026-11-13 — beta6 step 5: calls like a phone call (Android)
+
+- `ed857c8` was steps 3–4 (merge, profile picture viewer).
+- Notifications use `NotificationCompat.CallStyle`: incoming → Decline / Answer (Answer
+  opens MainActivity with `ACTION_ANSWER`, which answers after the mic/camera permission;
+  the mic may only start with the app in front); ongoing → name, running chronometer,
+  Hang up.
+- `AudioRoutes` (data/): earpiece / speaker / wired / Bluetooth (SCO, BLE headset).
+  Android 12+ `setCommunicationDevice`, older `startBluetoothSco`. A headset is picked at
+  call start and when it connects mid-call; falls back when it goes away. Call screen: the
+  speaker toggle becomes a route menu while a Bluetooth headset is present.
+- Voice calls can be minimized (⌄ button or Back) → green `OngoingCallBar` above the app
+  (consumes the status-bar inset), tap to return. Video calls stay full screen (their
+  surfaces live in the call screen).
+- Android 14+: if full-screen intents are refused, a one-time dialog offers the system page;
+  Settings shows a "Full-screen incoming calls" row while it is off.
+- Release notes `docs/release-notes/v0.1.1-beta6.{en,fa}.md` written.
+- **Not run on real phones** (Bluetooth routing and CallStyle need a device).
+- Next: tag `v0.1.1-beta6` when the owner says release.

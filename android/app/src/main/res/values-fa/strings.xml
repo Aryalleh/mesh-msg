@@ -324,4 +324,18 @@
     <string name="merge_done_body">%1$d پیام اکنون در گفتگو با %2$s است.</string>
     <string name="merge_open">باز کردن گفتگو</string>
     <string name="photo_view">دیدن عکس پروفایل</string>
+    <string name="not_now">الان نه</string>
+    <string name="call_minimize">کوچک کردن تماس</string>
+    <string name="call_return">برای بازگشت بزنید</string>
+    <string name="call_bar">%1$s · %2$s</string>
+    <string name="call_audio_route">صدا: %1$s</string>
+    <string name="call_route_bluetooth">هدست بلوتوث</string>
+    <string name="call_route_speaker">بلندگو</string>
+    <string name="call_route_wired">هدست</string>
+    <string name="call_route_phone">گوشی</string>
+    <string name="call_full_screen_title">تماس‌های ورودی تمام‌صفحه نشان داده شوند؟</string>
+    <string name="call_full_screen_body">اندروید برای نشان دادن تماس ورودی روی صفحه‌ی قفل، مثل تماس تلفنی، به اجازه‌ی شما نیاز دارد. بدون آن، تماس‌ها فقط به صورت اعلان دیده می‌شوند.</string>
+    <string name="call_full_screen_allow">اجازه دادن</string>
+    <string name="settings_full_screen">تماس ورودی تمام‌صفحه</string>
+    <string name="settings_full_screen_off">مجاز نیست: تماس‌ها فقط به صورت اعلان دیده می‌شوند. برای اجازه بزنید.</string>
 </resources>

@@ -32,10 +32,13 @@ class CallAudio(private val core: Core, private val id: String, private val code
     @Volatile var muted = false
     private var oldMode = AudioManager.MODE_NORMAL
     private val threads = mutableListOf<Thread>()
+    /** Earpiece / speaker / wired / Bluetooth headset. */
+    val routes = AudioRoutes(am)
 
     fun start() {
         oldMode = am.mode
         am.mode = AudioManager.MODE_IN_COMMUNICATION
+        routes.start()
         threads += Thread(::capture, "call-capture").apply { start() }
         threads += Thread(::playback, "call-playback").apply { start() }
     }
@@ -43,14 +46,12 @@ class CallAudio(private val core: Core, private val id: String, private val code
     fun stop() {
         running = false
         threads.forEach { runCatching { it.join(500) } }
-        @Suppress("DEPRECATION")
-        am.isSpeakerphoneOn = false
+        routes.stop()
         am.mode = oldMode
     }
 
     fun setSpeaker(on: Boolean) {
-        @Suppress("DEPRECATION")
-        am.isSpeakerphoneOn = on
+        routes.select(if (on) AudioRoute(RouteKind.Speaker) else routes.routes.value.first())
     }
 
     private fun format(): MediaFormat {

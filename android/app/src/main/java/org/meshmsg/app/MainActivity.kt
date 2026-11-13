@@ -22,6 +22,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -73,6 +75,12 @@ class MainActivity : ComponentActivity() {
     /** A meshmsg: link or a chat to open, from the launching intent. */
     private val pendingLink = mutableStateOf<String?>(null)
     private val pendingChat = mutableStateOf<String?>(null)
+    /** A call to answer: the Answer button of the ringing notification. */
+    private val pendingAnswer = mutableStateOf<String?>(null)
+    /** The call screen is hidden behind the ongoing-call bar (voice calls). */
+    private val callMinimized = mutableStateOf(false)
+    /** Android 14+ refused full-screen incoming calls and the user hasn't been asked yet. */
+    private val askFullScreen = mutableStateOf(false)
     private var callAfterPermission: Pair<String, Boolean>? = null
     private val askCall = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { r ->
         callAfterPermission?.let { (hash, video) -> if (hasMic()) vm.startCall(hash, video && hasCamera()) }
@@ -101,8 +109,14 @@ class MainActivity : ComponentActivity() {
                 val avatars by vm.avatars.collectAsStateWithLifecycle()
                 androidx.compose.runtime.CompositionLocalProvider(org.meshmsg.app.data.LocalAvatars provides avatars) {
                     if (!onboarded) Onboarding() else androidx.compose.foundation.layout.Box {
-                        Main()
+                        androidx.compose.foundation.layout.Column {
+                            val bar = CallBar()
+                            // The bar takes the status bar's space: the app below doesn't pad for it again.
+                            val below = if (bar) Modifier.consumeWindowInsets(androidx.compose.foundation.layout.WindowInsets.statusBars) else Modifier
+                            androidx.compose.foundation.layout.Box(Modifier.weight(1f).then(below)) { Main() }
+                        }
                         Call()
+                        FullScreenPrompt()
                     }
                 }
             }
@@ -117,6 +131,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.refreshSettings()
+        val prefs = getSharedPreferences("ui", MODE_PRIVATE)
+        askFullScreen.value = !org.meshmsg.app.service.CallService.canFullScreen(this) && !prefs.getBoolean("asked_full_screen", false)
         val app = application as MeshApp
         app.updates.checkIfStale({ app.backend.value?.core }, lifecycleScope)
     }
@@ -129,6 +145,10 @@ class MainActivity : ComponentActivity() {
             if (data.scheme in setOf("meshmsg", "meshgroup") || web) pendingLink.value = org.meshmsg.app.data.ContactLink.toUri(intent.dataString.orEmpty())
         }
         intent.getStringExtra(EXTRA_CHAT)?.let { pendingChat.value = it }
+        if (intent.action == org.meshmsg.app.service.CallService.ACTION_ANSWER) {
+            pendingAnswer.value = intent.getStringExtra(org.meshmsg.app.service.CallService.EXTRA_CALL)
+            callMinimized.value = false
+        }
     }
 
     @Composable
@@ -152,6 +172,8 @@ class MainActivity : ComponentActivity() {
         val st = call?.state
         LaunchedEffect(st) { showOverLock(st == "ringing" || st == "active") }
         val c = call ?: return
+        LaunchedEffect(c.id) { callMinimized.value = false }
+        val audio by org.meshmsg.app.service.CallService.audio.collectAsStateWithLifecycle()
         val answerPerms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             if (hasMic()) vm.answerCall(c.id) else vm.endCall(c.id)
         }
@@ -169,16 +191,26 @@ class MainActivity : ComponentActivity() {
         }
         // A video call starts with the camera on.
         LaunchedEffect(video) { if (video != null && c.videoCall && hasCamera()) video.setCamera(true, owner) }
+        val answer = {
+            val need = listOfNotNull(
+                Manifest.permission.RECORD_AUDIO.takeIf { !hasMic() },
+                Manifest.permission.CAMERA.takeIf { c.videoCall && !hasCamera() },
+            )
+            if (need.isEmpty()) vm.answerCall(c.id) else answerPerms.launch(need.toTypedArray())
+        }
+        // Answer tapped on the ringing notification.
+        val toAnswer by pendingAnswer
+        LaunchedEffect(toAnswer, c.id, c.state) {
+            if (toAnswer == c.id && c.incoming && c.state == "ringing") answer()
+            if (toAnswer != null) pendingAnswer.value = null
+        }
+        // Voice calls can hide behind the ongoing-call bar (video needs its screen).
+        val canMinimize = !c.video && c.state == "active"
+        if (callMinimized.value && canMinimize) return
         org.meshmsg.app.ui.CallScreen(
             c, chats.firstOrNull { it.contact.hash == c.peer }?.contact,
             org.meshmsg.app.ui.CallActions(
-                answer = {
-                    val need = listOfNotNull(
-                        Manifest.permission.RECORD_AUDIO.takeIf { !hasMic() },
-                        Manifest.permission.CAMERA.takeIf { c.videoCall && !hasCamera() },
-                    )
-                    if (need.isEmpty()) vm.answerCall(c.id) else answerPerms.launch(need.toTypedArray())
-                },
+                answer = answer,
                 end = { vm.endCall(c.id) },
                 mute = { vm.muteCall(c.id, it) },
                 speaker = { vm.speaker(it) },
@@ -190,10 +222,54 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 switchCamera = { video?.switchCamera() },
+                route = { audio?.routes?.select(it) },
+                minimize = if (canMinimize) ({ callMinimized.value = true }) else null,
             ),
             video = video,
+            audio = audio?.routes,
         )
-        androidx.activity.compose.BackHandler(enabled = !c.ended) {} // the call stays until it ends
+        // Back hides a voice call behind the bar; otherwise the call stays until it ends.
+        androidx.activity.compose.BackHandler(enabled = !c.ended) { if (canMinimize) callMinimized.value = true }
+    }
+
+    /** The ongoing-call bar while the call screen is minimized. */
+    @Composable
+    private fun CallBar(): Boolean {
+        val call by vm.call.collectAsStateWithLifecycle()
+        val chats by vm.chats.collectAsStateWithLifecycle()
+        val c = call ?: return false
+        if (!callMinimized.value || c.ended || c.video || c.state != "active") return false
+        val name = chats.firstOrNull { it.contact.hash == c.peer }?.contact?.displayName ?: c.peer.take(8)
+        org.meshmsg.app.ui.OngoingCallBar(c, name, onOpen = { callMinimized.value = false })
+        return true
+    }
+
+    /** Asks once (Android 14+) to allow incoming calls to show full screen. */
+    @Composable
+    private fun FullScreenPrompt() {
+        if (!askFullScreen.value) return
+        val done = {
+            askFullScreen.value = false
+            getSharedPreferences("ui", MODE_PRIVATE).edit().putBoolean("asked_full_screen", true).apply()
+        }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = done,
+            title = { Text(stringResource(R.string.call_full_screen_title)) },
+            text = { Text(stringResource(R.string.call_full_screen_body)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { done(); openFullScreenSettings() }) { Text(stringResource(R.string.call_full_screen_allow)) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = done) { Text(stringResource(R.string.not_now)) } },
+        )
+    }
+
+    /** The system page where the user allows full-screen incoming calls (Android 14+). */
+    fun openFullScreenSettings() {
+        if (Build.VERSION.SDK_INT >= 34) {
+            runCatching {
+                startActivity(Intent(SystemSettings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:$packageName")))
+            }
+        }
     }
 
     private fun hasMic() = androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
