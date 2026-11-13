@@ -121,6 +121,10 @@ type Info struct {
 	MediaPerDay         int `json:"media_important_per_day,omitempty"`
 	// MediaAccountsOnly: only listed accounts may upload.
 	MediaAccountsOnly bool `json:"media_accounts_only,omitempty"`
+	// Reflector: STUN binding on UDP PortReflector and PortReflectorAlt of
+	// the relay's host (direct links). TURN: on for the relay's admins.
+	Reflector bool `json:"reflector,omitempty"`
+	TURN      bool `json:"turn,omitempty"`
 }
 
 // Media uploads are always signed by the uploading account (X-Account,
@@ -131,6 +135,8 @@ const (
 	HeaderDay         = "X-Day"     // UTC day number (Unix time / 86400)
 	DomainMediaUpload = "MESHMSG-MEDIA-PUT"
 	DomainMediaQuota  = "MESHMSG-MEDIA-QUOTA"
+	// DomainTurnCredentials: POST /v1/turn/credentials (admins only).
+	DomainTurnCredentials = "MESHMSG-TURN-CRED"
 )
 
 // Day is the UTC day number of t.

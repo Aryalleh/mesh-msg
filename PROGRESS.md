@@ -603,3 +603,23 @@ kept**; replace old apps and relays (old apps can't upload to new relays: unsign
   relays through push/pull, same file counts once, 4th refused, garbage refused); admin
   policy applies at once. TestVideoOverLANWithoutRelay failed once in a full run (timing
   under load), passed 4/4 alone and in the next full run.
+
+### 2026-11-13 — Roadmap step 3 (part 1): core/direct, relay STUN/TURN package
+
+- Step 2 commit `6b5288a`, CI run 43332452008 green.
+- Owner: "do step 3 and 4". `core/direct` (new): candidates (host, reflexive, peer-reflexive,
+  mapped, predicted, relayed) + NAT info, offer encoding (calls.md candidates format), NAT
+  type from STUN on several reflectors (open / independent / symmetric sequential with step /
+  symmetric random / UDP blocked), authenticated probes (HMAC from the session key, role bit
+  so a device never matches itself on same-subnet networks), triggered peer-reflexive checks,
+  port prediction for sequential symmetric NATs, birthday method (256 sockets, 2048 paced
+  random probes), path choice by connectivity.md §5 classes then RTT, failure reasons, and
+  `Link`: ChaCha20-Poly1305 datagrams (key per direction), replay window, keepalive 15 s,
+  idle 45 s, follows the peer's new address. Android interface listing via wlynxg/anet.
+- In-memory NAT simulator (`simnet_test.go`) with tests: same LAN stays local (zero internet
+  packets), hotspot behind CGNAT (B↔C local, A↔B on the hotspot interface), double NAT hole
+  punch, same private subnet in two networks (no false match), NAT type detection, symmetric
+  sequential and random (birthday) success, both random → no path with reason, rebinding.
+- `server/turn` (new, not wired into the relay yet): pion/turn v4 server on UDP 3478+3479,
+  STUN for all, TURN only for admins (10-min HMAC credentials, `POST /v1/turn/credentials`
+  signed), session/speed/monthly limits, counters. Port mapping and TURN client: stubs.
