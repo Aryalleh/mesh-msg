@@ -845,3 +845,8 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
 - `docs/roadmap.md` "Beta criteria": what Android and desktop need to leave alpha (B1–B6 both,
   A1–A7 Android, D1–D6 desktop, release process, order). Next software steps without
   hardware: B1 schema version, B3 call clock skew, A1 release key, A2 Keystore, A3 crash log.
+- Owner: every beta and stable release must tell users about updates. Roadmap **B7** "Update
+  check" (signed `release.json` per tag, served by relays `GET /v1/release`, GitHub and the
+  mesh; Android banner + notification, desktop web UI / `mesh status` / `mesh update`;
+  minimum-supported-version for security releases), decision **D20**, rule added to CLAUDE.md.
+  Not built yet; it must be in `v0.2.0-beta1`.

@@ -40,6 +40,7 @@ moved out of the beta's scope in this file. Status as of 2026-11-13.
 | B4 | Real-device tests | BLE mesh never run on a phone; issues #1 and #2 open | M5 exit scenario on two real phones (offline phone → BLE → phone with relay → desktop); issues #1 and #2 closed |
 | B5 | Relays | eu-1: plain HTTP on an IP, provider blocks UDP 3478/3479/61000–61999, runs alpha10 | eu-1 on a domain with HTTPS (cleartext exception removed from the app), UDP open, on the beta release; a second relay in the default list |
 | B6 | Security | no external review, no panic wipe | external review of crypto, key storage and relay, findings fixed (M6); panic wipe on Android and desktop |
+| B7 | **Update check in every build** (D20) | none: users learn about releases only by word of mouth | the app and meshd check for a newer release on their own and show it to the user, as specified below; already in `v0.2.0-beta1`, so beta1 users are told about beta2 |
 
 **Android**
 
@@ -50,7 +51,7 @@ moved out of the beta's scope in this file. Status as of 2026-11-13.
 | A3 | Crash log | no handler | local crash log the user can export from Settings; no third-party telemetry |
 | A4 | Background running | untested | messages keep arriving in Doze and on Xiaomi/Samsung/Huawei phones; battery-optimisation prompt; Android 13 notification permission; Android 14+ foreground service types checked |
 | A5 | Tests | JVM tests only | instrumented tests on an emulator in CI; manual pass on Android 8–15 across several brands |
-| A6 | Updates | none in the app | version shown; new release announced (relay or GitHub); APK sharing phone to phone (M6) |
+| A6 | Updates | none in the app | update check (B7) with an in-app banner and notification; version shown in Settings; APK sharing phone to phone (M6) |
 | A7 | Scope | QR scanning, LoRa over BLE, USB CP2102 driver, LoRa settings screen not built | QR scanning in the beta; the LoRa items may follow after the beta |
 
 **Desktop (`meshd`, `mesh`, web UI)**
@@ -58,17 +59,46 @@ moved out of the beta's scope in this file. Status as of 2026-11-13.
 | # | Item | Today | Done when |
 |---|---|---|---|
 | D1 | Packaging | `desktop/deploy/install.sh` + systemd user unit, Linux only | `.deb` and AppImage with signed checksums |
-| D2 | Updates | re-run `install.sh` | update keeps data and settings and runs migrations (B1) |
+| D2 | Updates | re-run `install.sh` | update check (B7) shown in the web UI and `mesh status`; `mesh update` downloads, verifies and installs; data and settings kept, migrations run (B1) |
 | D3 | Platforms | Linux only (Windows/macOS are M8) | first beta is Linux only; M8 follows |
 | D4 | Voice calls | Android only | either built for desktop, or the release notes say desktop has no calls |
 | D5 | Identity key at rest | file on disk | optional passphrase or the OS keyring |
 | D6 | Web UI parity | — | voice messages, important media, groups as on Android; Persian/RTL checked |
 
+### Update check (B7, D20)
+
+Required in the first beta and in **every** beta and stable release after it; a release
+without a working update check is not shipped.
+
+- **Signed release manifest.** CI publishes, with every tag, a small `release.json`: version,
+  channel (`beta` or `stable`), date, minimum supported version, per-file URLs and SHA-256,
+  short release notes (Persian + English). It is signed with an Ed25519 **release key** that
+  is kept outside the repository; the apps carry the public key and ignore any manifest that
+  doesn't verify, so nobody can push a fake "update now" prompt.
+- **Where apps look**, in order: the relays they already use (new `GET /v1/release`; relays
+  fetch and cache the manifest, so it reaches countries where GitHub is blocked), then GitHub
+  releases. The manifest also travels over the mesh: a node that holds a newer signed manifest
+  passes it to peers, so phones learn about an update during a shutdown too.
+- **Privacy:** the request carries no identity, device ID or contact data; checks happen at
+  start and about once a day with random jitter.
+- **Channels:** a beta install sees beta and stable releases; a stable install sees stable
+  only. Versions compare as semver with pre-release tags (`0.2.0-beta2` < `0.2.0`).
+- **What the user sees:** Android — a banner in the chat list and one notification per new
+  version, with release notes, "Update" and "Later"; the update downloads from the relay,
+  GitHub or a nearby phone, is checked against the manifest's SHA-256, and is installed by
+  Android's installer (same signing key, so data is kept). Desktop — a banner in the web UI,
+  a line in `mesh status`, and `mesh update`.
+- **Security releases:** when the running version is below the manifest's minimum supported
+  version, the banner can't be dismissed and says why; the app keeps working.
+- **Release process:** each tag's CI job builds and signs `release.json` and attaches it to
+  the GitHub release; relays pick it up within an hour. A failed signature or a missing
+  manifest fails the release job.
+
 **Release process:** version `v0.2.0-beta1`, release notes in Persian and English, a way for
 testers to report bugs, testers outside the lab, and written criteria for leaving beta (for
 example 30 days with no message-loss bug).
 
-**Order:** (1) no hardware needed: B1, B3, A1, A2, A3 → (2) two real phones: B4, A4, together
+**Order:** (1) no hardware needed: B1, B3, B7, A1, A2, A3 → (2) two real phones: B4, A4, together
 with B5 → (3) B2 and the compatibility test, D1, D2 → (4) B6, then the release.
 
 ## Code changes required by the 2026-11-12 design decisions (steps 1–4 built)
