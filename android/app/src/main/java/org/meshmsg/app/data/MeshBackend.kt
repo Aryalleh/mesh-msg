@@ -42,6 +42,17 @@ interface MeshBackend {
     fun joinGroup(link: String): Result<Contact>
     fun leaveGroup(hash: String): Result<Unit>
 
+    /** Profile pictures on this phone (hash → file); "me" is this account. */
+    val avatars: StateFlow<Map<String, AvatarFile>> get() = NoAvatars
+    /** Sets (bytes: a JPEG) or removes (null) this account's picture. */
+    fun setAvatar(jpeg: ByteArray?): Result<Unit> = Result.failure(UnsupportedOperationException())
+    /** Asks a contact for their picture over a direct link (never relays). */
+    fun requestAvatar(hash: String) {}
+
+    /** The user's chat folders. */
+    val folders: StateFlow<List<ChatFolder>> get() = NoFolders
+    fun setFolders(folders: List<ChatFolder>): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** The call in progress (or just ended), if any. */
     val call: StateFlow<CallInfo?> get() = NoCall
     fun startCall(hash: String): Result<Unit> = Result.failure(UnsupportedOperationException())
@@ -51,3 +62,5 @@ interface MeshBackend {
 }
 
 private val NoCall: StateFlow<CallInfo?> = kotlinx.coroutines.flow.MutableStateFlow(null)
+private val NoAvatars: StateFlow<Map<String, AvatarFile>> = kotlinx.coroutines.flow.MutableStateFlow(emptyMap())
+private val NoFolders: StateFlow<List<ChatFolder>> = kotlinx.coroutines.flow.MutableStateFlow(emptyList())

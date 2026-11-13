@@ -38,7 +38,20 @@ class MeshService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CH_MESH, getString(R.string.notif_channel_mesh), NotificationManager.IMPORTANCE_LOW))
+        // Minimal: no sound, no status-bar icon, folded at the bottom of the
+        // shade, hidden on the lock screen. Android needs a notification for a
+        // background (foreground-service) app; users can switch this channel
+        // off in system settings and Mava keeps running (Settings explains how).
+        // A channel's importance can't be lowered after creation, hence the new ID.
+        nm.deleteNotificationChannel("mesh")
+        nm.createNotificationChannel(
+            NotificationChannel(CH_MESH, getString(R.string.notif_channel_mesh), NotificationManager.IMPORTANCE_MIN).apply {
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
+                setSound(null, null)
+                enableVibration(false)
+            },
+        )
         nm.createNotificationChannel(NotificationChannel(CH_MSG, getString(R.string.notif_channel_messages), NotificationManager.IMPORTANCE_DEFAULT))
         if (!foreground(statusNotification(false))) {
             stopSelf()
@@ -78,6 +91,10 @@ class MeshService : LifecycleService() {
         .setContentIntent(open())
         .setOngoing(true)
         .setOnlyAlertOnce(true)
+        .setSilent(true)
+        .setShowWhen(false)
+        .setPriority(NotificationCompat.PRIORITY_MIN)
+        .setCategory(NotificationCompat.CATEGORY_SERVICE)
         .setVisibility(NotificationCompat.VISIBILITY_SECRET)
         .build()
 
@@ -90,7 +107,8 @@ class MeshService : LifecycleService() {
         .build()
 
     companion object {
-        private const val CH_MESH = "mesh"
+        /** The "Mava is running" channel (Settings links to its system page). */
+        const val CH_MESH = "mesh_status"
         private const val CH_MSG = "messages"
         private const val ID_MESH = 1
 

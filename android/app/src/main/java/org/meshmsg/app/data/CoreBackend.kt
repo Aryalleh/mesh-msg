@@ -57,10 +57,22 @@ class CoreBackend(dataDir: String, configJson: String, binder: NetworkBinder? = 
         }
     }
 
+    private val _avatars = MutableStateFlow<Map<String, AvatarFile>>(emptyMap())
+    override val avatars: StateFlow<Map<String, AvatarFile>> = _avatars
+    private val _folders = MutableStateFlow<List<ChatFolder>>(emptyList())
+    override val folders: StateFlow<List<ChatFolder>> = _folders
+
     private fun reload() {
         val st = runCatching { Json.status(core.status()) }.getOrDefault(_status.value)
         _status.value = st
         runCatching { _chats.value = Json.chats(core.chats(), st.anyPathUp) }
+        runCatching {
+            val m = HashMap<String, AvatarFile>()
+            AvatarImage.file(core.avatarPath("me"))?.let { m["me"] = it }
+            for (c in _chats.value) if (!c.contact.isGroup) AvatarImage.file(core.avatarPath(c.contact.hash))?.let { m[c.contact.hash] = it }
+            if (m != _avatars.value) _avatars.value = m
+        }
+        runCatching { Folders.parse(core.folders()).let { if (it != _folders.value) _folders.value = it } }
         open?.let { h -> runCatching { _messages.value = Json.messages(core.messages(h, 500), st.anyPathUp) } }
     }
 
@@ -101,6 +113,10 @@ class CoreBackend(dataDir: String, configJson: String, binder: NetworkBinder? = 
     override fun answerCall(id: String): Result<Unit> = runCatching { core.answerCall(id, CallAudio.codecs()) }
     override fun endCall(id: String): Result<Unit> = runCatching { core.endCall(id) }
     override fun muteCall(id: String, muted: Boolean): Result<Unit> = runCatching { core.muteCall(id, muted) }
+
+    override fun setAvatar(jpeg: ByteArray?): Result<Unit> = call { core.setAvatar(jpeg ?: ByteArray(0)) }
+    override fun requestAvatar(hash: String) { scope.launch { runCatching { core.requestAvatar(hash) } } }
+    override fun setFolders(folders: List<ChatFolder>): Result<Unit> = call { core.setFolders(Folders.json(folders)) }
 
     override fun openChat(hash: String) {
         open = hash

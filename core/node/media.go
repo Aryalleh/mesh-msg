@@ -716,6 +716,14 @@ func (n *Node) onMediaFrame(link string, peer router.PeerID, raw []byte) {
 	}
 }
 
+func reqFrame(id packet.Hash, off, ln int64) []byte {
+	f := make([]byte, 0, reqLen)
+	f = append(f, frameReq)
+	f = append(f, id[:]...)
+	f = binary.BigEndian.AppendUint32(f, uint32(off))
+	return binary.BigEndian.AppendUint32(f, uint32(ln))
+}
+
 func dataFrame(id packet.Hash, off, total int64, b []byte) []byte {
 	f := make([]byte, 0, dataHead+len(b))
 	f = append(f, frameData)
@@ -748,7 +756,15 @@ func (n *Node) serveP2P(link string, peer router.PeerID, id string, off, ln int6
 		}
 		window, frame := p2pSizes(link)
 		ln = min(ln, int64(window))
-		f, err := os.Open(n.blobPath(id))
+		path := n.blobPath(id)
+		if bid == avatarID(n.id.Hash().String()) {
+			// Our profile picture: only to a contact over a direct link.
+			path = n.myAvatarPath()
+			if link != "direct" {
+				path = ""
+			}
+		}
+		f, err := os.Open(path)
 		if err != nil {
 			n.router.SendRaw(link, peer, dataFrame(bid, off, 0, nil))
 			return

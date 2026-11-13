@@ -35,6 +35,8 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     val chats: StateFlow<List<Chat>> = from(emptyList()) { it.chats }
     val status: StateFlow<NetStatus> = from(NetStatus()) { it.status }
     val messages: StateFlow<List<Message>> = from(emptyList()) { it.messages }
+    val avatars: StateFlow<Map<String, org.meshmsg.app.data.AvatarFile>> = from(emptyMap()) { it.avatars }
+    val folders: StateFlow<List<org.meshmsg.app.data.ChatFolder>> = from(emptyList()) { it.folders }
     val call: StateFlow<org.meshmsg.app.data.CallInfo?> = from<org.meshmsg.app.data.CallInfo?>(null) { it.call }
 
     private val _settingsState = MutableStateFlow(readSettings())
@@ -113,7 +115,17 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     }
     fun speaker(on: Boolean) { org.meshmsg.app.service.CallService.current?.setSpeaker(on) }
 
-    fun openChat(hash: String) = backend.value?.openChat(hash)
+    fun openChat(hash: String) {
+        val b = backend.value ?: return
+        b.openChat(hash)
+        if (b.chats.value.any { it.contact.hash == hash && !it.contact.isGroup }) b.requestAvatar(hash)
+    }
+    fun setFolders(folders: List<org.meshmsg.app.data.ChatFolder>) = io { it.setFolders(folders) }
+
+    /** Sets this account's picture from an image the user picked (shrunk here). */
+    override fun setAvatar(image: ByteArray?) = io { b ->
+        runCatching { image?.let { org.meshmsg.app.data.AvatarImage.shrink(it) } }.mapCatching { b.setAvatar(it).getOrThrow() }
+    }
     fun closeChat() = backend.value?.closeChat()
     fun send(hash: String, text: String) = io { it.send(hash, text) }
 

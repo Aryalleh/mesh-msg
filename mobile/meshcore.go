@@ -396,6 +396,34 @@ func (c *Core) KnownRelays() string {
 	return s
 }
 
+// Folders returns the user's chat folders as JSON [{name, chats:[hash]}].
+func (c *Core) Folders() (string, error) { return toJSON(c.n.Folders(), nil) }
+
+// SetFolders replaces the chat folders (JSON as Folders returns).
+func (c *Core) SetFolders(js string) error {
+	var fs []node.Folder
+	if err := json.Unmarshal([]byte(js), &fs); err != nil {
+		return err
+	}
+	return c.n.SetFolders(fs)
+}
+
+// SetAvatar sets this account's profile picture (JPEG/PNG/WebP, ≤ 64 KB);
+// empty removes it. Contacts fetch it over direct links when they ask.
+func (c *Core) SetAvatar(img []byte) error { return c.n.SetAvatar(img) }
+
+// AvatarPath is the file with hash's picture ("me" for this account), or "".
+func (c *Core) AvatarPath(hash string) string {
+	if hash == "me" {
+		hash = c.n.Identity().Hash().String()
+	}
+	return c.n.AvatarPath(hash)
+}
+
+// RequestAvatar asks for a contact's picture over a direct link (opening one
+// if needed); an "avatar" event tells when it arrived.
+func (c *Core) RequestAvatar(hash string) { c.n.RequestAvatar(hash) }
+
 // ForgetRelay stops using a discovered relay and never picks it up again.
 func (c *Core) ForgetRelay(ref string) error { return c.n.ForgetRelay(ref) }
 

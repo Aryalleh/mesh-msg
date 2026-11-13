@@ -17,6 +17,46 @@
       --accent: #2dd4bf; --accent-ink: #062b27; --mine: #123d38; --theirs: #1f2427; --warn: #f59e0b;
     }
   }
+  :root { --chatbg: var(--bg); --mine-ink: var(--ink); }
+  /* Telegram-like theme (default): blue accent, green-grey chat backdrop. */
+  :root[data-theme="telegram"] {
+    --bg: #f4f4f5; --panel: #ffffff; --ink: #000000; --muted: #707579; --line: #e2e4e7;
+    --accent: #3390ec; --accent-ink: #ffffff; --mine: #e3fee0; --theirs: #ffffff; --warn: #e53935;
+    --chatbg: #cfdcc0; --active: #3390ec; --active-ink: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-theme="telegram"] {
+      --bg: #0e1621; --panel: #17212b; --ink: #f5f5f5; --muted: #7f91a4; --line: #0b121a;
+      --accent: #5288c1; --accent-ink: #ffffff; --mine: #2b5278; --theirs: #182533; --warn: #ef5350;
+      --chatbg: #0e1621; --active: #2b5278; --active-ink: #ffffff;
+    }
+  }
+  :root[data-theme="telegram"] .msg { border: 0; border-radius: 14px; box-shadow: 0 1px 1px rgba(0,0,0,.13); }
+  :root[data-theme="telegram"] .msg.mine { border-bottom-right-radius: 4px; }
+  :root[data-theme="telegram"] .msg:not(.mine) { border-bottom-left-radius: 4px; }
+  :root[data-theme="telegram"] #contacts li.active, :root[data-theme="telegram"] #contacts li.active .last,
+  :root[data-theme="telegram"] #contacts li.active .unread, :root[data-theme="telegram"] #contacts li.active .hash { background: var(--active); color: var(--active-ink); }
+  :root[data-theme="telegram"] .msg .meta { color: var(--muted); }
+  :root[data-theme="telegram"] button { border-radius: 10px; }
+  :root[data-theme="telegram"] main header, :root[data-theme="telegram"] form#compose { border-color: var(--line); }
+  .av { flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+        font-weight: 600; font-size: 17px; overflow: hidden; position: relative; user-select: none; }
+  .av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .av.sm { width: 38px; height: 38px; font-size: 15px; }
+  .av.lg { width: 88px; height: 88px; font-size: 32px; }
+  #contacts li.chat { flex-direction: row; align-items: center; gap: 10px; }
+  #contacts li.chat .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  #contacts li.chat .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  #contacts .count { flex: none; min-width: 22px; padding: 0 7px; border-radius: 11px; background: var(--accent); color: var(--accent-ink);
+                     font-size: 12px; line-height: 22px; text-align: center; font-weight: 600; }
+  #contacts li.active .count { background: var(--accent-ink); color: var(--accent); }
+  #folders { display: flex; gap: 2px; overflow-x: auto; padding: 6px 8px 0; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+  #folders button { background: transparent; color: var(--muted); border-radius: 0; padding: 8px 7px; white-space: nowrap;
+                    border-bottom: 2px solid transparent; font-size: 13px; flex: none; }
+  #folders button.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  #folders .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-inline-start: 4px; border-radius: 9px;
+                    background: var(--muted); color: var(--panel); font-size: 11px; line-height: 18px; text-align: center; }
+  #folders button.on .badge { background: var(--accent); color: var(--accent-ink); }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Vazirmatn, Tahoma, sans-serif;
@@ -67,7 +107,7 @@
   main header { padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
   main header h2 { margin: 0; font-size: 16px; }
   main header .hash { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
-  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+  #messages { flex: 1; overflow-y: auto; padding: 20px; background: var(--chatbg); display: flex; flex-direction: column; gap: 8px; }
   .msg { align-self: flex-start; max-width: min(560px, 80%); padding: 8px 12px; border-radius: 12px; background: var(--theirs);
          border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext; }
   .msg.mine { align-self: flex-end; background: var(--mine); border-color: transparent; }
@@ -132,6 +172,7 @@
     <button id="btnAdd" title="New chat: contact, group or channel">+</button>
   </header>
   <div id="update" hidden></div>
+  <nav id="folders"></nav>
   <ul id="contacts"></ul>
   <div id="status">…</div>
 </aside>
@@ -143,9 +184,25 @@
       <div class="card">
         <h3>You</h3>
         <p class="help">What other nodes see. Leave the name empty for privacy.</p>
+        <div class="actions" style="align-items:center">
+          <div id="myAv" class="av lg"></div>
+          <div>
+            <button class="ghost" id="avPick">Set profile picture</button>
+            <button class="ghost" id="avDel">Remove</button>
+            <input type="file" id="avFile" accept="image/*" hidden>
+            <p class="help" style="margin:6px 0 0">Only contacts see it, and only over a direct connection when they open your chat. It never goes through relays.</p>
+            <div class="err" id="avErr"></div>
+          </div>
+        </div>
         <label class="field">Display name<input id="sName" maxlength="32" dir="auto"></label>
         <label class="check"><input type="checkbox" id="sDelegate"><span>Let gateways fetch my messages<small>A nearby node with internet can pick up your messages from relays and carry them to you. They stay end-to-end encrypted.</small></span></label>
         <label class="field">Announce every (minutes)<input id="sAnnounce" type="number" min="1" max="1440"></label>
+      </div>
+
+      <div class="card">
+        <h3>Appearance</h3>
+        <label class="field">Theme<select id="sTheme"><option value="telegram">Telegram-like (blue)</option><option value="classic">Classic (teal)</option></select></label>
+        <p class="help" style="margin-top:6px">Light or dark follows your system setting. Stored in this browser.</p>
       </div>
 
       <div class="card">
@@ -252,6 +309,18 @@
   <div class="row"><button class="ghost" onclick="dlgAdd.close()">Close</button></div>
 </dialog>
 
+<dialog id="dlgFolders">
+  <h3>Chat folders</h3>
+  <div class="actions"><select id="fldPick" style="flex:1;width:auto"></select><button class="ghost" id="fldNew">+ New folder</button></div>
+  <div id="fldEdit">
+    <label class="field">Name<input id="fldName" maxlength="24" dir="auto"></label>
+    <div class="field">Chats in this folder<div class="pick" id="fldChats"></div></div>
+    <div class="actions"><button class="ghost" id="fldDel" style="color:var(--warn)">Delete folder</button></div>
+  </div>
+  <div class="err" id="fldErr"></div>
+  <div class="row"><button class="ghost" onclick="dlgFolders.close()">Cancel</button><button id="fldSave">Save</button></div>
+</dialog>
+
 <dialog id="dlgMembers">
   <h3 id="memTitle">Members</h3>
   <ul id="memList" class="memlist"></ul>
@@ -302,6 +371,11 @@
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+document.documentElement.dataset.theme = store.get("theme", "telegram");
 // chats: [{hash, title, kind ("contact" | "private" | "regional" | "global"), contact?, group?, last?, unread}]
 let contacts = [], chats = [], current = null;
 
@@ -321,16 +395,63 @@ function chatOf(ch) {
 }
 const kindIcon = {contact: "", private: "👥 ", regional: "📍 ", global: "🌐 "};
 
+// Folders: built-in views plus the user's own (kept by meshd).
+let folders = [], folder = store.get("folder", "all");
+const builtin = [
+  ["all", "All", () => true],
+  ["personal", "Personal", (c) => c.kind === "contact"],
+  ["groups", "Groups", (c) => c.kind !== "contact"],
+  ["unread", "Unread", (c) => c.unread > 0],
+];
+function inFolder(c, key) {
+  const b = builtin.find((x) => x[0] === key);
+  if (b) return b[2](c);
+  const f = folders.find((x) => "f:" + x.name === key);
+  return f ? f.chats.includes(c.hash) : true;
+}
+function renderFolders() {
+  const nav = $("folders");
+  nav.replaceChildren();
+  const keys = [...builtin.map((b) => [b[0], b[1]]), ...folders.map((f) => ["f:" + f.name, f.name])];
+  if (!keys.some((k) => k[0] === folder)) folder = "all";
+  for (const [key, name] of keys) {
+    const unread = chats.filter((c) => inFolder(c, key) && c.unread > 0).length;
+    const b = el("button", {className: key === folder ? "on" : "", on: {click: () => { folder = key; store.set("folder", key); renderContacts(); }}});
+    b.append(document.createTextNode(name));
+    if (unread && key !== "unread") b.append(el("span", {className: "badge", textContent: unread}));
+    nav.append(b);
+  }
+  nav.append(el("button", {title: "Edit folders", textContent: "✎", on: {click: () => showFolders()}}));
+}
+
+// Profile pictures: contacts' come over direct links when asked for.
+const avVer = {};
+const avColors = ["#e17076", "#7bc862", "#65aadd", "#a695e7", "#ee7aae", "#6ec9cb", "#faa774"];
+function avatarEl(hash, title, size = "", photo = true) {
+  let n = 0; for (const ch of hash) n = (n * 31 + ch.charCodeAt(0)) >>> 0;
+  const d = el("div", {className: "av " + size});
+  d.style.background = avColors[n % avColors.length];
+  const words = (title || "?").replace(/^[^\p{L}\p{N}]+/u, "").split(/\s+/).filter(Boolean);
+  d.textContent = ((words[0] || "?")[0] + (words.length > 1 ? words[1][0] : "")).toUpperCase();
+  if (photo) {
+    const img = el("img", {alt: "", src: `/api/avatar/${hash}?v=${avVer[hash] || 0}`});
+    img.onerror = () => img.remove();
+    d.append(img);
+  }
+  return d;
+}
+
 function renderContacts() {
+  renderFolders();
   const ul = $("contacts");
   ul.replaceChildren();
-  for (const c of chats) {
+  for (const c of chats.filter((c) => inFolder(c, folder))) {
     const li = document.createElement("li");
-    if (current && current.hash === c.hash) li.className = "active";
+    li.className = "chat" + (current && current.hash === c.hash ? " active" : "");
     const n = document.createElement("span");
-    n.textContent = kindIcon[c.kind] + c.title + (c.unread ? ` (${c.unread})` : "");
+    n.textContent = kindIcon[c.kind] + c.title;
     n.dir = "auto";
-    if (c.unread) n.className = "unread";
+    n.className = "name" + (c.unread ? " unread" : "");
     const h = document.createElement("span");
     if (c.last) {
       h.className = "last";
@@ -338,11 +459,93 @@ function renderContacts() {
       const media = c.last.media ? (c.last.text ? "📎 " : "📎 " + kindName[mediaKind(c.last.media)]) : "";
       h.textContent = (who ? who + ": " : "") + media + c.last.text;
     } else { h.className = "hash"; h.textContent = c.kind === "contact" ? c.hash.slice(0, 16) : c.kind + " chat"; }
-    li.append(n, h);
+    li.append(avatarEl(c.hash, c.title, "", c.kind === "contact"), el("div", {className: "txt"}, n, h));
+    if (c.unread) li.append(el("span", {className: "count", textContent: c.unread}));
     li.onclick = () => openChat(c);
     ul.append(li);
   }
+  if (!ul.children.length && chats.length) ul.append(el("li", {className: "hash", textContent: "No chats in this folder"}));
 }
+
+async function loadFolders() {
+  try { folders = (await api("/folders")) || []; } catch { folders = []; }
+  renderContacts();
+}
+
+let fldDraft = [], fldCur = -1;
+function showFolders() {
+  fldDraft = folders.map((f) => ({name: f.name, chats: [...f.chats]}));
+  fldCur = fldDraft.length ? 0 : -1;
+  $("fldErr").textContent = "";
+  renderFolderDlg();
+  $("dlgFolders").showModal();
+}
+function renderFolderDlg() {
+  const pick = $("fldPick");
+  pick.replaceChildren(...fldDraft.map((f, i) => el("option", {value: i, textContent: f.name || "(no name)"})));
+  pick.value = fldCur;
+  pick.hidden = !fldDraft.length;
+  $("fldEdit").hidden = fldCur < 0;
+  if (fldCur < 0) return;
+  const f = fldDraft[fldCur];
+  $("fldName").value = f.name;
+  $("fldChats").replaceChildren(...chats.map((c) => {
+    const cb = el("input", {type: "checkbox", checked: f.chats.includes(c.hash), on: {change: (e) => {
+      f.chats = e.target.checked ? [...f.chats, c.hash] : f.chats.filter((h) => h !== c.hash);
+    }}});
+    return el("label", {}, cb, el("span", {dir: "auto", textContent: kindIcon[c.kind] + c.title}));
+  }));
+}
+$("folders").addEventListener("wheel", (e) => { if (e.deltaY) { e.currentTarget.scrollLeft += e.deltaY; e.preventDefault(); } }, {passive: false});
+$("fldPick").onchange = (e) => { fldCur = +e.target.value; renderFolderDlg(); };
+$("fldName").oninput = (e) => { if (fldCur >= 0) { fldDraft[fldCur].name = e.target.value; $("fldPick").options[fldCur].textContent = e.target.value || "(no name)"; } };
+$("fldNew").onclick = () => { fldDraft.push({name: "Folder " + (fldDraft.length + 1), chats: []}); fldCur = fldDraft.length - 1; renderFolderDlg(); $("fldName").select(); };
+$("fldDel").onclick = () => { fldDraft.splice(fldCur, 1); fldCur = Math.min(fldCur, fldDraft.length - 1); renderFolderDlg(); };
+$("fldSave").onclick = async () => {
+  try {
+    await api("/folders", {method: "PUT", body: JSON.stringify(fldDraft)});
+    $("dlgFolders").close();
+    loadFolders();
+  } catch (err) { $("fldErr").textContent = err.message; }
+};
+
+// Own profile picture: shrunk in the browser to a ≤ 60 KB JPEG.
+async function shrinkImage(file) {
+  const bmp = await createImageBitmap(file);
+  const side = Math.min(bmp.width, bmp.height);
+  for (const px of [384, 256, 192, 128]) {
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = px;
+    cv.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, px, px);
+    for (const q of [0.85, 0.7, 0.55]) {
+      const b = await new Promise((res) => cv.toBlob(res, "image/jpeg", q));
+      if (b && b.size <= 60000) return b;
+    }
+  }
+  throw new Error("could not make the picture small enough");
+}
+function renderMyAvatar() {
+  const me = $("myAv");
+  me.replaceWith(Object.assign(avatarEl("me", $("sName").value || "Me", "lg"), {id: "myAv"}));
+}
+$("avPick").onclick = () => $("avFile").click();
+$("avFile").onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  $("avErr").textContent = "";
+  try {
+    const blob = await shrinkImage(f);
+    const r = await fetch("/api/avatar", {method: "PUT", headers: {"X-Meshd": "1", "Content-Type": "image/jpeg"}, body: blob});
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+    avVer.me = Date.now(); renderMyAvatar();
+  } catch (err) { $("avErr").textContent = err.message; }
+};
+$("avDel").onclick = async () => {
+  await fetch("/api/avatar", {method: "DELETE", headers: {"X-Meshd": "1"}});
+  avVer.me = Date.now(); renderMyAvatar();
+};
+$("sTheme").value = document.documentElement.dataset.theme;
+$("sTheme").onchange = (e) => { document.documentElement.dataset.theme = e.target.value; store.set("theme", e.target.value); };
 
 function fmtTime(s) {
   const d = new Date(s);
@@ -535,7 +738,8 @@ async function openChat(c) {
   const hs = document.createElement("div"); hs.className = "hash";
   hs.textContent = c.kind === "contact" ? c.hash : ({private: "private group", regional: "regional public chat", global: "global public chat"})[c.kind] + " · " + c.hash.slice(0, 12);
   info.append(h2, hs);
-  head.append(info);
+  head.append(avatarEl(c.hash, c.title, "sm", c.kind === "contact"), info);
+  if (c.kind === "contact") api("/avatar/" + c.hash + "/request", {method: "POST"}).catch(() => {});
   if (c.group) {
     if (c.kind === "private") hs.textContent = "private group · " + (c.group.removed ? "you were removed" : `${(c.group.members || []).length} members`);
     head.append(c.kind === "private"
@@ -745,7 +949,7 @@ function renderBridges() {
 function fillSettings() {
   cfg.relays = cfg.relays || []; cfg.bridges = cfg.bridges || [];
   cfg.lan.static_peers = cfg.lan.static_peers || [];
-  $("sName").value = cfg.name || ""; $("sDelegate").checked = cfg.delegate; $("sAnnounce").value = cfg.announce_minutes || 30;
+  $("sName").value = cfg.name || ""; $("sDelegate").checked = cfg.delegate; $("sAnnounce").value = cfg.announce_minutes || 30; renderMyAvatar();
   $("gwOn").checked = cfg.gateway.enabled; $("gwMode").value = cfg.gateway.mode || "targeted"; $("gwQuota").value = cfg.gateway.quota_kb_per_hour || 0;
   $("lanOn").checked = cfg.lan.enabled; $("lanDisc").checked = cfg.lan.discovery; $("lanPort").value = cfg.lan.port || 0;
   $("lanPeers").value = cfg.lan.static_peers.join("\n");
@@ -941,11 +1145,20 @@ function listen() {
       if (before && current && current.group && before !== JSON.stringify([current.group.removed, (current.group.members || []).length])) openChat(current);
     }
     else if (e.type === "link") { loadStatus(); }
+    else if (e.type === "folders") { loadFolders(); }
+    else if (e.type === "avatar") {
+      avVer[e.info] = Date.now();
+      renderContacts();
+      if (current && current.hash === e.info) {
+        const old = document.querySelector("#chatHead .av");
+        if (old) old.replaceWith(avatarEl(current.hash, current.title, "sm", true));
+      }
+    }
   };
   es.onerror = () => { es.close(); setTimeout(() => { listen(); loadStatus(); }, 1500); };
 }
 
-loadContacts(); loadStatus(); listen();
+loadContacts().then(loadFolders); loadStatus(); listen();
 setInterval(loadStatus, 15000);
 
 // Update check (roadmap B7): meshd checks its relays and GitHub for a newer

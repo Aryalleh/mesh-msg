@@ -175,3 +175,6 @@ budget_mb_per_day = 50
   checks the Host header and requires a custom header on writes.
 - `identity.key` is your secret key — never share it; back it up with `mesh identity export`
   (Argon2id + XChaCha20-Poly1305, so the backup is only as strong as its passphrase).
+- Profile pictures are never sent through relays or the mesh: a contact fetches yours only
+  over a direct link to you (authenticated with your contact keys), when they open your
+  chat. A LAN or Bluetooth neighbour that is not on such a link is refused.

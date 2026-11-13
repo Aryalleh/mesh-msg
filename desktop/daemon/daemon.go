@@ -237,6 +237,54 @@ func (d *Daemon) apiHandler() http.Handler {
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
+	mux.HandleFunc("GET /folders", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, n.Folders())
+	}))
+	mux.HandleFunc("PUT /folders", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		var fs []node.Folder
+		if err := json.NewDecoder(r.Body).Decode(&fs); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		if err := n.SetFolders(fs); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		w.WriteHeader(204)
+	}))
+	// Profile pictures (fetched from contacts over direct links only).
+	mux.HandleFunc("GET /avatar/{hash}", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		hash := r.PathValue("hash")
+		if hash == "me" {
+			hash = n.Identity().Hash().String()
+		}
+		p := n.AvatarPath(hash)
+		if p == "" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-cache")
+		http.ServeFile(w, r, p)
+	}))
+	mux.HandleFunc("PUT /avatar", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		b, err := io.ReadAll(io.LimitReader(r.Body, node.MaxAvatar+1))
+		if err == nil {
+			err = n.SetAvatar(b)
+		}
+		if err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		w.WriteHeader(204)
+	}))
+	mux.HandleFunc("DELETE /avatar", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		n.SetAvatar(nil)
+		w.WriteHeader(204)
+	}))
+	mux.HandleFunc("POST /avatar/{hash}/request", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		n.RequestAvatar(r.PathValue("hash"))
+		w.WriteHeader(204)
+	}))
 	mux.HandleFunc("GET /id", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		id := n.Identity()
 		writeJSON(w, map[string]string{"hash": id.Hash().String(), "uri": id.URI(), "ui": d.UIURL()})

@@ -1,5 +1,7 @@
 package org.meshmsg.app.ui
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,10 +18,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -31,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import org.meshmsg.app.R
 import org.meshmsg.app.data.Contact
 import org.meshmsg.app.data.Delivery
+import org.meshmsg.app.data.LocalAvatars
 import org.meshmsg.app.ui.theme.MeshTheme
 import org.meshmsg.app.ui.theme.Space
 import java.time.Instant
@@ -40,18 +48,29 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DecimalStyle
 import java.time.format.FormatStyle
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Initial on a colour derived from the contact hash: stable, no image needed. */
 @Composable
-fun Avatar(contact: Contact, size: Dp = 48.dp, modifier: Modifier = Modifier) {
+fun Avatar(contact: Contact, size: Dp = 48.dp, modifier: Modifier = Modifier, photoKey: String = contact.hash) {
     val colors = MeshTheme.extra.avatars
     val color = colors[(contact.hash.hashCode() and 0x7fffffff) % colors.size]
     val initial = contact.displayName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val file = LocalAvatars.current[photoKey]
+    val photo by produceState<ImageBitmap?>(null, file) {
+        value = file?.let { f -> withContext(Dispatchers.IO) { runCatching { BitmapFactory.decodeFile(f.path)?.asImageBitmap() }.getOrNull() } }
+    }
     Box(
         modifier.size(size).clip(CircleShape).background(color).clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
-        Text(initial, color = MeshTheme.extra.onAvatar, style = if (size >= 48.dp) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelLarge)
+        val p = photo
+        if (p != null) {
+            Image(p, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+        } else {
+            Text(initial, color = MeshTheme.extra.onAvatar, style = if (size >= 48.dp) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelLarge)
+        }
     }
 }
 

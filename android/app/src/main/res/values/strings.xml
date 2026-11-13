@@ -134,12 +134,15 @@
     <string name="onb_start">Create my identity</string>
 
     <!-- Service notification -->
-    <string name="notif_channel_mesh">Mesh running</string>
+    <string name="notif_channel_mesh">Mesh status</string>
     <string name="notif_channel_messages">Messages</string>
     <string name="notif_mesh_title">Mava is running</string>
     <string name="notif_mesh_up">Connected to the mesh</string>
     <string name="notif_mesh_down">Looking for a path</string>
     <string name="notif_new_message">New message</string>
+    <string name="notif_hide_title">Hide the \"Mava is running\" notification</string>
+    <string name="notif_hide_steps">Android shows this notification for every app that works in the background. It is silent and has no status-bar icon. To hide it completely: tap the button below and switch off \"Mesh status\". Mava keeps running and you still get message and call notifications. (Or long-press the notification and choose Turn off.)</string>
+    <string name="notif_hide_open">Open notification settings</string>
     <string name="usb_no_device">No LoRa node found on USB.</string>
 
     <!-- Account backup -->
@@ -266,4 +269,20 @@
     <string name="call_path_local">Peer to peer on this network</string>
     <string name="call_path_relay">Through a relay</string>
     <string name="settings_mesh_fixed">Always on: Mava keeps meshing in the background, shares this phone\'s internet with phones around you (messages stay encrypted), and finds relays automatically.</string>
+    <string name="folder_all">All</string>
+    <string name="folder_personal">Personal</string>
+    <string name="folder_groups">Groups</string>
+    <string name="folder_unread">Unread</string>
+    <string name="folder_empty">No chats in this folder. Long-press a chat to add it.</string>
+    <string name="folders_edit">Folders</string>
+    <string name="folders_title">Chat folders</string>
+    <string name="folders_hint">Make your own folders here. To put a chat in a folder, long-press it in the chat list.</string>
+    <string name="folders_new">New folder</string>
+    <string name="folders_new_name">Folder</string>
+    <string name="folders_none">No folders yet.</string>
+    <string name="folder_add_title">Folders for %1$s</string>
+    <string name="avatar_title">Profile picture</string>
+    <string name="avatar_help">Only your contacts see it, and only over a direct connection when they open your chat. It never goes through relays.</string>
+    <string name="avatar_set">Choose picture</string>
+    <string name="avatar_remove">Remove</string>
 </resources>

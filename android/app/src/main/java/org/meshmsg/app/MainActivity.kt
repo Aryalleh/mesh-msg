@@ -89,9 +89,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MeshMsgTheme {
                 val onboarded by vm.onboarded.collectAsStateWithLifecycle()
-                if (!onboarded) Onboarding() else androidx.compose.foundation.layout.Box {
-                    Main()
-                    Call()
+                val avatars by vm.avatars.collectAsStateWithLifecycle()
+                androidx.compose.runtime.CompositionLocalProvider(org.meshmsg.app.data.LocalAvatars provides avatars) {
+                    if (!onboarded) Onboarding() else androidx.compose.foundation.layout.Box {
+                        Main()
+                        Call()
+                    }
                 }
             }
         }
@@ -213,7 +216,11 @@ class MainActivity : ComponentActivity() {
                             onUpdate = updates::install, onLater = { updates.later(u.version) },
                         )
                     }
-                    ChatsScreen(chats, status.anyPathUp, onOpen = { nav.navigate(Routes.chat(it.contact.hash)) }, onAdd = { nav.navigate(Routes.ADD) }, update = banner)
+                    val folders by vm.folders.collectAsStateWithLifecycle()
+                    ChatsScreen(
+                        chats, status.anyPathUp, onOpen = { nav.navigate(Routes.chat(it.contact.hash)) }, onAdd = { nav.navigate(Routes.ADD) },
+                        update = banner, folders = folders, onSaveFolders = vm::setFolders,
+                    )
                 }
                 composable(Routes.NETWORK) {
                     val status by vm.status.collectAsStateWithLifecycle()

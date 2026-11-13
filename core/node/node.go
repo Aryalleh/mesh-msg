@@ -107,6 +107,7 @@ type Node struct {
 	loras   map[string]*hostLinkLink
 	disc    *discovery // nil when relay discovery is off
 	mw      *mediaWorker
+	av      *avatars // profile pictures
 }
 
 // Open loads or creates the node's identity and databases in cfg.DataDir.
@@ -155,6 +156,7 @@ func Open(cfg Config) (*Node, error) {
 		OnAnnounce:     n.onAnnounce,
 		Logf:           cfg.Logf,
 	})
+	n.av = &avatars{pending: map[string]bool{}, busy: map[string]bool{}}
 	n.mw = &mediaWorker{kick: make(chan struct{}, 1), busy: map[string]bool{}, waiters: map[string]chan []byte{}, serving: map[string]bool{}}
 	if !cfg.Discovery.Off {
 		n.disc = &discovery{n: n, cfg: cfg.Discovery, kick: make(chan struct{}, 1), auto: map[string]*autoRelay{}}

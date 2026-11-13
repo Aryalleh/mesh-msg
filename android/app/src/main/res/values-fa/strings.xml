@@ -126,12 +126,15 @@
     <string name="onb_point_perm">برای پیدا کردن گوشی‌های نزدیک اجازه‌ی بلوتوث لازم است. از مکان شما استفاده نمی‌شود.</string>
     <string name="onb_start">ساختن هویت من</string>
 
-    <string name="notif_channel_mesh">شبکه در حال کار</string>
+    <string name="notif_channel_mesh">وضعیت شبکه</string>
     <string name="notif_channel_messages">پیام‌ها</string>
     <string name="notif_mesh_title">Mava در حال کار است</string>
     <string name="notif_mesh_up">به شبکه وصل است</string>
     <string name="notif_mesh_down">در جستجوی مسیر</string>
     <string name="notif_new_message">پیام تازه</string>
+    <string name="notif_hide_title">پنهان کردن اعلان «Mava در حال کار است»</string>
+    <string name="notif_hide_steps">اندروید برای هر برنامه‌ای که در پس‌زمینه کار می‌کند این اعلان را نشان می‌دهد. این اعلان بی‌صداست و آیکونی در نوار وضعیت ندارد. برای پنهان کردن کامل آن: دکمهٔ زیر را بزنید و «وضعیت شبکه» را خاموش کنید. Mava همچنان کار می‌کند و اعلان پیام‌ها و تماس‌ها را دریافت می‌کنید. (یا اعلان را لمس طولانی کنید و «خاموش کردن» را بزنید.)</string>
+    <string name="notif_hide_open">باز کردن تنظیمات اعلان</string>
     <string name="usb_no_device">نود LoRa روی USB پیدا نشد.</string>
 
     <!-- پشتیبان حساب -->
@@ -258,4 +261,20 @@
     <string name="call_path_local">مستقیم در همین شبکه</string>
     <string name="call_path_relay">از طریق رله</string>
     <string name="settings_mesh_fixed">همیشه روشن: Mava در پس‌زمینه شبکهٔ مش را نگه می‌دارد، اینترنت این گوشی را با گوشی‌های اطراف به اشتراک می‌گذارد (پیام‌ها رمزنگاری‌شده می‌مانند) و رله‌ها را خودکار پیدا می‌کند.</string>
+    <string name="folder_all">همه</string>
+    <string name="folder_personal">شخصی</string>
+    <string name="folder_groups">گروه‌ها</string>
+    <string name="folder_unread">خوانده‌نشده</string>
+    <string name="folder_empty">گفتگویی در این پوشه نیست. برای افزودن، گفتگو را لمس طولانی کنید.</string>
+    <string name="folders_edit">پوشه‌ها</string>
+    <string name="folders_title">پوشه‌های گفتگو</string>
+    <string name="folders_hint">پوشه‌های خودتان را اینجا بسازید. برای گذاشتن یک گفتگو در پوشه، آن را در فهرست گفتگوها لمس طولانی کنید.</string>
+    <string name="folders_new">پوشهٔ تازه</string>
+    <string name="folders_new_name">پوشه</string>
+    <string name="folders_none">هنوز پوشه‌ای نیست.</string>
+    <string name="folder_add_title">پوشه‌های %1$s</string>
+    <string name="avatar_title">عکس پروفایل</string>
+    <string name="avatar_help">فقط مخاطبانتان آن را می‌بینند، آن هم فقط از راه اتصال مستقیم و وقتی گفتگوی شما را باز می‌کنند. هرگز از رله‌ها نمی‌گذرد.</string>
+    <string name="avatar_set">انتخاب عکس</string>
+    <string name="avatar_remove">حذف</string>
 </resources>

@@ -320,6 +320,7 @@ func (d *directLink) run(s *directSess, controlling bool, remote direct.Offer) {
 	d.n.setLinkStatus("direct", fmt.Sprintf("%s: %s", h[:8], l.Path()))
 	d.n.router.PeerUp("direct", router.PeerID(h))
 	d.n.mediaLinkUp()
+	d.n.avatarLinkUp(h)
 	go func() {
 		for b := range l.Recv() {
 			if raw := s.reassemble(b); raw != nil {

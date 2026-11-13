@@ -32,7 +32,7 @@ meshd/web UI/`mesh update`, Android banner + notification + verified APK install
 needs the GitHub secret `RELEASE_SIGNING_KEY` (private key: `~/.config/mesh-msg/release-signing.key`
 on the owner's machine, never in the repo). Other beta criteria (A1 release key for APKs, A2, A3, B1–B6)
 are still open; the owner chose to tag the beta now. **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
-STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.1-beta2** (tag on `529c34d`; first published beta: update check B7, new release key, eu-1 on https://eu-1.mfadem.ir, mesh always on, call path badge). `v0.1.1-beta1` was tagged but never published (missing signing secret). Before them: v0.1.0-alpha13 (`91f2061`). eu-1 runs 0.1.1-beta2 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
+STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Beta3 adds profile pictures (direct links only), chat folders, Telegram-like desktop theme, minimal Android service notification. **Planned next (owner's list, 2026-11-13)**: Android video calls, desktop audio+video calls (browser WebRTC-free: same call protocol over meshd), group calls (mesh of 1:1 links, ≤4) with a high-data-use warning. Latest release **v0.1.1-beta2** (tag on `529c34d`; first published beta: update check B7, new release key, eu-1 on https://eu-1.mfadem.ir, mesh always on, call path badge). `v0.1.1-beta1` was tagged but never published (missing signing secret). Before them: v0.1.0-alpha13 (`91f2061`). eu-1 runs 0.1.1-beta2 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
 then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
@@ -1024,3 +1024,30 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   serves the signed beta2 manifest; `channel=stable` answers 404 (no stable release yet).
 - Next: install beta2 on two phones (M5 hardware tests); real-phone check of the update banner
   with the next beta.
+
+### 2026-11-13 — beta3 features: profile pictures, chat folders, desktop theme, quiet notification
+
+Owner asked for video calls, desktop calls, group calls, a hideable "Mava is running"
+notification, chat folders, a Telegram-like desktop theme and profile pictures over direct
+links. Chose: quick items in beta3; calls follow in later betas.
+- **Profile pictures** (`core/node/avatar.go`): own picture ≤ 64 KB (JPEG/PNG/WebP) at
+  `<data>/avatar`; served only on `direct` links (authenticated per contact) with the media
+  window protocol under ID `sha256("mava-avatar-v1:"+owner)`; fetched into `<data>/avatars/<hash>`
+  when the user opens the chat (`RequestAvatar` opens a direct link if needed) and refreshed
+  when a direct link comes up and the copy is > 1 day old. Event `avatar`. Tests: over a direct
+  link (incl. change), not over LAN, bad/oversized input rejected. Checked live between two
+  meshd nodes via eu-1 (fetched in ~8 s).
+- **Chat folders** (`core/node/folders.go`): user folders in the app DB (`kv` key `folders`),
+  built-in views (All/Personal/Groups/Unread) filtered by the apps. Event `folders`.
+- meshd API: `GET /avatar/{hash|me}`, `PUT/DELETE /avatar`, `POST /avatar/{hash}/request`,
+  `GET/PUT /folders`. Mobile: `SetAvatar`, `AvatarPath`, `RequestAvatar`, `Folders`, `SetFolders`.
+- Desktop web UI: Telegram-like theme (default; "Classic" in Settings → Appearance, stored in
+  the browser), avatars in list and header, folder tabs with unread counts + ✎ editor,
+  unread badges, picture upload (shrunk in the browser to ≤ 60 KB JPEG). Screenshots checked light/dark.
+- Android: notification channel `mesh_status` at IMPORTANCE_MIN (silent, no icon, secret on
+  lock screen; old `mesh` channel deleted) + Settings guide with a button to the channel's
+  system page; folder chips above the chat list, long-press a chat to file it, folder editor;
+  profile picture in Settings (photo picker, shrunk to ≤ 60 KB), shown in `Avatar` everywhere
+  via `LocalAvatars`; opening a contact chat requests its picture.
+- Checks: `go test -race ./...`, `make -C firmware test`, AAR rebuilt, `compileDebugKotlin`,
+  `testDebugUnitTest` (new FoldersTest) pass locally; lint left to CI (3 GB RAM).

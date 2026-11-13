@@ -1,5 +1,12 @@
 package org.meshmsg.app.ui
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import android.provider.Settings
+import androidx.compose.ui.platform.LocalContext
+import org.meshmsg.app.service.MeshService
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,6 +65,9 @@ interface SettingsActions {
     fun removeRelay(relay: Relay)
     fun wipe()
 
+    /** Sets (image bytes) or removes (null) this account's profile picture. */
+    fun setAvatar(image: ByteArray?) {}
+
     /** Checks for a newer release now (roadmap B7); the result shows on the chat list. */
     fun checkUpdate() {}
 
@@ -76,6 +86,7 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
     Scaffold(modifier = modifier, topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_settings)) }) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).imePadding().verticalScroll(rememberScrollState())) {
             SectionHeader(stringResource(R.string.settings_identity))
+            ProfilePicture(state, actions)
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it.take(32); actions.setName(name) },
@@ -108,6 +119,7 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s),
             )
+            HideRunningNotification()
 
             SectionHeader(stringResource(R.string.settings_relays))
             if (state.relays.isEmpty()) {
@@ -224,4 +236,68 @@ private fun WipeDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+/** Guide to switching off the "Mava is running" notification channel. */
+@Composable
+private fun HideRunningNotification() {
+    val context = LocalContext.current
+    Column(Modifier.padding(horizontal = Space.l, vertical = Space.s)) {
+        Text(stringResource(R.string.notif_hide_title), style = MaterialTheme.typography.titleSmall)
+        Text(
+            stringResource(R.string.notif_hide_steps),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = Space.xs),
+        )
+        OutlinedButton(
+            onClick = {
+                val channel = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    .putExtra(Settings.EXTRA_CHANNEL_ID, MeshService.CH_MESH)
+                val app = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                runCatching { context.startActivity(channel) }.recoverCatching { context.startActivity(app) }
+            },
+            modifier = Modifier.padding(top = Space.s).heightIn(min = 48.dp),
+        ) { Text(stringResource(R.string.notif_hide_open)) }
+    }
+}
+
+/** This account's picture: picked from the gallery, shrunk on the phone. */
+@Composable
+private fun ProfilePicture(state: SettingsState, actions: SettingsActions) {
+    val context = LocalContext.current
+    val hasPhoto = org.meshmsg.app.data.LocalAvatars.current.containsKey("me")
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()?.let(actions::setAvatar)
+        }
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.l),
+    ) {
+        Avatar(org.meshmsg.app.data.Contact(state.myHash, state.displayName, ""), size = 72.dp, photoKey = "me")
+        Column(Modifier.weight(1f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                OutlinedButton(
+                    onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.avatar_set)) }
+                if (hasPhoto) {
+                    TextButton(onClick = { actions.setAvatar(null) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(stringResource(R.string.avatar_remove))
+                    }
+                }
+            }
+            Text(
+                stringResource(R.string.avatar_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = Space.xs),
+            )
+        }
+    }
 }
