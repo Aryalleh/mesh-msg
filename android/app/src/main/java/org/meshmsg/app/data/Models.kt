@@ -274,7 +274,8 @@ object Json {
         for (name in links.keys().asSequence().sorted()) {
             val detail = links.optString(name)
             val kind = when {
-                name == "core" -> continue
+                // "direct" is the phone-to-phone direct link (core/node/direct.go), not a relay.
+                name == "core" || name == "direct" -> continue
                 name in loraNames || name.startsWith("lora") || name.startsWith("usb") -> PathInfo.Kind.LoRa
                 name == "ble" || name == "lan" -> PathInfo.Kind.Nearby
                 else -> PathInfo.Kind.Relay

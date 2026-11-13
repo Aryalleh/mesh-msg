@@ -753,3 +753,11 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   published (4 APKs, desktop + relay tarballs). Contains the call playback fix (Opus decoder
   output 48 kHz) and the relay install.sh tty fix. eu-1 left on alpha10 (no relay changes
   besides the installer). Next: phone test per issue #1; provider firewall UDP for eu-1.
+
+### 2026-11-13 — Network screen showed "Internet relay · direct"
+
+- The core's direct phone-to-phone link is a router link named `direct`; the Android status
+  parser treated every unknown link as a relay, so the Network screen listed it as a relay
+  called "direct". `Models.kt` now leaves it out of the path list. Compiles in CI only.
+- Tag `v0.1.0-alpha11` (pushed by the owner on `219809c`) contains the call audio fix
+  `b074d61`, not this change.
