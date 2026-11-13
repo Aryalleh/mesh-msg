@@ -8,6 +8,7 @@
 | LilyGO T-Beam Supreme | ESP32-S3 | SX1262 | client with GPS, 18650 holder |
 | RAKwireless RAK4631 (WisBlock) | nRF52840 | SX1262 | solar repeater (very low power) |
 | LilyGO T-Echo | nRF52840 | SX1262 | pocket client, e-ink |
+| LilyGO T-Deck Plus | ESP32-S3 | SX1262 | LoRa node today; planned stand-alone handheld with screen, keyboard, microphone and speaker ([tdeck.md](tdeck.md)) |
 
 All share the SX1262, so one radio driver. MCU differences are hidden behind a small HAL.
 

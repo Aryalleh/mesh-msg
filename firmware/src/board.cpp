@@ -81,6 +81,15 @@ void init() {
     delay(20);  // rail settling before the radio reset
   }
 #endif
+  // Other devices on the radio's SPI bus (display, SD card) stay deselected.
+#ifdef SPI_IDLE_CS_A
+  pinMode(SPI_IDLE_CS_A, OUTPUT);
+  digitalWrite(SPI_IDLE_CS_A, HIGH);
+#endif
+#ifdef SPI_IDLE_CS_B
+  pinMode(SPI_IDLE_CS_B, OUTPUT);
+  digitalWrite(SPI_IDLE_CS_B, HIGH);
+#endif
 #ifdef RADIO_POWER_PIN
   pinMode(RADIO_POWER_PIN, OUTPUT);
   digitalWrite(RADIO_POWER_PIN, HIGH);

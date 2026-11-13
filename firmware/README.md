@@ -55,7 +55,7 @@ that nodes never see, so the firmware does not implement them.
 ## Boards
 
 ```
-pio run                          # all four: heltec_v3, tbeam_s3, rak4631, techo
+pio run                          # all five: heltec_v3, tbeam_s3, tdeck_plus, rak4631, techo
 pio run -e heltec_v3 -t upload   # ESP32-S3 boards: esptool over USB
 pio run -e rak4631 -t upload     # nRF52 boards: double-tap reset, then nrfutil DFU
 pio device monitor               # decoded headers of everything heard
@@ -65,6 +65,7 @@ pio device monitor               # decoded headers of everything heard
 |---|---|---|
 | `heltec_v3` | Heltec WiFi LoRa 32 V3 | battery ADC on GPIO1 |
 | `tbeam_s3` | LilyGO T-Beam Supreme (ESP32-S3) | AXP2101 PMU powers the radio rail |
+| `tdeck_plus` | LilyGO T-Deck Plus (868 MHz) | LoRa node only for now; display, keyboard, audio, GPS not driven (docs/tdeck.md) |
 | `rak4631` | RAKwireless RAK4631 (WisBlock) | radio power enable on P1.05 |
 | `techo` | LilyGO T-Echo | e-ink / GPS not driven yet |
 

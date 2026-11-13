@@ -38,4 +38,5 @@ control of national ISPs, mobile networks, app stores in-country, and police pow
 
 - No custom cryptography; use Noise and maintained libraries.
 - No telemetry, analytics, crash reporters that phone home.
-- No plaintext or contact data on LoRa nodes or servers, ever.
+- No plaintext or contact data on LoRa nodes or servers, ever. (A stand-alone handheld such
+  as the planned T-Deck mode is a client, not a node: docs/tdeck.md §6.)
