@@ -116,7 +116,10 @@ func (d *Daemon) Run(ctx context.Context) error {
 	api := d.apiHandler()
 
 	sock := SocketPath(dataDir)
-	os.Remove(sock)
+	if Running(dataDir) {
+		return ErrRunning
+	}
+	os.Remove(sock) // stale: nobody answers on it
 	ln, err := net.Listen("unix", sock)
 	if err != nil {
 		return fmt.Errorf("control socket: %w", err)
@@ -141,6 +144,21 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 	<-ctx.Done()
 	return nil
+}
+
+// ErrRunning: another meshd already serves this data directory.
+var ErrRunning = errors.New("meshd is already running for this data directory (stop it first: systemctl --user stop meshd)")
+
+// Running reports whether a meshd answers on the control socket in dataDir.
+// A second meshd must not start: it would take over (and on exit delete) the
+// first one's socket and open the same store.
+func Running(dataDir string) bool {
+	c, err := net.DialTimeout("unix", SocketPath(dataDir), time.Second)
+	if err != nil {
+		return false
+	}
+	c.Close()
+	return true
 }
 
 // UIURL is the URL that logs the browser into the web UI.

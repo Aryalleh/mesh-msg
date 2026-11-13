@@ -28,7 +28,7 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 + Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
 Plan of record: docs/roadmap.md "Code changes required by the 2026-11-12 design decisions".
 **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
-STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.0-alpha11** (tag on `219809c`: call audio 48 kHz fix + install.sh tty fix). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
+STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.0-alpha12** (tag on `7be33cc`: UDP socket per local address bound to its network on Android, for issue #2). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
 then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
@@ -785,3 +785,12 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   call tests. The owner also reported a normal voice message not arriving on the same Wi-Fi:
   same direct-link path, same suspected cause. Next: phone test of alpha12 (voice message,
   then call, on one Wi-Fi); eu-1 provider firewall UDP for calls across networks.
+
+### 2026-11-13 — Desktop update; meshd single instance
+
+- Owner's desktop updated alpha5 → alpha11 (`~/.local/bin`, user service).
+- Bug found there: starting `meshd` by hand while the service ran removed the service's
+  control socket, then failed on the UI port and its exit unlinked the socket → `mesh`
+  reported "meshd is not running". `meshd` now refuses to start when a daemon answers on
+  the socket (`daemon.Running`, `ErrRunning`, checked in main and in `Run`); a stale socket
+  file is still replaced. Tests `desktop/daemon/running_test.go`. Not released yet.

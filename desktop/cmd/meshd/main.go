@@ -37,6 +37,9 @@ func main() {
 	if *verbose {
 		cfg.Logf = log.Printf
 	}
+	if daemon.Running(cfg.DataDir) {
+		log.Fatal(daemon.ErrRunning)
+	}
 	d, err := daemon.New(cfg)
 	if err != nil {
 		log.Fatal(err)
