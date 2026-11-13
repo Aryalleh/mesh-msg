@@ -10,6 +10,7 @@ import android.provider.Settings as SystemSettings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -108,6 +109,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.refreshSettings()
+        val app = application as MeshApp
+        app.updates.checkIfStale({ app.backend.value?.core }, lifecycleScope)
     }
 
     private fun handle(intent: Intent?) {
@@ -173,6 +176,7 @@ class MainActivity : ComponentActivity() {
         val snackbar = remember { SnackbarHostState() }
         val sendFailed = stringResource(R.string.send_failed, "%s")
         LaunchedEffect(Unit) { vm.errors.collect { snackbar.showSnackbar(sendFailed.format(it)) } }
+        LaunchedEffect(Unit) { vm.notices.collect { snackbar.showSnackbar(it) } }
 
         val link by pendingLink
         val chat by pendingChat

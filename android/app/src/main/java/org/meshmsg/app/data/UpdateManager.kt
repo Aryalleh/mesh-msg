@@ -61,13 +61,21 @@ class UpdateManager(private val context: Context, private val scope: CoroutineSc
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull() ?: "0.0.0"
 
-    /** Starts the daily check loop for [core]; the loop ends with [loopScope]. */
+    @Volatile private var lastCheck = 0L
+
+    /** Checks if the last check is over an hour old (called when the app comes to the front). */
+    fun checkIfStale(core: () -> Core?, scope: CoroutineScope) {
+        if (System.currentTimeMillis() - lastCheck < HOUR) return
+        scope.launch(Dispatchers.IO) { check(core) }
+    }
+
+    /** Starts the check loop (about every six hours) for [core]; the loop ends with [loopScope]. */
     fun run(core: () -> Core?, loopScope: CoroutineScope) {
         loopScope.launch(Dispatchers.IO) {
             delay(Random.nextLong(10_000, 40_000))
             while (true) {
                 val ok = check(core)
-                delay(if (ok) Random.nextLong(20 * HOUR, 28 * HOUR) else Random.nextLong(HOUR, 2 * HOUR))
+                delay(if (ok) Random.nextLong(5 * HOUR, 7 * HOUR) else Random.nextLong(HOUR, 2 * HOUR))
             }
         }
     }
@@ -76,6 +84,7 @@ class UpdateManager(private val context: Context, private val scope: CoroutineSc
     suspend fun check(core: () -> Core?): Boolean = withContext(Dispatchers.IO) {
         checking.withLock {
             val c = core() ?: return@withLock false
+            lastCheck = System.currentTimeMillis()
             val u = AppUpdate.parse(runCatching { c.checkUpdate(currentVersion) }.getOrDefault("")) ?: return@withLock false
             _update.value = u
             if (u.available && prefs.getString(KEY_NOTIFIED, null) != u.version) {

@@ -237,3 +237,24 @@ func TestDownload(t *testing.T) {
 		t.Fatal("file with bad hash kept")
 	}
 }
+
+// A relay whose copy is stale (beta2) doesn't hide a newer release on GitHub
+// (beta3); with GitHub unreachable the relay's answer still counts.
+func TestCheckerStaleRelay(t *testing.T) {
+	pub, priv := testKey(t)
+	b2, _ := Sign(manifest("0.1.1-beta2"), priv)
+	b3, _ := Sign(manifest("0.1.1-beta3"), priv)
+	relay := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(b2) }))
+	defer relay.Close()
+	gh := fakeGitHub(t, [][]byte{b3, b2}, []bool{true, true})
+	c := &Checker{Current: "0.1.1-beta2", Relays: func() []string { return []string{relay.URL} }, GitHub: gh.URL + "/releases", Key: pub}
+	st := c.Check(context.Background())
+	if st.Latest == nil || st.Latest.Version != "0.1.1-beta3" || !st.Available || st.Source != "github" {
+		t.Fatalf("stale relay won: %+v", st)
+	}
+	c.GitHub = "http://127.0.0.1:1/releases" // blocked
+	st = c.Check(context.Background())
+	if st.Latest == nil || st.Latest.Version != "0.1.1-beta2" || st.Available || st.Error != "" {
+		t.Fatalf("relay only: %+v", st)
+	}
+}

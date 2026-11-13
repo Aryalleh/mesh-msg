@@ -103,12 +103,16 @@ func (c *Checker) Check(ctx context.Context) Status {
 			break // one relay that answers is enough
 		}
 	}
-	if best == nil && c.GitHub != "-" {
+	// GitHub too, even when a relay answered: a relay's copy can be up to
+	// its refresh interval old. Where GitHub is blocked the relay's answer stands.
+	if c.GitHub != "-" {
 		m, _, err := FetchGitHub(ctx, c.client(), cmp.Or(c.GitHub, GitHubReleasesAPI), ch, c.key())
 		if err != nil {
 			errs = append(errs, err.Error())
 		}
-		consider(m, "github")
+		if m != nil {
+			consider(m, "github")
+		}
 	}
 	st := Evaluate(c.Current, best)
 	st.Checked, st.Source = time.Now(), src
@@ -118,7 +122,7 @@ func (c *Checker) Check(ctx context.Context) Status {
 	return st
 }
 
-// Run checks at start and then about once a day with random jitter, calling
+// Run checks at start and then about every six hours with random jitter, calling
 // report after each check, until ctx ends.
 func (c *Checker) Run(ctx context.Context, report func(Status)) {
 	delay := time.Duration(rand.Int64N(int64(30 * time.Second)))
@@ -133,7 +137,7 @@ func (c *Checker) Run(ctx context.Context, report func(Status)) {
 			c.Logf("update check: %s", st.Error)
 		}
 		report(st)
-		delay = 20*time.Hour + time.Duration(rand.Int64N(int64(8*time.Hour)))
+		delay = 5*time.Hour + time.Duration(rand.Int64N(int64(2*time.Hour)))
 		if st.Latest == nil {
 			delay = time.Hour + time.Duration(rand.Int64N(int64(time.Hour)))
 		}

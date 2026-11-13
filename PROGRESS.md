@@ -1070,3 +1070,16 @@ links. Chose: quick items in beta3; calls follow in later betas.
   hourly cache switches `/v1/release?channel=beta` to beta3. Beta2 installs should show the update banner.
 - Next (owner's list): Android video calls, desktop audio+video calls, group calls with a
   data-use warning.
+
+### 2026-11-13 — update check fixes (beta4)
+
+- Owner on beta2 got no beta3 notice; the manual check showed "Could not send". Causes: (1) the
+  manual check's result went through the error channel, which the app prefixes with
+  "Could not send:" (now a separate `notices` channel, shown as is); (2) `Checker.Check` skipped
+  GitHub when a relay answered, and eu-1's cached manifest was up to an hour old (beta2);
+  (3) phones checked only every 20–28 h.
+- Now: the checker asks GitHub as well as the first answering relay and takes the newer
+  (new TestCheckerStaleRelay; blocked GitHub → relay answer stands); relay cache refreshes every
+  9–11 min; meshd and Android check every 5–7 h; Android also checks on resume if the last
+  check is > 1 h old.
+- eu-1 needs the new relay build for the 10-minute refresh (not required: GitHub covers it).

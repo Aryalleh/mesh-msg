@@ -48,6 +48,9 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     /** One-off errors for a snackbar (the core's own words, e.g. "text too long"). */
     private val _errors = Channel<String>(Channel.BUFFERED)
     val errors = _errors.receiveAsFlow()
+    /** Messages shown as they are (not "Could not send: …"), e.g. update check results. */
+    private val _notices = Channel<String>(Channel.BUFFERED)
+    val notices = _notices.receiveAsFlow()
 
     val limits = TextLimits(
         onePacket = Meshcore.onePacketBytes().toInt(),
@@ -66,7 +69,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
             app.updates.clearLater()
             val found = app.updates.check { app.backend.value?.core }
             val u = app.updates.update.value
-            _errors.send(
+            _notices.send(
                 when {
                     !found || u == null -> app.getString(org.meshmsg.app.R.string.update_check_failed)
                     u.available -> app.getString(org.meshmsg.app.R.string.update_available_title, u.version)

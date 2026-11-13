@@ -94,7 +94,9 @@ func (c *Cache) Refresh(ctx context.Context) error {
 	return firstErr
 }
 
-// Run refreshes at start and then every hour (with jitter) until ctx ends.
+// Run refreshes at start and then every ~10 minutes (with jitter) until ctx
+// ends: a new release reaches clients quickly (GitHub allows 60 unauthenticated
+// API calls per hour per address).
 func (c *Cache) Run(ctx context.Context) {
 	for {
 		if err := c.Refresh(ctx); err != nil && c.Logf != nil {
@@ -103,7 +105,7 @@ func (c *Cache) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(50*time.Minute + time.Duration(rand.Int64N(int64(10*time.Minute)))):
+		case <-time.After(9*time.Minute + time.Duration(rand.Int64N(int64(2*time.Minute)))):
 		}
 	}
 }
