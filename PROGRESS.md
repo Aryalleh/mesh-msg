@@ -688,3 +688,10 @@ kept**; replace old apps and relays (old apps can't upload to new relays: unsign
 - Docs: calls.md §7, connectivity.md §8, decisions D19 (deviations), roadmap.
 - Next: watch CI; then (when the owner asks) tag v0.1.0-alpha10, update eu-1 (open UDP
   3478/3479 and 61000–61999, `install.sh` does it), test calls between two real phones.
+
+### 2026-11-13 — Android build fix
+
+- Part 2 commit `55d426a`. CI failed since `37c6da7` at "Go core → AAR": `link:
+  github.com/wlynxg/anet: invalid reference to net.zoneCache` (Go's linkname check).
+  `scripts/build-android-core.sh` now passes `-checklinkname=0` to the linker (reproduced and
+  verified with `GOOS=android go build`). Go and firmware tests pass.

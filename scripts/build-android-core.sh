@@ -22,6 +22,6 @@ go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
 targets=""
 for abi in ${ABIS:-arm64 arm amd64}; do targets+="${targets:+,}android/$abi"; done
 mkdir -p android/app/libs
-gomobile bind -target="$targets" -androidapi 26 -ldflags="-s -w" -trimpath \
+gomobile bind -target="$targets" -androidapi 26 -ldflags="-s -w -checklinkname=0" -trimpath \
   -javapkg=org.meshmsg -o android/app/libs/meshcore.aar ./mobile
 ls -la android/app/libs/meshcore.aar
