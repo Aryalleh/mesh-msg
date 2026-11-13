@@ -860,3 +860,6 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   logo). Verified here: `go test -race ./...`, `make -C firmware test`, `scripts/e2e-lora.sh`
   pass; the board builds run first in CI. Then deleted `ccr-23656715-q9ut0d` and the session
   branch `ccr-d1290771-8bh9o1`; only `main` remains.
+- docs/handheld.md: LoRa made explicit as built in on both models (comparison table row, a LoRa
+  row in each model's parts table with its SPI pins; USB host text no longer suggests a USB
+  LoRa node). No design change: the SX1262 (U4) was already on both boards.

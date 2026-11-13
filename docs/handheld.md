@@ -12,12 +12,16 @@ There are **two models** that share the radio, audio, power and clock design:
 | Processor | ESP32-S3 module (Wi-Fi 4 + BLE 5 built in) | ESP32-P4 (400 MHz, 32 MB PSRAM) + ESP32-C6 module for Wi-Fi 6 + BLE 5 |
 | Screen | 3.5" IPS 320×480, capacitive touch | 5" IPS 720×1280, capacitive multi-touch |
 | On-screen keyboard | keys about 4.5 mm wide upright, 9 mm sideways | keys about 6 mm wide upright, like a phone |
+| **LoRa (built in)** | SX1262 module on the main board, SPI to the ESP32-S3; SMA antenna on the top edge | SX1262 module on the main board, SPI to the ESP32-P4; SMA antenna on the top edge |
 | Camera | none | optional 5 MP (photos, round video messages) |
-| USB | USB-C, charging + flashing | USB-C, charging + flashing + host (USB keyboard, USB LoRa node) |
+| USB | USB-C, charging + flashing | USB-C, charging + flashing + host (USB keyboard, USB stick) |
 | Battery | 2500 mAh | 4000 mAh |
 | Size | about 62 × 110 × 14 mm | about 72 × 150 × 12 mm |
 | Parts cost at 10 units | about 55–70 USD | about 80–100 USD |
 | Schematic | [handheld-s-schematic.svg](images/handheld-s-schematic.svg) | [handheld-p-schematic.svg](images/handheld-p-schematic.svg) |
+
+Both models are complete LoRa nodes on their own: the radio is built in, no external node or
+phone is needed (§1 "LoRa", U4 in both schematics).
 
 Physical buttons on both: **power** (on the PMU), **Vol+**, **Vol−** and **push-to-talk** on
 the sides. Everything else is on the touchscreen.
@@ -105,6 +109,7 @@ powers off, a 10 s press forces off.
 |---|---|---|
 | MCU + Wi-Fi + BLE | **ESP32-S3-WROOM-1-N16R8** (PCB antenna) | The existing firmware already targets the S3. Its vector instructions handle Opus at 16 kHz. 8 MB PSRAM holds the message cache, image decoding and two frame buffers; 16 MB flash holds firmware (two OTA slots) and LittleFS. Native USB. Flash encryption, secure boot and the eFuse HMAC key. |
 | Screen | **3.5" IPS, 320×480, ST7796S**, SPI, with a **capacitive touch panel** (FT6336U or GT911, I2C) | The largest screen the S3 can drive over SPI with the pins it has left. 80 MHz SPI: about 15 fps full-screen, enough for a chat UI that redraws only what changes. |
+| LoRa | **SX1262 module, built in** (§1), on its own SPI bus: GPIO 40 SCK, 41 MOSI, 39 MISO, 38 CS, 42 RST, 47 BUSY, 48 DIO1 | Powered from AXP2101 ALDO2. |
 | Storage | microSD, SDMMC 1-bit | D1–D3 pulled up. |
 | Battery | 2500 mAh LiPo pouch with NTC | |
 
@@ -184,7 +189,8 @@ With 2500 mAh: about 7–12 days standby, 9–12 hours talk.
 | Screen | **5" IPS, 720×1280, MIPI-DSI 2-lane** (e.g. ILI9881C or JD9365 driver), **GT911** capacitive multi-touch on I2C | Phone-sized text and keyboard. The DSI link and the P4's DMA2D keep full-screen redraws smooth. |
 | Backlight | **SGM3732** (or TPS61160) LED boost, PWM dimming | A 5" panel's LED string needs about 15–20 V. |
 | Camera (option) | **OV5647** 5 MP MIPI-CSI 2-lane module on an FPC, own 24 MHz oscillator | Photos and round video messages (the Android app has both). H.264 encoding in hardware. |
-| USB | USB-C on the P4's **USB 2.0 high-speed OTG** port, **TUSB320** CC logic (dual role) and a **5 V boost + load switch** (TPS61023 + TPS22918) for host mode | Charging and flashing, and as host: a USB keyboard, a USB LoRa node or a USB stick. In host mode the boost feeds the connector (VBUS_C) and a second load switch cuts the connector from the PMU's VBUS input, so the PMU never charges from its own boost. |
+| USB | USB-C on the P4's **USB 2.0 high-speed OTG** port, **TUSB320** CC logic (dual role) and a **5 V boost + load switch** (TPS61023 + TPS22918) for host mode | Charging and flashing, and as host: a USB keyboard or a USB stick. In host mode the boost feeds the connector (VBUS_C) and a second load switch cuts the connector from the PMU's VBUS input, so the PMU never charges from its own boost. |
+| LoRa | **SX1262 module, built in** (§1), on the P4's SPI: GPIO 20 SCK, 21 MOSI, 22 MISO, 23 CS, 32 RST, 33 BUSY, 3 DIO1 (a low-power GPIO, so a received packet wakes the P4) | On the P4, not the C6: the C6 only serves Wi-Fi and Bluetooth. Powered from AXP2101 ALDO2. |
 | Storage | microSD on the P4's SDMMC slot 0, 4-bit | Fast media storage. |
 | Battery | 4000 mAh LiPo pouch with NTC | |
 
