@@ -848,5 +848,5 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
 - Owner: every beta and stable release must tell users about updates. Roadmap **B7** "Update
   check" (signed `release.json` per tag, served by relays `GET /v1/release`, GitHub and the
   mesh; Android banner + notification, desktop web UI / `mesh status` / `mesh update`;
-  minimum-supported-version for security releases), decision **D20**, rule added to CLAUDE.md.
+  minimum-supported-version for security releases), decision **D20**, rule added to CLAUDE.md (`0f415d2` + next commit).
   Not built yet; it must be in `v0.2.0-beta1`.

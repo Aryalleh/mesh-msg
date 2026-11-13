@@ -13,5 +13,9 @@
   versionCode = run number + 100, always growing, so phones update in place) and into
   `meshd`/`mesh` (`-X main.version`), and publishes the GitHub release. Record the tag in
   PROGRESS.md.
+- **From the first beta on, every release (beta and stable) must ship the update check**
+  (docs/roadmap.md B7, docs/decisions.md D20): the release job publishes a signed
+  `release.json`, and the Android app and meshd show users that a newer version exists.
+  No release without it.
 - If `android/` or `mobile/` changed: `scripts/build-android-core.sh` then
   `cd android && ./gradlew lintDebug testDebugUnitTest assembleDebug` (see PROGRESS.md for the toolchain).
