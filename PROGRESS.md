@@ -32,7 +32,7 @@ meshd/web UI/`mesh update`, Android banner + notification + verified APK install
 needs the GitHub secret `RELEASE_SIGNING_KEY` (private key: `~/.config/mesh-msg/release-signing.key`
 on the owner's machine, never in the repo). Other beta criteria (A1 release key for APKs, A2, A3, B1–B6)
 are still open; the owner chose to tag the beta now. **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
-STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.1-beta1** (first beta: update check B7, eu-1 on https://eu-1.mfadem.ir; code in `32f31a6`). Before it: v0.1.0-alpha13 (`91f2061`). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
+STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.1-beta2** (tag on `529c34d`; first published beta: update check B7, new release key, eu-1 on https://eu-1.mfadem.ir, mesh always on, call path badge). `v0.1.1-beta1` was tagged but never published (missing signing secret). Before them: v0.1.0-alpha13 (`91f2061`). eu-1 runs 0.1.1-beta2 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
 then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
@@ -1010,3 +1010,17 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   by another goroutine in between; now `putPrivateIfNew` inserts only if absent. The test
   waits up to 15 s for the title (text may overtake the roster by design).
 - 10/10 runs pass under load; full `go test -race ./...` and `make -C firmware test` pass.
+
+### 2026-11-13 — v0.1.1-beta2 released
+
+- Owner added the new `RELEASE_SIGNING_KEY` secret. CI on `dc17f17` and `cb15184` failed in
+  `go test -race` (flaky `TestNormalMediaOverAutoDirectLink`, then `TestGroupOverBLEThroughNonMember`);
+  both fixed by the other session (`cb15184`, `529c34d`). Both workflows green on `529c34d`.
+- Tag **`v0.1.1-beta2`** on `529c34d`; release build green, release published (pre-release) with
+  4 APKs, desktop + relay tarballs, `SHA256SUMS` and `release.json`. Checked: `release-manifest
+  verify` accepts the published `release.json` (8 files, channel beta).
+- eu-1 updated to the 0.1.1-beta2 relay (SHA256 checked; previous binary
+  `/usr/local/bin/meshmsg-relay.bak-alpha13`). `https://eu-1.mfadem.ir/v1/release?channel=beta`
+  serves the signed beta2 manifest; `channel=stable` answers 404 (no stable release yet).
+- Next: install beta2 on two phones (M5 hardware tests); real-phone check of the update banner
+  with the next beta.
