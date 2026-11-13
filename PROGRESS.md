@@ -32,7 +32,7 @@ meshd/web UI/`mesh update`, Android banner + notification + verified APK install
 needs the GitHub secret `RELEASE_SIGNING_KEY` (private key: `~/.config/mesh-msg/release-signing.key`
 on the owner's machine, never in the repo). Other beta criteria (A1 release key for APKs, A2, A3, B1–B6)
 are still open; the owner chose to tag the beta now. **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
-STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.0-alpha13** (tag on `91f2061`: Android 11+ local addresses for direct links, meshd single instance). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
+STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.1-beta1** (first beta: update check B7, eu-1 on https://eu-1.mfadem.ir; code in `32f31a6`). Before it: v0.1.0-alpha13 (`91f2061`). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
 then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
@@ -939,3 +939,5 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   the eu-1 session): `core/node` TestNormalMediaOverAutoDirectLink fails on clean HEAD.
 - Release also needs eu-1 upgraded to the new relay build so it serves `/v1/release`
   (until then apps fall back to GitHub).
+- `32f31a6` B7 pushed; CI green (Go + firmware, Android lint/tests/APKs). Owner said "release it":
+  tag **v0.1.1-beta1** pushed on the commit that adds this line.
