@@ -33,7 +33,7 @@ meshd/web UI/`mesh update`, Android banner + notification + verified APK install
 needs the GitHub secret `RELEASE_SIGNING_KEY` (private key: `~/.config/mesh-msg/release-signing.key`
 on the owner's machine, never in the repo). Other beta criteria (A1 release key for APKs, A2, A3, B1–B6)
 are still open; the owner chose to tag the beta now. **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
-STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Beta3 adds profile pictures (direct links only), chat folders, Telegram-like desktop theme, minimal Android service notification. **Planned next (owner's list, 2026-11-13)**: Android video calls, desktop audio+video calls (browser WebRTC-free: same call protocol over meshd), group calls (mesh of 1:1 links, ≤4) with a high-data-use warning. Latest release **v0.1.1-beta4** (tag on `a2d2cdf`; eu-1 runs it). Before: **v0.1.1-beta3** (tag on `16579db`). Before: **v0.1.1-beta2** (tag on `529c34d`; first published beta: update check B7, new release key, eu-1 on https://eu-1.mfadem.ir, mesh always on, call path badge). `v0.1.1-beta1` was tagged but never published (missing signing secret). Before them: v0.1.0-alpha13 (`91f2061`). eu-1 runs 0.1.1-beta2 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
+STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Beta3 adds profile pictures (direct links only), chat folders, Telegram-like desktop theme, minimal Android service notification. **Planned next (owner's list, 2026-11-13)**: Android video calls, desktop audio+video calls (browser WebRTC-free: same call protocol over meshd), group calls (mesh of 1:1 links, ≤4) with a high-data-use warning. Latest release **v0.1.1-beta5** (video calls; tag on `aa6e64a`; eu-1 runs the beta4 relay). Before: **v0.1.1-beta4** (tag on `a2d2cdf`). Before: **v0.1.1-beta3** (tag on `16579db`). Before: **v0.1.1-beta2** (tag on `529c34d`; first published beta: update check B7, new release key, eu-1 on https://eu-1.mfadem.ir, mesh always on, call path badge). `v0.1.1-beta1` was tagged but never published (missing signing secret). Before them: v0.1.0-alpha13 (`91f2061`). eu-1 runs 0.1.1-beta2 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
 then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
@@ -1137,3 +1137,12 @@ links. Chose: quick items in beta3; calls follow in later betas.
   media download that failed on a present neighbour (e.g. the sender hadn't registered us
   yet) retries after 10 s up to 3 times instead of waiting 2 minutes — the suspected cause of
   the rare `TestVideoOverLANWithoutRelay` failure (0/6 more full runs).
+
+### 2026-11-13 — v0.1.1-beta5 released (video calls)
+
+- Owner said release. CI green on `aa6e64a` (code identical to `c372bd1`, notes added; the
+  earlier Go failure did not come back). Tag **`v0.1.1-beta5`** there; release published
+  (10 assets), `release.json` verifies; eu-1 (beta4 relay, 10-minute refresh) served the
+  beta5 manifest right away. Relay unchanged since beta4: no redeploy.
+- Next: owner tests video calls on two phones; then desktop calls, then group calls with the
+  data-use warning.
