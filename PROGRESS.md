@@ -733,3 +733,5 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
 - Fix: the track follows the decoder's output format (`INFO_OUTPUT_FORMAT_CHANGED`: rate and
   channels; logged as `CallAudio: decoder output: …`), silence frames match it, and every
   ready decoder output is played. docs/calls.md §7 note. Needs a phone test.
+- Fix commit `b074d61`. Phone verification handed to the team as GitHub issue #1 (checklist:
+  5-minute call, logcat `CallAudio`, both codecs, earpiece/speaker/Bluetooth; where to look next).
