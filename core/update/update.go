@@ -26,7 +26,7 @@ import (
 // ReleaseKeyHex is the Ed25519 public key that signs release manifests. The
 // private half is kept outside the repository (a GitHub Actions secret and the
 // owner's offline copy).
-const ReleaseKeyHex = "f8146bcf8234ec45a75882c1cc1ffe97e45804981ff07fc0395b4d3c3222f4a1"
+const ReleaseKeyHex = "4a89de4b477138723c6f8a2084c4f52dd843471b3869d465e9a9e402d7395626"
 
 // SignContext is prepended to the manifest bytes before signing (domain separation).
 const SignContext = "meshmsg-release-manifest-v1\n"

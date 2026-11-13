@@ -941,3 +941,18 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   (until then apps fall back to GitHub).
 - `32f31a6` B7 pushed; CI green (Go + firmware, Android lint/tests/APKs). Owner said "release it":
   tag **v0.1.1-beta1** pushed on the commit that adds this line.
+
+### 2026-11-13 — release key rotated, beta1 never published → v0.1.1-beta2
+
+- `v0.1.1-beta1` (tag on `483138f`) was **not published**: its release job failed at "Signed
+  release manifest" because the GitHub secret `RELEASE_SIGNING_KEY` was never added (APK and
+  desktop jobs passed). The tag stays as it is (tags are never moved).
+- The private release key was shown in chat before any release used it, so it was replaced
+  while that costs nothing: new public key `4a89de4b…5626` in `core/update.ReleaseKeyHex`, new
+  seed in `~/.config/mesh-msg/release-signing.key`; the old seed is kept only as
+  `release-signing.key.exposed-2026-11-13` and must not be used. Checked: the new seed signs
+  and verifies, the old one is refused.
+- `docs/release-notes/v0.1.1-beta2.{en,fa}.md` (beta1's notes + the HTTPS domain for eu-1).
+- Next: owner adds the new seed as the GitHub secret `RELEASE_SIGNING_KEY`, then push tag
+  `v0.1.1-beta2` from main; after it publishes, put the beta2 relay on eu-1 (`GET /v1/release`).
+
