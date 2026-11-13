@@ -27,12 +27,13 @@ Needs hardware now, for both open milestones:
 Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
 + Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
 Plan of record: docs/roadmap.md "Code changes required by the 2026-11-12 design decisions".
-**Steps 1 and 2 done**: two media classes, signed uploads, daily allowance counted on all
-relays through the signed usage ledger, account age, proof-of-work by age and uploads,
-7-day keep; fixed relay ports (server.md §6d). Not yet released (next tag
-v0.1.0-alpha10) and eu-1 not updated. **Next: step 3** direct links, then step 4 calls —
-each only when the owner says. Alpha only: **no compatibility with old alpha builds is
-kept**; replace old apps and relays (old apps can't upload to new relays: unsigned).
+**Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
+STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Released as
+**v0.1.0-alpha10**. Still open: update relay eu-1 to this build and open UDP 3478, 3479 and
+61000–61999 on it (`install.sh` in update mode does both) — until then direct links and
+calls have no reflector on the real network; test calls on two real phones; calls.md "Not
+yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
+compatibility with old alpha builds is kept**; replace old apps and relays.
 
 ## Resuming in a fresh container
 
@@ -695,3 +696,5 @@ kept**; replace old apps and relays (old apps can't upload to new relays: unsign
   github.com/wlynxg/anet: invalid reference to net.zoneCache` (Go's linkname check).
   `scripts/build-android-core.sh` now passes `-checklinkname=0` to the linker (reproduced and
   verified with `GOOS=android go build`). Go and firmware tests pass.
+- Fix commit `23a96ca`; CI green (run 43340143271: desktop + Android lint/tests/APKs, the
+  first run that compiles the Android call code). Released **v0.1.0-alpha10**.
