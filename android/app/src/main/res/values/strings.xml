@@ -285,4 +285,10 @@
     <string name="avatar_help">Only your contacts see it, and only over a direct connection when they open your chat. It never goes through relays.</string>
     <string name="avatar_set">Choose picture</string>
     <string name="avatar_remove">Remove</string>
+    <string name="call_incoming_video">Incoming video call</string>
+    <string name="call_start_video">Video call</string>
+    <string name="call_camera">Camera</string>
+    <string name="call_switch_camera">Switch camera</string>
+    <string name="call_video_data">Video on mobile data uses a lot of data (about 3–15 MB a minute).</string>
+    <string name="call_camera_denied">Video needs the camera permission. The call goes on as voice.</string>
 </resources>

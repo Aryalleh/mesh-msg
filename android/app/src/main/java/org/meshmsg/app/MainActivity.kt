@@ -72,16 +72,23 @@ class MainActivity : ComponentActivity() {
     /** A meshmsg: link or a chat to open, from the launching intent. */
     private val pendingLink = mutableStateOf<String?>(null)
     private val pendingChat = mutableStateOf<String?>(null)
-    private var callAfterPermission: String? = null
-    private val askMic = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
-        callAfterPermission?.let { if (ok) vm.startCall(it) }
+    private var callAfterPermission: Pair<String, Boolean>? = null
+    private val askCall = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { r ->
+        callAfterPermission?.let { (hash, video) -> if (hasMic()) vm.startCall(hash, video && hasCamera()) }
         callAfterPermission = null
     }
 
-    /** Starts a call, asking for the microphone first if needed. */
-    private fun callMic(hash: String) {
-        if (hasMic()) vm.startCall(hash) else { callAfterPermission = hash; askMic.launch(Manifest.permission.RECORD_AUDIO) }
+    /** Starts a call (video: camera on), asking for the microphone (and camera) first if needed. */
+    private fun callMic(hash: String, video: Boolean = false) {
+        val need = listOfNotNull(
+            Manifest.permission.RECORD_AUDIO.takeIf { !hasMic() },
+            Manifest.permission.CAMERA.takeIf { video && !hasCamera() },
+        )
+        if (need.isEmpty()) vm.startCall(hash, video) else { callAfterPermission = hash to video; askCall.launch(need.toTypedArray()) }
     }
+
+    private fun hasCamera() = androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
+        android.content.pm.PackageManager.PERMISSION_GRANTED
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -144,19 +151,46 @@ class MainActivity : ComponentActivity() {
         val st = call?.state
         LaunchedEffect(st) { showOverLock(st == "ringing" || st == "active") }
         val c = call ?: return
-        val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-            if (ok) vm.answerCall(c.id) else vm.endCall(c.id)
+        val answerPerms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            if (hasMic()) vm.answerCall(c.id) else vm.endCall(c.id)
         }
+        // Video: the camera runs only while this screen is in front.
+        val backend by vm.backend.collectAsStateWithLifecycle()
+        val core = backend?.core
+        val video = remember(c.id, c.video && c.state == "active", core) {
+            if (c.video && c.state == "active" && core != null) org.meshmsg.app.data.CallVideo(applicationContext, core, c.id) else null
+        }
+        DisposableEffect(video) { onDispose { video?.release() } }
+        val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+        val cameraDenied = stringResource(R.string.call_camera_denied)
+        val askCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+            if (ok) video?.setCamera(true, owner) else vm.notice(cameraDenied)
+        }
+        // A video call starts with the camera on.
+        LaunchedEffect(video) { if (video != null && c.videoCall && hasCamera()) video.setCamera(true, owner) }
         org.meshmsg.app.ui.CallScreen(
             c, chats.firstOrNull { it.contact.hash == c.peer }?.contact,
             org.meshmsg.app.ui.CallActions(
                 answer = {
-                    if (hasMic()) vm.answerCall(c.id) else mic.launch(Manifest.permission.RECORD_AUDIO)
+                    val need = listOfNotNull(
+                        Manifest.permission.RECORD_AUDIO.takeIf { !hasMic() },
+                        Manifest.permission.CAMERA.takeIf { c.videoCall && !hasCamera() },
+                    )
+                    if (need.isEmpty()) vm.answerCall(c.id) else answerPerms.launch(need.toTypedArray())
                 },
                 end = { vm.endCall(c.id) },
                 mute = { vm.muteCall(c.id, it) },
                 speaker = { vm.speaker(it) },
+                camera = { on ->
+                    when {
+                        !on -> video?.setCamera(false, owner)
+                        hasCamera() -> video?.setCamera(true, owner)
+                        else -> askCamera.launch(Manifest.permission.CAMERA)
+                    }
+                },
+                switchCamera = { video?.switchCamera() },
             ),
+            video = video,
         )
         androidx.activity.compose.BackHandler(enabled = !c.ended) {} // the call stays until it ends
     }
@@ -264,6 +298,7 @@ class MainActivity : ComponentActivity() {
                             contact, messages, status.anyPathUp, vm.limits,
                             onSend = { vm.send(hash, it) },
                             onCall = if (contact.isGroup) null else ({ callMic(hash) }),
+                            onVideoCall = if (contact.isGroup) null else ({ callMic(hash, video = true) }),
                             media = remember(hash) {
                                 org.meshmsg.app.ui.MediaActions(
                                     pick = { uri, caption, important -> vm.sendUri(hash, uri, caption, important) },

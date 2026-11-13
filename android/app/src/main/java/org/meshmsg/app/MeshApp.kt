@@ -102,7 +102,7 @@ class MeshApp : Application() {
                     if (ringing != c.id) {
                         ringing = c.id
                         val name = b.chats.value.firstOrNull { it.contact.hash == c.peer }?.contact?.displayName ?: c.peer.take(8)
-                        org.meshmsg.app.service.CallService.ring(this@MeshApp, name)
+                        org.meshmsg.app.service.CallService.ring(this@MeshApp, name, c.videoCall)
                     }
                 } else if (ringing != null) {
                     ringing = null

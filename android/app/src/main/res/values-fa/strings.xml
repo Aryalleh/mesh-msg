@@ -277,4 +277,10 @@
     <string name="avatar_help">فقط مخاطبانتان آن را می‌بینند، آن هم فقط از راه اتصال مستقیم و وقتی گفتگوی شما را باز می‌کنند. هرگز از رله‌ها نمی‌گذرد.</string>
     <string name="avatar_set">انتخاب عکس</string>
     <string name="avatar_remove">حذف</string>
+    <string name="call_incoming_video">تماس تصویری ورودی</string>
+    <string name="call_start_video">تماس تصویری</string>
+    <string name="call_camera">دوربین</string>
+    <string name="call_switch_camera">تعویض دوربین</string>
+    <string name="call_video_data">ویدیو روی اینترنت همراه حجم زیادی مصرف می‌کند (حدود ۳ تا ۱۵ مگابایت در دقیقه).</string>
+    <string name="call_camera_denied">برای ویدیو اجازهٔ دوربین لازم است. تماس به‌صورت صوتی ادامه می‌یابد.</string>
 </resources>

@@ -107,10 +107,12 @@ class CoreBackend(dataDir: String, configJson: String, binder: NetworkBinder? = 
         }
     }
 
-    override fun startCall(hash: String): Result<Unit> = runCatching {
-        onCall(Json.call(JSONObject(core.startCall(hash, CallAudio.codecs()))))
+    // Video is always offered when the phone has an H.264 codec, so the camera
+    // can be turned on during a voice call too.
+    override fun startCall(hash: String, video: Boolean): Result<Unit> = runCatching {
+        onCall(Json.call(JSONObject(core.startVideoCall(hash, CallAudio.codecs(), CallVideo.codecs(), video))))
     }
-    override fun answerCall(id: String): Result<Unit> = runCatching { core.answerCall(id, CallAudio.codecs()) }
+    override fun answerCall(id: String): Result<Unit> = runCatching { core.answerCallVideo(id, CallAudio.codecs(), CallVideo.codecs()) }
     override fun endCall(id: String): Result<Unit> = runCatching { core.endCall(id) }
     override fun muteCall(id: String, muted: Boolean): Result<Unit> = runCatching { core.muteCall(id, muted) }
 

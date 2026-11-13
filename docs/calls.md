@@ -1,6 +1,6 @@
 # Voice calls
 
-Status: **requirement + design, not implemented yet.** Builds on the direct IP link of
+Status: voice calls implemented on Android (alpha); video added in beta (§7a).
 [connectivity.md](connectivity.md), which is not implemented yet either.
 
 ## 1. Rules
@@ -176,3 +176,32 @@ No change to signaling ops, frame format, encryption or path discovery is needed
   to compare, mute, speaker, "through your relay" note) and a call button in chats. Not
   yet: path changes mid-call (op 2), bitrate adaptation, system call log integration.
 
+
+## 7a. Video (implemented, beta)
+
+- **Negotiation:** the offer always carries a video stream (id 1, media 1, codec H.264 = 17)
+  when the phone has an H.264 encoder and decoder, so the camera can be turned on during a
+  voice call too. Params `width(2) | height(2) | fps(1) | flags(1)`, flag bit 0 = the caller
+  starts with the camera on ("video call": the callee sees "Incoming video call"). The callee
+  keeps the stream only with a common codec; an audio-only app leaves it out and the call
+  runs as voice (`TestVideoOfferAnsweredWithoutVideo`). `Info.video`, `video_codec`, `video_call`.
+- **Frames** (`core/call/video.go`): each encoded frame goes as datagrams on stream 1 with
+  their own seq and the frame's timestamp; payload `frag_index(2) | frag_count(2) | bytes`
+  inside the sealed part; flags fragmented, keyframe, end. Up to 512 KB per frame.
+- **Receiver:** reassembles by timestamp. An older frame left incomplete when a newer one
+  completes, a frame stuck > 800 ms, or a full queue breaks the decoder's chain: frames are
+  dropped until the next keyframe, and a keyframe is asked for (at most every 400 ms).
+- **In-band control** on stream 255 (`kind(1) | stream(1) | body`), which voice-only apps
+  ignore: 0 keyframe request, 1 receiver report (loss ‰ over the last second, every second).
+  The sender's target bitrate starts at 500 kbps, ×0.7 above 10 % loss, ×0.9 above 3 %,
+  ×1.08 below 2 %, within 120–2000 kbps; the app reads it with `CallVideoNeeds` and sets
+  its encoder.
+- **Android** (`CallVideo`): CameraX ImageAnalysis (YUV, ~640×480, 20 fps) → hardware H.264
+  encoder (CBR, keyframe every 2 s and on request) → `orientation(1) | Annex-B access unit`
+  with SPS/PPS before every keyframe. Receive: decoder set up from the first keyframe's
+  SPS/PPS, drawing on a TextureView rotated by the sender's orientation and cropped to fill
+  the screen; the remote view shows while frames arrive (avatar after 1.5 s without).
+  Camera only while the call screen is in front; self-view in the corner; camera on/off and
+  front/back buttons; "Video call" button in chats; a data-use note on metered networks.
+- Not yet: desktop (web UI), VP8 fallback for phones without H.264, simulcast/resolution
+  steps (only the bitrate adapts), sending the camera while the app is in the background.

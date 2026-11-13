@@ -123,7 +123,7 @@ class CallService : Service() {
          * the call screen over the lock screen. Answering happens in the app
          * (the microphone may only start while the app is in front).
          */
-        fun ring(c: Context, title: String) {
+        fun ring(c: Context, title: String, video: Boolean = false) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(c, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
             ) return // the call still shows when the app is open
@@ -131,7 +131,7 @@ class CallService : Service() {
             val n = NotificationCompat.Builder(c, CH_RING)
                 .setSmallIcon(R.drawable.ic_stat_mesh)
                 .setContentTitle(title)
-                .setContentText(c.getString(R.string.call_incoming))
+                .setContentText(c.getString(if (video) R.string.call_incoming_video else R.string.call_incoming))
                 .setContentIntent(openApp(c))
                 .setFullScreenIntent(openApp(c), true)
                 .setCategory(NotificationCompat.CATEGORY_CALL)

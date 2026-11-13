@@ -20,6 +20,7 @@ package meshcore
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/message"
@@ -747,6 +749,49 @@ func (c *Core) StartCall(contact, codecs string) (string, error) {
 
 // AnswerCall accepts a ringing call.
 func (c *Core) AnswerCall(id, codecs string) error { return c.n.AnswerCall(id, parseCodecs(codecs)...) }
+
+// StartVideoCall calls a contact offering video too (codec lists like
+// "17,16"); cameraOn: a video call, the other phone shows it so.
+func (c *Core) StartVideoCall(contact, audioCodecs, videoCodecs string, cameraOn bool) (string, error) {
+	return toJSON(c.n.StartCallWith(contact, parseCodecs(audioCodecs), parseCodecs(videoCodecs), cameraOn))
+}
+
+// AnswerCallVideo accepts a ringing call, with video if both sides have a
+// common video codec.
+func (c *Core) AnswerCallVideo(id, audioCodecs, videoCodecs string) error {
+	return c.n.AnswerCallWith(id, parseCodecs(audioCodecs), parseCodecs(videoCodecs))
+}
+
+// SendCallVideo sends one encoded video frame.
+func (c *Core) SendCallVideo(id string, frame []byte, keyframe bool) error {
+	return c.n.CallVideo(id, frame, keyframe)
+}
+
+// PullCallVideo waits up to timeoutMs for the next video frame: flags(1:
+// bit 0 keyframe) | timestamp ms(4) | frame, or empty when none came.
+func (c *Core) PullCallVideo(id string, timeoutMs int) []byte {
+	f, ok := c.n.PullCallVideo(id, time.Duration(timeoutMs)*time.Millisecond)
+	if !ok {
+		return nil
+	}
+	b := make([]byte, 5, 5+len(f.Data))
+	if f.Keyframe {
+		b[0] = 1
+	}
+	binary.BigEndian.PutUint32(b[1:], f.TS)
+	return append(b, f.Data...)
+}
+
+// CallVideoNeeds is the bitrate to encode at in kbps times 2, plus 1 when
+// the other side needs a keyframe now.
+func (c *Core) CallVideoNeeds(id string) int {
+	key, kbps := c.n.CallVideoNeeds(id)
+	v := kbps * 2
+	if key {
+		v++
+	}
+	return v
+}
 
 // EndCall hangs up, cancels or declines.
 func (c *Core) EndCall(id string) error { return c.n.EndCall(id) }

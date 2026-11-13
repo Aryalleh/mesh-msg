@@ -164,6 +164,10 @@ data class CallInfo(
     /** When it became active (ms), 0 before. */
     val started: Long = 0,
     val peerMuted: Boolean = false,
+    /** Both phones can send video in this call (camera on or off). */
+    val video: Boolean = false,
+    /** The caller started with the camera on. */
+    val videoCall: Boolean = false,
 ) {
     val ended: Boolean get() = state == "ended"
 }
@@ -182,6 +186,8 @@ object Json {
         missed = o.optBoolean("missed"),
         started = o.optLong("started"),
         peerMuted = o.optBoolean("peer_muted"),
+        video = o.optBoolean("video"),
+        videoCall = o.optBoolean("video_call"),
     )
 
     private fun time(s: String): Long = runCatching { Instant.parse(s).toEpochMilli() }.getOrDefault(0L)

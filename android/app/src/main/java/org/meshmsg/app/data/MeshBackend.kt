@@ -55,7 +55,8 @@ interface MeshBackend {
 
     /** The call in progress (or just ended), if any. */
     val call: StateFlow<CallInfo?> get() = NoCall
-    fun startCall(hash: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+    /** Calls a contact; video: start with the camera on (a video call). */
+    fun startCall(hash: String, video: Boolean = false): Result<Unit> = Result.failure(UnsupportedOperationException())
     fun answerCall(id: String): Result<Unit> = Result.failure(UnsupportedOperationException())
     fun endCall(id: String): Result<Unit> = Result.failure(UnsupportedOperationException())
     fun muteCall(id: String, muted: Boolean): Result<Unit> = Result.failure(UnsupportedOperationException())

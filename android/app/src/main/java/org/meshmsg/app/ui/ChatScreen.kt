@@ -110,6 +110,7 @@ fun ChatScreen(
     initialDraft: String = "",
     media: MediaActions = MediaActions(),
     onCall: (() -> Unit)? = null,
+    onVideoCall: (() -> Unit)? = null,
 ) {
     var draft by rememberSaveable(contact.hash) { mutableStateOf(initialDraft) }
     var menu by remember { mutableStateOf(false) }
@@ -152,6 +153,7 @@ fun ChatScreen(
                 },
                 actions = {
                     if (group == null && onCall != null) {
+                        if (onVideoCall != null) IconButton(onClick = onVideoCall) { Icon(MeshIcons.Videocam, stringResource(R.string.call_start_video)) }
                         IconButton(onClick = onCall) { Icon(Icons.Filled.Call, stringResource(R.string.call_start)) }
                     }
                     IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.more_options)) }

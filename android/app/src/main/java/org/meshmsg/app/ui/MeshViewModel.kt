@@ -51,6 +51,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     /** Messages shown as they are (not "Could not send: …"), e.g. update check results. */
     private val _notices = Channel<String>(Channel.BUFFERED)
     val notices = _notices.receiveAsFlow()
+    fun notice(text: String) { _notices.trySend(text) }
 
     val limits = TextLimits(
         onePacket = Meshcore.onePacketBytes().toInt(),
@@ -109,7 +110,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
         }
     }
 
-    fun startCall(hash: String) = io { it.startCall(hash) }
+    fun startCall(hash: String, video: Boolean = false) = io { it.startCall(hash, video) }
     fun answerCall(id: String) = io { it.answerCall(id) }
     fun endCall(id: String) = io { it.endCall(id) }
     fun muteCall(id: String, muted: Boolean) {

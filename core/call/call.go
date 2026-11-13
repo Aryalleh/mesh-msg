@@ -63,6 +63,11 @@ type Info struct {
 	Missed    bool   `json:"missed,omitempty"`
 	Started   int64  `json:"started,omitempty"` // unix ms when it became active
 	Muted     bool   `json:"peer_muted,omitempty"`
+	// Video: both sides can send video (camera on or off); VideoCall: the
+	// caller started it with the camera on.
+	Video      bool `json:"video,omitempty"`
+	VideoCodec int  `json:"video_codec,omitempty"`
+	VideoCall  bool `json:"video_call,omitempty"`
 }
 
 // Manager runs this device's calls (one at a time).
@@ -115,6 +120,9 @@ type Call struct {
 	lastRx  time.Time
 	jitter  *Jitter
 	peerMut bool
+	// video, when both sides offered it with a common codec
+	video      *video
+	videoCodec int
 }
 
 // ErrBusy: there is already a call.
@@ -309,7 +317,16 @@ func (c *Call) Info() Info {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	in := Info{ID: hex.EncodeToString(c.id[:]), Peer: c.peer.Hash().String(), Incoming: c.incoming, State: c.state,
-		Codec: c.codec, Reason: c.reason, Missed: c.missed, Muted: c.peerMut}
+		Codec: c.codec, Reason: c.reason, Missed: c.missed, Muted: c.peerMut,
+		Video: c.video != nil, VideoCodec: c.videoCodec}
+	// A "video call": the caller starts with the camera on.
+	if c.incoming {
+		if v, ok := c.offer.Caps.Video(); ok {
+			in.VideoCall = ParseVideoParams(v.Params).CameraOn
+		}
+	} else if v, ok := c.caps.Video(); ok {
+		in.VideoCall = ParseVideoParams(v.Params).CameraOn
+	}
 	if c.cr != nil {
 		in.Code = c.cr.code()
 	}
@@ -406,6 +423,13 @@ func (c *Call) Answer(caps Caps) error {
 	c.codec = codec
 	ours.Codecs = []byte{byte(codec)}
 	c.caps = Caps{Version: Version, Streams: []StreamCap{ours}}
+	tv, ok1 := c.offer.Caps.Video()
+	ov, ok2 := caps.Video()
+	if vc := pick(tv.Codecs, ov.Codecs); ok1 && ok2 && vc != 0 {
+		ov.Codecs = []byte{byte(vc)}
+		c.caps.Streams = append(c.caps.Streams, ov)
+		c.video, c.videoCodec = newVideo(), vc
+	}
 	c.state = StateConnecting
 	c.mu.Unlock()
 	c.m.env.Event(c.Info())
@@ -467,6 +491,13 @@ func (c *Call) runCaller() {
 	}
 	c.mu.Lock()
 	c.codec = int(theirs.Codecs[0])
+	// Video if we offered it and the answer kept it (an audio-only app
+	// leaves it out: the call runs as voice).
+	if tv, ok := ans.Caps.Video(); ok && len(tv.Codecs) > 0 {
+		if ov, ok := c.caps.Video(); ok && pick(tv.Codecs[:1], ov.Codecs) != 0 {
+			c.video, c.videoCodec = newVideo(), int(tv.Codecs[0])
+		}
+	}
 	c.mu.Unlock()
 	c.setState(StateConnecting)
 	c.connect(a, ans.Offer)
@@ -565,8 +596,13 @@ func (c *Call) recvLoop(l *direct.Link, cr *crypto) {
 				c.lastRx = now
 				j := c.jitter
 				c.mu.Unlock()
-				if f.Stream == 0 && len(f.Payload) > 0 {
+				switch {
+				case f.Stream == 0 && len(f.Payload) > 0:
 					j.Push(f, now)
+				case f.Stream == StreamVideo:
+					c.onVideo(f, now)
+				case f.Stream == streamControl:
+					c.onControl(f)
 				}
 			}
 		case <-l.Done():

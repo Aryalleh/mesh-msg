@@ -1112,3 +1112,21 @@ links. Chose: quick items in beta3; calls follow in later betas.
   Digital Asset Links API lists the statement for `org.meshmsg.app`. The beta4 APK's signing
   cert SHA-256 (46:72:0B:…:E2:BC) matches it, so Android can verify the App Link.
 - Next: owner's call list (Android video calls, desktop calls, group calls + data warning).
+
+### 2026-11-13 — video calls (Android)
+
+- Owner asked for video calls. Core (`core/call/video.go`): video stream 1 (H.264) negotiated
+  next to audio (voice-only apps answer without it), frames fragmented into datagrams and
+  reassembled by timestamp, keyframe recovery after loss, in-band control stream 255
+  (keyframe request, loss reports) driving a sender bitrate 120–2000 kbps. Node:
+  `StartCallWith`, `AnswerCallWith`, `CallVideo`, `PullCallVideo`, `CallVideoNeeds`;
+  mobile: `StartVideoCall`, `AnswerCallVideo`, `SendCallVideo`, `PullCallVideo`, `CallVideoNeeds`.
+- Android `CallVideo`: CameraX → H.264 hardware encoder → core; core → decoder → TextureView
+  (rotation from the sender); call screen with full-screen remote video, self-view, camera
+  on/off + switch, metered-data note; "Video call" button in chats; ringing says "Incoming
+  video call"; camera permission asked when needed.
+- Tests: `core/call` video tests (two-phone video call both ways with a 40 KB keyframe,
+  voice-only answer, loss → wait for keyframe, control/bitrate), node test over relay
+  signaling + direct link (100 KB keyframe), Android `CallVideoTest` (Annex-B split, YUV
+  plane copy). Full Go race suite, firmware tests, Android unit tests pass.
+- **Not run on real phones yet** — the camera/encoder/decoder path needs two phones (beta5).

@@ -1,5 +1,23 @@
 package org.meshmsg.app.ui
 
+import android.graphics.SurfaceTexture
+import android.net.ConnectivityManager
+import android.view.Surface
+import android.view.TextureView
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.meshmsg.app.data.CallVideo
+import org.meshmsg.app.data.RemoteVideo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +65,9 @@ class CallActions(
     val end: () -> Unit = {},
     val mute: (Boolean) -> Unit = {},
     val speaker: (Boolean) -> Unit = {},
+    /** Turns the camera on or off (asks for the permission first if needed). */
+    val camera: (Boolean) -> Unit = {},
+    val switchCamera: () -> Unit = {},
 )
 
 /**
@@ -54,7 +75,24 @@ class CallActions(
  * compare, and the buttons for this state.
  */
 @Composable
-fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier: Modifier = Modifier) {
+fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier: Modifier = Modifier, video: CallVideo? = null) {
+    val remote by (video?.remote ?: remember { MutableStateFlow(RemoteVideo()) }).collectAsState()
+    val cameraOn by (video?.cameraOn ?: remember { MutableStateFlow(false) }).collectAsState()
+    val showRemote = video != null && call.state == "active" && remote.active
+    Box(modifier.fillMaxSize().background(Color.Black)) {
+        if (video != null && call.state == "active") {
+            // Kept in the layout (invisible until frames come) so its Surface is ready.
+            RemoteVideoView(video, remote, Modifier.fillMaxSize().alpha(if (showRemote) 1f else 0f))
+        }
+        CallControls(call, contact, actions, video, remote, cameraOn, showRemote)
+        if (video != null && cameraOn && call.state == "active") {
+            SelfView(video, Modifier.align(Alignment.TopEnd).systemBarsPadding().padding(Space.l).size(width = 108.dp, height = 144.dp))
+        }
+    }
+}
+
+@Composable
+private fun CallControls(call: CallInfo, contact: Contact?, actions: CallActions, video: CallVideo?, remote: RemoteVideo, cameraOn: Boolean, showRemote: Boolean) {
     var muted by remember(call.id) { mutableStateOf(false) }
     var speaker by remember(call.id) { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -72,17 +110,22 @@ fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier
         "active" -> duration(((now - call.started) / 1000).coerceAtLeast(0))
         else -> endReason(call)
     }
-    Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    // Over video: no background, light text.
+    Surface(Modifier.fillMaxSize(), color = if (showRemote) Color.Transparent else MaterialTheme.colorScheme.surface, contentColor = if (showRemote) Color.White else MaterialTheme.colorScheme.onSurface) {
         Column(
             Modifier.fillMaxSize().systemBarsPadding().padding(Space.l),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(48.dp))
-            if (contact != null) Avatar(contact, size = 96.dp)
+            Spacer(Modifier.height(if (showRemote) 8.dp else 48.dp))
+            if (contact != null && !showRemote) Avatar(contact, size = 96.dp)
             Spacer(Modifier.height(Space.l))
             Text(name, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-            Text(status, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (call.state == "active" && call.code.isNotEmpty()) {
+            Text(
+                if (call.state == "ringing" && call.videoCall) stringResource(R.string.call_incoming_video) else status,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (showRemote) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (call.state == "active" && call.code.isNotEmpty() && !showRemote) {
                 Spacer(Modifier.height(Space.l))
                 Text(stringResource(R.string.call_code_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 Text(call.code, style = MaterialTheme.typography.displaySmall)
@@ -111,6 +154,10 @@ fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier
                     Text(stringResource(R.string.call_relayed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
             }
+            if (video != null && call.state == "active" && (cameraOn || remote.active) && metered()) {
+                Spacer(Modifier.height(Space.s))
+                Text(stringResource(R.string.call_video_data), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+            }
             if (call.peerMuted) {
                 Spacer(Modifier.height(Space.m))
                 Text(stringResource(R.string.call_peer_muted, name), style = MaterialTheme.typography.bodyMedium)
@@ -120,7 +167,7 @@ fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier
                 call.ended -> {}
                 call.incoming && call.state == "ringing" -> Row(Modifier.padding(bottom = 48.dp), horizontalArrangement = Arrangement.spacedBy(96.dp)) {
                     RoundButton(MeshIcons.CallEnd, stringResource(R.string.call_decline), MaterialTheme.colorScheme.error, actions.end)
-                    RoundButton(Icons.Filled.Call, stringResource(R.string.call_answer), Color(0xFF2E7D32), actions.answer)
+                    RoundButton(if (call.videoCall) MeshIcons.Videocam else Icons.Filled.Call, stringResource(R.string.call_answer), Color(0xFF2E7D32), actions.answer)
                 }
                 else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     if (call.state == "active") {
@@ -130,6 +177,16 @@ fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier
                             }
                             FilledTonalIconToggleButton(checked = speaker, onCheckedChange = { speaker = it; actions.speaker(it) }, modifier = Modifier.size(64.dp)) {
                                 Icon(MeshIcons.VolumeUp, stringResource(R.string.call_speaker))
+                            }
+                            if (call.video) {
+                                FilledTonalIconToggleButton(checked = cameraOn, onCheckedChange = { actions.camera(it) }, modifier = Modifier.size(64.dp)) {
+                                    Icon(if (cameraOn) MeshIcons.Videocam else MeshIcons.VideocamOff, stringResource(R.string.call_camera))
+                                }
+                            }
+                            if (call.video && cameraOn) {
+                                FilledTonalIconButton(onClick = actions.switchCamera, modifier = Modifier.size(64.dp)) {
+                                    Icon(MeshIcons.SwitchCamera, stringResource(R.string.call_switch_camera))
+                                }
                             }
                         }
                         Spacer(Modifier.height(Space.xl))
@@ -141,6 +198,51 @@ fun CallScreen(call: CallInfo, contact: Contact?, actions: CallActions, modifier
             }
         }
     }
+}
+
+/** The other side's video, rotated as sent and fitted into the screen. */
+@Composable
+private fun RemoteVideoView(video: CallVideo, remote: RemoteVideo, modifier: Modifier) {
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        val turned = remote.rotation % 180 != 0
+        val vw = (if (turned) remote.height else remote.width).coerceAtLeast(1)
+        val vh = (if (turned) remote.width else remote.height).coerceAtLeast(1)
+        // Fill the screen (crop the edges), like video calling apps.
+        val scale = maxOf(maxWidth.value / vw, maxHeight.value / vh)
+        val dw = (vw * scale).dp
+        val dh = (vh * scale).dp
+        AndroidView(
+            factory = { ctx ->
+                TextureView(ctx).apply {
+                    surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                        override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) { video.setRemoteSurface(Surface(st)) }
+                        override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
+                        override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean { video.setRemoteSurface(null); return true }
+                        override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+                    }
+                }
+            },
+            modifier = Modifier.requiredSize(if (turned) dh else dw, if (turned) dw else dh).graphicsLayer { rotationZ = remote.rotation.toFloat() },
+        )
+    }
+}
+
+/** This phone's camera, small in the corner. */
+@Composable
+private fun SelfView(video: CallVideo, modifier: Modifier) {
+    Box(modifier.clip(MaterialTheme.shapes.medium).background(Color.DarkGray)) {
+        AndroidView(
+            factory = { ctx -> PreviewView(ctx).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }.also { video.setPreview(it) } },
+            onRelease = { video.setPreview(null) },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+@Composable
+private fun metered(): Boolean {
+    val ctx = LocalContext.current
+    return remember { runCatching { ctx.getSystemService(ConnectivityManager::class.java).isActiveNetworkMetered }.getOrDefault(false) }
 }
 
 @Composable

@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/call"
 	"github.com/Aryalleh/mesh-msg/core/direct"
@@ -50,13 +51,30 @@ func VoiceCaps(codecs ...byte) call.Caps {
 	}}
 }
 
-// StartCall calls a contact.
+// CallCaps is the offer for these audio and video codecs (best first); no
+// video codecs: voice only. cameraOn marks a video call (the callee sees
+// "video call").
+func CallCaps(audio, video []byte, cameraOn bool) call.Caps {
+	c := VoiceCaps(audio...)
+	if len(video) > 0 {
+		c.Streams = append(c.Streams, call.VideoCap(video, call.VideoParams{Width: 1280, Height: 720, FPS: 24, CameraOn: cameraOn}))
+	}
+	return c
+}
+
+// StartCall calls a contact (voice).
 func (n *Node) StartCall(ref string, codecs ...byte) (call.Info, error) {
+	return n.StartCallWith(ref, codecs, nil, false)
+}
+
+// StartCallWith calls a contact with these audio and video codecs; cameraOn
+// makes it a video call.
+func (n *Node) StartCallWith(ref string, audio, video []byte, cameraOn bool) (call.Info, error) {
 	c, err := n.findContact(ref)
 	if err != nil {
 		return call.Info{}, err
 	}
-	cl, err := n.calls.Start(c.pub, VoiceCaps(codecs...))
+	cl, err := n.calls.Start(c.pub, CallCaps(audio, video, cameraOn))
 	if err != nil {
 		return call.Info{}, err
 	}
@@ -72,13 +90,44 @@ func (n *Node) getCall(id string) (*call.Call, error) {
 	return nil, errNoCall
 }
 
-// AnswerCall accepts a ringing call.
-func (n *Node) AnswerCall(id string, codecs ...byte) error {
+// AnswerCall accepts a ringing call (voice).
+func (n *Node) AnswerCall(id string, codecs ...byte) error { return n.AnswerCallWith(id, codecs, nil) }
+
+// AnswerCallWith accepts a ringing call; with video codecs, video is on
+// when the caller offered it too (camera on or off is up to the app).
+func (n *Node) AnswerCallWith(id string, audio, video []byte) error {
 	c, err := n.getCall(id)
 	if err != nil {
 		return err
 	}
-	return c.Answer(VoiceCaps(codecs...))
+	return c.Answer(CallCaps(audio, video, false))
+}
+
+// CallVideo sends one encoded video frame.
+func (n *Node) CallVideo(id string, frame []byte, keyframe bool) error {
+	c, err := n.getCall(id)
+	if err != nil {
+		return err
+	}
+	return c.SendVideo(frame, keyframe)
+}
+
+// PullCallVideo waits up to timeout for the next video frame to decode.
+func (n *Node) PullCallVideo(id string, timeout time.Duration) (call.VideoFrame, bool) {
+	c := n.calls.Get(id)
+	if c == nil {
+		return call.VideoFrame{}, false
+	}
+	return c.PullVideo(timeout)
+}
+
+// CallVideoNeeds: does the other side need a keyframe, and the bitrate to encode at.
+func (n *Node) CallVideoNeeds(id string) (keyframe bool, kbps int) {
+	c := n.calls.Get(id)
+	if c == nil {
+		return false, 0
+	}
+	return c.VideoNeeds()
 }
 
 // EndCall hangs up, cancels or declines.

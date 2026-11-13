@@ -101,3 +101,65 @@ func TestCallThroughRelaySignaling(t *testing.T) {
 	b.EndCall(ring.Call.ID)
 	waitCall(evA, "ended")
 }
+
+// A video call through the node API: signaling via the relay, video over
+// the direct link (a 100 KB keyframe and small frames).
+func TestVideoCallThroughNode(t *testing.T) {
+	url := startRelay(t, "r-1", "global")
+	relays := []node.RelayConfig{{Name: "r-1", URL: url}}
+	dc := node.DirectConfig{NoPortMapping: true, Reflectors: []string{"127.0.0.1:9"}}
+	a := startNode(t, node.Config{Name: "A", Relays: relays, Discovery: local, Direct: dc})
+	b := startNode(t, node.Config{Name: "B", Relays: relays, Discovery: local, Direct: dc})
+	a.UseLoopbackDirect()
+	b.UseLoopbackDirect()
+	befriend(t, a, b, "a", "b")
+	evA, cA := a.Subscribe()
+	defer cA()
+	evB, cB := b.Subscribe()
+	defer cB()
+	time.Sleep(time.Second)
+	waitCall := func(ev <-chan node.Event, state string) node.Event {
+		t.Helper()
+		deadline := time.After(20 * time.Second)
+		for {
+			select {
+			case e := <-ev:
+				if e.Type == "call" && e.Call.State == state {
+					return e
+				}
+			case <-deadline:
+				t.Fatalf("no call %q", state)
+			}
+		}
+	}
+	info, err := a.StartCallWith("b", []byte{2}, []byte{17}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ring := waitCall(evB, "ringing")
+	if !ring.Call.VideoCall {
+		t.Fatalf("%+v", ring.Call)
+	}
+	if err := b.AnswerCallWith(ring.Call.ID, []byte{2}, []byte{17}); err != nil {
+		t.Fatal(err)
+	}
+	if ea := waitCall(evA, "active"); !ea.Call.Video || ea.Call.VideoCodec != 17 {
+		t.Fatalf("%+v", ea.Call)
+	}
+	waitCall(evB, "active")
+	frames := [][]byte{randomFile(100_000), randomFile(4000), randomFile(4000)}
+	for i, f := range frames {
+		if err := a.CallVideo(info.ID, f, i == 0); err != nil {
+			t.Fatal(err)
+		}
+		got, ok := b.PullCallVideo(ring.Call.ID, 5*time.Second)
+		if !ok || !bytes.Equal(got.Data, f) {
+			t.Fatalf("frame %d not received", i)
+		}
+	}
+	if _, kbps := a.CallVideoNeeds(info.ID); kbps == 0 {
+		t.Fatal("no bitrate")
+	}
+	a.EndCall(info.ID)
+	waitCall(evB, "ended")
+}
