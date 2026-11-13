@@ -735,3 +735,15 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   ready decoder output is played. docs/calls.md §7 note. Needs a phone test.
 - Fix commit `b074d61`. Phone verification handed to the team as GitHub issue #1 (checklist:
   5-minute call, logcat `CallAudio`, both codecs, earpiece/speaker/Bluetooth; where to look next).
+
+### 2026-11-13 — Call on the same network with no relay reachable (owner's report)
+
+- Report: two phones on one network, no relay reachable; messages go over BLE but a call
+  can't be set up. Not reproduced: the core does it on one machine — new tests
+  `mobile/call_ble_test.go` (`TestCallWithoutRelay`, `TestCallRelayUnreachable`: signaling
+  over a fake BLE link only, call rings and becomes active) pass.
+- Handed to the team as GitHub issue #2 with what to collect and the candidate causes:
+  Android routes the single all-interface UDP socket through mobile data when Wi-Fi has no
+  internet (no `Network.bindSocket` in the app; fix = socket per address + bind hook), Wi-Fi
+  client isolation, OFFER expiry compared across two unsynced clocks, no host candidates
+  from anet. No code fix made yet.
