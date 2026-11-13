@@ -15,6 +15,7 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`); board layer builds for all four boards (`pio run`), **not yet run on hardware** |
 | M5 Android | **in progress** — core binding + app built and tested on the JVM (65 tests, screenshots); exit scenario passes in Go; **radio code never run on a phone** |
 | M6–M8 | not started |
+| Model S power board | routed, DRC clean, JLC package in `hardware/power-s/jlc/`, not yet ordered |
 
 ## Next step
 
@@ -971,14 +972,23 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   `v0.1.1-beta2` from main; after it publishes, put the beta2 relay on eu-1 (`GET /v1/release`).
 
 
-### 2026-11-13: Model S power board (hardware/power-s), work in progress
+### 2026-11-13: Model S power board (hardware/power-s), routed and packaged
 - Separate 2-layer power board, 54 × 36 mm: AXP2101 (charger, power path, fuel gauge over
   I2C + PMU_IRQ to the ESP32-S3), USB-C, JST-PH battery, PCF85063A RTC on a TPS7A02, 2 × 14 1.27 mm
   header J3 to the main board. Generated: generate_schematic.py (netlist == spec, ERC 0 errors),
-  place_board.py (no overlaps, parity clean), setup_fab.py (JLC rules), route_board.py
-  (power copper + ground scripted, rest Freerouting), build_package.py (Gerbers/BOM/CPL), ASSEMBLY.md.
-- Next: finish routing (Freerouting run 1 left 10 connections open: route them by hand in
-  route_board.py), DRC to zero, `python3 build_package.py`, commit jlc/.
+  place_board.py (no overlaps, parity clean), setup_fab.py (JLC rules), route_board.py,
+  build_package.py (Gerbers/BOM/CPL), ASSEMBLY.md (order, hand assembly, bring-up, firmware check).
+- Routing is hybrid: power trunks, the whole AXP2101 fan-out, exposed-pad vias, PWR_KEY
+  (around the board edge) and both GND pours are scripted. Freerouting (stored in
+  routing/autoroute.json, `kpy route_board.py --autoroute` re-rolls it) does the rest at
+  0.2 mm. Then a two-layer A* (`find_path`) closes what is left, power tracks are widened
+  to 0.5 mm, and `stitch_islands` joins cut-off ground with vias or bridges.
+- Result: **DRC 0 errors, 0 unconnected, parity clean**. 9 warnings, all silkscreen. `jlc/`
+  holds Gerbers, BOM and CPL (48 parts, they agree) and the schematic PDF. Images are in
+  images/.
+- Next: order from JLCPCB (check polarised parts in their placement preview; ASSEMBLY.md §2),
+  bring-up per ASSEMBLY.md §4. Optional cleanup: overlapping reference labels. The main board
+  needs the matching 2 × 14 1.27 mm socket.
 
 ### 2026-11-13 — flaky TestNormalMediaOverAutoDirectLink fixed (real bugs)
 

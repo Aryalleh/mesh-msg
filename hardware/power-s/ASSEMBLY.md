@@ -4,6 +4,15 @@ Board: 54 × 36 mm, 2 layers, 1.6 mm FR-4, 1 oz copper, parts on the top side on
 Schematic: `power-s.kicad_sch` (PDF in `jlc/power-s.pdf`). Board: `power-s.kicad_pcb`.
 What the board does and what the firmware must do: [README.md](README.md).
 
+| Assembled (top) | Top copper | Bottom copper |
+|---|---|---|
+| ![top](images/board-top.png) | ![F.Cu](images/copper-top.png) | ![B.Cu](images/copper-bottom.png) |
+
+Routed in full: DRC 0 errors, 0 unconnected, schematic parity clean. The 9 DRC warnings
+left are silkscreen only: a few reference labels overlap (C15/U1, C10/C18, C1/C2, C6/C11,
+TP3/TP4, D1/C20, R5/C17). They don't affect the fab. For hand assembly, find a part by
+opening `power-s.kicad_pcb` in KiCad and clicking it, or use the CPL file's coordinates.
+
 ## 1. Build the files
 
 ```

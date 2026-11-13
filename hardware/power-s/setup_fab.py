@@ -11,9 +11,10 @@ Rules are JLCPCB's no-surcharge tier with margin (jlcpcb.com/capabilities/pcb-ca
 the routed edge.
 
 Widths. The AXP2101 is a 0.4 mm pitch QFN with 0.2 mm pads: a track entering a pad can
-be at most 0.3 mm wide or it is within 0.15 mm of the next pin. So the classes that the
-autorouter uses stay at 0.3 mm (about 1 A at a 10 C rise on 1 oz outer copper, IPC-2152),
-and the paths that carry more than that -- battery to header, USB VBUS to the PMU, the
+be at most 0.3 mm wide or it is within 0.15 mm of the next pin, and the autorouter draws a
+net at one width. So it routes everything at 0.2 mm, route_board.py widens every power and
+rail track to 0.5 mm (about 1.5 A at a 10 C rise on 1 oz outer copper, IPC-2152) wherever
+the clearance allows, and the paths that carry more than that -- battery to header, USB VBUS to the PMU, the
 DCDC1 switch node and output, VSYS to the header -- are drawn wide by route_board.py and
 backed by power pours on the top layer.
 
@@ -31,8 +32,10 @@ from pcblib import Board, say           # noqa: E402
 NAME = "power-s"
 
 CLASSES = {
-    "POWER": {"track_width": 0.3, "clearance": 0.15, "via_diameter": 0.6, "via_drill": 0.3},
-    "RAIL": {"track_width": 0.3, "clearance": 0.15, "via_diameter": 0.6, "via_drill": 0.3},
+    # routed at 0.2 so every AXP2101 pin can be reached; route_board.widen() then
+    # widens each of these tracks to 0.5 mm wherever there is room
+    "POWER": {"track_width": 0.2, "clearance": 0.15, "via_diameter": 0.6, "via_drill": 0.3},
+    "RAIL": {"track_width": 0.2, "clearance": 0.15, "via_diameter": 0.6, "via_drill": 0.3},
     "USB": {"track_width": 0.25, "clearance": 0.2, "via_diameter": 0.6, "via_drill": 0.3},
 }
 PATTERNS = [

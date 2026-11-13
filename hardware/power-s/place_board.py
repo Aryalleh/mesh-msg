@@ -38,35 +38,36 @@ PLACEMENT = {
     "U1": (U1[0], U1[1], 180),
     "J3": (27.0, 5.2, 90),            # to the main board, along the top edge
     # DCDC1: LX1 -> L1 -> +3V3, output caps beside L1, VIN1/2 caps under it
-    "L1": (20.2, 16.6, 0),            # pad 1 (LX) on the right, facing pin 22
-    "C12": (15.9, 15.2, 90),
-    "C13": (15.9, 18.8, 90),
+    "L1": (19.4, 16.6, 0),            # pad 1 (LX) on the right, facing pin 22
+    "C12": (15.3, 15.2, 90),
+    "C13": (15.3, 18.8, 90),
     "C7": (22.5, 20.2, 180),          # VIN1/2 2.2 uF at the pins
     "C3": (19.4, 20.9, 180),          # VIN1/2 22 uF
-    "C21": (22.5, 21.4, 180),         # VRTC (pin 28)
-    "C22": (22.0, 23.3, 0),           # PWRON 1 nF
-    "R3": (22.0, 24.5, 0),            # PWRON 510 R to the key
-    # top row: LDO outputs and ALDOIN/BLDOIN, in pin order, rail pad down
-    "C14": (23.8, 14.6, 90),          # 3V3_LORA   pin 19
-    "C19": (24.92, 14.6, 90),          # VSPARE     pin 18
-    "C5": (26.04, 14.6, 90),           # ALDOIN     pin 17
-    "C15": (27.16, 14.6, 90),          # 3V3_AUDIO  pin 16
-    "C16": (28.28, 14.6, 90),          # 3V3_SD     pin 15
-    "C18": (29.4, 14.6, 90),          # 3V3_GPS    pin 14
-    "C10": (30.7, 14.6, 90),          # BLDOIN 4.7 uF pin 13
-    "C17": (31.95, 14.6, 90),         # 3V3_LCD    pin 12
+    "C21": (22.2, 21.4, 180),         # VRTC (pin 28)
+    "C22": (21.4, 23.3, 180),           # PWRON 1 nF
+    "R3": (21.4, 24.5, 180),            # PWRON 510 R to the key
+    # top row: LDO outputs and ALDOIN/BLDOIN, in pin order, rail pad down, 1.3 mm pitch:
+    # route_board.py fans the 0.4 mm pins out to them in a staircase
+    "C14": (22.95, 13.8, 90),          # 3V3_LORA   pin 19
+    "C19": (24.25, 13.8, 90),          # VSPARE     pin 18
+    "C5": (25.55, 13.8, 90),           # ALDOIN     pin 17
+    "C15": (26.8, 13.8, 90),          # 3V3_AUDIO  pin 16
+    "C16": (28.15, 13.8, 90),          # 3V3_SD     pin 15
+    "C18": (29.45, 13.8, 90),          # 3V3_GPS    pin 14
+    "C10": (30.75, 13.335, 90),          # BLDOIN 4.7 uF pin 13
+    "C17": (32.05, 13.8, 90),         # 3V3_LCD    pin 12
     # right: VIN3/4, VREF, charge LED
     "C9": (32.0, 18.45, 0),
     "C8": (32.0, 19.65, 0),
     "C20": (32.0, 21.4, 0),          # VREF 1 uF at the pin
-    "D1": (33.0, 22.6, 180),          # CHGLED sinks: cathode (pad 1) toward U1
+    "D1": (33.0, 22.6, 0),            # CHGLED sinks: cathode (pad 1) toward U1
     "R2": (33.0, 24.3, 0),
     # bottom: BAT, VSYS, VMID, VBUS, the 10 mOhm VMID->VSYS link, VSYS bulk
-    "C11": (23.9, 24.3, 270),         # BAT 2.2 uF
-    "C6": (25.0, 24.3, 270),          # VSYS 2.2 uF pin 34
-    "C2": (26.55, 25.0, 270),         # VMID 10 uF
-    "C1": (28.65, 26.0, 270),         # VBUS 10 uF (I2C leaves above it)
-    "R1": (26.0, 29.0, 0),
+    "C11": (23.8, 25.4, 270),         # BAT 2.2 uF
+    "C6": (24.9, 25.4, 270),          # VSYS 2.2 uF pin 34
+    "C2": (26.6, 26.25, 270),         # VMID 10 uF
+    "C1": (28.9, 26.25, 270),         # VBUS 10 uF (I2C leaves above it)
+    "R1": (26.0, 29.6, 0),
     "C4": (21.0, 27.5, 90),           # VSYS 22 uF bulk
     # I2C / IRQ / PWROK pull-ups to +3V3, under the header's signal pins
     "R4": (32.6, 11.0, 90),

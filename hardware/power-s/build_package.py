@@ -71,7 +71,7 @@ def bom():
         rows = list(csv.DictReader(open(raw, encoding="utf-8")))
     groups = {}
     for r in rows:
-        if r["${DNP}"] or r.get("DNP") or not r["LCSC"]:
+        if r.get("DNP") or r.get("${DNP}") or not r["LCSC"]:
             continue                         # not fitted, or not a part (test pads)
         key = (r["Value"], r["Footprint"].split(":")[-1], r["LCSC"])
         groups.setdefault(key, []).append(r["Reference"])

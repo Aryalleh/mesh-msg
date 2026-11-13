@@ -9,8 +9,8 @@
  },
  "C10": {
   "angle": 270.0,
-  "dx": 2.486,
-  "dy": -0.0,
+  "dx": -2.486,
+  "dy": 0.0,
   "flipped": false,
   "pinned": false,
   "visible": true
@@ -49,31 +49,31 @@
  },
  "C15": {
   "angle": 270.0,
-  "dx": 1.916,
-  "dy": -0.0,
+  "dx": -1.916,
+  "dy": 0.0,
   "flipped": false,
   "pinned": false,
   "visible": true
  },
  "C16": {
   "angle": 270.0,
-  "dx": 4.016,
-  "dy": -0.485,
+  "dx": 1.916,
+  "dy": -0.0,
   "flipped": false,
   "pinned": false,
   "visible": true
  },
  "C17": {
-  "angle": 270.0,
+  "angle": 0.0,
   "dx": 0.0,
-  "dy": 2.042,
+  "dy": 1.466,
   "flipped": false,
   "pinned": false,
   "visible": true
  },
  "C18": {
   "angle": 270.0,
-  "dx": 1.916,
+  "dx": -1.916,
   "dy": 0.485,
   "flipped": false,
   "pinned": false,
@@ -81,40 +81,40 @@
  },
  "C19": {
   "angle": 270.0,
-  "dx": 4.016,
-  "dy": -0.485,
+  "dx": -1.916,
+  "dy": 0.0,
   "flipped": false,
   "pinned": false,
   "visible": true
  },
  "C2": {
   "angle": 90.0,
-  "dx": -4.106,
-  "dy": -0.0,
+  "dx": 0.0,
+  "dy": -4.281,
   "flipped": false,
   "pinned": false,
   "visible": true
  },
  "C20": {
-  "angle": 90.0,
-  "dx": 4.016,
+  "angle": 0.0,
+  "dx": 3.892,
   "dy": 0.0,
   "flipped": false,
   "pinned": false,
   "visible": true
  },
  "C21": {
-  "angle": 180.0,
-  "dx": 0.935,
-  "dy": 2.866,
+  "angle": 270.0,
+  "dx": -0.935,
+  "dy": 3.442,
   "flipped": false,
   "pinned": false,
   "visible": true
  },
  "C22": {
-  "angle": 0.0,
-  "dx": -4.592,
-  "dy": 0.0,
+  "angle": 180.0,
+  "dx": 4.592,
+  "dy": -0.0,
   "flipped": false,
   "pinned": false,
   "visible": true
@@ -178,7 +178,7 @@
  "C5": {
   "angle": 270.0,
   "dx": 1.916,
-  "dy": -0.0,
+  "dy": -0.485,
   "flipped": false,
   "pinned": false,
   "visible": true
@@ -193,16 +193,16 @@
  },
  "C7": {
   "angle": 180.0,
-  "dx": 0.0,
-  "dy": 3.566,
+  "dx": -3.511,
+  "dy": 0.0,
   "flipped": false,
   "pinned": false,
   "visible": true
  },
  "C8": {
-  "angle": 0.0,
+  "angle": 90.0,
   "dx": 0.935,
-  "dy": -2.866,
+  "dy": -3.061,
   "flipped": false,
   "pinned": false,
   "visible": true
@@ -216,9 +216,9 @@
   "visible": true
  },
  "D1": {
-  "angle": 180.0,
-  "dx": -1.545,
-  "dy": 1.776,
+  "angle": 0.0,
+  "dx": 1.505,
+  "dy": -1.776,
   "flipped": false,
   "pinned": false,
   "visible": true
@@ -257,7 +257,7 @@
  },
  "L1": {
   "angle": 0.0,
-  "dx": -0.0,
+  "dx": 0.0,
   "dy": -3.516,
   "flipped": false,
   "pinned": false,
@@ -280,17 +280,17 @@
   "visible": true
  },
  "R2": {
-  "angle": 0.0,
+  "angle": 90.0,
   "dx": 0.0,
-  "dy": 1.476,
+  "dy": 1.671,
   "flipped": false,
   "pinned": false,
   "visible": true
  },
  "R3": {
-  "angle": 0.0,
-  "dx": -2.131,
-  "dy": 0.0,
+  "angle": 180.0,
+  "dx": 2.131,
+  "dy": -0.0,
   "flipped": false,
   "pinned": false,
   "visible": true
@@ -393,8 +393,8 @@
  },
  "U1": {
   "angle": 180.0,
-  "dx": -3.775,
-  "dy": -4.156,
+  "dx": -0.3,
+  "dy": 4.156,
   "flipped": false,
   "pinned": false,
   "visible": true
