@@ -15,6 +15,7 @@ import (
 
 	"github.com/Aryalleh/mesh-msg/core/e2e"
 	"github.com/Aryalleh/mesh-msg/core/group"
+	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/media"
 	"github.com/Aryalleh/mesh-msg/core/message"
 	"github.com/Aryalleh/mesh-msg/core/packet"
@@ -592,6 +593,13 @@ func (n *Node) download(ctx context.Context, id string) {
 	}
 
 	ok = false
+	// Normal media comes only over direct paths: open one to the sender
+	// (the attempt runs in the background; a new link retries at once).
+	if len(r.urls) == 0 && n.direct != nil {
+		if pub, found := n.mediaSender(id); found && !n.direct.connected(pub.Hash().String()) {
+			n.direct.ensure(pub)
+		}
+	}
 	// Neighbours first (LAN before Bluetooth): fast, no internet needed.
 	nbs := n.router.Neighbours()
 	for _, pass := range []bool{true, false} {
@@ -662,8 +670,11 @@ const (
 // window and frame sizes: a LAN moves megabytes per second, Bluetooth tens
 // of kilobytes.
 func p2pSizes(link string) (window, frame int) {
-	if link == "lan" {
+	switch link {
+	case "lan":
 		return 256 << 10, 32 << 10
+	case "direct": // UDP datagrams: one frame per datagram
+		return 64 << 10, 1100
 	}
 	return 8 << 10, 2 << 10
 }
@@ -795,7 +806,11 @@ func (n *Node) fetchP2P(ctx context.Context, nb router.Neighbour, id string, siz
 			return errors.New("neighbour gone")
 		}
 		end := min(off+int64(window), int64(size))
-		timeout := time.NewTimer(15 * time.Second)
+		wait := 15 * time.Second
+		if nb.Link == "direct" {
+			wait = 3 * time.Second // a lost datagram: ask for the window again
+		}
+		timeout := time.NewTimer(wait)
 	window:
 		for off < end {
 			select {
@@ -823,7 +838,7 @@ func (n *Node) fetchP2P(ctx context.Context, nb router.Neighbour, id string, siz
 					return err
 				}
 				off += int64(len(data))
-				timeout.Reset(15 * time.Second)
+				timeout.Reset(wait)
 			}
 		}
 		timeout.Stop()
@@ -833,4 +848,23 @@ func (n *Node) fetchP2P(ctx context.Context, nb router.Neighbour, id string, siz
 		}
 	}
 	return nil
+}
+
+// mediaSender: the contact who sent the file (for a group file, the member).
+func (n *Node) mediaSender(id string) (identity.Public, bool) {
+	var peer, sender []byte
+	if n.db.db.QueryRow(`SELECT peer, sender FROM messages WHERE media=? AND outgoing=0 LIMIT 1`, id).Scan(&peer, &sender) != nil {
+		return identity.Public{}, false
+	}
+	h := peer
+	if len(sender) == len(packet.Hash{}) {
+		h = sender
+	}
+	for _, k := range n.contactKeys() {
+		kh := k.Hash()
+		if string(kh[:]) == string(h) {
+			return k, true
+		}
+	}
+	return identity.Public{}, false
 }

@@ -196,12 +196,7 @@ func (s *Service) auth(username, rlm string, _ net.Addr) ([]byte, bool) {
 }
 
 // Credentials is the answer of POST /v1/turn/credentials.
-type Credentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Expires  int64  `json:"expires"`
-	Port     int    `json:"port"`
-}
+type Credentials = wire.TurnCredentials
 
 // CredentialsHandler serves POST /v1/turn/credentials: signed by an
 // account (X-Account, X-Day, X-Signature over DomainTurnCredentials | day);

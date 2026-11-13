@@ -176,3 +176,31 @@ relay can always reach each other. Ordinary users never get TURN from any relay.
 - The relay sees both sides' IP addresses and traffic volume and timing, never content
   (the session is end-to-end encrypted above TURN). The app tells the admin when a call goes
   through their relay.
+
+## 8. Implementation (alpha)
+
+- `core/direct`: gathering (host, reflexive from every relay's 3478/3479, router port mapping
+  by PCP → NAT-PMP → UPnP, TURN for admins), NAT type, authenticated probes
+  (`"MDP"|1|sid|type|tx|[seen addr]|HMAC-16`, a role bit so a device never matches its own
+  probe on a same-subnet network), triggered peer-reflexive checks, port prediction and the
+  birthday method, choice by §5 class then RTT, and `Link` (ChaCha20-Poly1305 datagrams ≤
+  1200 bytes, key per direction, replay window, keepalive 15 s, follows the peer's new
+  address). An in-memory NAT simulator (`simnet_test.go`) tests the cases of §6.
+- Signaling is inner content type **8** (`ContentDirect`), from saved contacts only:
+
+  ```
+  signal = version(1)=1 | op(1) | sid(16) | body
+  op 0 OFFER   expires(4) | key(32) | offer      offer = nat(1) | step(2) | last addr | candidates
+  op 1 ANSWER  offer
+  op 2 CLOSE   reason(1)                         0 done, 1 no path, 2 refused
+  ```
+
+  The 32-byte session key is random and travels inside the end-to-end encrypted message
+  (instead of being derived from the Noise session); it keys the probes and the link. An
+  OFFER past `expires` (60 s) is ignored. When both sides start at once, the smaller
+  account hash's OFFER wins.
+- `core/node`: the chosen path is a router link named `direct` to that one contact; router
+  packets are split into ≤ 1172-byte datagrams (`id(4) | index(1) | count(1)`). A normal
+  file to download opens a link to its sender automatically (at most every 2 min per
+  contact); media frames over it are 1100 bytes with 3 s re-requests. Settings:
+  `[direct] off`, `no_port_mapping`, `reflectors`.

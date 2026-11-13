@@ -186,3 +186,29 @@ func (c *Client) GetMedia(ctx context.Context, id string, from int64, w io.Write
 	}
 	return total, err
 }
+
+// TurnCredentials asks the relay for TURN credentials; only the relay's
+// admins get them (403 otherwise, 404 when TURN is off).
+func (c *Client) TurnCredentials(ctx context.Context, as *identity.Identity) (wire.TurnCredentials, error) {
+	var tc wire.TurnCredentials
+	u := *c.base
+	u.Path += "/v1/turn/credentials"
+	req, err := http.NewRequestWithContext(ctx, "POST", u.String(), nil)
+	if err != nil {
+		return tc, err
+	}
+	day := wire.Day(time.Now())
+	signMedia(req, as, wire.DomainTurnCredentials, wire.QuotaSigBody(day), day)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return tc, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return tc, &StatusError{resp.StatusCode, resp.Status}
+	}
+	return tc, json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&tc)
+}
+
+// Host is the relay's host name or address (for its UDP services).
+func (c *Client) Host() string { return c.base.Hostname() }

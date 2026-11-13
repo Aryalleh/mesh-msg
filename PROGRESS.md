@@ -639,3 +639,17 @@ kept**; replace old apps and relays (old apps can't upload to new relays: unsign
   `reflector`, `turn`. Panel: TURN section with live sessions and month traffic.
 - Tests: server/turn reflector (NAT open on loopback), TURN: non-admin 403, admin
   allocation, relayed path + data, bytes counted, wrong password refused, off → 404.
+
+### 2026-11-13 — Step 3 (part 3): direct links in the node
+
+- Part 2 commit `acc0b80`.
+- `core/node/direct.go`: content type 8 signaling (OFFER/ANSWER/CLOSE, connectivity.md §8),
+  session per contact, router link `direct` with datagram fragmentation, TURN credentials
+  tried on up to 3 relays (only admins get them), reflectors = every relay host's 3478/3479.
+  Normal media download opens a direct link to the sender automatically; P2P frames 1100 B,
+  3 s window timeout on `direct`. `relayclient.TurnCredentials`, `wire.TurnCredentials`,
+  `e2e.ContentCall` (7, reserved for step 4) and `ContentDirect` (8).
+- Test `TestNormalMediaOverAutoDirectLink`: two apps sharing only a relay, a normal file
+  arrives over the auto-opened direct link. All Go and firmware tests pass.
+- Next: step 4 (calls): core/call (signaling type 7, caps, Noise KK, frames, jitter buffer),
+  mobile API, Android audio and call UI.

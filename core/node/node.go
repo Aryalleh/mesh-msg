@@ -72,6 +72,7 @@ type Config struct {
 	LoRa            LoRaConfig                       `toml:"lora" json:"lora"`
 	Discovery       DiscoveryConfig                  `toml:"discovery" json:"discovery"`
 	Media           MediaConfig                      `toml:"media" json:"media"`
+	Direct          DirectConfig                     `toml:"direct" json:"direct"`
 	Logf            func(format string, args ...any) `toml:"-" json:"-"`
 }
 
@@ -97,6 +98,7 @@ type Node struct {
 	relays  map[string]*relayLink
 	bridges []*bridge
 	lan     *lanLink
+	direct  *directLink
 	loras   map[string]*hostLinkLink
 	disc    *discovery // nil when relay discovery is off
 	mw      *mediaWorker
@@ -156,6 +158,10 @@ func Open(cfg Config) (*Node, error) {
 	n.loadGroups()
 	for _, k := range n.contactKeys() {
 		n.router.AddKnown(k)
+	}
+	if !cfg.Direct.Off {
+		n.direct = newDirectLink(n)
+		n.router.AddLink(n.direct)
 	}
 	if cfg.LAN.Enabled {
 		if n.lan, err = newLANLink(n, cfg.LAN); err != nil {
@@ -240,6 +246,13 @@ func (n *Node) onMessage(_ *identity.Identity, m *message.Received) {
 	if m.ContentType == e2e.ContentGroup {
 		// Private-group traffic: the sender is a member, not a new contact.
 		n.onPrivateGroup(m)
+		return
+	}
+	if m.ContentType == e2e.ContentDirect {
+		// Direct-link signaling: only from saved contacts (no first contact).
+		if !m.FirstContact && n.direct != nil {
+			n.direct.onSignal(m.From, m.Content)
+		}
 		return
 	}
 	if m.FirstContact {
@@ -499,6 +512,9 @@ func (n *Node) Run(ctx context.Context) error {
 
 // Close releases databases (after Run returns).
 func (n *Node) Close() error {
+	if n.direct != nil {
+		n.direct.close()
+	}
 	if n.lan != nil {
 		n.lan.ln.Close() // free a fixed port now, for a restart in this process
 	}

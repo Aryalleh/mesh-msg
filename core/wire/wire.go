@@ -195,3 +195,11 @@ type RelayList struct {
 type Accepted struct {
 	Accepted int `json:"accepted"`
 }
+
+// TurnCredentials: POST /v1/turn/credentials (relay admins only).
+type TurnCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Expires  int64  `json:"expires"` // unix seconds
+	Port     int    `json:"port"`    // UDP port of the TURN service
+}
