@@ -876,3 +876,8 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   commit `9768191`) and `ccr-d1290771-8bh9o1` (fully merged). CLAUDE.md: everything ends up
   on `main`; side branches are merged and deleted before a session finishes.
 
+- Owner: the main board must be **2 layers** (4 was my assumption, never asked for; 2 is much
+  cheaper). docs/handheld.md: Model S main board now 2 layers with 2-layer layout rules (bottom
+  ground pour, stitching vias, LCD SPI at 40 MHz first, USB full speed only); BOM ~50–65 USD.
+  Model P stays 6 layers (MIPI/USB HS pairs and the P4's 0.4 mm QFN can't be done on 2); the
+  2-layer path for Model P is a P4 + C6 core module on a carrier board.

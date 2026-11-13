@@ -193,9 +193,37 @@ that plugs into J6 (the GPS/LTE connector) and carries everything the modem need
 | Battery 2500 mAh | 5 |
 | *LTE board option: SIM7600G-H, SIM holder, load switch, shifter, 3 antennas* | *about 50* |
 | Passives, ESD, MOSFETs, motor | 4 |
-| 4-layer PCB + assembly (share of a batch) | 10–15 |
+| 2-layer PCB + assembly (share of a batch) | 6–10 |
 | Printed case | 5–10 |
-| **Total** | **about 55–70** |
+| **Total** | **about 50–65** |
+
+### Model S PCB: 2 layers
+
+The main board is **2 layers** (owner's decision: much cheaper to make than 4). That works for
+Model S because everything fast or RF is inside pre-certified modules (ESP32-S3-WROOM-1, the
+SX1262 module) and the rest is slow or short. Rules that make 2 layers work:
+
+- **Bottom layer is ground** almost everywhere: a solid pour, broken only by short jumps.
+  Route signals on top; when a trace must cross to the bottom, keep the jump short and put
+  ground vias next to it.
+- **Ground vias** stitch the top and bottom pours every 5–10 mm, densely around the modules,
+  the AXP2101, the codec and the board edges.
+- **ESP32-S3 module:** keep its antenna end over the board edge with no copper on either layer
+  under it (keep-out from the module datasheet). The module's ground pad gets a via array.
+- **LoRa module:** the u.FL pigtail goes straight to the SMA, so there is no RF trace on the
+  board. Its ground pads get vias to the bottom pour.
+- **LCD SPI:** start at 40 MHz (short traces, series 22–33 Ω at the source); 80 MHz only if it
+  measures clean.
+- **USB:** full speed (12 Mbit/s) only, so no impedance control is needed; keep D+/D− short
+  and together.
+- **AXP2101 (QFN):** thermal pad with a via array to the bottom ground; charge current set to
+  0.5–1 A depending on how warm it gets.
+- **Audio:** codec analog ground as its own pour area, joined to the main ground at one point;
+  class-D speaker traces short and away from the mic trace.
+- **Board:** 1.6 mm FR-4, 1 oz copper, HASL or ENIG, 0.2 mm traces / 0.3 mm vias — the
+  cheapest standard options at JLCPCB/PCBWay.
+- Expect slightly more noise and EMC margin to find than on 4 layers; rev A measures it.
+
 
 ## 3. Model P — ESP32-P4 + ESP32-C6, 5" touchscreen
 
@@ -353,6 +381,11 @@ With 4500 mAh: about 5–9 days standby with the modem off, 3–5 days with it r
 
 **PCB:** 6 layers (signal / ground / signal / power / ground / signal) for the P4's 0.4 mm
 pitch package and the MIPI and USB high-speed pairs; impedance control from the board house.
+**Model P cannot be made on 2 layers:** MIPI-DSI/CSI and USB high-speed need controlled
+90–100 Ω differential pairs over a continuous ground plane, and the P4's 0.4 mm-pitch QFN
+cannot fan out all its pins on two layers. The cheapest way to keep Model P's main board
+cheap is the core-module option below (a P4 + C6 module on a simpler carrier board, which
+can then be 2 layers, with the screen and camera FPCs right next to the module).
 This is the harder board of the two. If chip-level P4 layout is too much for the first
 prototype, a third-party P4 + C6 core module can be used on a simpler carrier board.
 
@@ -387,7 +420,7 @@ prototype, a third-party P4 + C6 core module can be used on a simpler carrier bo
 1. **Software before custom boards:** Model S firmware can start on a ready-made ESP32-S3 3.5"
    touch board plus a Heltec V3 for LoRa; Model P on Espressif's ESP32-P4 Function EV board
    (P4 + C6, MIPI screen) with an SX1262 breakout; the modem on LilyGO's T-SIM7600G-H board.
-2. **Model S rev A first** (4 layers, module-based, cheaper), then **Model P rev A** (6 layers).
+2. **Model S rev A first** (2 layers, module-based, cheapest), then **Model P rev A** (6 layers).
    Both with test points, 0 Ω links on every rail and a UART header. Bring up in order: power
    and charging, USB flashing, screen and touch, LoRa (reuse `firmware/` with a new
    `platformio.ini` env and the pin table), audio, Wi-Fi/BLE; on Model P also camera and USB host.
