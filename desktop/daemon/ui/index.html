@@ -44,6 +44,26 @@
   .av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .av.sm { width: 38px; height: 38px; font-size: 15px; }
   .av.lg { width: 88px; height: 88px; font-size: 32px; }
+  #photoView { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.92); display: flex; flex-direction: column; }
+  #photoView[hidden] { display: none; }
+  #photoView .bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; color: #fff; }
+  #photoView .bar button { background: none; border: 0; color: #fff; font-size: 22px; cursor: pointer; }
+  #photoView .stage { flex: 1; overflow: hidden; display: grid; place-items: center; cursor: zoom-in; }
+  #photoView img { max-width: min(92vw, 640px); max-height: 82vh; border-radius: 6px; transform-origin: center; transition: transform .15s; user-select: none; }
+  #photoView.zoomed .stage { cursor: grab; }
+  #chatHead .av.has-photo { cursor: zoom-in; }
+  .mergeStage { position: relative; height: 96px; margin: 8px 0; }
+  .mergeStage .av { position: absolute; top: 4px; transition: transform .65s cubic-bezier(.4,0,.2,1), opacity .65s; }
+  .mergeStage .from { left: 0; }
+  .mergeStage .to { right: 0; }
+  .mergeStage .dot { position: absolute; top: 44px; left: 88px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); opacity: 0; }
+  .mergeStage.run .dot { animation: mergeDot .9s linear infinite; }
+  .mergeStage.run .dot:nth-child(2) { animation-delay: .3s; } .mergeStage.run .dot:nth-child(3) { animation-delay: .6s; }
+  @keyframes mergeDot { 0% { transform: translateX(0); opacity: 0; } 40%, 60% { opacity: 1; } 100% { transform: translateX(var(--span, 120px)); opacity: 0; } }
+  .mergeStage.done .from { transform: translateX(var(--fly, 200px)) scale(.4); opacity: 0; }
+  .mergeStage.done .to { animation: mergePop .5s .45s; }
+  @keyframes mergePop { 50% { transform: scale(1.12); } }
+  @media (prefers-reduced-motion: reduce) { .mergeStage .av, .mergeStage .dot { transition: none; animation: none !important; } }
   #contacts li.chat { flex-direction: row; align-items: center; gap: 10px; }
   #contacts li.chat .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
   #contacts li.chat .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
@@ -351,6 +371,23 @@
   <div id="memAdd" class="actions"><select id="memPick"></select><button id="memAddOk">Add</button></div>
   <div class="err" id="memErr"></div>
   <div class="row"><button class="ghost" onclick="dlgMembers.close()">Close</button></div>
+</dialog>
+
+<div id="photoView" hidden role="dialog" aria-modal="true" aria-labelledby="pvTitle">
+  <div class="bar"><button type="button" id="pvClose" aria-label="Close">✕</button><strong id="pvTitle" dir="auto"></strong></div>
+  <div class="stage" id="pvStage"><img id="pvImg" alt="" draggable="false"></div>
+</div>
+
+<dialog id="dlgMerge">
+  <h3 id="mrgTitle">Merge into new account</h3>
+  <div id="mrgPickBox">
+    <p class="help">If this contact lost this account and now uses a new one, pick it: the whole chat moves there, in order, and the old account is removed from your contacts. This cannot be undone.</p>
+    <label class="field">New account<select id="mrgPick"></select></label>
+  </div>
+  <div class="mergeStage" id="mrgStage" hidden></div>
+  <p id="mrgMsg" class="help" style="text-align:center"></p>
+  <div class="err" id="mrgErr"></div>
+  <div class="row"><button class="ghost" id="mrgCancel" onclick="dlgMerge.close()">Cancel</button><button id="mrgOk">Merge</button></div>
 </dialog>
 
 <dialog id="dlgInvite">
@@ -771,8 +808,16 @@ async function openChat(c) {
   const hs = document.createElement("div"); hs.className = "hash";
   hs.textContent = c.kind === "contact" ? c.hash : ({private: "private group", regional: "regional public chat", global: "global public chat"})[c.kind] + " · " + c.hash.slice(0, 12);
   info.append(h2, hs);
-  head.append(avatarEl(c.hash, c.title, "sm", c.kind === "contact"), info);
+  const hav = avatarEl(c.hash, c.title, "sm", c.kind === "contact");
+  const himg = hav.querySelector("img");
+  if (himg) {
+    himg.addEventListener("load", () => { hav.classList.add("has-photo"); hav.title = "View profile picture"; });
+    hav.onclick = () => { if (hav.classList.contains("has-photo")) showPhoto(himg.src, c.title); };
+  }
+  head.append(hav, info);
   if (c.kind === "contact") api("/avatar/" + c.hash + "/request", {method: "POST"}).catch(() => {});
+  if (c.kind === "contact" && contacts.some((x) => x.hash !== c.hash))
+    head.append(el("button", {className: "ghost", textContent: "Merge…", title: "Move this chat into the contact's new account", on: {click: () => showMerge(c)}}));
   if (c.group) {
     if (c.kind === "private") hs.textContent = "private group · " + (c.group.removed ? "you were removed" : `${(c.group.members || []).length} members`);
     head.append(c.kind === "private"
@@ -816,6 +861,72 @@ async function memberCall(c, method, path, body) {
     c.group = g; showMembers(c); loadContacts();
     $("chatHead").querySelector(".hash").textContent = `private group · ${g.members.length} members`;
   } catch (e) { $("memErr").textContent = e.message; }
+}
+
+// Full-size profile picture: wheel or double-click to zoom (1–4×), drag to pan, Esc to close.
+const pv = {s: 1, x: 0, y: 0, drag: null};
+function pvApply() {
+  $("pvImg").style.transform = `translate(${pv.x}px, ${pv.y}px) scale(${pv.s})`;
+  $("photoView").classList.toggle("zoomed", pv.s > 1);
+}
+function showPhoto(src, title) {
+  Object.assign(pv, {s: 1, x: 0, y: 0, drag: null}); pvApply();
+  $("pvImg").src = src; $("pvImg").alt = title; $("pvTitle").textContent = title;
+  $("photoView").hidden = false; $("pvClose").focus();
+}
+function closePhoto() { $("photoView").hidden = true; }
+$("pvClose").onclick = closePhoto;
+$("pvStage").addEventListener("click", (e) => { if (e.target === $("pvStage") && pv.s === 1) closePhoto(); });
+$("pvStage").addEventListener("dblclick", () => { pv.s = pv.s > 1 ? 1 : 2.5; pv.x = pv.y = 0; pvApply(); });
+$("pvStage").addEventListener("wheel", (e) => {
+  e.preventDefault();
+  pv.s = Math.min(4, Math.max(1, pv.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+  if (pv.s === 1) pv.x = pv.y = 0;
+  pvApply();
+}, {passive: false});
+$("pvImg").addEventListener("pointerdown", (e) => { if (pv.s > 1) { pv.drag = [e.clientX - pv.x, e.clientY - pv.y]; $("pvImg").setPointerCapture(e.pointerId); } });
+$("pvImg").addEventListener("pointermove", (e) => { if (pv.drag) { pv.x = e.clientX - pv.drag[0]; pv.y = e.clientY - pv.drag[1]; $("pvImg").style.transition = "none"; pvApply(); } });
+$("pvImg").addEventListener("pointerup", () => { pv.drag = null; $("pvImg").style.transition = ""; });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("photoView").hidden) closePhoto(); });
+
+function showMerge(c) {
+  $("mrgTitle").textContent = "Merge " + c.title + " into…";
+  $("mrgPickBox").hidden = false; $("mrgStage").hidden = true;
+  $("mrgMsg").textContent = ""; $("mrgErr").textContent = "";
+  $("mrgOk").hidden = false; $("mrgOk").disabled = false; $("mrgOk").textContent = "Merge";
+  $("mrgCancel").hidden = false;
+  $("mrgPick").replaceChildren(...contacts.filter((x) => x.hash !== c.hash).map((x) => el("option", {value: x.hash, textContent: label(x)})));
+  $("mrgOk").onclick = () => doMerge(c);
+  $("dlgMerge").showModal();
+}
+async function doMerge(c) {
+  const into = contacts.find((x) => x.hash === $("mrgPick").value);
+  if (!into) return;
+  const stage = $("mrgStage");
+  stage.className = "mergeStage run"; stage.hidden = false; $("mrgPickBox").hidden = true;
+  stage.replaceChildren(avatarEl(c.hash, c.title, "lg"), el("i", {className: "dot"}), el("i", {className: "dot"}), el("i", {className: "dot"}), avatarEl(into.hash, label(into), "lg"));
+  stage.children[0].classList.add("from"); stage.children[4].classList.add("to");
+  const span = Math.max(40, stage.clientWidth - 2 * 88 - 16);
+  stage.style.setProperty("--span", span + "px"); stage.style.setProperty("--fly", (stage.clientWidth - 88) + "px");
+  $("mrgMsg").textContent = "Moving messages…"; $("mrgOk").disabled = true; $("mrgCancel").hidden = true;
+  try {
+    const [r] = await Promise.all([
+      api("/contacts/" + c.hash + "/merge", {method: "POST", body: JSON.stringify({into: into.hash})}),
+      new Promise((ok) => setTimeout(ok, 900)),
+    ]);
+    stage.className = "mergeStage done";
+    $("mrgMsg").textContent = `${r.moved} messages are now in the chat with ${label(into)}.`;
+    $("mrgOk").disabled = false; $("mrgOk").textContent = "Open chat";
+    $("mrgOk").onclick = async () => {
+      $("dlgMerge").close();
+      await loadContacts();
+      const ch = chats.find((x) => x.hash === into.hash);
+      if (ch) openChat(ch);
+    };
+  } catch (e) {
+    stage.hidden = true; $("mrgPickBox").hidden = false; $("mrgMsg").textContent = "";
+    $("mrgErr").textContent = e.message; $("mrgOk").disabled = false; $("mrgCancel").hidden = false;
+  }
 }
 
 function showInvite(g) {

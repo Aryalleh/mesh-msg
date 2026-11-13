@@ -312,4 +312,16 @@
     <string name="storage_confirm_body">%1$s روی این گوشی آزاد می‌شود. این کار برگشت‌پذیر نیست.</string>
     <string name="storage_freed">%1$s آزاد شد</string>
     <string name="media_deleted">حذف‌شده</string>
+    <string name="next">بعدی</string>
+    <string name="merge_menu">ادغام در حساب جدید…</string>
+    <string name="merge_pick_title">ادغام %1$s در…</string>
+    <string name="merge_pick_body">اگر این مخاطب این حساب را از دست داده و حالا حساب دیگری دارد، آن را انتخاب کنید: کل گفتگو به آن‌جا منتقل می‌شود.</string>
+    <string name="merge_confirm_title">گفتگوها ادغام شوند؟</string>
+    <string name="merge_confirm_body">همه‌ی پیام‌های %1$s به ترتیب به %2$s منتقل می‌شوند و %1$s از مخاطبان حذف می‌شود. این کار برگشت‌پذیر نیست.</string>
+    <string name="merge_do">ادغام</string>
+    <string name="merge_running">در حال انتقال پیام‌ها…</string>
+    <string name="merge_done_title">ادغام شد</string>
+    <string name="merge_done_body">%1$d پیام اکنون در گفتگو با %2$s است.</string>
+    <string name="merge_open">باز کردن گفتگو</string>
+    <string name="photo_view">دیدن عکس پروفایل</string>
 </resources>

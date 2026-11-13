@@ -157,6 +157,7 @@ class CoreBackend(dataDir: String, configJson: String, binder: NetworkBinder? = 
 
     override fun renameContact(hash: String, name: String): Result<Unit> = call { core.renameContact(hash, name.trim()) }
     override fun removeContact(hash: String): Result<Unit> = call { core.removeContact(hash) }
+    override fun mergeContact(old: String, into: String): Result<Int> = call { core.mergeContact(old, into).toInt() }
     override fun configureLoRa(node: String, patchJson: String): Result<Unit> = call { core.loRaConfigure(node, patchJson) }
     override fun createGroup(name: String, members: List<String>): Result<Contact> =
         call { Json.group(JSONObject(core.createGroup(name.trim(), org.json.JSONArray(members).toString()))) }

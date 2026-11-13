@@ -1176,3 +1176,28 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (all / older than a week / month / 3 months / date range picker), type chips, chats with
   size bars and select all/none, red "Delete N files · size" with confirmation; snackbar
   "Freed …". Media state `Deleted` shown as "deleted".
+
+### 2026-11-13 — beta6 step 3: merge an old account's chat into a new one
+
+- Core `core/node/merge.go`: `MergeContact(old, new)` moves every 1:1 message of the old
+  account to the new one (one transaction), keeps the later read mark, moves folder entries,
+  removes the old contact; private groups keep the old member until an owner changes it.
+  Fixed a deadlock in the first draft (read marks were read inside the transaction while
+  the app DB has one connection). Test `TestMergeContact`.
+- Daemon `POST /contacts/{ref}/merge {"into": ref}` → `{"moved": n}`; mobile `MergeContact`.
+- Android: chat menu "Merge into new account…" → pick contact → confirm → animation (dots
+  stream from the old avatar to the new, the old one flies in, check badge) → "Open chat".
+  Desktop: "Merge…" button in a contact's chat header, same flow with a CSS animation
+  (respects reduced motion). Strings in English and Persian.
+
+### 2026-11-13 — beta6 step 4: full-size zoomable profile picture
+
+- Android: tapping a contact's photo in the chat header opens `PhotoViewer` (full screen,
+  pinch 1–4×, pan, double-tap 2.5×, tap or ✕ to close). Pictures are now stored at up to
+  640 px (was 384; still ≤ 60 KB JPEG, same 64 KB core limit), so the full view is sharp.
+- Desktop: clicking the header photo opens a lightbox (wheel / double-click zoom, drag to
+  pan, Esc closes).
+- Full Go suite: `TestPhotoThroughRelay` timed out once while Gradle loaded the machine;
+  4/4 passes alone (unrelated to these changes). Firmware tests pass.
+- Next: calls (WhatsApp-style notification with Answer/Decline, ongoing-call bar,
+  Bluetooth headset, full-screen call permission), then beta6 release notes and tag.

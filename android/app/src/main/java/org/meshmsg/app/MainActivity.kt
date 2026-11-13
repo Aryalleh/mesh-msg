@@ -332,6 +332,8 @@ class MainActivity : ComponentActivity() {
                             onBack = { nav.popBackStack() },
                             onRename = { vm.rename(hash, it) },
                             onRemove = { vm.remove(hash); nav.popBackStack() },
+                            onMerge = { into -> vm.merge(hash, into) },
+                            onMerged = { into -> nav.navigate(Routes.chat(into)) { popUpTo(Routes.CHATS) } },
                             onInvite = {
                                 startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, org.meshmsg.app.data.ContactLink.toWeb(contact.uri)), null))
                             },

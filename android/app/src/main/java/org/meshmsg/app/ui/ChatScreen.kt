@@ -111,12 +111,16 @@ fun ChatScreen(
     media: MediaActions = MediaActions(),
     onCall: (() -> Unit)? = null,
     onVideoCall: (() -> Unit)? = null,
+    onMerge: (suspend (String) -> Int?)? = null,
+    onMerged: (String) -> Unit = {},
 ) {
     var draft by rememberSaveable(contact.hash) { mutableStateOf(initialDraft) }
     var menu by remember { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
     var removing by rememberSaveable { mutableStateOf(false) }
     var leaving by rememberSaveable { mutableStateOf(false) }
+    var merging by rememberSaveable { mutableStateOf(false) }
+    var viewingPhoto by rememberSaveable { mutableStateOf(false) }
     var showMembers by rememberSaveable { mutableStateOf(false) }
     val group = contact.group
     val list = rememberLazyListState()
@@ -131,7 +135,12 @@ fun ChatScreen(
                 },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-                        Avatar(contact, size = 36.dp)
+                        val photo = org.meshmsg.app.data.LocalAvatars.current[contact.hash]
+                        Avatar(
+                            contact, size = 36.dp,
+                            modifier = if (photo != null) Modifier.clickable(onClickLabel = stringResource(R.string.photo_view)) { viewingPhoto = true } else Modifier,
+                        )
+                        if (viewingPhoto && photo != null) PhotoViewer(photo.path, contact.displayName) { viewingPhoto = false }
                         Column {
                             Text(contact.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (group != null) {
@@ -170,6 +179,9 @@ fun ChatScreen(
                             )
                         } else {
                             DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, onClick = { menu = false; renaming = true })
+                            if (onMerge != null && contacts.any { it.hash != contact.hash }) {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.merge_menu)) }, onClick = { menu = false; merging = true })
+                            }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.remove_contact), color = MaterialTheme.colorScheme.error) },
                                 onClick = { menu = false; removing = true },
@@ -287,6 +299,15 @@ fun ChatScreen(
                 ) { Text(stringResource(R.string.group_leave)) }
             },
             dismissButton = { TextButton(onClick = { leaving = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (merging && onMerge != null) {
+        MergeDialog(
+            from = contact,
+            candidates = contacts.filter { it.hash != contact.hash && !it.isGroup },
+            merge = onMerge,
+            onDismiss = { merging = false },
+            onDone = { merging = false; onMerged(it) },
         )
     }
     if (removing) {

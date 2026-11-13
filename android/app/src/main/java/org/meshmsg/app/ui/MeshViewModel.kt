@@ -178,6 +178,11 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     fun error(msg: String) { _errors.trySend(msg) }
     fun rename(hash: String, name: String) = io { it.renameContact(hash, name) }
     fun remove(hash: String) = io { it.removeContact(hash) }
+
+    /** Merges [old]'s chat into [into]'s; returns the messages moved, or null on failure. */
+    suspend fun merge(old: String, into: String): Int? = withContext(Dispatchers.IO) {
+        backend.value?.mergeContact(old, into)?.onFailure { error(it.message ?: "") }?.getOrNull()
+    }
     fun leaveGroup(hash: String) = io { it.leaveGroup(hash) }
     fun addMembers(group: String, members: List<String>) = io { it.addMembers(group, members) }
     fun removeMember(group: String, member: String) = io { it.removeMember(group, member) }

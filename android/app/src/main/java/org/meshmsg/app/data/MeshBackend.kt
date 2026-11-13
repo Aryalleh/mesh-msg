@@ -53,6 +53,9 @@ interface MeshBackend {
     /** Deletes these files from this device; returns the bytes freed. */
     fun deleteFiles(ids: Collection<String>): Result<Long> = Result.failure(UnsupportedOperationException())
 
+    /** Moves the chat with [old] (an account the contact lost) into the chat with [into]; returns messages moved. */
+    fun mergeContact(old: String, into: String): Result<Int> = Result.failure(UnsupportedOperationException())
+
     /** Whether read receipts are sent (over relays only). */
     var readReceipts: Boolean
         get() = true

@@ -320,4 +320,16 @@
     <string name="storage_confirm_body">%1$s will be freed on this phone. This can\'t be undone.</string>
     <string name="storage_freed">Freed %1$s</string>
     <string name="media_deleted">deleted</string>
+    <string name="next">Next</string>
+    <string name="merge_menu">Merge into new account…</string>
+    <string name="merge_pick_title">Merge %1$s into…</string>
+    <string name="merge_pick_body">If this contact lost this account and now uses a new one, pick it: the whole chat moves there.</string>
+    <string name="merge_confirm_title">Merge chats?</string>
+    <string name="merge_confirm_body">All messages with %1$s move to %2$s, in order, and %1$s is removed from your contacts. This cannot be undone.</string>
+    <string name="merge_do">Merge</string>
+    <string name="merge_running">Moving messages…</string>
+    <string name="merge_done_title">Merged</string>
+    <string name="merge_done_body">%1$d messages are now in the chat with %2$s.</string>
+    <string name="merge_open">Open chat</string>
+    <string name="photo_view">View profile picture</string>
 </resources>

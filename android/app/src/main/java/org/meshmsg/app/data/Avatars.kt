@@ -46,12 +46,12 @@ object AvatarImage {
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         require(bounds.outWidth > 0) { "not an image" }
         var sample = 1
-        while (minOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 384) sample *= 2
+        while (minOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 640) sample *= 2
         val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
             ?: error("not an image")
         val side = minOf(src.width, src.height)
         val square = Bitmap.createBitmap(src, (src.width - side) / 2, (src.height - side) / 2, side, side)
-        for (px in intArrayOf(384, 256, 192, 128)) {
+        for (px in intArrayOf(640, 512, 384, 256, 192, 128)) {
             val scaled = Bitmap.createScaledBitmap(square, minOf(px, side), minOf(px, side), true)
             for (q in intArrayOf(85, 70, 55)) {
                 val out = ByteArrayOutputStream()

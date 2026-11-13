@@ -456,6 +456,13 @@ func (c *Core) RequestAvatar(hash string) { c.n.RequestAvatar(hash) }
 // ForgetRelay stops using a discovered relay and never picks it up again.
 func (c *Core) ForgetRelay(ref string) error { return c.n.ForgetRelay(ref) }
 
+// MergeContact moves the chat with oldRef (an account the contact lost)
+// into the chat with newRef and removes oldRef; it returns how many
+// messages moved.
+func (c *Core) MergeContact(oldRef, newRef string) (int, error) {
+	return c.n.MergeContact(oldRef, newRef)
+}
+
 // ReadReceipts reports whether read receipts are sent (relays only).
 func (c *Core) ReadReceipts() bool { return c.n.ReadReceipts() }
 

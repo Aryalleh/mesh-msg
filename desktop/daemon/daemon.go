@@ -378,6 +378,22 @@ func (d *Daemon) apiHandler() http.Handler {
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
+	// Merge an old account's chat into a contact's new account: {"into": ref}.
+	mux.HandleFunc("POST /contacts/{ref}/merge", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Into string `json:"into"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		k, err := n.MergeContact(r.PathValue("ref"), req.Into)
+		if err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		writeJSON(w, map[string]int{"moved": k})
+	}))
 	mux.HandleFunc("DELETE /contacts/{ref}", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		if err := n.RemoveContact(r.PathValue("ref")); err != nil {
 			httpErr(w, err, 400)
