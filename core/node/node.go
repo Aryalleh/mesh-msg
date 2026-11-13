@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/announce"
+	"github.com/Aryalleh/mesh-msg/core/call"
 	"github.com/Aryalleh/mesh-msg/core/e2e"
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/message"
@@ -64,23 +65,26 @@ type Config struct {
 	Name     string `toml:"name" json:"name"` // optional display name in announces
 	Delegate bool   `toml:"delegate" json:"delegate"`
 	// AnnounceMinutes: how often to announce (default 30).
-	AnnounceMinutes int                              `toml:"announce_minutes" json:"announce_minutes"`
-	Relays          []RelayConfig                    `toml:"relay" json:"relays"`
-	Gateway         GatewayConfig                    `toml:"gateway" json:"gateway"`
-	Bridges         []BridgeConfig                   `toml:"bridge" json:"bridges"`
-	LAN             LANConfig                        `toml:"lan" json:"lan"`
-	LoRa            LoRaConfig                       `toml:"lora" json:"lora"`
-	Discovery       DiscoveryConfig                  `toml:"discovery" json:"discovery"`
-	Media           MediaConfig                      `toml:"media" json:"media"`
-	Direct          DirectConfig                     `toml:"direct" json:"direct"`
+	AnnounceMinutes int             `toml:"announce_minutes" json:"announce_minutes"`
+	Relays          []RelayConfig   `toml:"relay" json:"relays"`
+	Gateway         GatewayConfig   `toml:"gateway" json:"gateway"`
+	Bridges         []BridgeConfig  `toml:"bridge" json:"bridges"`
+	LAN             LANConfig       `toml:"lan" json:"lan"`
+	LoRa            LoRaConfig      `toml:"lora" json:"lora"`
+	Discovery       DiscoveryConfig `toml:"discovery" json:"discovery"`
+	Media           MediaConfig     `toml:"media" json:"media"`
+	Direct          DirectConfig    `toml:"direct" json:"direct"`
+	// CallsFromAnyone: ring for calls from people who aren't contacts.
+	CallsFromAnyone bool                             `toml:"calls_from_anyone" json:"calls_from_anyone"`
 	Logf            func(format string, args ...any) `toml:"-" json:"-"`
 }
 
 // Event is pushed to subscribers.
 type Event struct {
-	Type    string   `json:"type"` // message | delivered | link | contact
-	Message *Message `json:"message,omitempty"`
-	Info    string   `json:"info,omitempty"`
+	Type    string     `json:"type"` // message | delivered | link | contact | call
+	Message *Message   `json:"message,omitempty"`
+	Call    *call.Info `json:"call,omitempty"`
+	Info    string     `json:"info,omitempty"`
 }
 
 // Node is a running client.
@@ -99,6 +103,7 @@ type Node struct {
 	bridges []*bridge
 	lan     *lanLink
 	direct  *directLink
+	calls   *call.Manager
 	loras   map[string]*hostLinkLink
 	disc    *discovery // nil when relay discovery is off
 	mw      *mediaWorker
@@ -163,6 +168,7 @@ func Open(cfg Config) (*Node, error) {
 		n.direct = newDirectLink(n)
 		n.router.AddLink(n.direct)
 	}
+	n.calls = n.newCalls()
 	if cfg.LAN.Enabled {
 		if n.lan, err = newLANLink(n, cfg.LAN); err != nil {
 			n.Close()
@@ -246,6 +252,10 @@ func (n *Node) onMessage(_ *identity.Identity, m *message.Received) {
 	if m.ContentType == e2e.ContentGroup {
 		// Private-group traffic: the sender is a member, not a new contact.
 		n.onPrivateGroup(m)
+		return
+	}
+	if m.ContentType == e2e.ContentCall {
+		n.calls.OnSignal(m.From, m.Content)
 		return
 	}
 	if m.ContentType == e2e.ContentDirect {
@@ -512,6 +522,7 @@ func (n *Node) Run(ctx context.Context) error {
 
 // Close releases databases (after Run returns).
 func (n *Node) Close() error {
+	n.calls.Close()
 	if n.direct != nil {
 		n.direct.close()
 	}

@@ -653,3 +653,22 @@ kept**; replace old apps and relays (old apps can't upload to new relays: unsign
   arrives over the auto-opened direct link. All Go and firmware tests pass.
 - Next: step 4 (calls): core/call (signaling type 7, caps, Noise KK, frames, jitter buffer),
   mobile API, Android audio and call UI.
+
+### 2026-11-13 — Step 4 (part 1): core/call and node call API
+
+- Step 3 part 3 commit `37c6da7`.
+- `core/call`: signaling (content type 7: OFFER/ANSWER/CANDIDATES/REJECT/END/CANCEL/UPDATE/
+  CONTROL, caps, unknown ops/trailing bytes ignored; OFFER carries the path-check key and
+  core/direct's offer), Manager/Call state machine (outgoing → ringing → connecting →
+  active → ended; 45 s ring, late OFFER = missed call, busy → REJECT busy, contacts only
+  unless `calls_from_anyone`), path via core/direct (10 s + symmetric methods), Noise KK on the
+  path (fresh ephemerals, prologue = call id), frames sealed with nonce = stream<<32|seq,
+  6-digit voice-compare code, keepalive frames 2 s, ends after 20 s of silence, adaptive
+  jitter buffer 40–200 ms (loss → PLC, underrun → rebuffer, catch-up skip). Codecs: Opus 1,
+  AMR-WB 2 (callee picks the caller's first common codec).
+- `core/node/calls.go`: StartCall / AnswerCall / EndCall / MuteCall / CallAudio /
+  PullCallAudio / CurrentCall, `call` events. Tests: core/call (ring/answer/talk/hangup with
+  codec fallback, declined/cancelled→missed/busy, late offer, encoding, jitter), node
+  `TestCallThroughRelaySignaling`.
+- Next: mobile API + Android audio (AudioRecord/AudioTrack, MediaCodec Opus or AMR-WB),
+  call screen, foreground service; docs.
