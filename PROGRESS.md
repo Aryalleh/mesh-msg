@@ -29,9 +29,9 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 Plan of record: docs/roadmap.md "Code changes required by the 2026-11-12 design decisions".
 **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
 STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Release
-**v0.1.0-alpha10** is published (tag on `c4fd51f`; APKs, desktop and relay tarballs on GitHub). Still open: update relay eu-1 to this build and open UDP 3478, 3479 and
-61000–61999 on it (`install.sh` in update mode does both) — until then direct links and
-calls have no reflector on the real network; test calls on two real phones; calls.md "Not
+**v0.1.0-alpha10** is published (tag on `c4fd51f`; APKs, desktop and relay tarballs on GitHub). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
+no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
+then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
 compatibility with old alpha builds is kept**; replace old apps and relays.
 
@@ -711,3 +711,12 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   the owner's go-ahead. Provider-side firewall for UDP 3478/3479/61000–61999 unknown.
 - Uncommitted local edit (not in the release): `core/direct/addrs_android.go` replaces anet
   with a raw netlink RTM_GETADDR dump; would let `-checklinkname=0` go.
+- eu-1 updated to `0.1.0-alpha10` (same pubkey `8f45fed2b1fb5094`, config kept, `/admin` 200).
+  STUN on 3478/3479 answers on the server (127.0.0.1) but not from outside, although iptables
+  INPUT accepts and ufw is off → provider cloud firewall; the owner opens UDP 3478, 3479,
+  61000–61999 in the provider panel.
+- `server/deploy/install.sh`: over `ssh host 'sh install.sh'` the update died at the admin
+  question (`cannot create /dev/tty`): `[ -r /dev/tty ]` is true without a controlling
+  terminal. Now it tests by opening `/dev/tty`. Workaround for older tarballs: `MAVA_YES=1`.
+- `go test ./mobile` failed once in a full `go test ./...` run, passed 5× alone: flaky under
+  load, not investigated yet.

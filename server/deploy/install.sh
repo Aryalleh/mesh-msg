@@ -37,7 +37,8 @@ ask() { # ask VAR "question" default
 		[ -n "$cur" ] || eval "$1=\$3"
 		return
 	fi
-	if [ -r /dev/tty ]; then
+	# -r is true even without a controlling terminal (ssh without -t); opening it is the test.
+	if (: </dev/tty) 2>/dev/null; then
 		printf '%s [%s]: ' "$2" "$3" > /dev/tty
 		read -r ans < /dev/tty || ans=""
 	else
