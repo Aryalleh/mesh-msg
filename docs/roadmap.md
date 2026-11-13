@@ -12,7 +12,7 @@
 | **M7 Field test** | 10 km LoRa test + simulated domestic-only network test | measured delivery report |
 | **M8 Windows / macOS** | desktop builds + installers | |
 | **M9 Direct links + calls** | direct IP link across any NAT ([connectivity.md](connectivity.md)), then 1:1 voice calls on Android ([calls.md](calls.md), stream-based so video can be added later) | call between two phones behind different NATs and on one hotspot; relay counters show zero audio bytes |
-| **M10 T-Deck Plus handheld** | board support (T0, done), then device UI, remote identity import, stand-alone messaging, calls over Wi-Fi ([tdeck.md](tdeck.md)) | a T-Deck with no phone exchanges messages with a phone over LoRa and a relay, and makes a call over Wi-Fi |
+| **M11 T-Deck Plus handheld** | board support (T0, done), then device UI, remote identity import, stand-alone messaging, calls over Wi-Fi ([tdeck.md](tdeck.md)) | a T-Deck with no phone exchanges messages with a phone over LoRa and a relay, and makes a call over Wi-Fi |
 | **M10 iPhone app** | Go core as an iOS framework (`gomobile bind -target=ios`, built on a macOS CI runner); native SwiftUI app: chat over relays, Bluetooth mesh (Core Bluetooth, foreground first), push from relays through APNs for messages and calls (PushKit + CallKit), LoRa through a node's Bluetooth host link (firmware.md §6; iPhones can't use USB LoRa nodes), TestFlight distribution | iPhone ↔ Android message over Bluetooth and over a relay; iPhone ↔ Android call; incoming message and call arrive while the app is in the background |
 
 iOS limits that shape M10: no always-running background service, so an iPhone is an endpoint,

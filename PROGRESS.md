@@ -1246,6 +1246,6 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Plan: `docs/tdeck.md` (steps T1 device UI + BLE host link, T2 identity sent from a
   phone/PC sealed to a one-time device key confirmed by a 6-digit code, T3 stand-alone
   messaging = C++ client kept identical to the Go core by vectors, T4 calls over Wi-Fi with
-  Opus, push-to-talk first). roadmap M10, decisions D20, firmware docs, threat-model note.
+  Opus, push-to-talk first). roadmap M11, decisions D21, firmware docs, threat-model note.
   Open question for the owner: own identity on the T-Deck, or move the account to it (one
   account can't run on two devices yet).
