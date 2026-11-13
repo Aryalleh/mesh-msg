@@ -1,7 +1,6 @@
 # Voice calls
 
 Status: voice calls implemented on Android (alpha); video added in beta (§7a).
-[connectivity.md](connectivity.md), which is not implemented yet either.
 
 ## 1. Rules
 
