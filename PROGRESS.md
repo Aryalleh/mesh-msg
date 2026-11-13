@@ -821,3 +821,12 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   refused); pushed `v0.1.0-alpha13` on `91f2061` from the owner's machine, release published.
   Contains `dfcea2c` (meshd single instance) and `91f2061` (Android 11+ local addresses).
   Owner's desktop updated to alpha13. Next: phone test on one Wi-Fi (voice message, call).
+
+### 2026-11-13 (handheld hardware)
+- `docs/handheld.md`: hardware design for a standalone handheld (ESP32-S3-WROOM-1-N16R8,
+  SX1262 module, 2.8" 320×240 ST7789 + capacitive touch, TCA8418 50-key Persian QWERTY
+  matrix with diodes, ES8388 codec with mic / earpiece / NS4150B speaker / TRRS headset and
+  a hardware AEC reference, AXP2101 PMU, PCF85063A RTC on the battery, microSD, GPS or LTE
+  option). Full GPIO map, audio path, power estimates, antennas, BOM (~60–80 USD), bring-up
+  plan. Hardware only; no firmware for it yet. Also noted: iOS is feasible (Go core
+  cross-compiles for `GOOS=ios`), see chat; not started.
