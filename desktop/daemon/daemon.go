@@ -252,6 +252,44 @@ func (d *Daemon) apiHandler() http.Handler {
 		}
 		w.WriteHeader(204)
 	}))
+	// Storage: files on this device per chat; delete by chat/kind/time/ids.
+	mux.HandleFunc("GET /storage", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		u, err := n.Storage()
+		if err != nil {
+			httpErr(w, err, 500)
+			return
+		}
+		writeJSON(w, u)
+	}))
+	mux.HandleFunc("POST /storage/files", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		var f node.StorageFilter
+		if err := json.NewDecoder(r.Body).Decode(&f); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		fs, err := n.StoredFiles(f)
+		if err != nil {
+			httpErr(w, err, 500)
+			return
+		}
+		if fs == nil {
+			fs = []node.StoredFile{}
+		}
+		writeJSON(w, fs)
+	}))
+	mux.HandleFunc("POST /storage/delete", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		var f node.StorageFilter
+		if err := json.NewDecoder(r.Body).Decode(&f); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		k, b, err := n.DeleteFiles(f)
+		if err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		writeJSON(w, map[string]int64{"files": int64(k), "bytes": b})
+	}))
 	// Read receipts (relays only): {"on": bool}.
 	mux.HandleFunc("GET /read-receipts", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]bool{"on": n.ReadReceipts()})

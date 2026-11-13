@@ -47,6 +47,12 @@ interface MeshBackend {
     /** Sets (bytes: a JPEG) or removes (null) this account's picture. */
     fun setAvatar(jpeg: ByteArray?): Result<Unit> = Result.failure(UnsupportedOperationException())
 
+    /** Files kept on this device, newest first. */
+    fun storedFiles(): Result<List<StoredFile>> = Result.success(emptyList())
+
+    /** Deletes these files from this device; returns the bytes freed. */
+    fun deleteFiles(ids: Collection<String>): Result<Long> = Result.failure(UnsupportedOperationException())
+
     /** Whether read receipts are sent (over relays only). */
     var readReceipts: Boolean
         get() = true

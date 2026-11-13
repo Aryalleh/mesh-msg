@@ -37,6 +37,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -281,7 +282,27 @@ class MainActivity : ComponentActivity() {
                 composable(Routes.SETTINGS) {
                     val state by vm.settingsState.collectAsStateWithLifecycle()
                     LaunchedEffect(Unit) { vm.refreshSettings() }
-                    SettingsScreen(state, vm)
+                    SettingsScreen(state, object : org.meshmsg.app.ui.SettingsActions by vm {
+                        override fun openStorage() { nav.navigate(Routes.STORAGE) }
+                    })
+                }
+                composable(Routes.STORAGE) {
+                    val chats by vm.chats.collectAsStateWithLifecycle()
+                    var files by remember { mutableStateOf<List<org.meshmsg.app.data.StoredFile>?>(null) }
+                    val scope = rememberCoroutineScope()
+                    val freed = LocalContext.current
+                    LaunchedEffect(Unit) { files = vm.storedFiles() }
+                    org.meshmsg.app.ui.StorageScreen(
+                        files, chats.map { it.contact },
+                        onDelete = { ids ->
+                            scope.launch {
+                                val b = vm.deleteFiles(ids)
+                                files = vm.storedFiles()
+                                if (b != null) snackbar.showSnackbar(freed.getString(R.string.storage_freed, org.meshmsg.app.ui.humanSize(b)))
+                            }
+                        },
+                        onBack = { nav.popBackStack() },
+                    )
                 }
                 composable(Routes.CHAT) { e ->
                     val hash = e.arguments?.getString("hash").orEmpty()
@@ -405,6 +426,7 @@ class MainActivity : ComponentActivity() {
         const val SETTINGS = "settings"
         const val CHAT = "chat/{hash}"
         const val ADD = "add"
+        const val STORAGE = "storage"
         val TOP = setOf(CHATS, NETWORK, SETTINGS)
         fun chat(hash: String) = "chat/$hash"
     }

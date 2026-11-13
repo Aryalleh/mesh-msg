@@ -66,6 +66,15 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
         readReceipts = app.backend.value?.readReceipts ?: true,
     )
 
+    suspend fun storedFiles(): List<org.meshmsg.app.data.StoredFile> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { backend.value?.storedFiles()?.getOrNull().orEmpty() }
+
+    /** Deletes files from this phone; the bytes freed (null: failed, shown as an error). */
+    suspend fun deleteFiles(ids: Collection<String>): Long? =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            backend.value?.deleteFiles(ids)?.onFailure { error(it.message ?: "") }?.getOrNull()
+        }
+
     override fun setReadReceipts(on: Boolean) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             app.backend.value?.readReceipts = on

@@ -157,6 +157,7 @@ private fun FileRow(m: Media, fg: Color, path: String?, actions: MediaActions) {
                 Text(
                     "${mediaLabel(m)} · ${humanSize(m.size)}" + when (m.state) {
                         MediaState.Missing -> " · " + stringResource(R.string.media_missing)
+                        MediaState.Deleted -> " · " + stringResource(R.string.media_deleted)
                         else -> ""
                     },
                     color = fg.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall,

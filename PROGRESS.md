@@ -1162,3 +1162,17 @@ links. Chose: quick items in beta3; calls follow in later betas.
   on Android (`Delivery.Read`, `ExtraColors.read`) and desktop (`--read`).
 - Tests: `TestReadReceiptThroughRelay`, `TestReadReceiptsOff`, `TestReadReceiptNotOverLAN`.
 - Next: file manager, account merge, profile picture viewer, calls.
+
+### 2026-11-13 — beta6 step 2: file manager (storage)
+
+- Core `core/node/storage.go`: `StoredFiles(filter)`, `Storage()` (total + per chat + per
+  kind, biggest first), `DeleteFiles(filter)` — filter = chats, kinds, from/to, ids, any mix;
+  an empty filter is refused. Deleting removes the blob (and `.part`), sets media state
+  `deleted` (not fetched or served again; `FetchMedia` refuses), the message stays.
+  Test `TestStorageListAndDelete`.
+- Daemon `GET /storage`, `POST /storage/files`, `POST /storage/delete`; desktop Settings
+  "Storage" card (chats ✓, types ✓, from/to dates, live "Delete N files · size").
+- Mobile `StoredFiles`, `DeleteFiles`; Android Settings → Storage screen: total, time chips
+  (all / older than a week / month / 3 months / date range picker), type chips, chats with
+  size bars and select all/none, red "Delete N files · size" with confirmation; snackbar
+  "Freed …". Media state `Deleted` shown as "deleted".

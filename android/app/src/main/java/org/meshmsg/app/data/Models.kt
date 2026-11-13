@@ -73,7 +73,7 @@ data class Message(
 enum class MediaKind { Image, Audio, Video, Round, File }
 
 /** ready: on this phone; remote: tap to download; downloading; missing: gone everywhere. */
-enum class MediaState { Ready, Remote, Downloading, Missing }
+enum class MediaState { Ready, Remote, Downloading, Missing, Deleted }
 
 @Immutable
 data class Media(
@@ -190,7 +190,7 @@ object Json {
         videoCall = o.optBoolean("video_call"),
     )
 
-    private fun time(s: String): Long = runCatching { Instant.parse(s).toEpochMilli() }.getOrDefault(0L)
+    fun time(s: String): Long = runCatching { Instant.parse(s).toEpochMilli() }.getOrDefault(0L)
 
     fun contact(o: JSONObject) = Contact(o.optString("hash"), o.optString("name"), o.optString("uri"))
 
@@ -238,6 +238,7 @@ object Json {
             "ready" -> MediaState.Ready
             "downloading" -> MediaState.Downloading
             "missing" -> MediaState.Missing
+            "deleted" -> MediaState.Deleted
             else -> MediaState.Remote
         },
         have = o.optLong("have"), total = o.optLong("total"),

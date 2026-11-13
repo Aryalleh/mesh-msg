@@ -52,7 +52,7 @@ type MediaInfo struct {
 	Mime  string `json:"mime"`
 	Name  string `json:"name"`
 	Size  int    `json:"size"`  // file bytes
-	State string `json:"state"` // ready | remote | downloading | missing
+	State string `json:"state"` // ready | remote | downloading | missing | deleted
 	// Downloading: blob bytes so far / total.
 	Have  int64 `json:"have,omitempty"`
 	Total int   `json:"total,omitempty"`
@@ -346,6 +346,9 @@ func (n *Node) FetchMedia(id string) error {
 	}
 	if r.state == "ready" {
 		return nil
+	}
+	if r.state == "deleted" {
+		return fmt.Errorf("file %s was deleted on this device", id)
 	}
 	n.db.db.Exec(`UPDATE media SET wanted=1, last_try=0, state=CASE WHEN state='missing' THEN 'remote' ELSE state END WHERE id=?`, id)
 	n.emit(Event{Type: "media", Info: id})

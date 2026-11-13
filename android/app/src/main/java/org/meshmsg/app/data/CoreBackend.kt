@@ -117,6 +117,10 @@ class CoreBackend(dataDir: String, configJson: String, binder: NetworkBinder? = 
     override fun muteCall(id: String, muted: Boolean): Result<Unit> = runCatching { core.muteCall(id, muted) }
 
     override fun setAvatar(jpeg: ByteArray?): Result<Unit> = call { core.setAvatar(jpeg ?: ByteArray(0)) }
+    override fun storedFiles(): Result<List<StoredFile>> = runCatching { StorageJson.files(core.storedFiles("")) }
+    override fun deleteFiles(ids: Collection<String>): Result<Long> = call {
+        StorageJson.freed(core.deleteFiles(org.json.JSONObject().put("ids", org.json.JSONArray(ids.toList())).toString()))
+    }
     override var readReceipts: Boolean
         get() = runCatching { core.readReceipts() }.getOrDefault(true)
         set(v) { runCatching { core.setReadReceipts(v) } }

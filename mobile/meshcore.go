@@ -414,6 +414,29 @@ func (c *Core) SetFolders(js string) error {
 	return c.n.SetFolders(fs)
 }
 
+// StoredFiles lists the files kept on this device (JSON StorageFilter, ""
+// for all), newest first.
+func (c *Core) StoredFiles(filter string) (string, error) {
+	var f node.StorageFilter
+	if filter != "" {
+		if err := json.Unmarshal([]byte(filter), &f); err != nil {
+			return "", err
+		}
+	}
+	return toJSON(c.n.StoredFiles(f))
+}
+
+// DeleteFiles deletes the files a JSON StorageFilter picks; it returns
+// {"files": n, "bytes": freed}.
+func (c *Core) DeleteFiles(filter string) (string, error) {
+	var f node.StorageFilter
+	if err := json.Unmarshal([]byte(filter), &f); err != nil {
+		return "", err
+	}
+	k, b, err := c.n.DeleteFiles(f)
+	return toJSON(map[string]int64{"files": int64(k), "bytes": b}, err)
+}
+
 // SetAvatar sets this account's profile picture (JPEG/PNG/WebP, ≤ 64 KB);
 // empty removes it. Contacts fetch it over direct links when they ask.
 func (c *Core) SetAvatar(img []byte) error { return c.n.SetAvatar(img) }

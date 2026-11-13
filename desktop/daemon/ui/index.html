@@ -136,6 +136,10 @@
   .err { color: var(--warn); font-size: 13px; min-height: 1em; }
   #settings { flex: 1; overflow-y: auto; padding: 20px; }
   #settings .wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-bottom: 80px; }
+  .stlist label, .stkinds label { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 14px; cursor: pointer; }
+  .stlist label small { margin-inline-start: auto; color: var(--muted); }
+  .stkinds { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; }
+  button.danger { background: var(--warn); color: #fff; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
   .card h3 { margin: 0 0 4px; font-size: 16px; }
   .card p.help { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
@@ -203,6 +207,20 @@
       <div class="card">
         <h3>Privacy</h3>
         <label class="check"><input type="checkbox" id="sReadReceipts"><span>Send read receipts<small>Contacts see when you have read their messages (a colored ✓✓). Sent only through relays, never over LoRa or Bluetooth.</small></span></label>
+      </div>
+
+      <div class="card">
+        <h3>Storage</h3>
+        <p class="help">Files kept on this computer. Pick chats, types and dates (any mix) and delete them; the messages stay in the chats as "deleted" and the files are not downloaded again.</p>
+        <p class="help" style="margin-top:4px">No type checked: all types.</p>
+        <p id="stTotal" style="margin:6px 0;font-weight:600"></p>
+        <div id="stChats" class="stlist"></div>
+        <div class="stkinds" id="stKinds"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label class="field">From<input type="date" id="stFrom"></label>
+          <label class="field">To<input type="date" id="stTo"></label>
+        </div>
+        <div class="actions"><button id="stDelete" class="danger" disabled>Delete</button></div>
       </div>
 
       <div class="card">
@@ -630,6 +648,8 @@ function mediaView(m) {
     box.append(el("small", {textContent: mi.total ? "downloading…" : "downloading…"}));
   } else if (mi.state === "missing") {
     box.append(el("small", {textContent: "no longer available"}));
+  } else if (mi.state === "deleted") {
+    box.append(el("small", {textContent: "deleted from this computer"}));
   } else {
     if (!m.outgoing && !mi.important) box.append(el("small", {textContent: "arrives when you are both online on a direct connection"}));
     box.append(el("button", {className: "ghost", textContent: "Download", on: {click: async (e) => {
@@ -994,6 +1014,48 @@ function readSettings() {
   return cfg;
 }
 
+// Storage card: the filter is the checked chats and kinds and the dates.
+const stKindNames = {image: "Photos", video: "Videos", round: "Round videos", audio: "Voice & audio", file: "Files"};
+function stFilter() {
+  const f = {};
+  const cs = [...document.querySelectorAll("#stChats input:checked")].map((i) => i.value);
+  const all = document.querySelectorAll("#stChats input").length;
+  f.chats = cs.length === all ? [] : cs.length ? cs : ["-"];
+  f.kinds = [...document.querySelectorAll("#stKinds input:checked")].map((i) => i.value);
+  if ($("stFrom").value) f.from = new Date($("stFrom").value + "T00:00:00").toISOString();
+  if ($("stTo").value) f.to = new Date($("stTo").value + "T23:59:59").toISOString();
+  if (!f.chats.length) delete f.chats;
+  return f;
+}
+async function stPreview() {
+  const f = stFilter();
+  const fs = await api("/storage/files", {method: "POST", body: JSON.stringify(f)});
+  const b = fs.reduce((a, x) => a + x.bytes, 0);
+  const btn = $("stDelete");
+  btn.disabled = !fs.length;
+  btn.textContent = fs.length ? `Delete ${fs.length} files · ${humanSize(b)}` : "Nothing selected";
+  btn.onclick = async () => {
+    if (!confirm(`Delete ${fs.length} files (${humanSize(b)}) from this computer? This can't be undone.`)) return;
+    const res = await api("/storage/delete", {method: "POST", body: JSON.stringify({ids: fs.map((x) => x.id)})});
+    $("stDelete").textContent = `Freed ${humanSize(res.bytes)}`;
+    setTimeout(loadStorage, 1200);
+  };
+}
+async function loadStorage() {
+  const u = await api("/storage");
+  $("stTotal").textContent = `${humanSize(u.bytes)} in ${u.files} files`;
+  const name = (h) => { const c = chats.map(chatOf).find((x) => x.hash === h); return c ? c.title : "Other"; };
+  $("stChats").replaceChildren(...u.chats.map((c) => el("label", {},
+    el("input", {type: "checkbox", value: c.chat, checked: true, on: {change: stPreview}}),
+    el("span", {dir: "auto", textContent: name(c.chat)}), el("small", {textContent: `${c.files} · ${humanSize(c.bytes)}`}))));
+  if (!$("stKinds").children.length) {
+    $("stKinds").replaceChildren(...Object.entries(stKindNames).map(([k, v]) => el("label", {},
+      el("input", {type: "checkbox", value: k, on: {change: stPreview}}), document.createTextNode(v))));
+    $("stFrom").onchange = $("stTo").onchange = stPreview;
+  }
+  stPreview();
+}
+
 async function openSettings() {
   current = null; renderContacts();
   $("messages").hidden = true; $("compose").hidden = true; $("settings").hidden = false;
@@ -1003,6 +1065,7 @@ async function openSettings() {
   try {
     [cfg, plans] = await Promise.all([api("/config"), plans || api("/lora/plans")]);
     fillSettings();
+    loadStorage().catch(() => {});
     $("sHash").textContent = "Account " + (await api("/id")).hash;
     const ports = await api("/serial-ports");
     $("ports").replaceChildren(...ports.map((p) => el("option", {value: p})));

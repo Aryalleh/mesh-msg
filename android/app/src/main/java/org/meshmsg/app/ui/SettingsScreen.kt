@@ -49,6 +49,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.ListItem
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Switch
 import androidx.compose.ui.semantics.Role
 import org.meshmsg.app.R
@@ -74,6 +75,9 @@ interface SettingsActions {
     fun setAvatar(image: ByteArray?) {}
 
     fun setReadReceipts(on: Boolean) {}
+
+    /** Opens the storage screen (files on this phone). */
+    fun openStorage() {}
 
     /** Checks for a newer release now (roadmap B7); the result shows on the chat list. */
     fun checkUpdate() {}
@@ -127,6 +131,11 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                 modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s),
             )
             HideRunningNotification()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.storage_title)) },
+                supportingContent = { Text(stringResource(R.string.storage_entry_help)) },
+                modifier = Modifier.clickable(onClick = actions::openStorage),
+            )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.read_receipts)) },
                 supportingContent = { Text(stringResource(R.string.read_receipts_help)) },
