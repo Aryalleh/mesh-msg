@@ -29,9 +29,7 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 Plan of record: docs/roadmap.md "Code changes required by the 2026-11-12 design decisions".
 **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
 STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Release
-**v0.1.0-alpha10** is ready but **the tag is not pushed**: the session's git proxy refuses tag
-pushes, so the owner runs `git tag -a v0.1.0-alpha10 -m v0.1.0-alpha10 1665f0e && git push
-origin v0.1.0-alpha10`. Still open: update relay eu-1 to this build and open UDP 3478, 3479 and
+**v0.1.0-alpha10** is published (tag on `c4fd51f`; APKs, desktop and relay tarballs on GitHub). Still open: update relay eu-1 to this build and open UDP 3478, 3479 and
 61000–61999 on it (`install.sh` in update mode does both) — until then direct links and
 calls have no reflector on the real network; test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
@@ -702,3 +700,14 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   first run that compiles the Android call code). Tag v0.1.0-alpha10 (on `1665f0e`) could not
   be pushed from the session (tag pushes refused); the owner pushes it. eu-1 not updated: this
   session has no access to the server.
+
+### 2026-11-13 — Release v0.1.0-alpha10
+
+- Tag `v0.1.0-alpha10` pushed from the local machine (SSH remote, tag pushes work there) on
+  `c4fd51f` (docs-only on top of the green `1665f0e`). CI published the release: 4 APKs,
+  desktop and relay tarballs (amd64/arm64), SHA256SUMS.
+- eu-1 still runs `0.1.0-alpha9+eafacce` (x86_64, `meshmsg-relay.service`, ufw inactive).
+  Updating it with `meshmsg-relay-0.1.0-alpha10-linux-amd64.tar.gz` + `install.sh` waits for
+  the owner's go-ahead. Provider-side firewall for UDP 3478/3479/61000–61999 unknown.
+- Uncommitted local edit (not in the release): `core/direct/addrs_android.go` replaces anet
+  with a raw netlink RTM_GETADDR dump; would let `-checklinkname=0` go.
