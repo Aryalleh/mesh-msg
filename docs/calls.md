@@ -165,7 +165,9 @@ No change to signaling ops, frame format, encryption or path discovery is needed
   rebuffer, skip when far behind).
 - Codecs: Opus (1) where the phone encodes it through MediaCodec (Android 10+), AMR-WB (2)
   everywhere (every Android phone with a microphone encodes it, both decode everywhere). The
-  callee takes the caller's first codec it also has. Lost frames play as silence.
+  callee takes the caller's first codec it also has. Lost frames play as silence. The playback
+  track takes its sample rate from the decoder's output format (Android's Opus decoder
+  always produces 48 kHz).
 - `core/node`: `StartCall`, `AnswerCall`, `EndCall`, `MuteCall`, `CallAudio`,
   `PullCallAudio`, `call` events; setting `calls_from_anyone`. `mobile`: the same for Kotlin.
 - Android: `CallAudio` (AudioRecord VOICE_COMMUNICATION + echo canceller + noise suppressor,

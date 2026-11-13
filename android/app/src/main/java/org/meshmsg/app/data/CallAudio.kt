@@ -127,20 +127,31 @@ class CallAudio(private val core: Core, private val id: String, private val code
         }
     }
 
-    private fun playback() {
-        val min = AudioTrack.getMinBufferSize(RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        val track = AudioTrack.Builder()
+    private fun newTrack(rate: Int, channels: Int): AudioTrack {
+        val mask = if (channels >= 2) AudioFormat.CHANNEL_OUT_STEREO else AudioFormat.CHANNEL_OUT_MONO
+        val min = AudioTrack.getMinBufferSize(rate, mask, AudioFormat.ENCODING_PCM_16BIT)
+        val frame = rate / 50 * 2 * maxOf(1, minOf(channels, 2))
+        return AudioTrack.Builder()
             .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-            .setAudioFormat(AudioFormat.Builder().setSampleRate(RATE).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
-            .setBufferSizeInBytes(maxOf(min, FRAME_BYTES * 4))
+            .setAudioFormat(AudioFormat.Builder().setSampleRate(rate).setChannelMask(mask).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
+            .setBufferSizeInBytes(maxOf(min, frame * 4))
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
+    }
+
+    private fun playback() {
+        // The decoder decides the PCM it produces: Android's Opus decoder always
+        // outputs 48 kHz, whatever rate was encoded. The track must follow the
+        // decoder's output format, or speech plays slow and low.
+        var outRate = RATE
+        var outChannels = 1
+        var track = newTrack(outRate, outChannels)
         val dec = MediaCodec.createDecoderByType(mime(codec))
         try {
             dec.configure(format(), null, null, 0)
             dec.start()
             track.play()
-            val silence = ByteArray(FRAME_BYTES)
+            var silence = ByteArray(outRate / 50 * 2 * outChannels)
             val info = MediaCodec.BufferInfo()
             var pts = 0L
             while (running) {
@@ -153,18 +164,39 @@ class CallAudio(private val core: Core, private val id: String, private val code
                         dec.queueInputBuffer(i, 0, r.size - 1, pts, 0)
                         pts += 20_000
                     }
-                    val deadline = System.nanoTime() + 15_000_000
-                    while (!played && System.nanoTime() < deadline) {
-                        val o = dec.dequeueOutputBuffer(info, 5_000)
-                        if (o < 0) continue
-                        if (info.size > 0) {
-                            val b = ByteArray(info.size)
-                            dec.getOutputBuffer(o)!!.apply { position(info.offset); get(b) }
-                            track.write(b, 0, b.size) // blocks: paces the loop
-                            played = true
+                }
+                // Play everything the decoder has ready (it may hand out a frame
+                // late, then two at once); wait a little only for the first.
+                val deadline = System.nanoTime() + 15_000_000
+                while (running) {
+                    val o = dec.dequeueOutputBuffer(info, if (played) 0 else 5_000)
+                    if (o == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        val of = dec.outputFormat
+                        val rate = if (of.containsKey(MediaFormat.KEY_SAMPLE_RATE)) of.getInteger(MediaFormat.KEY_SAMPLE_RATE) else outRate
+                        val ch = if (of.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) minOf(2, maxOf(1, of.getInteger(MediaFormat.KEY_CHANNEL_COUNT))) else outChannels
+                        Log.i(TAG, "decoder output: $rate Hz, $ch ch")
+                        if (rate != outRate || ch != outChannels) {
+                            runCatching { track.stop() }
+                            track.release()
+                            outRate = rate
+                            outChannels = ch
+                            track = newTrack(outRate, outChannels)
+                            track.play()
+                            silence = ByteArray(outRate / 50 * 2 * outChannels)
                         }
-                        dec.releaseOutputBuffer(o, false)
+                        continue
                     }
+                    if (o < 0) {
+                        if (played || System.nanoTime() >= deadline) break
+                        continue
+                    }
+                    if (info.size > 0) {
+                        val b = ByteArray(info.size)
+                        dec.getOutputBuffer(o)!!.apply { position(info.offset); get(b) }
+                        track.write(b, 0, b.size) // blocks: paces the loop
+                        played = true
+                    }
+                    dec.releaseOutputBuffer(o, false)
                 }
                 if (!played) track.write(silence, 0, silence.size)
             }

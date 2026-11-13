@@ -720,3 +720,16 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   terminal. Now it tests by opening `/dev/tty`. Workaround for older tarballs: `MAVA_YES=1`.
 - `go test ./mobile` failed once in a full `go test ./...` run, passed 5× alone: flaky under
   load, not investigated yet.
+
+### 2026-11-13 — Call audio played slow and low (first call on real phones)
+
+- Owner's test on two phones: the call connects and audio is heard, but the voice is deep,
+  slow and soon not understandable.
+- Cause (from the code, not yet confirmed on a phone): `CallAudio.playback` wrote the
+  decoder's PCM to a fixed 16 kHz AudioTrack. Android's Opus decoder outputs 48 kHz whatever
+  was encoded, so speech played at a third of its speed, and the loop pulled frames three
+  times too slowly, so the delay kept growing. Also only one decoder output was taken per
+  pulled frame, so a late output added delay for good.
+- Fix: the track follows the decoder's output format (`INFO_OUTPUT_FORMAT_CHANGED`: rate and
+  channels; logged as `CallAudio: decoder output: …`), silence frames match it, and every
+  ready decoder output is played. docs/calls.md §7 note. Needs a phone test.
