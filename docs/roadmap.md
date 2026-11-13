@@ -12,6 +12,13 @@
 | **M7 Field test** | 10 km LoRa test + simulated domestic-only network test | measured delivery report |
 | **M8 Windows / macOS** | desktop builds + installers | |
 | **M9 Direct links + calls** | direct IP link across any NAT ([connectivity.md](connectivity.md)), then 1:1 voice calls on Android ([calls.md](calls.md), stream-based so video can be added later) | call between two phones behind different NATs and on one hotspot; relay counters show zero audio bytes |
+| **M10 iPhone app** | Go core as an iOS framework (`gomobile bind -target=ios`, built on a macOS CI runner); native SwiftUI app: chat over relays, Bluetooth mesh (Core Bluetooth, foreground first), push from relays through APNs for messages and calls (PushKit + CallKit), LoRa through a node's Bluetooth host link (firmware.md §6; iPhones can't use USB LoRa nodes), TestFlight distribution | iPhone ↔ Android message over Bluetooth and over a relay; iPhone ↔ Android call; incoming message and call arrive while the app is in the background |
+
+iOS limits that shape M10: no always-running background service, so an iPhone is an endpoint,
+not a relay (android.md §1); background Bluetooth advertising is hard for Android phones to
+see; delivery while closed depends on Apple's push service, which learns that a message arrived
+(not its content). The Go core already cross-compiles for `GOOS=ios` without changes.
+Distribution needs an Apple Developer account, which is not sold in some countries.
 
 Order rationale: the Go core and relay come first because desktop, Android and the
 simulator all reuse them, and Linux desktop + relay is the fastest way to a working
