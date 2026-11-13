@@ -170,7 +170,10 @@ func (a *Agent) Close() {
 // §3a). It takes a few seconds at most.
 func (a *Agent) Gather(ctx context.Context) Offer {
 	port := addrPort(a.mainSock().pc.LocalAddr()).Port()
-	addrs, _ := a.cfg.Net.Addrs()
+	addrs, err := a.cfg.Net.Addrs()
+	if err != nil || len(addrs) == 0 {
+		a.cfg.Logf("direct: no local addresses (%v): only reflexive candidates", err)
+	}
 	var cands []Candidate
 	for _, ip := range addrs {
 		cands = append(cands, Candidate{Kind: Host, Addr: netip.AddrPortFrom(ip, port), Priority: priority(Host, ip)})

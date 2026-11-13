@@ -51,6 +51,10 @@ type Listener interface {
 // other. The descriptor is only valid during the call.
 type NetworkBinder interface {
 	BindSocket(fd int32, ip string)
+	// LocalAddrs lists this phone's addresses on its up interfaces, comma
+	// separated (java.net.NetworkInterface): the core's own listing is not
+	// allowed on every Android version.
+	LocalAddrs() string
 }
 
 // SetNetworkBinder sets the binder; call it before Start.
@@ -58,7 +62,10 @@ func (c *Core) SetNetworkBinder(b NetworkBinder) {
 	if b == nil {
 		return
 	}
-	c.n.SetSocketBinder(func(fd int, ip string) { b.BindSocket(int32(fd), ip) })
+	c.n.SetSocketBinder(
+		func(fd int, ip string) { b.BindSocket(int32(fd), ip) },
+		func() []string { return strings.Split(b.LocalAddrs(), ",") },
+	)
 }
 
 // Transport is a point-to-point link implemented in Kotlin. Send must not

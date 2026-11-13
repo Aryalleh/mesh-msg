@@ -30,6 +30,10 @@ type OSNet struct {
 	// Wi-Fi network sends through the default network (mobile data when the
 	// Wi-Fi has no internet) and never reaches a phone on the same Wi-Fi.
 	Bind func(fd int, ip netip.Addr)
+	// MoreAddrs lists local addresses the platform knows (Android:
+	// java.net.NetworkInterface); they are added to what the OS call gives,
+	// so host candidates exist even when that call is not allowed.
+	MoreAddrs func() []netip.Addr
 }
 
 // ListenUDPAddr opens a UDP socket on one local address, any port.
@@ -52,26 +56,37 @@ func (o OSNet) ListenUDP(port int) (net.PacketConn, error) {
 
 func (o OSNet) Addrs() ([]netip.Addr, error) {
 	as, err := interfaceAddrs()
-	if err != nil {
+	var all []netip.Addr
+	for _, a := range as {
+		var raw net.IP
+		switch v := a.(type) {
+		case *net.IPNet:
+			raw = v.IP
+		case *net.IPAddr:
+			raw = v.IP
+		}
+		if ip, ok := netip.AddrFromSlice(raw); ok {
+			all = append(all, ip)
+		}
+	}
+	if o.MoreAddrs != nil {
+		all = append(all, o.MoreAddrs()...)
+	}
+	if len(all) == 0 && err != nil {
 		return nil, err
 	}
+	seen := map[netip.Addr]bool{}
 	var out []netip.Addr
-	for _, a := range as {
-		pfx, ok := a.(*net.IPNet)
-		if !ok {
-			continue
-		}
-		ip, ok := netip.AddrFromSlice(pfx.IP)
-		if !ok {
-			continue
-		}
-		ip = ip.Unmap()
+	for _, ip := range all {
+		ip = ip.Unmap().WithZone("")
 		switch {
-		case ip.IsLoopback() && !o.Loopback,
+		case !ip.IsValid(), seen[ip],
+			ip.IsLoopback() && !o.Loopback,
 			ip.Is6() && ip.IsLinkLocalUnicast(), // needs a zone; IPv4 link-local stays
 			ip.IsMulticast(), ip.IsUnspecified():
 			continue
 		}
+		seen[ip] = true
 		out = append(out, ip)
 	}
 	return out, nil

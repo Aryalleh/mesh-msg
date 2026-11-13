@@ -6,6 +6,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import org.meshmsg.meshcore.NetworkBinder
 import java.net.InetAddress
+import java.net.NetworkInterface
 
 /**
  * Ties each of the core's per-address UDP sockets to the Android network that
@@ -35,6 +36,22 @@ class NetBinder(context: Context) : NetworkBinder {
         } catch (e: Exception) {
             Log.w(TAG, "bind $ip: $e")
         }
+    }
+
+    override fun localAddrs(): String = try {
+        val out = ArrayList<String>()
+        for (nif in NetworkInterface.getNetworkInterfaces() ?: return "") {
+            if (!nif.isUp || nif.isLoopback) continue
+            for (a in nif.inetAddresses) {
+                if (a.isLoopbackAddress || a.isLinkLocalAddress || a.isMulticastAddress) continue
+                a.hostAddress?.substringBefore('%')?.let(out::add)
+            }
+        }
+        Log.i(TAG, "local addresses: $out")
+        out.joinToString(",")
+    } catch (e: Exception) {
+        Log.w(TAG, "local addresses: $e")
+        ""
     }
 
     private companion object {

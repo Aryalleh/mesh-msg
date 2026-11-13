@@ -794,3 +794,19 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   reported "meshd is not running". `meshd` now refuses to start when a daemon answers on
   the socket (`daemon.Running`, `ErrRunning`, checked in main and in `Run`); a stale socket
   file is still replaced. Tests `desktop/daemon/running_test.go`. Not released yet.
+
+### 2026-11-13 — Calls still don't connect on alpha12: no host candidates on Android 11+
+
+- Owner: calls still don't connect with alpha12 (phones on one Wi-Fi).
+- Bug found in the code: `core/direct/addrs_android.go` called `anet.InterfaceAddrs()`, but
+  anet only uses its own reader when told the Android version is ≥ 11
+  (`anet.SetAndroidVersion`); it defaults to 0 and then calls `net.InterfaceAddrs`, which
+  Android 11+ refuses. `Gather` ignored the error, so a phone on Android 11+ offered **no
+  host candidates** (and no per-address sockets, so alpha12's binding never ran). With eu-1's
+  UDP still closed there were no reflexive ones either: an empty offer. A pair with one
+  phone on Android ≤ 10 could still connect (triggered checks), which fits the one success.
+- Fix: `anet.SetAndroidVersion(11)` at init with `net.InterfaceAddrs` as fallback;
+  `OSNet.MoreAddrs` + `mobile.NetworkBinder.LocalAddrs()`: Android also lists its addresses
+  with `java.net.NetworkInterface` (covers hotspot interfaces) and the core merges them;
+  `Gather` logs when there are no local addresses. Test `TestMoreAddrs`. Go and firmware
+  tests pass; Android compiles in CI only; not yet run on a phone. Next tag v0.1.0-alpha13.

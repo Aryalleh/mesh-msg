@@ -77,3 +77,28 @@ func TestBoundSocketPerAddress(t *testing.T) {
 		}
 	}
 }
+
+// Addresses the platform reports are offered even when the OS call gives
+// nothing useful, without duplicates and without unusable ones.
+func TestMoreAddrs(t *testing.T) {
+	extra := netip.MustParseAddr("192.0.2.77")
+	o := OSNet{MoreAddrs: func() []netip.Addr {
+		return []netip.Addr{extra, extra, netip.MustParseAddr("fe80::1"), netip.MustParseAddr("127.0.0.1"), {}}
+	}}
+	as, err := o.Addrs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, a := range as {
+		if a == extra {
+			n++
+		}
+		if a.IsLoopback() || a.IsLinkLocalUnicast() || !a.IsValid() {
+			t.Errorf("unusable address %s offered", a)
+		}
+	}
+	if n != 1 {
+		t.Fatalf("platform address offered %d times: %v", n, as)
+	}
+}

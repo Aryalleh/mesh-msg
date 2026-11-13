@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -89,14 +90,28 @@ func newDirectLink(n *Node) *directLink {
 	return &directLink{n: n, sess: map[string]*directSess{}, lastTry: map[string]time.Time{}, lastFail: map[string]string{}}
 }
 
-// SetSocketBinder sets the hook that ties a socket to the network of its
-// local address (Android, direct.OSNet.Bind). Call it before Start.
-func (n *Node) SetSocketBinder(bind func(fd int, ip string)) {
+// SetSocketBinder sets the platform hooks of direct links (Android): bind
+// ties a socket to the network of its local address (direct.OSNet.Bind),
+// addrs lists the local addresses the platform knows (may be nil). Call it
+// before Start.
+func (n *Node) SetSocketBinder(bind func(fd int, ip string), addrs func() []string) {
 	if n.direct == nil {
 		return
 	}
+	o := direct.OSNet{Bind: func(fd int, ip netip.Addr) { bind(fd, ip.String()) }}
+	if addrs != nil {
+		o.MoreAddrs = func() []netip.Addr {
+			var out []netip.Addr
+			for _, s := range addrs() {
+				if ip, err := netip.ParseAddr(strings.TrimSpace(s)); err == nil {
+					out = append(out, ip)
+				}
+			}
+			return out
+		}
+	}
 	n.direct.mu.Lock()
-	n.direct.net = direct.OSNet{Bind: func(fd int, ip netip.Addr) { bind(fd, ip.String()) }}
+	n.direct.net = o
 	n.direct.mu.Unlock()
 }
 
