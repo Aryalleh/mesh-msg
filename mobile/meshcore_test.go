@@ -98,6 +98,15 @@ func connectBLEAs(t *testing.T, a, b *Core, mtu int, name string) {
 	if err := b.AddTransport(name, mtu, ba); err != nil {
 		t.Fatal(err)
 	}
+	// Both sides know each other before data flows: a phone drops chunks from
+	// a peer it hasn't been told about, and the router doesn't send a packet
+	// to the same peer twice. What PeerUp sends waits in the queues meanwhile.
+	if err := a.PeerUp(name, "phone-b"); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.PeerUp(name, "phone-a"); err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	for _, e := range []*ble{ab, ba} {
@@ -111,12 +120,6 @@ func connectBLEAs(t *testing.T, a, b *Core, mtu int, name string) {
 				}
 			}
 		}()
-	}
-	if err := a.PeerUp(name, "phone-b"); err != nil {
-		t.Fatal(err)
-	}
-	if err := b.PeerUp(name, "phone-a"); err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -451,11 +454,20 @@ func TestGroupOverBLEThroughNonMember(t *testing.T) {
 		}
 	default:
 	}
+	// The invite (title, members) and the message are separate packets queued
+	// before Bluetooth came up; the message may arrive first and the chat
+	// shows its details a moment later.
 	var chats []node.Chat
-	s, _ = c.Chats()
-	json.Unmarshal([]byte(s), &chats)
-	if len(chats) != 1 || chats[0].Group == nil || chats[0].Group.Title != "Family" || chats[0].Unread != 1 || len(chats[0].Group.Members) != 2 {
-		t.Fatalf("chats: %s", s)
+	for deadline := time.Now().Add(15 * time.Second); ; time.Sleep(100 * time.Millisecond) {
+		s, _ = c.Chats()
+		chats = nil
+		json.Unmarshal([]byte(s), &chats)
+		if len(chats) == 1 && chats[0].Group != nil && chats[0].Group.Title == "Family" && chats[0].Unread == 1 && len(chats[0].Group.Members) == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("chats: %s", s)
+		}
 	}
 	var ms []node.Message
 	s, _ = a.Messages(g.Hash, 10)

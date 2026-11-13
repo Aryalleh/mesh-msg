@@ -132,6 +132,31 @@ func (d *appDB) putPrivate(id packet.Hash, r group.Roster, owner *packet.Hash, r
 	return tx.Commit()
 }
 
+// putPrivateIfNew stores a placeholder group only if none with this ID exists
+// yet: a member list that arrived meanwhile (another goroutine) must not be
+// overwritten by the placeholder.
+func (d *appDB) putPrivateIfNew(id packet.Hash, r group.Roster, now time.Time) error {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`INSERT INTO groups(hash,name,kind,secret,joined,owner,version,removed) VALUES(?,?,?,x'',?,NULL,?,0)
+		ON CONFLICT(hash) DO NOTHING`, id[:], r.Name, string(group.Private), now.Unix(), r.Version)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil // the group is known now: keep it
+	}
+	for _, m := range r.Members {
+		if _, err := tx.Exec(`INSERT OR REPLACE INTO group_members(grp,pub,name) VALUES(?,?,?)`, id[:], m.Public.Bytes(), m.Name); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 func (d *appDB) groups(me packet.Hash) ([]Group, error) {
 	rows, err := d.db.Query(`SELECT hash,name,kind,secret,joined,owner,version,removed FROM groups ORDER BY joined`)
 	if err != nil {
@@ -580,7 +605,7 @@ func (n *Node) onPrivateGroup(rm *message.Received) {
 			// The text overtook the member list: keep it in a group we learn
 			// the name and members of when the list arrives.
 			r := group.Roster{Name: "group", Members: []group.Member{{Public: rm.From}, {Public: n.id.Public}}}
-			if err := n.db.putPrivate(env.ID, r, nil, false, time.Now()); err != nil {
+			if err := n.db.putPrivateIfNew(env.ID, r, time.Now()); err != nil {
 				return
 			}
 			gs, _ := n.Groups()

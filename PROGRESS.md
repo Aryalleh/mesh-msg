@@ -996,3 +996,17 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
      re-asks the window from the current offset, up to 5 stalls in a row (`maxStalls`).
 - After the fix: 8/8 runs pass under load; full `go test -race ./...` and
   `make -C firmware test` pass.
+
+### 2026-11-13 — flaky TestGroupOverBLEThroughNonMember fixed
+
+- CI's Go job failed again on `cb15184`; `mobile` TestGroupOverBLEThroughNonMember failed
+  up to half the runs under `-race` + load. Traced: C never got the group roster (title
+  "Family"). The test harness `connectBLEAs` started delivery and then called `PeerUp` on
+  each side in turn: B's `PeerUp(C)` flushed its backlog (the roster) to C before C had
+  registered B, C dropped the chunks ("chunk from unknown peer"), and the router never resends
+  to a peer it marked. Harness now registers both sides before data flows.
+- Also fixed a real race in `core/node/groups.go`: a text arriving for an unknown group
+  wrote its placeholder ("group") with an upsert, which could overwrite a roster stored
+  by another goroutine in between; now `putPrivateIfNew` inserts only if absent. The test
+  waits up to 15 s for the title (text may overtake the roster by design).
+- 10/10 runs pass under load; full `go test -race ./...` and `make -C firmware test` pass.
