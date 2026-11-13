@@ -56,6 +56,13 @@
   #status { padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
   #status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: 6px; background: var(--muted); }
   #status .ok { background: #16a34a; } #status .bad { background: var(--warn); }
+  #update { margin: 8px; padding: 10px 12px; border-radius: 8px; background: var(--mine); border: 1px solid var(--line); font-size: 13px; }
+  #update.required { border-color: var(--warn); }
+  #update b { display: block; margin-bottom: 4px; }
+  #update pre { white-space: pre-wrap; font: inherit; margin: 6px 0; max-height: 160px; overflow-y: auto; unicode-bidi: plaintext; }
+  #update code { font-family: ui-monospace, monospace; }
+  #update .row { display: flex; gap: 8px; margin-top: 6px; }
+  #update .row button { padding: 4px 10px; font-size: 13px; }
   main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   main header { padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
   main header h2 { margin: 0; font-size: 16px; }
@@ -124,6 +131,7 @@
     <button class="ghost" id="btnMe" title="My contact link">Me</button>
     <button id="btnAdd" title="New chat: contact, group or channel">+</button>
   </header>
+  <div id="update" hidden></div>
   <ul id="contacts"></ul>
   <div id="status">…</div>
 </aside>
@@ -939,6 +947,35 @@ function listen() {
 
 loadContacts(); loadStatus(); listen();
 setInterval(loadStatus, 15000);
+
+// Update check (roadmap B7): meshd checks its relays and GitHub for a newer
+// signed release; this shows it. "Later" hides a version until the next one,
+// except when the running version is below the release's minimum supported one.
+async function loadUpdate() {
+  let u;
+  try { u = await api("/update"); } catch (e) { return; }
+  const box = $("update");
+  const m = u.latest;
+  let hidden = null;
+  try { hidden = localStorage.getItem("updateLater"); } catch (e) {}
+  if (!m || !u.available || (!u.required && hidden === m.version)) { box.hidden = true; return; }
+  box.className = u.required ? "required" : "";
+  box.replaceChildren(
+    el("b", {textContent: u.required
+      ? `Mava ${u.current} is no longer supported — update to ${m.version}`
+      : `Mava ${m.version} is available (you have ${u.current})`}),
+    el("pre", {textContent: (m.notes && (m.notes.en || m.notes.fa)) || ""}),
+    el("div", {innerHTML: "Install: run <code>mesh update</code> in a terminal."}),
+    el("div", {className: "row"},
+      ...(m.page ? [el("button", {textContent: "Release page", on: {click: () => window.open(m.page, "_blank", "noopener")}})] : []),
+      ...(u.required ? [] : [el("button", {className: "ghost", textContent: "Later", on: {click: () => {
+        try { localStorage.setItem("updateLater", m.version); } catch (e) {}
+        box.hidden = true;
+      }}})])));
+  box.hidden = false;
+}
+loadUpdate();
+setInterval(loadUpdate, 30 * 60 * 1000);
 </script>
 </body>
 </html>

@@ -118,8 +118,16 @@ bridge ── /v1/sync ───────────────────
 | GET  | `/v1/media/quota` | the signed account's allowance today: `{per_day, used, left, resets, allowed}` |
 | POST | `/v1/usage` | push signed important-media usage entries (§6a ledger) |
 | GET  | `/v1/usage?since=` | pull the usage ledger (anyone) |
+| GET  | `/v1/release?channel=beta\|stable` | newest signed release manifest (`release.json`) for the apps' update check (roadmap B7); `404` until the relay has one |
 
 Bodies are binary (length-prefixed packets), not JSON, to stay small on throttled links.
+
+**Release manifests (`/v1/release`):** the relay fetches the newest signed `release.json`
+per channel from GitHub releases about once an hour (or from another relay with
+`"release_upstream": "https://relay.example"`, for relays where GitHub is blocked;
+`"release_check": false` turns it off) and serves it unchanged. It checks the signature
+before caching; apps check it again, so a relay can't forge an update prompt. The request
+carries only the channel: no identity, device ID or contacts.
 
 **Abuse control (no accounts):** hashcash proof-of-work with adaptive difficulty, per-IP and
 per-key rate limits, size caps (packet ≤ 64 KB, mailbox ≤ N MB), TTL (7 days text).

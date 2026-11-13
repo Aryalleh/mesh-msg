@@ -20,6 +20,8 @@
 - **From the first beta on, every release (beta and stable) must ship the update check**
   (docs/roadmap.md B7, docs/decisions.md D20): the release job publishes a signed
   `release.json`, and the Android app and meshd show users that a newer version exists.
-  No release without it.
+  No release without it. Before pushing a tag, add `docs/release-notes/<tag>.en.md` and
+  `<tag>.fa.md` (the release job signs them into `release.json` and fails without them;
+  it also needs the GitHub secret `RELEASE_SIGNING_KEY`, see docs/release-notes/README.md).
 - If `android/` or `mobile/` changed: `scripts/build-android-core.sh` then
   `cd android && ./gradlew lintDebug testDebugUnitTest assembleDebug` (see PROGRESS.md for the toolchain).

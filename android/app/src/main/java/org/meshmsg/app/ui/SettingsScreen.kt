@@ -58,6 +58,7 @@ data class SettingsState(
     val discovery: Boolean = true,
     val battery: BatteryMode = BatteryMode.Active,
     val relays: List<Relay> = emptyList(),
+    val appVersion: String = "",
 )
 
 interface SettingsActions {
@@ -68,6 +69,9 @@ interface SettingsActions {
     fun addRelay(relay: Relay)
     fun removeRelay(relay: Relay)
     fun wipe()
+
+    /** Checks for a newer release now (roadmap B7); the result shows on the chat list. */
+    fun checkUpdate() {}
 
     /** The account key sealed with [passphrase] (meshkey1:…). */
     suspend fun exportIdentity(passphrase: String): Result<String>
@@ -160,6 +164,16 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
             OutlinedButton(onClick = { addingRelay = true }, modifier = Modifier.padding(Space.l).heightIn(min = 48.dp)) {
                 Icon(Icons.Filled.Add, contentDescription = null)
                 Text(stringResource(R.string.relay_add), Modifier.padding(start = Space.s))
+            }
+
+            SectionHeader(stringResource(R.string.settings_about))
+            Text(
+                stringResource(R.string.settings_version, state.appVersion),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(horizontal = Space.l),
+            )
+            OutlinedButton(onClick = actions::checkUpdate, modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s).heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.update_check))
             }
 
             // Destructive: separated, error colour, typed confirmation.

@@ -25,6 +25,7 @@ import org.meshmsg.app.data.BatteryMode
 import org.meshmsg.app.data.CoreBackend
 import org.meshmsg.app.data.NetBinder
 import org.meshmsg.app.data.Settings
+import org.meshmsg.app.data.UpdateManager
 import org.meshmsg.app.lora.UsbLoRa
 import org.meshmsg.app.service.MeshService
 import java.io.File
@@ -36,6 +37,11 @@ import java.io.File
 class MeshApp : Application() {
     lateinit var settings: Settings
         private set
+
+    /** Update check (roadmap B7). */
+    lateinit var updates: UpdateManager
+        private set
+    private var updatesStarted = false
 
     private val _backend = MutableStateFlow<CoreBackend?>(null)
     val backend: StateFlow<CoreBackend?> = _backend
@@ -52,6 +58,7 @@ class MeshApp : Application() {
     override fun onCreate() {
         super.onCreate()
         settings = Settings(this)
+        updates = UpdateManager(this, scope)
         registerReceiver(
             object : BroadcastReceiver() {
                 override fun onReceive(c: Context, i: Intent) {
@@ -72,6 +79,10 @@ class MeshApp : Application() {
                     _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig(), NetBinder(this@MeshApp)).also(::watchCalls)
                     restartBle()
                     usb = UsbLoRa(this@MeshApp).also { it.attachIfPresent(_backend.value!!.core) }
+                }
+                if (!updatesStarted) {
+                    updatesStarted = true
+                    updates.run({ _backend.value?.core }, scope)
                 }
             }
             if (settings.batteryMode != BatteryMode.Off) MeshService.start(this@MeshApp)

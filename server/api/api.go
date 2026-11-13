@@ -20,6 +20,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/packet"
 	"github.com/Aryalleh/mesh-msg/core/pow"
 	"github.com/Aryalleh/mesh-msg/core/relayclient"
+	"github.com/Aryalleh/mesh-msg/core/update"
 	"github.com/Aryalleh/mesh-msg/core/wire"
 	"github.com/Aryalleh/mesh-msg/server/ledger"
 	"github.com/Aryalleh/mesh-msg/server/relay"
@@ -47,8 +48,10 @@ type Config struct {
 	// (nil: an in-memory one, for tests).
 	Ledger *ledger.Ledger
 	// UDP reports the relay's UDP services for /v1/info (nil: none).
-	UDP  func() (reflector, turn bool)
-	Logf func(format string, args ...any)
+	UDP func() (reflector, turn bool)
+	// Release: signed release manifests served at GET /v1/release (nil: 404).
+	Release *update.Cache
+	Logf    func(format string, args ...any)
 }
 
 // Server is an http.Handler.
@@ -80,6 +83,7 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("POST /v1/gateway", s.gateway)
 	s.mux.HandleFunc("POST /v1/sync/push", s.syncPush)
 	s.mux.HandleFunc("GET /v1/sync/pull", s.syncPull)
+	s.mux.HandleFunc("GET /v1/release", s.release)
 	p := DefaultMediaPolicy()
 	if cfg.Media.Policy != nil {
 		p = *cfg.Media.Policy
@@ -414,4 +418,29 @@ func (l *limiter) allow(key string) bool {
 	}
 	bk.tokens--
 	return true
+}
+
+// release serves the newest signed release manifest for ?channel=beta|stable
+// (roadmap B7). The relay only passes on what it fetched; apps verify the
+// signature themselves.
+func (s *Server) release(w http.ResponseWriter, r *http.Request) {
+	ch := r.URL.Query().Get("channel")
+	if ch == "" {
+		ch = update.ChannelStable
+	}
+	if ch != update.ChannelBeta && ch != update.ChannelStable {
+		http.Error(w, "unknown channel", http.StatusBadRequest)
+		return
+	}
+	var raw []byte
+	if s.cfg.Release != nil {
+		raw, _ = s.cfg.Release.Get(ch)
+	}
+	if raw == nil {
+		http.Error(w, "no release manifest yet", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, max-age=600")
+	w.Write(raw)
 }

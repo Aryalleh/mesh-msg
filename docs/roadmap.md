@@ -40,7 +40,7 @@ moved out of the beta's scope in this file. Status as of 2026-11-13.
 | B4 | Real-device tests | BLE mesh never run on a phone; issues #1 and #2 open | M5 exit scenario on two real phones (offline phone → BLE → phone with relay → desktop); issues #1 and #2 closed |
 | B5 | Relays | eu-1: plain HTTP on an IP, provider blocks UDP 3478/3479/61000–61999, runs alpha10 | eu-1 on a domain with HTTPS (cleartext exception removed from the app), UDP open, on the beta release; a second relay in the default list |
 | B6 | Security | no external review, no panic wipe | external review of crypto, key storage and relay, findings fixed (M6); panic wipe on Android and desktop |
-| B7 | **Update check in every build** (D20) | none: users learn about releases only by word of mouth | the app and meshd check for a newer release on their own and show it to the user, as specified below; already in `v0.2.0-beta1`, so beta1 users are told about beta2 |
+| B7 | **Update check in every build** (D20) | **built for v0.1.1-beta1** (relay + GitHub; mesh propagation not yet) | the app and meshd check for a newer release on their own and show it to the user, as specified below; already in `v0.2.0-beta1`, so beta1 users are told about beta2 |
 
 **Android**
 
@@ -93,6 +93,19 @@ without a working update check is not shipped.
 - **Release process:** each tag's CI job builds and signs `release.json` and attaches it to
   the GitHub release; relays pick it up within an hour. A failed signature or a missing
   manifest fails the release job.
+
+**Built (v0.1.1-beta1):** `core/update` (manifest, Ed25519 signature with a context
+string, semver compare with pre-release tags, channels, checker: relays then GitHub,
+relay cache, verified download); `tools/release-manifest` (keygen / sign / verify);
+relay `GET /v1/release` (hourly refresh from GitHub or `release_upstream`); meshd
+`GET /update`, `POST /update/check`, web UI banner, `mesh status` line, `mesh update`
+(download, SHA-256 check, replace binaries, restart the user service); Android banner on
+the chat list, one notification per version, Settings → About (version, "Check for
+updates"), APK download checked against the manifest and handed to the system installer;
+release notes in `docs/release-notes/<tag>.{en,fa}.md` (the release job fails without
+them). Release key: public half in `core/update.ReleaseKeyHex`, private half in the
+GitHub secret `RELEASE_SIGNING_KEY` and with the owner. **Not yet:** manifests passed
+over the mesh (BLE/LoRa/LAN) during a shutdown; update download from a nearby phone.
 
 **Release process:** version `v0.2.0-beta1`, release notes in Persian and English, a way for
 testers to report bugs, testers outside the lab, and written criteria for leaving beta (for

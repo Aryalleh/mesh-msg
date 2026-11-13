@@ -44,6 +44,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	d.SetVersion(version)
 	id := d.Node().Identity()
 	log.Printf("meshd %s — identity %s", version, id.Hash())
 	log.Printf("config %s, data %s", *cfgPath, *dataDir)

@@ -57,7 +57,23 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     private fun readSettings() = SettingsState(
         displayName = settings.displayName, myHash = app.backend.value?.myHash.orEmpty(),
         gateway = settings.gateway, discovery = settings.discovery, battery = settings.batteryMode, relays = settings.relays,
+        appVersion = app.updates.currentVersion,
     )
+
+    override fun checkUpdate() {
+        viewModelScope.launch {
+            app.updates.clearLater()
+            val found = app.updates.check { app.backend.value?.core }
+            val u = app.updates.update.value
+            _errors.send(
+                when {
+                    !found || u == null -> app.getString(org.meshmsg.app.R.string.update_check_failed)
+                    u.available -> app.getString(org.meshmsg.app.R.string.update_available_title, u.version)
+                    else -> app.getString(org.meshmsg.app.R.string.update_up_to_date, u.current)
+                },
+            )
+        }
+    }
 
     private fun changed() {
         _settingsState.value = readSettings()

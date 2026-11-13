@@ -46,6 +46,7 @@ fun ChatsScreen(
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
     nowMs: Long = System.currentTimeMillis(),
+    update: UpdateBannerState? = null,
 ) {
     Scaffold(
         modifier = modifier,
@@ -61,6 +62,7 @@ fun ChatsScreen(
         },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
+            update?.let { UpdateBanner(it) }
             if (!anyPathUp && chats.isNotEmpty()) InfoBanner(stringResource(R.string.no_path_banner))
             if (chats.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

@@ -141,10 +141,63 @@ jobs:
     needs: [version, android, desktop]
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+
+      # Update check (roadmap B7, decisions D20): every release carries a
+      # release.json signed with the release key (secret RELEASE_SIGNING_KEY,
+      # kept outside the repository). No key, no notes or a manifest that
+      # doesn't verify: the release fails.
+      - name: Signed release manifest
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          tag='${{ github.ref_name }}'
+          ver='${{ needs.version.outputs.name }}'
+          for l in en fa; do
+            [ -s "docs/release-notes/$tag.$l.md" ] || { echo "::error::docs/release-notes/$tag.$l.md is missing"; exit 1; }
+          done
+          min=$(grep -v '^#' docs/release-notes/min-supported 2>/dev/null | grep . | tail -1 || true)
+          go run ./tools/release-manifest sign -version "$ver" -dir dist \
+            -base-url "https://github.com/${{ github.repository }}/releases/download/$tag" \
+            -page "https://github.com/${{ github.repository }}/releases/tag/$tag" \
+            -notes-en "docs/release-notes/$tag.en.md" -notes-fa "docs/release-notes/$tag.fa.md" \
+            -min-supported "$min" > release.json
+          go run ./tools/release-manifest verify release.json
+          mv release.json dist/
+          {
+            echo "Mava $ver (Android versionCode ${{ needs.version.outputs.code }})."
+            echo
+            cat "docs/release-notes/$tag.en.md"
+            echo
+            echo '<div dir="rtl">'
+            echo
+            cat "docs/release-notes/$tag.fa.md"
+            echo
+            echo '</div>'
+            echo
+            cat <<'NOTES'
+          **Android**: `arm64-v8a` for almost every phone, `universal` if unsure. Installs as an
+          update over earlier builds (same signing key, data is kept).
+          **Desktop**: `meshmsg-desktop-…-linux-amd64.tar.gz` (or arm64) holds `meshd` + `mesh`,
+          see the README inside. Later updates: `mesh update`.
+          **Relay server**: `meshmsg-relay-…-linux-amd64.tar.gz`. Run `sudo sh install.sh` inside
+          (it asks for your Mava account id for the admin panel at `/admin`). Relays serve the
+          signed release manifest at `/v1/release`.
+
+          `release.json` is the signed release manifest the apps' update check reads.
+          Default relay: `eu-1` (https://eu-1.mfadem.ir, or http://87.106.5.192 if the domain is blocked). Account backup: Settings → Back up
+          account on Android, `mesh identity export` on desktop.
+          NOTES
+          } > body.md
 
       - name: Checksums
         run: cd dist && sha256sum * > SHA256SUMS && ls -la
@@ -153,16 +206,4 @@ jobs:
         with:
           files: dist/*
           prerelease: ${{ contains(github.ref_name, '-') }}
-          body: |
-            Mava ${{ needs.version.outputs.name }} (Android versionCode ${{ needs.version.outputs.code }}).
-
-            **Android** — `arm64-v8a` for almost every phone, `universal` if unsure. Installs as an
-            update over earlier test builds (same public test key; not a release key).
-            **Desktop** — `meshmsg-desktop-…-linux-amd64.tar.gz` (or arm64): `meshd` + `mesh`,
-            see the README inside.
-            **Relay server** — `meshmsg-relay-…-linux-amd64.tar.gz`: run `sudo sh install.sh` inside
-            (asks for your Mava account id for the admin panel at `/admin`).
-
-            Default relay: `eu-1` (http://87.106.5.192). Account backup: Settings → Back up
-            account on Android, `mesh identity export` on desktop.
-            BLE and USB LoRa have not been tried on real phones yet.
+          body_path: body.md

@@ -17,6 +17,8 @@ type Config struct {
 	node.Config
 	// UI is the web UI listen address ("" disables). Must be loopback.
 	UI string `toml:"ui" json:"ui"`
+	// NoUpdateCheck turns off the daily check for a newer release (roadmap B7).
+	NoUpdateCheck bool `toml:"no_update_check" json:"no_update_check"`
 	// Path is the file the config was loaded from ("" = not saved).
 	Path string `toml:"-" json:"path"`
 }

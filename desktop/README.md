@@ -16,8 +16,12 @@ mesh ui               # open the web UI
 
 `meshd` must keep running for `mesh` to work. Without the service, run `./meshd` in its
 own terminal (or `./meshd &`) and use `./mesh` from another; Ctrl+C stops meshd.
-To update, run the new release's `./install.sh` (it restarts meshd; your config,
-identity and messages stay).
+To update, run `mesh update`: it downloads the new release, checks it against the
+signed release manifest, replaces `meshd` and `mesh` and restarts the service (your
+config, identity and messages stay). meshd checks for new releases at start and about
+once a day (asking your relays, then GitHub; nothing about you is sent) and shows them
+in the web UI and in `mesh status`; `no_update_check = true` in `config.toml` turns that
+off. Running the new release's `./install.sh` works too.
 
 ## Install from source
 
@@ -62,7 +66,8 @@ mesh add 'meshmsg:…' Sara        # add a contact
 mesh send Sara "سلام"            # send
 mesh read Sara                   # history (✓ sent, ✓✓ delivered)
 mesh watch                       # live incoming messages
-mesh status                      # links, peers, stored packets
+mesh status                      # links, peers, stored packets, available update
+mesh update                      # install a newer release (mesh update check: only look)
 mesh ui                          # open the web UI
 mesh config                      # all settings
 mesh config set gateway=on lan.peers=10.0.0.5:7000   # change them (mesh config keys)

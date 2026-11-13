@@ -39,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -54,7 +55,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.meshmsg.app.ui.AddContactScreen
 import org.meshmsg.app.ui.ChatScreen
+import org.meshmsg.app.data.UpdateStep
 import org.meshmsg.app.ui.ChatsScreen
+import org.meshmsg.app.ui.UpdateBannerState
 import org.meshmsg.app.ui.MeshIcons
 import org.meshmsg.app.ui.MeshViewModel
 import org.meshmsg.app.ui.NetworkScreen
@@ -198,7 +201,19 @@ class MainActivity : ComponentActivity() {
                 composable(Routes.CHATS) {
                     val chats by vm.chats.collectAsStateWithLifecycle()
                     val status by vm.status.collectAsStateWithLifecycle()
-                    ChatsScreen(chats, status.anyPathUp, onOpen = { nav.navigate(Routes.chat(it.contact.hash)) }, onAdd = { nav.navigate(Routes.ADD) })
+                    val updates = (application as MeshApp).updates
+                    val upd by updates.update.collectAsStateWithLifecycle()
+                    val step by updates.step.collectAsStateWithLifecycle()
+                    val later by updates.later.collectAsStateWithLifecycle()
+                    val lang = LocalConfiguration.current.locales[0].language
+                    val banner = upd?.takeIf { it.available && (it.required || later != it.version) }?.let { u ->
+                        UpdateBannerState(
+                            version = u.version, current = u.current, notes = u.notesFor(lang), required = u.required,
+                            downloading = step is UpdateStep.Downloading, error = (step as? UpdateStep.Failed)?.message,
+                            onUpdate = updates::install, onLater = { updates.later(u.version) },
+                        )
+                    }
+                    ChatsScreen(chats, status.anyPathUp, onOpen = { nav.navigate(Routes.chat(it.contact.hash)) }, onAdd = { nav.navigate(Routes.ADD) }, update = banner)
                 }
                 composable(Routes.NETWORK) {
                     val status by vm.status.collectAsStateWithLifecycle()

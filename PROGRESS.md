@@ -27,7 +27,11 @@ Needs hardware now, for both open milestones:
 Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
 + Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
 Plan of record: docs/roadmap.md "Beta criteria" (alpha → beta) and "Code changes required by the 2026-11-12 design decisions".
-**Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
+**v0.1.1-beta1 (first beta)**: update check B7 built (signed `release.json`, relay `GET /v1/release`,
+meshd/web UI/`mesh update`, Android banner + notification + verified APK install). The release job
+needs the GitHub secret `RELEASE_SIGNING_KEY` (private key: `~/.config/mesh-msg/release-signing.key`
+on the owner's machine, never in the repo). Other beta criteria (A1 release key for APKs, A2, A3, B1–B6)
+are still open; the owner chose to tag the beta now. **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
 STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.0-alpha13** (tag on `91f2061`: Android 11+ local addresses for direct links, meshd single instance). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
 then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
@@ -897,3 +901,41 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   New builds default to `https://eu-1.mfadem.ir` (meshd config, Android `DEFAULT_RELAYS`).
 - Seen while testing: `core/node` `TestNormalMediaOverAutoDirectLink` fails on clean HEAD
   too (not caused by this change); needs a look.
+
+### 2026-11-13 — update check (B7) and v0.1.1-beta1
+
+- Owner asked to build and release `0.1.1-beta1`; CLAUDE.md requires the update check from
+  the first beta on, which didn't exist, so owner chose "build B7, then release".
+- `core/update`: manifest + Ed25519-signed envelope (`{"manifest": b64, "sig": b64}`,
+  signature over `meshmsg-release-manifest-v1\n` + manifest bytes), semver compare with
+  pre-release tags (beta2 < beta10 < final), channels (pre-release installs see beta +
+  stable, stable sees stable), `Checker` (relays in order, then GitHub releases API; daily
+  with jitter), relay `Cache`, `Download` with SHA-256/size check. Tests incl. forged and
+  tampered manifests.
+- `tools/release-manifest` keygen/sign/verify. Release key generated here: public key in
+  `core/update.ReleaseKeyHex` (`f8146bcf…f4a1`), private seed in
+  `~/.config/mesh-msg/release-signing.key` (outside the repo) → must be added as GitHub
+  secret `RELEASE_SIGNING_KEY`.
+- Relay: `GET /v1/release?channel=`, hourly refresh from GitHub (`release_upstream`,
+  `release_check` config). meshd: `GET /update`, `POST /update/check`, `no_update_check`
+  config, web UI banner (Later per version, not for required), `mesh status` line,
+  `mesh update [check]` (download, verify, swap binaries, restart user service).
+  Relays behind Tor/proxy: the check asks only directly configured relays.
+- Android: `UpdateManager` (check 10–40 s after start, then ~daily), chat-list banner,
+  one notification per version (channel "App updates"), Settings → About (version,
+  "Check for updates"), APK for the phone's ABI downloaded via the Go core, checked, and
+  opened with the system installer (`REQUEST_INSTALL_PACKAGES`, FileProvider `updates/`).
+  Strings en + fa. `AppUpdateTest`.
+- CI release job: signs `release.json` from `docs/release-notes/<tag>.{en,fa}.md`
+  (+ optional `min-supported`), verifies it, attaches it, release body from the notes.
+  Dry-run locally: signs with the key, fails without it.
+- Not built: manifest over the mesh during shutdowns, APK from a nearby phone (roadmap B7
+  "Not yet").
+- Checks: `go build ./... && go test ./...` (TestPhotoThroughRelay / TestPhotoOverBLE
+  timed out once under full parallel load, pass alone in 2.5 s / 0.5 s), `make -C firmware test`.
+- Android: AAR built locally (NDK 27.2 installed under ~/.local/share/android-toolchain/sdk);
+  Kotlin compiled, but `lintDebug` stalls on this 3 GB machine (killed after 25 min), so
+  lint/unit tests/APKs are verified by CI on the push. Known unrelated failure (reported by
+  the eu-1 session): `core/node` TestNormalMediaOverAutoDirectLink fails on clean HEAD.
+- Release also needs eu-1 upgraded to the new relay build so it serves `/v1/release`
+  (until then apps fall back to GitHub).

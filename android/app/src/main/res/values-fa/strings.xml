@@ -246,4 +246,20 @@
     <string name="call_end_lost">اتصال قطع شد</string>
     <string name="call_channel_ring">تماس‌های ورودی</string>
     <string name="call_channel_ongoing">تماس جاری</string>
+    <!-- بررسی به‌روزرسانی (roadmap B7) -->
+    <string name="update_channel">به‌روزرسانی برنامه</string>
+    <string name="update_available_title">Mava %1$s آماده است</string>
+    <string name="update_required_title">لطفاً Mava را به %1$s به‌روز کنید</string>
+    <string name="update_required_body">نسخهٔ %1$s به دلیل یک اصلاح امنیتی دیگر پشتیبانی نمی‌شود. برنامه کار می‌کند، اما هر چه زودتر به‌روزرسانی کنید.</string>
+    <string name="update_current">نسخهٔ شما: %1$s</string>
+    <string name="update_now">به‌روزرسانی</string>
+    <string name="update_later">بعداً</string>
+    <string name="update_downloading">در حال دریافت…</string>
+    <string name="update_failed">به‌روزرسانی انجام نشد: %1$s</string>
+    <string name="update_no_apk">این نسخه برای این گوشی فایل نصب ندارد</string>
+    <string name="update_check">بررسی به‌روزرسانی</string>
+    <string name="update_check_failed">برای بررسی به‌روزرسانی به هیچ رله یا گیت‌هاب دسترسی نبود</string>
+    <string name="update_up_to_date">Mava %1$s به‌روز است</string>
+    <string name="settings_about">درباره</string>
+    <string name="settings_version">نسخهٔ %1$s</string>
 </resources>

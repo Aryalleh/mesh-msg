@@ -34,6 +34,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/packet"
 	"github.com/Aryalleh/mesh-msg/core/relayclient"
 	"github.com/Aryalleh/mesh-msg/core/store"
+	"github.com/Aryalleh/mesh-msg/core/update"
 	"github.com/Aryalleh/mesh-msg/core/wire"
 	"github.com/Aryalleh/mesh-msg/network"
 	"github.com/Aryalleh/mesh-msg/server/admin"
@@ -88,6 +89,11 @@ type Config struct {
 	// MediaAccounts: if set, only these accounts (identity hashes, as
 	// "mesh id" shows them) may upload media. Empty: anyone (with PoW).
 	MediaAccounts []string `json:"media_accounts"`
+	// Release manifests for the apps' update check (GET /v1/release): fetched
+	// from GitHub every hour, or from release_upstream (another relay's URL)
+	// when set. "release_check": false turns it off.
+	ReleaseCheck    *bool  `json:"release_check"`
+	ReleaseUpstream string `json:"release_upstream"`
 }
 
 // Peer is another relay to federate with.
@@ -312,8 +318,13 @@ func run(cfg *Config) error {
 			defer udp.Close()
 		}
 	}
+	var rel *update.Cache
+	if cfg.ReleaseCheck == nil || *cfg.ReleaseCheck {
+		rel = &update.Cache{Upstream: cfg.ReleaseUpstream, Logf: log.Printf}
+	}
 	h := api.New(api.Config{
-		Relay: rl, Identity: key, PowBits: cfg.PowBits,
+		Release: rel,
+		Relay:   rl, Identity: key, PowBits: cfg.PowBits,
 		SyncTokens: cfg.SyncTokens, Relays: cfg.Relays, Logf: logf, Ledger: led,
 		UDP: func() (bool, bool) {
 			if udp == nil {
@@ -382,6 +393,13 @@ func run(cfg *Config) error {
 			}
 		}
 	}()
+	if rel != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rel.Run(ctx)
+		}()
+	}
 	for _, p := range cfg.Peers {
 		wg.Add(1)
 		go func(p Peer) {

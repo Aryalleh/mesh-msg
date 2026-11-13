@@ -64,6 +64,8 @@ Usage:
                                  sync two relays that can't reach each other
   mesh ports                     USB serial ports (for the LoRa node)
   mesh version                   print the version
+  mesh update [check]            check for a newer release; without "check", download it,
+                                 verify it against the signed manifest and install it
   mesh identity export [-o file] back up your account key, sealed with a passphrase
   mesh identity import [-replace] [file|-]
                                  restore an account from a backup (meshd must be stopped)
@@ -159,6 +161,9 @@ func run(args []string) error {
 		for _, b := range s.Bridges {
 			fmt.Fprintf(out, "bridge    %s\n", b)
 		}
+		if l := statusUpdateLine(); l != "" {
+			fmt.Fprintf(out, "update    %s\n", l)
+		}
 	case "app":
 		return runApp()
 	case "groups":
@@ -195,6 +200,8 @@ func run(args []string) error {
 		return identityCmd(rest)
 	case "version":
 		fmt.Fprintln(out, "mesh", version)
+	case "update":
+		return updateCmd(rest)
 	case "id":
 		var id map[string]string
 		if err := call("GET", "/id", nil, &id); err != nil {

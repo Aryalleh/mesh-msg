@@ -33,8 +33,10 @@ var uiFS embed.FS
 // Daemon runs a node plus its control interfaces. Settings changes from the
 // UI restart the node in place (see apply), so the node is behind mu.
 type Daemon struct {
-	token string
-	ctx   context.Context // daemon lifetime, set by Run
+	token   string
+	version string          // running version (SetVersion)
+	upd     *updater        // set by Run
+	ctx     context.Context // daemon lifetime, set by Run
 
 	opMu sync.Mutex   // serialises restarts
 	mu   sync.RWMutex // guards the fields below; held (R) by API requests
@@ -104,6 +106,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.ctx = ctx
 	d.mu.Lock()
 	d.startNode()
+	d.startUpdater(ctx)
 	dataDir, uiAddr := d.cfg.DataDir, d.cfg.UI // d.cfg is replaced when settings change
 	d.mu.Unlock()
 	defer func() {
@@ -186,6 +189,7 @@ func httpErr(w http.ResponseWriter, err error, code int) {
 func (d *Daemon) apiHandler() http.Handler {
 	mux := http.NewServeMux()
 	d.settingsAPI(mux)
+	d.updateAPI(mux)
 	h := func(f func(n *node.Node, w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			d.mu.RLock()

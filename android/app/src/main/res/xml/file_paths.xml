@@ -3,4 +3,6 @@
 <paths>
     <files-path name="received" path="mesh/media-cache/" />
     <cache-path name="outgoing" path="outgoing/" />
+    <!-- Downloaded updates, verified against the signed release manifest. -->
+    <cache-path name="updates" path="updates/" />
 </paths>

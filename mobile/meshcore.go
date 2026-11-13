@@ -99,6 +99,7 @@ type Core struct {
 	links    map[string]*chunkLink
 	loras    map[string]context.CancelFunc
 	listener Listener
+	relays   []node.RelayConfig // configured relays (update check)
 }
 
 // Open loads or creates the identity and databases in dataDir. configJSON is
@@ -118,7 +119,7 @@ func Open(dataDir, configJSON string) (*Core, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Core{n: n, dir: dataDir, done: make(chan struct{}), links: map[string]*chunkLink{}, loras: map[string]context.CancelFunc{}}, nil
+	return &Core{relays: cfg.Relays, n: n, dir: dataDir, done: make(chan struct{}), links: map[string]*chunkLink{}, loras: map[string]context.CancelFunc{}}, nil
 }
 
 // SetListener sets (or clears, with nil) the event listener.
