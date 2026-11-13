@@ -33,7 +33,7 @@ meshd/web UI/`mesh update`, Android banner + notification + verified APK install
 needs the GitHub secret `RELEASE_SIGNING_KEY` (private key: `~/.config/mesh-msg/release-signing.key`
 on the owner's machine, never in the repo). Other beta criteria (A1 release key for APKs, A2, A3, B1–B6)
 are still open; the owner chose to tag the beta now. **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
-STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Beta3 adds profile pictures (direct links only), chat folders, Telegram-like desktop theme, minimal Android service notification. **Planned next (owner's list, 2026-11-13)**: Android video calls, desktop audio+video calls (browser WebRTC-free: same call protocol over meshd), group calls (mesh of 1:1 links, ≤4) with a high-data-use warning. Latest release **v0.1.1-beta3** (tag on `16579db`). Before: **v0.1.1-beta2** (tag on `529c34d`; first published beta: update check B7, new release key, eu-1 on https://eu-1.mfadem.ir, mesh always on, call path badge). `v0.1.1-beta1` was tagged but never published (missing signing secret). Before them: v0.1.0-alpha13 (`91f2061`). eu-1 runs 0.1.1-beta2 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
+STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Beta3 adds profile pictures (direct links only), chat folders, Telegram-like desktop theme, minimal Android service notification. **Planned next (owner's list, 2026-11-13)**: Android video calls, desktop audio+video calls (browser WebRTC-free: same call protocol over meshd), group calls (mesh of 1:1 links, ≤4) with a high-data-use warning. Latest release **v0.1.1-beta4** (tag on `a2d2cdf`; eu-1 runs it). Before: **v0.1.1-beta3** (tag on `16579db`). Before: **v0.1.1-beta2** (tag on `529c34d`; first published beta: update check B7, new release key, eu-1 on https://eu-1.mfadem.ir, mesh always on, call path badge). `v0.1.1-beta1` was tagged but never published (missing signing secret). Before them: v0.1.0-alpha13 (`91f2061`). eu-1 runs 0.1.1-beta2 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
 then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
@@ -1101,3 +1101,14 @@ links. Chose: quick items in beta3; calls follow in later betas.
   the link 404s in a browser; apps still parse it when pasted).
 - Seen twice under heavy load: `TestVideoOverLANWithoutRelay` timing flake (LAN link not up
   within 30 s, Have 0); 0/32 on both old and new code in repeat runs.
+
+### 2026-11-13 — v0.1.1-beta4 released, eu-1 on beta4
+
+- Owner approved both. Tag **`v0.1.1-beta4`** on `a2d2cdf` (both CI workflows green); release
+  published, `release.json` verifies, relay tarball checked against `SHA256SUMS`.
+- eu-1: relay binary replaced with 0.1.1-beta4 (SHA-256 checked on the server; previous binary
+  `/usr/local/bin/meshmsg-relay.bak-beta2`), service active. Live: `/v1/release?channel=beta`
+  → signed beta4; `/add` → landing page; `/.well-known/assetlinks.json` served, and Google's
+  Digital Asset Links API lists the statement for `org.meshmsg.app`. The beta4 APK's signing
+  cert SHA-256 (46:72:0B:…:E2:BC) matches it, so Android can verify the App Link.
+- Next: owner's call list (Android video calls, desktop calls, group calls + data warning).
