@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="2140" height="1160" viewBox="0 0 2140 1160" font-family="DejaVu Sans, Arial, Helvetica, sans-serif">
 <rect x="0" y="0" width="2140" height="1160" fill="#ffffff"/>
 <rect x="10" y="10" width="2120" height="1140" rx="0" fill="none" stroke="#9ca3af" stroke-width="1"/>
-<text x="30" y="46" font-size="22" text-anchor="start" font-weight="bold" fill="#111827">mesh-msg handheld — schematic overview (rev A draft)</text>
-<text x="30" y="70" font-size="12" text-anchor="start" font-weight="normal" fill="#4b5563">Connections between blocks. Decoupling capacitors, ESD parts and footprints are listed in docs/handheld.md, not drawn. Nets with the same label are connected.</text>
+<text x="30" y="46" font-size="22" text-anchor="start" font-weight="bold" fill="#111827">mesh-msg handheld, Model S — schematic overview (rev A draft)</text>
+<text x="30" y="70" font-size="12" text-anchor="start" font-weight="normal" fill="#4b5563">ESP32-S3 + 3.5&quot; SPI touchscreen. Decoupling capacitors, ESD parts and footprints are listed in docs/handheld.md, not drawn. Nets with the same label are connected.</text>
 <rect x="960" y="140" width="240" height="552" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
 <text x="960" y="133" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U1</text>
 <text x="1200" y="133" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ESP32-S3-WROOM-1-N16R8</text>
@@ -80,7 +80,7 @@
 <polyline points="1200,674 1226,674" fill="none" stroke="#111827" stroke-width="1.3"/>
 <text x="1194" y="678" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO6</text>
 <rect x="873" y="306" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
-<text x="903.5" y="318" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">KEY_INT</text>
+<text x="903.5" y="318" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">BTN_ADC</text>
 <rect x="873" y="330" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
 <text x="903.5" y="342" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">PMU_IRQ</text>
 <rect x="880" y="354" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
@@ -108,21 +108,21 @@
 <text x="921.0" y="630" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">EN</text>
 <text x="894" y="646" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">R 10k to 3V3, C 1µF to GND</text>
 <text x="930" y="430" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">pull-ups: 10k on INT lines, 2.2k on I2C</text>
-<polyline points="934,530 894,530" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="890" cy="530" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
-<circle cx="860" cy="530" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
-<polyline points="888,520 862,520" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="875,520 875,514" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="857,530 844,530" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="844,530 844,538" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="836,538 852,538" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="839,541 849,541" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="842,544 846,544" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="875" y="510" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#111827">SW51 BOOT</text>
+<polyline points="934,530 922,530" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="919" cy="530" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="892" cy="530" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="917,521 894,521" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="906,521 906,515" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="889,530 878,530" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="878,530 878,538" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="870,538 886,538" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="873,541 883,541" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="876,544 880,544" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="511" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">SW51 BOOT</text>
 <rect x="560" y="140" width="180" height="216" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
 <text x="560" y="133" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">J1</text>
-<text x="740" y="133" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">2.8&quot; IPS ST7789 + CTP (FPC)</text>
-<text x="650.0" y="155" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">320×240, SPI 80 MHz</text>
+<text x="740" y="133" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">3.5&quot; ST7796S + touch</text>
+<text x="650.0" y="155" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">320×480, SPI 80 MHz</text>
 <polyline points="534,170 560,170" fill="none" stroke="#111827" stroke-width="1.3"/>
 <text x="566" y="174" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VCC</text>
 <polyline points="534,194 560,194" fill="none" stroke="#111827" stroke-width="1.3"/>
@@ -179,21 +179,87 @@
 <polyline points="766,266 820,266" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="870,266 934,266" fill="none" stroke="#111827" stroke-width="1.3"/>
 <rect x="820" y="252" width="50" height="34" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
-<text x="845" y="268" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">Q1</text>
-<text x="845" y="280" font-size="8.5" text-anchor="middle" font-weight="normal" fill="#111827">AO3400</text>
+<text x="845.0" y="268" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">Q1</text>
+<text x="845.0" y="280" font-size="8.5" text-anchor="middle" font-weight="normal" fill="#111827">AO3400</text>
+<polyline points="845.0,286 845.0,294" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="845.0,294 845.0,302" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="837.0,302 853.0,302" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="840.0,305 850.0,305" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="843.0,308 847.0,308" fill="none" stroke="#111827" stroke-width="1.3"/>
 <text x="816" y="262" font-size="9" text-anchor="end" font-weight="normal" fill="#111827">D</text>
 <text x="874" y="262" font-size="9" text-anchor="start" font-weight="normal" fill="#111827">G</text>
 <text x="920" y="262" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">BL_PWM</text>
-<polyline points="845,286 845,296" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="845,296 845,304" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="837,304 853,304" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="840,307 850,307" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="843,310 847,310" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="851" y="296" font-size="9" text-anchor="start" font-weight="normal" fill="#111827">S</text>
+<text x="560" y="372" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">LCD_RST: RC 10k / 1µF, power-on reset</text>
+<text x="40" y="140" font-size="11" text-anchor="start" font-weight="bold" fill="#111827">Side buttons on one ADC pin</text>
+<rect x="330" y="228" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="360.5" y="240" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">BTN_ADC</text>
+<polyline points="70,236 330,236" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="37" y="148" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="53.5" y="160" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3</text>
+<polyline points="70,156 90,156 90,176" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="85" y="176" width="10" height="30" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<polyline points="90,206 90,236" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="90" cy="236" r="2.6" fill="#111827"/>
+<text x="100" y="196" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">10k</text>
+<polyline points="130,236 130,246" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="130" cy="236" r="2.6" fill="#111827"/>
+<polyline points="122,246 138,246" fill="none" stroke="#111827" stroke-width="2"/>
+<polyline points="122,252 138,252" fill="none" stroke="#111827" stroke-width="2"/>
+<polyline points="130,252 130,262" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="130,262 130,270" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="122,270 138,270" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="125,273 135,273" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="128,276 132,276" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="130" y="292" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">100n</text>
+<circle cx="190" cy="236" r="2.6" fill="#111827"/>
+<polyline points="190,236 190,246" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="185" y="246" width="10" height="26" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<polyline points="190,272 190,282" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="190" cy="285" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="190" cy="309" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="181,287 181,307" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="181,297 175,297" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="190,312 190,320" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="190,320 190,328" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="182,328 198,328" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="185,331 195,331" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="188,334 192,334" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="198" y="264" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">2.2k</text>
+<text x="190" y="358" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">Vol+</text>
+<circle cx="245" cy="236" r="2.6" fill="#111827"/>
+<polyline points="245,236 245,246" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="240" y="246" width="10" height="26" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<polyline points="245,272 245,282" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="245" cy="285" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="245" cy="309" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="236,287 236,307" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="236,297 230,297" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="245,312 245,320" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="245,320 245,328" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="237,328 253,328" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="240,331 250,331" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="243,334 247,334" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="253" y="264" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">6.8k</text>
+<text x="245" y="358" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">Vol−</text>
+<circle cx="300" cy="236" r="2.6" fill="#111827"/>
+<polyline points="300,236 300,246" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="295" y="246" width="10" height="26" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<polyline points="300,272 300,282" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="300" cy="285" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="300" cy="309" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="291,287 291,307" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="291,297 285,297" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="300,312 300,320" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="300,320 300,328" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="292,328 308,328" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="295,331 305,331" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="298,334 302,334" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="308" y="264" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">22k</text>
+<text x="300" y="358" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">PTT</text>
+<text x="40" y="381" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">SW53–SW55; ≈0.6 V, 1.3 V, 2.3 V; none pressed = 3.3 V</text>
 <rect x="560" y="428" width="160" height="120" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
 <text x="560" y="421" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">J2</text>
 <text x="720" y="421" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">USB-C receptacle</text>
-<text x="640.0" y="443" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">5.1k on CC1/CC2 to GND</text>
 <polyline points="534,458 560,458" fill="none" stroke="#111827" stroke-width="1.3"/>
 <text x="566" y="462" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VBUS</text>
 <polyline points="534,482 560,482" fill="none" stroke="#111827" stroke-width="1.3"/>
@@ -213,6 +279,15 @@
 <polyline points="518,538 534,538" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="521,541 531,541" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="524,544 528,544" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="746,458 800,458" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="870,458 934,458" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="915" y="454" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">USB_D−</text>
+<polyline points="746,482 800,482" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="870,482 934,482" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="915" y="478" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">USB_D+</text>
+<rect x="800" y="442" width="70" height="56" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<text x="835" y="468" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">U9</text>
+<text x="835" y="480" font-size="8.5" text-anchor="middle" font-weight="normal" fill="#111827">USBLC6-2</text>
 <polyline points="534,482 520,482" fill="none" stroke="#111827" stroke-width="1.3"/>
 <rect x="490" y="477" width="30" height="10" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
 <polyline points="490,482 480,482" fill="none" stroke="#111827" stroke-width="1.3"/>
@@ -227,177 +302,7 @@
 <polyline points="472,514 488,514" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="475,517 485,517" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="478,520 482,520" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="746,458 800,458" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="870,458 934,458" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="915" y="454" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">USB_D−</text>
-<polyline points="746,482 800,482" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="870,482 934,482" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="915" y="478" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">USB_D+</text>
-<rect x="800" y="442" width="70" height="56" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
-<text x="835" y="468" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">U9</text>
-<text x="835" y="480" font-size="8.5" text-anchor="middle" font-weight="normal" fill="#111827">USBLC6-2</text>
-<rect x="130" y="140" width="190" height="216" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
-<text x="130" y="133" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U3</text>
-<text x="320" y="133" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">TCA8418 keypad scanner</text>
-<text x="225.0" y="155" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">I2C 0x34, 8×10 max</text>
-<polyline points="104,170 130,170" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="136" y="174" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">ROW0–ROW4</text>
-<polyline points="104,194 130,194" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="136" y="198" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">COL0–COL9</text>
-<polyline points="320,170 346,170" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="314" y="174" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">INT</text>
-<polyline points="320,194 346,194" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="314" y="198" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">SDA</text>
-<polyline points="320,218 346,218" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="314" y="222" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">SCL</text>
-<polyline points="320,242 346,242" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="314" y="246" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ROW5 (GPIO)</text>
-<polyline points="320,266 346,266" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="314" y="270" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ROW6 (GPIO)</text>
-<polyline points="320,290 346,290" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="314" y="294" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ROW7 (GPIO)</text>
-<polyline points="320,314 346,314" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="314" y="318" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">VCC</text>
-<polyline points="320,338 346,338" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="314" y="342" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GND</text>
-<rect x="346" y="162" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
-<text x="376.5" y="174" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">KEY_INT</text>
-<rect x="346" y="186" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
-<text x="376.5" y="198" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SDA</text>
-<rect x="346" y="210" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
-<text x="376.5" y="222" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SCL</text>
-<rect x="346" y="234" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
-<text x="376.5" y="246" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">LCD_RST</text>
-<rect x="346" y="258" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
-<text x="373.0" y="270" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">KBD_BL</text>
-<rect x="346" y="282" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
-<text x="376.5" y="294" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">OPT_RST</text>
-<rect x="346" y="306" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
-<text x="362.5" y="318" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3</text>
-<polyline points="346,338 354,338" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="354,338 354,346" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="346,346 362,346" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="349,349 359,349" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="352,352 356,352" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="104,170 60,170 60,410" fill="none" stroke="#111827" stroke-width="3.2"/>
-<polyline points="104,194 74,194 74,410" fill="none" stroke="#111827" stroke-width="3.2"/>
-<text x="82" y="400" font-size="9.5" text-anchor="start" font-weight="normal" fill="#1d4ed8">ROW[0..4]</text>
-<text x="82" y="386" font-size="9.5" text-anchor="start" font-weight="normal" fill="#1d4ed8">COL[0..9]</text>
-<rect x="40" y="410" width="330" height="275" rx="2" fill="#f8fafc" stroke="#475569" stroke-width="1.3"/>
-<text x="48" y="428" font-size="11" text-anchor="start" font-weight="bold" fill="#111827">Key matrix 5 × 10: SW1–SW50, D1–D50 1N4148W</text>
-<polyline points="70,474 330,474" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="66" y="478" font-size="9.5" text-anchor="end" font-weight="normal" fill="#111827">R0</text>
-<polyline points="70,529 330,529" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="66" y="533" font-size="9.5" text-anchor="end" font-weight="normal" fill="#111827">R1</text>
-<polyline points="70,584 330,584" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="66" y="588" font-size="9.5" text-anchor="end" font-weight="normal" fill="#111827">R2</text>
-<polyline points="130,454 130,624" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="130" y="450" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#111827">C0</text>
-<circle cx="100" cy="474" r="2.6" fill="#111827"/>
-<polyline points="100,474 100,482" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="100,482 108,492" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="100,494 100,500" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="95,500 105,500 100,508" fill="#111827"/>
-<polyline points="95,508 105,508" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="100,508 100,514 130,514" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="130" cy="514" r="2.6" fill="#111827"/>
-<circle cx="100" cy="529" r="2.6" fill="#111827"/>
-<polyline points="100,529 100,537" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="100,537 108,547" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="100,549 100,555" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="95,555 105,555 100,563" fill="#111827"/>
-<polyline points="95,563 105,563" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="100,563 100,569 130,569" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="130" cy="569" r="2.6" fill="#111827"/>
-<circle cx="100" cy="584" r="2.6" fill="#111827"/>
-<polyline points="100,584 100,592" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="100,592 108,602" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="100,604 100,610" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="95,610 105,610 100,618" fill="#111827"/>
-<polyline points="95,618 105,618" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="100,618 100,624 130,624" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="130" cy="624" r="2.6" fill="#111827"/>
-<polyline points="190,454 190,624" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="190" y="450" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#111827">C1</text>
-<circle cx="160" cy="474" r="2.6" fill="#111827"/>
-<polyline points="160,474 160,482" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="160,482 168,492" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="160,494 160,500" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="155,500 165,500 160,508" fill="#111827"/>
-<polyline points="155,508 165,508" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="160,508 160,514 190,514" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="190" cy="514" r="2.6" fill="#111827"/>
-<circle cx="160" cy="529" r="2.6" fill="#111827"/>
-<polyline points="160,529 160,537" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="160,537 168,547" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="160,549 160,555" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="155,555 165,555 160,563" fill="#111827"/>
-<polyline points="155,563 165,563" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="160,563 160,569 190,569" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="190" cy="569" r="2.6" fill="#111827"/>
-<circle cx="160" cy="584" r="2.6" fill="#111827"/>
-<polyline points="160,584 160,592" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="160,592 168,602" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="160,604 160,610" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="155,610 165,610 160,618" fill="#111827"/>
-<polyline points="155,618 165,618" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="160,618 160,624 190,624" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="190" cy="624" r="2.6" fill="#111827"/>
-<polyline points="250,454 250,624" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="250" y="450" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#111827">C2</text>
-<circle cx="220" cy="474" r="2.6" fill="#111827"/>
-<polyline points="220,474 220,482" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="220,482 228,492" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="220,494 220,500" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="215,500 225,500 220,508" fill="#111827"/>
-<polyline points="215,508 225,508" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="220,508 220,514 250,514" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="250" cy="514" r="2.6" fill="#111827"/>
-<circle cx="220" cy="529" r="2.6" fill="#111827"/>
-<polyline points="220,529 220,537" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="220,537 228,547" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="220,549 220,555" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="215,555 225,555 220,563" fill="#111827"/>
-<polyline points="215,563 225,563" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="220,563 220,569 250,569" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="250" cy="569" r="2.6" fill="#111827"/>
-<circle cx="220" cy="584" r="2.6" fill="#111827"/>
-<polyline points="220,584 220,592" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="220,592 228,602" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="220,604 220,610" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="215,610 225,610 220,618" fill="#111827"/>
-<polyline points="215,618 225,618" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="220,618 220,624 250,624" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="250" cy="624" r="2.6" fill="#111827"/>
-<polyline points="310,454 310,624" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="310" y="450" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#111827">C3</text>
-<circle cx="280" cy="474" r="2.6" fill="#111827"/>
-<polyline points="280,474 280,482" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="280,482 288,492" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="280,494 280,500" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="275,500 285,500 280,508" fill="#111827"/>
-<polyline points="275,508 285,508" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="280,508 280,514 310,514" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="310" cy="514" r="2.6" fill="#111827"/>
-<circle cx="280" cy="529" r="2.6" fill="#111827"/>
-<polyline points="280,529 280,537" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="280,537 288,547" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="280,549 280,555" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="275,555 285,555 280,563" fill="#111827"/>
-<polyline points="275,563 285,563" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="280,563 280,569 310,569" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="310" cy="569" r="2.6" fill="#111827"/>
-<circle cx="280" cy="584" r="2.6" fill="#111827"/>
-<polyline points="280,584 280,592" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="280,592 288,602" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="280,604 280,610" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polygon points="275,610 285,610 280,618" fill="#111827"/>
-<polyline points="275,618 285,618" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="280,618 280,624 310,624" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="310" cy="624" r="2.6" fill="#111827"/>
-<text x="350" y="534" font-size="18" text-anchor="start" font-weight="normal" fill="#111827">…</text>
-<text x="200" y="646" font-size="10" text-anchor="middle" font-weight="normal" fill="#57534e">⋮  key → diode (anode on row) → column</text>
-<text x="48" y="677" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">Space = 2 switches in parallel; power key on U2 PWRON, not in the matrix</text>
+<text x="640" y="566" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">CC1/CC2: 5.1k to GND (sink)</text>
 <rect x="270" y="740" width="190" height="240" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
 <text x="270" y="733" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U2</text>
 <text x="460" y="733" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">AXP2101 PMU</text>
@@ -465,21 +370,22 @@
 <polyline points="196,898 212,898" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="199,901 209,901" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="202,904 206,904" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="184" y="892" font-size="9.5" text-anchor="end" font-weight="normal" fill="#111827">BT1 Li-ion 3000 mAh</text>
+<text x="184" y="892" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">BT1 Li-ion (NTC inside)</text>
 <rect x="134" y="858" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
 <text x="154.0" y="870" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBAT</text>
 <polyline points="244,794 232,794" fill="none" stroke="#111827" stroke-width="1.3"/>
 <text x="228" y="798" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">NTC 10k in the battery</text>
-<polyline points="244,842 224,842" fill="none" stroke="#111827" stroke-width="1.3"/>
-<circle cx="221" cy="842" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
-<circle cx="194" cy="842" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
-<polyline points="219,833 196,833" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="191,842 182,842" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="182,842 182,850" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="174,850 190,850" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="177,853 187,853" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="180,856 184,856" fill="none" stroke="#111827" stroke-width="1.3"/>
-<text x="208" y="829" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">SW52 POWER</text>
+<polyline points="244,842 232,842" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="229" cy="842" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="202" cy="842" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="227,833 204,833" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="216,833 216,827" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="199,842 188,842" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="188,842 188,850" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="180,850 196,850" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="183,853 193,853" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="186,856 190,856" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="216" y="823" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">SW52 POWER</text>
 <rect x="700" y="830" width="160" height="120" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
 <text x="700" y="823" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U7</text>
 <text x="860" y="823" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">PCF85063A RTC</text>
@@ -504,16 +410,14 @@
 <polyline points="658,940 674,940" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="661,943 671,943" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="664,946 668,946" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="674,860 654,860" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="674,884 654,884" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="654,860 654,866" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="654,884 654,878" fill="none" stroke="#111827" stroke-width="1.3"/>
-<rect x="648" y="868" width="12" height="8" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
-<text x="642" y="876" font-size="9.5" text-anchor="end" font-weight="normal" fill="#111827">Y1 32.768 kHz</text>
 <rect x="886" y="852" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
 <text x="916.5" y="864" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SDA</text>
 <rect x="886" y="876" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
 <text x="916.5" y="888" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SCL</text>
+<polyline points="674,860 654,860 654,866" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="674,884 654,884 654,878" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="648" y="868" width="12" height="8" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<text x="642" y="876" font-size="9.5" text-anchor="end" font-weight="normal" fill="#111827">Y1 32.768 kHz</text>
 <text x="892" y="912" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">n.c.</text>
 <rect x="700" y="990" width="160" height="72" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
 <text x="700" y="983" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U8</text>
@@ -550,8 +454,6 @@
 <text x="964.0" y="914" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">TXD0</text>
 <rect x="944" y="926" width="40" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
 <text x="964.0" y="938" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">RXD0</text>
-<rect x="923" y="950" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
-<text x="953.5" y="962" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">OPT_RST</text>
 <rect x="923" y="974" width="61" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
 <text x="953.5" y="986" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_GPS</text>
 <polyline points="984,1006 976,1006" fill="none" stroke="#111827" stroke-width="1.3"/>
@@ -559,6 +461,7 @@
 <polyline points="968,1014 984,1014" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="971,1017 981,1017" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="974,1020 978,1020" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="978" y="962" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">n.c. (rail reset)</text>
 <text x="1100" y="1042" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">L76K GPS or A7670 LTE: fit one</text>
 <rect x="1400" y="140" width="190" height="192" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
 <text x="1400" y="133" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U4</text>
@@ -644,10 +547,15 @@
 <text x="1622" y="390" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">10k to 3V3_SD</text>
 <text x="1622" y="414" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">n.c.</text>
 <polyline points="1226,458 1300,458" fill="none" stroke="#111827" stroke-width="1.3"/>
-<rect x="1300" y="444" width="60" height="34" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
-<text x="1330" y="460" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">Q2</text>
-<text x="1330" y="472" font-size="8.5" text-anchor="middle" font-weight="normal" fill="#111827">AO3400</text>
 <text x="1270" y="454" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">VIB</text>
+<rect x="1300" y="444" width="60" height="34" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<text x="1330.0" y="460" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">Q2</text>
+<text x="1330.0" y="472" font-size="8.5" text-anchor="middle" font-weight="normal" fill="#111827">AO3400</text>
+<polyline points="1330.0,478 1330.0,486" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1330.0,486 1330.0,494" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1322.0,494 1338.0,494" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1325.0,497 1335.0,497" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1328.0,500 1332.0,500" fill="none" stroke="#111827" stroke-width="1.3"/>
 <polyline points="1360,458 1690,458" fill="none" stroke="#111827" stroke-width="1.3"/>
 <circle cx="1704" cy="458" r="14" fill="#fff" stroke="#111827" stroke-width="1.3"/>
 <text x="1704" y="462" font-size="11" text-anchor="middle" font-weight="bold" fill="#111827">M</text>
@@ -655,11 +563,6 @@
 <rect x="1740" y="450" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
 <text x="1760.0" y="462" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBAT</text>
 <text x="1704" y="488" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">M1 coin motor + flyback diode</text>
-<polyline points="1330,478 1330,486" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="1330,486 1330,494" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="1322,494 1338,494" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="1325,497 1335,497" fill="none" stroke="#111827" stroke-width="1.3"/>
-<polyline points="1328,500 1332,500" fill="none" stroke="#111827" stroke-width="1.3"/>
 <rect x="1400" y="500" width="190" height="312" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
 <text x="1400" y="493" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U5</text>
 <text x="1590" y="493" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ES8388 audio codec</text>
@@ -748,7 +651,7 @@
 <circle cx="1900" cy="522" r="2.6" fill="#111827"/>
 <rect x="1787" y="514" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
 <text x="1803.5" y="526" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">MIC</text>
-<polyline points="1820,522 1900,522 1930,522" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1820,522 1930,522" fill="none" stroke="#111827" stroke-width="1.3"/>
 <circle cx="1946" cy="522" r="16" fill="#fff" stroke="#111827" stroke-width="1.3"/>
 <polyline points="1932,508 1932,536" fill="none" stroke="#111827" stroke-width="2"/>
 <polyline points="1962,522 1980,522" fill="none" stroke="#111827" stroke-width="1.3"/>
@@ -861,7 +764,7 @@
 <text x="1783" y="1040" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">1µF</text>
 <text x="1620" y="1114" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">AEC reference: speaker signal back into the right ADC</text>
 <rect x="1230" y="1010" width="370" height="92" rx="2" fill="#fff" stroke="#9ca3af" stroke-width="1"/>
-<text x="1240" y="1030" font-size="12" text-anchor="start" font-weight="bold" fill="#111827">mesh-msg handheld · schematic overview</text>
+<text x="1240" y="1030" font-size="12" text-anchor="start" font-weight="bold" fill="#111827">mesh-msg handheld · Model S (ESP32-S3)</text>
 <text x="1240" y="1048" font-size="10.5" text-anchor="start" font-weight="normal" fill="#111827">Rev A draft · 2026-11-13 · not for fabrication</text>
 <text x="1240" y="1066" font-size="10.5" text-anchor="start" font-weight="normal" fill="#111827">Design notes, BOM and pin rules: docs/handheld.md</text>
 <rect x="1240" y="1078" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>

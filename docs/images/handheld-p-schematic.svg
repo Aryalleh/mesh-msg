@@ -1,0 +1,1005 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2140" height="1420" viewBox="0 0 2140 1420" font-family="DejaVu Sans, Arial, Helvetica, sans-serif">
+<rect x="0" y="0" width="2140" height="1420" fill="#ffffff"/>
+<rect x="10" y="10" width="2120" height="1400" rx="0" fill="none" stroke="#9ca3af" stroke-width="1"/>
+<text x="30" y="46" font-size="22" text-anchor="start" font-weight="bold" fill="#111827">mesh-msg handheld, Model P — schematic overview (rev A draft)</text>
+<text x="30" y="70" font-size="12" text-anchor="start" font-weight="normal" fill="#4b5563">ESP32-P4 + ESP32-C6 + 5&quot; MIPI touchscreen. GPIO numbers are a suggestion: verify against the ESP32-P4 datasheet. ± = differential pair drawn as one line.</text>
+<rect x="900" y="140" width="260" height="1008" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="900" y="133" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U1</text>
+<text x="1160" y="133" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ESP32-P4NRW32</text>
+<text x="1030.0" y="155" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">RISC-V 400 MHz · 32 MB PSRAM</text>
+<polyline points="874,170 900,170" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="174" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DSI_CLK±</text>
+<polyline points="874,194 900,194" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="198" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DSI_D0±</text>
+<polyline points="874,218 900,218" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="222" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DSI_D1±</text>
+<polyline points="874,242 900,242" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="246" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GPIO28</text>
+<polyline points="874,266 900,266" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="270" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GPIO29</text>
+<polyline points="874,290 900,290" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="294" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GPIO30</text>
+<polyline points="874,386 900,386" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="390" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">CSI_CLK±</text>
+<polyline points="874,410 900,410" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="414" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">CSI_D0±</text>
+<polyline points="874,434 900,434" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="438" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">CSI_D1±</text>
+<polyline points="874,458 900,458" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="462" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GPIO31</text>
+<polyline points="874,578 900,578" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="582" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">USB_DP</text>
+<polyline points="874,602 900,602" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="606" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">USB_DM</text>
+<polyline points="874,722 900,722" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="726" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">FLASH_CS</text>
+<polyline points="874,746 900,746" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="750" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">FLASH_CLK</text>
+<polyline points="874,770 900,770" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="774" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">FLASH_D0–D3</text>
+<polyline points="874,818 900,818" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="822" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GPIO7</text>
+<polyline points="874,842 900,842" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="846" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GPIO8</text>
+<polyline points="874,866 900,866" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="870" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GPIO4</text>
+<polyline points="874,890 900,890" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="894" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GPIO5</text>
+<polyline points="874,938 900,938" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="942" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GPIO35</text>
+<polyline points="874,986 900,986" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="990" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">XTAL_P/N</text>
+<polyline points="874,1010 900,1010" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="1014" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">CHIP_PU</text>
+<polyline points="874,1034 900,1034" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="1038" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VDD (3V3)</text>
+<polyline points="874,1058 900,1058" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="906" y="1062" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="1160,170 1186,170" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="174" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO18</text>
+<polyline points="1160,194 1186,194" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="198" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO19</text>
+<polyline points="1160,218 1186,218" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="222" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO14</text>
+<polyline points="1160,242 1186,242" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="246" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO15</text>
+<polyline points="1160,266 1186,266" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="270" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO16</text>
+<polyline points="1160,290 1186,290" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="294" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO17</text>
+<polyline points="1160,314 1186,314" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="318" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO54</text>
+<polyline points="1160,386 1186,386" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="390" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO20</text>
+<polyline points="1160,410 1186,410" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="414" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO21</text>
+<polyline points="1160,434 1186,434" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="438" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO22</text>
+<polyline points="1160,458 1186,458" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="462" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO23</text>
+<polyline points="1160,482 1186,482" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="486" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO32</text>
+<polyline points="1160,506 1186,506" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="510" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO33</text>
+<polyline points="1160,530 1186,530" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="534" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO3</text>
+<polyline points="1160,602 1186,602" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="606" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO43</text>
+<polyline points="1160,626 1186,626" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="630" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO44</text>
+<polyline points="1160,650 1186,650" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="654" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO39</text>
+<polyline points="1160,674 1186,674" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="678" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO40</text>
+<polyline points="1160,698 1186,698" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="702" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO41</text>
+<polyline points="1160,722 1186,722" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="726" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO42</text>
+<polyline points="1160,794 1186,794" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="798" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO13</text>
+<polyline points="1160,818 1186,818" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="822" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO12</text>
+<polyline points="1160,842 1186,842" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="846" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO10</text>
+<polyline points="1160,866 1186,866" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="870" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO9</text>
+<polyline points="1160,890 1186,890" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="894" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO11</text>
+<polyline points="1160,914 1186,914" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="918" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO53</text>
+<polyline points="1160,938 1186,938" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="942" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO52</text>
+<polyline points="1160,986 1186,986" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="990" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO47</text>
+<polyline points="1160,1010 1186,1010" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="1014" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO48</text>
+<polyline points="1160,1034 1186,1034" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="1038" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO49</text>
+<polyline points="1160,1058 1186,1058" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="1062" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO50</text>
+<polyline points="1160,1082 1186,1082" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="1086" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO51</text>
+<polyline points="1160,1106 1186,1106" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="1110" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO45</text>
+<polyline points="1160,1130 1186,1130" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1154" y="1134" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPIO46</text>
+<rect x="813" y="810" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="843.5" y="822" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SDA</text>
+<rect x="813" y="834" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="843.5" y="846" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SCL</text>
+<rect x="820" y="858" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="847.0" y="870" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">TP_INT</text>
+<rect x="813" y="882" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="843.5" y="894" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">PMU_IRQ</text>
+<rect x="841" y="1026" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="857.5" y="1038" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3</text>
+<polyline points="874,1058 866,1058" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="866,1058 866,1066" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="858,1066 874,1066" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="861,1069 871,1069" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="864,1072 868,1072" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1186" y="906" width="47" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1209.5" y="918" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">PA_EN</text>
+<rect x="1186" y="930" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1213.0" y="942" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">HP_DET</text>
+<rect x="1186" y="978" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1213.0" y="990" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">VOL_UP</text>
+<rect x="1186" y="1002" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1213.0" y="1014" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">VOL_DN</text>
+<rect x="1186" y="1026" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1202.5" y="1038" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">PTT</text>
+<rect x="1186" y="1050" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1202.5" y="1062" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">VIB</text>
+<rect x="1186" y="1074" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1213.0" y="1086" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">OTG_EN</text>
+<rect x="1186" y="1098" width="40" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1206.0" y="1110" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">TXD1</text>
+<rect x="1186" y="1122" width="40" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1206.0" y="1134" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">RXD1</text>
+<rect x="848" y="1002" width="26" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="861.0" y="1014" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">EN</text>
+<text x="834" y="1030" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">R 10k to 3V3, C 1µF to GND</text>
+<polyline points="874,986 854,986" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="828" y="980" width="26" height="12" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<text x="822" y="990" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">Y3 40 MHz</text>
+<polyline points="874,938 862,938" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="859" cy="938" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="832" cy="938" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="857,929 834,929" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="846,929 846,923" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="829,938 818,938" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="818,938 818,946" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="810,946 826,946" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="813,949 823,949" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="816,952 820,952" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="846" y="919" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">SW51 BOOT</text>
+<text x="1010" y="1108" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">pull-ups: 10k INT, 2.2k I2C</text>
+<text x="1010" y="1122" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">VDD_CORE: U2 DCDC2 if needed</text>
+<rect x="520" y="140" width="200" height="192" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="520" y="133" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">J1</text>
+<text x="720" y="133" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">5&quot; IPS 720×1280 MIPI + GT911</text>
+<text x="620.0" y="155" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">2-lane DSI · ILI9881C / JD9365</text>
+<polyline points="494,170 520,170" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="174" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VCI</text>
+<polyline points="494,194 520,194" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="198" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IOVCC</text>
+<polyline points="494,218 520,218" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="222" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">TP_SDA</text>
+<polyline points="494,242 520,242" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="246" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">TP_SCL</text>
+<polyline points="494,266 520,266" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="270" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">TP_INT</text>
+<polyline points="494,290 520,290" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="294" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">TP_VDD</text>
+<polyline points="494,314 520,314" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="318" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="720,170 746,170" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="174" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">DSI_CLK±</text>
+<polyline points="720,194 746,194" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="198" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">DSI_D0±</text>
+<polyline points="720,218 746,218" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="222" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">DSI_D1±</text>
+<polyline points="720,242 746,242" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="246" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">RESET</text>
+<polyline points="720,266 746,266" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="270" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">TP_RST</text>
+<polyline points="720,290 746,290" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="294" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">LED+ / LED−</text>
+<rect x="433" y="162" width="61" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="463.5" y="174" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_LCD</text>
+<rect x="461" y="186" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="477.5" y="198" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">1V8</text>
+<rect x="433" y="210" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="463.5" y="222" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SDA</text>
+<rect x="433" y="234" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="463.5" y="246" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SCL</text>
+<rect x="440" y="258" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="467.0" y="270" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">TP_INT</text>
+<rect x="433" y="282" width="61" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="463.5" y="294" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_LCD</text>
+<polyline points="494,314 486,314" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="486,314 486,322" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="478,322 494,322" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="481,325 491,325" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="484,328 488,328" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="746,170 874,170" fill="none" stroke="#111827" stroke-width="2.4"/>
+<text x="810.0" y="166" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">DSI_CLK</text>
+<polyline points="746,194 874,194" fill="none" stroke="#111827" stroke-width="2.4"/>
+<text x="810.0" y="190" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">DSI_D0</text>
+<polyline points="746,218 874,218" fill="none" stroke="#111827" stroke-width="2.4"/>
+<text x="810.0" y="214" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">DSI_D1</text>
+<polyline points="746,242 874,242" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="810.0" y="238" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">LCD_RST</text>
+<polyline points="746,266 874,266" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="810.0" y="262" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">TP_RST</text>
+<polyline points="746,290 770,290" fill="none" stroke="#111827" stroke-width="2.4"/>
+<polyline points="840,290 874,290" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="770" y="274" width="70" height="40" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<text x="805" y="290" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">U13</text>
+<text x="805" y="303" font-size="8.5" text-anchor="middle" font-weight="normal" fill="#111827">SGM3732</text>
+<text x="870" y="286" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">BL_PWM</text>
+<polyline points="805,314 805,330" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="765" y="330" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="785.0" y="342" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBAT</text>
+<text x="812" y="326" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">LED boost</text>
+<rect x="520" y="356" width="200" height="168" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="520" y="349" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">J7</text>
+<text x="720" y="349" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">camera FPC (OV5647, option)</text>
+<text x="620.0" y="371" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">5 MP · 2-lane CSI</text>
+<polyline points="494,386 520,386" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="390" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">SCCB_SDA</text>
+<polyline points="494,410 520,410" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="414" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">SCCB_SCL</text>
+<polyline points="494,434 520,434" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="438" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">XCLK</text>
+<polyline points="494,458 520,458" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="462" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">AVDD</text>
+<polyline points="494,482 520,482" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="486" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DOVDD</text>
+<polyline points="494,506 520,506" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="526" y="510" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="720,386 746,386" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="390" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">CSI_CLK±</text>
+<polyline points="720,410 746,410" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="414" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">CSI_D0±</text>
+<polyline points="720,434 746,434" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="438" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">CSI_D1±</text>
+<polyline points="720,458 746,458" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="462" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">PWDN</text>
+<rect x="433" y="378" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="463.5" y="390" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SDA</text>
+<rect x="433" y="402" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="463.5" y="414" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SCL</text>
+<rect x="433" y="450" width="61" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="463.5" y="462" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">2V8_CAM</text>
+<rect x="461" y="474" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="477.5" y="486" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">1V8</text>
+<polyline points="494,506 486,506" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="486,506 486,514" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="478,514 494,514" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="481,517 491,517" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="484,520 488,520" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="494,434 454,434" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="384" y="422" width="70" height="24" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<text x="419" y="438" font-size="9" text-anchor="middle" font-weight="bold" fill="#111827">Y2 24 MHz</text>
+<polyline points="746,386 874,386" fill="none" stroke="#111827" stroke-width="2.4"/>
+<text x="810.0" y="382" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">CSI_CLK</text>
+<polyline points="746,410 874,410" fill="none" stroke="#111827" stroke-width="2.4"/>
+<text x="810.0" y="406" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">CSI_D0</text>
+<polyline points="746,434 874,434" fill="none" stroke="#111827" stroke-width="2.4"/>
+<text x="810.0" y="430" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">CSI_D1</text>
+<polyline points="746,458 874,458" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="810.0" y="454" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">CAM_PWDN</text>
+<rect x="560" y="548" width="160" height="120" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="560" y="541" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">J2</text>
+<text x="720" y="541" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">USB-C receptacle</text>
+<text x="640.0" y="563" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">USB 2.0 high speed</text>
+<polyline points="534,578 560,578" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="566" y="582" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VBUS</text>
+<polyline points="534,602 560,602" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="566" y="606" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">CC1</text>
+<polyline points="534,626 560,626" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="566" y="630" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">CC2</text>
+<polyline points="534,650 560,650" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="566" y="654" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="720,578 746,578" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="582" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">D+</text>
+<polyline points="720,602 746,602" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="606" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">D−</text>
+<rect x="480" y="570" width="54" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="507.0" y="582" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBUS_C</text>
+<rect x="501" y="594" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="517.5" y="606" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">CC1</text>
+<rect x="501" y="618" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="517.5" y="630" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">CC2</text>
+<polyline points="534,650 526,650" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="526,650 526,658" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="518,658 534,658" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="521,661 531,661" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="524,664 528,664" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="746,578 760,578" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="830,578 874,578" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="865" y="574" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">USB_D+</text>
+<polyline points="746,602 760,602" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="830,602 874,602" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="865" y="598" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">USB_D−</text>
+<rect x="760" y="562" width="70" height="56" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<text x="795" y="588" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">U9</text>
+<text x="795" y="600" font-size="8.5" text-anchor="middle" font-weight="normal" fill="#111827">USBLC6-2</text>
+<rect x="130" y="560" width="160" height="120" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="130" y="553" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U14</text>
+<text x="290" y="553" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">TUSB320 (DRP)</text>
+<text x="210.0" y="575" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">USB-C role detect</text>
+<polyline points="104,590 130,590" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="136" y="594" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VDD</text>
+<polyline points="104,614 130,614" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="136" y="618" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="290,590 316,590" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="284" y="594" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">CC1</text>
+<polyline points="290,614 316,614" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="284" y="618" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">CC2</text>
+<polyline points="290,638 316,638" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="284" y="642" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">SDA</text>
+<polyline points="290,662 316,662" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="284" y="666" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">SCL</text>
+<rect x="71" y="582" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="87.5" y="594" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3</text>
+<polyline points="104,614 96,614" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="96,614 96,622" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="88,622 104,622" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="91,625 101,625" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="94,628 98,628" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="316" y="582" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="332.5" y="594" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">CC1</text>
+<rect x="316" y="606" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="332.5" y="618" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">CC2</text>
+<rect x="316" y="630" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="346.5" y="642" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SDA</text>
+<rect x="316" y="654" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="346.5" y="666" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SCL</text>
+<rect x="130" y="730" width="160" height="96" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="130" y="723" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U10</text>
+<text x="290" y="723" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">OTG power</text>
+<text x="210.0" y="745" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">TPS61023 + 2× TPS22918</text>
+<polyline points="104,760 130,760" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="136" y="764" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VBAT</text>
+<polyline points="104,784 130,784" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="136" y="788" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">EN</text>
+<polyline points="104,808 130,808" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="136" y="812" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="290,760 316,760" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="284" y="764" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">VBUS_C</text>
+<polyline points="290,784 316,784" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="284" y="788" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">VBUS</text>
+<rect x="64" y="752" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="84.0" y="764" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBAT</text>
+<rect x="50" y="776" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="77.0" y="788" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">OTG_EN</text>
+<polyline points="104,808 96,808" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="96,808 96,816" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="88,816 104,816" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="91,819 101,819" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="94,822 98,822" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="316" y="752" width="54" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="343.0" y="764" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBUS_C</text>
+<rect x="316" y="776" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="336.0" y="788" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBUS</text>
+<text x="40" y="860" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">host: 5 V boost → VBUS_C, connector cut from the PMU input;</text>
+<text x="40" y="874" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">device: VBUS_C → VBUS (charging)</text>
+<rect x="560" y="692" width="160" height="96" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="560" y="685" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U11</text>
+<text x="720" y="685" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">W25Q128JV 16 MB</text>
+<text x="640.0" y="707" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">QSPI flash</text>
+<polyline points="534,722 560,722" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="566" y="726" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VCC</text>
+<polyline points="534,746 560,746" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="566" y="750" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="720,722 746,722" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="726" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">/CS</text>
+<polyline points="720,746 746,746" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="750" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">CLK</text>
+<polyline points="720,770 746,770" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="714" y="774" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">IO0–IO3</text>
+<rect x="501" y="714" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="517.5" y="726" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3</text>
+<polyline points="534,746 526,746" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="526,746 526,754" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="518,754 534,754" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="521,757 531,757" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="524,760 528,760" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="746,722 874,722" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="810.0" y="718" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">FLASH_CS</text>
+<polyline points="746,746 874,746" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="810.0" y="742" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">FLASH_CLK</text>
+<polyline points="746,770 874,770" fill="none" stroke="#111827" stroke-width="3.2"/>
+<text x="810.0" y="766" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">FLASH_D[0..3]</text>
+<rect x="1400" y="140" width="200" height="192" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="1400" y="133" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U12</text>
+<text x="1600" y="133" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ESP32-C6-MINI-1</text>
+<text x="1500.0" y="155" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">Wi-Fi 6 · BLE 5 · ESP-Hosted</text>
+<polyline points="1374,170 1400,170" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="174" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IO19 SDIO_CLK</text>
+<polyline points="1374,194 1400,194" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="198" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IO18 SDIO_CMD</text>
+<polyline points="1374,218 1400,218" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="222" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IO20 SDIO_D0</text>
+<polyline points="1374,242 1400,242" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="246" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IO21 SDIO_D1</text>
+<polyline points="1374,266 1400,266" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="270" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IO22 SDIO_D2</text>
+<polyline points="1374,290 1400,290" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="294" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IO23 SDIO_D3</text>
+<polyline points="1374,314 1400,314" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="318" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">EN</text>
+<polyline points="1600,170 1626,170" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1594" y="174" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">3V3</text>
+<polyline points="1600,194 1626,194" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1594" y="198" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GND</text>
+<polyline points="1600,218 1626,218" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1594" y="222" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">IO9 (BOOT)</text>
+<polyline points="1600,242 1626,242" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1594" y="246" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ANT</text>
+<polyline points="1186,170 1374,170" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="166" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SDIO_CLK</text>
+<polyline points="1186,194 1374,194" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="190" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SDIO_CMD</text>
+<polyline points="1186,218 1374,218" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="214" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SDIO_D0</text>
+<polyline points="1186,242 1374,242" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="238" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SDIO_D1</text>
+<polyline points="1186,266 1374,266" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="262" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SDIO_D2</text>
+<polyline points="1186,290 1374,290" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="286" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SDIO_D3</text>
+<polyline points="1186,314 1374,314" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="310" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">C6_EN</text>
+<rect x="1626" y="162" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="1642.5" y="174" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3</text>
+<polyline points="1626,194 1634,194" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1634,194 1634,202" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1626,202 1642,202" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1629,205 1639,205" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1632,208 1636,208" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1632" y="222" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">test pad, 10k pull-up</text>
+<text x="1632" y="246" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">PCB antenna, keep-out</text>
+<rect x="1400" y="356" width="190" height="192" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="1400" y="349" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U4</text>
+<text x="1590" y="349" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">SX1262 LoRa module</text>
+<text x="1495.0" y="371" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">TCXO · DIO2 RF switch · +22 dBm</text>
+<polyline points="1374,386 1400,386" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="390" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">SCK</text>
+<polyline points="1374,410 1400,410" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="414" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">MOSI</text>
+<polyline points="1374,434 1400,434" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="438" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">MISO</text>
+<polyline points="1374,458 1400,458" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="462" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">NSS</text>
+<polyline points="1374,482 1400,482" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="486" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">NRESET</text>
+<polyline points="1374,506 1400,506" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="510" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">BUSY</text>
+<polyline points="1374,530 1400,530" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="534" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DIO1</text>
+<polyline points="1590,386 1616,386" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="390" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ANT</text>
+<polyline points="1590,410 1616,410" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="414" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">VCC</text>
+<polyline points="1590,434 1616,434" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="438" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GND</text>
+<polyline points="1186,386 1374,386" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="382" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">LORA_SCK</text>
+<polyline points="1186,410 1374,410" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="406" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">LORA_MOSI</text>
+<polyline points="1186,434 1374,434" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="430" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">LORA_MISO</text>
+<polyline points="1186,458 1374,458" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="454" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">LORA_CS</text>
+<polyline points="1186,482 1374,482" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="478" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">LORA_RST</text>
+<polyline points="1186,506 1374,506" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="502" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">LORA_BUSY</text>
+<polyline points="1186,530 1374,530" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="526" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">LORA_DIO1</text>
+<rect x="1616" y="402" width="68" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="1650.0" y="414" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_LORA</text>
+<polyline points="1616,434 1624,434" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1624,434 1624,442" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1616,442 1632,442" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1619,445 1629,445" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1622,448 1626,448" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1616,386 1686,386" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1690" cy="386" r="4" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1694,386 1716,386 1716,356" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polygon points="1704,336 1728,336 1716,356" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1656" y="378" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#111827">J3 u.FL → SMA</text>
+<text x="1734" y="346" font-size="9.5" text-anchor="start" font-weight="normal" fill="#111827">ANT1 whip</text>
+<rect x="1400" y="572" width="190" height="168" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="1400" y="565" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">J5</text>
+<text x="1590" y="565" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">microSD socket</text>
+<text x="1495.0" y="587" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">SDMMC slot 0, 4-bit</text>
+<polyline points="1374,602 1400,602" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="606" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">CLK</text>
+<polyline points="1374,626 1400,626" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="630" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">CMD</text>
+<polyline points="1374,650 1400,650" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="654" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DAT0</text>
+<polyline points="1374,674 1400,674" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="678" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DAT1</text>
+<polyline points="1374,698 1400,698" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="702" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DAT2</text>
+<polyline points="1374,722 1400,722" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="726" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DAT3</text>
+<polyline points="1590,602 1616,602" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="606" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">VDD</text>
+<polyline points="1590,626 1616,626" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="630" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">CD</text>
+<polyline points="1590,650 1616,650" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="654" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GND</text>
+<polyline points="1186,602 1374,602" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="598" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SD_CLK</text>
+<polyline points="1186,626 1374,626" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="622" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SD_CMD</text>
+<polyline points="1186,650 1374,650" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="646" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SD_D0</text>
+<polyline points="1186,674 1374,674" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="670" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SD_D1</text>
+<polyline points="1186,698 1374,698" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="694" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SD_D2</text>
+<polyline points="1186,722 1374,722" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="718" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">SD_D3</text>
+<rect x="1616" y="594" width="54" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="1643.0" y="606" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_SD</text>
+<polyline points="1616,650 1624,650" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1624,650 1624,658" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1616,658 1632,658" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1619,661 1629,661" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1622,664 1626,664" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1622" y="630" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">n.c.</text>
+<rect x="1400" y="764" width="190" height="360" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="1400" y="757" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U5</text>
+<text x="1590" y="757" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ES8388 audio codec</text>
+<text x="1495.0" y="779" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">I2C 0x10 · 16 kHz · MCLK 256 fs</text>
+<polyline points="1374,794 1400,794" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="798" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">MCLK</text>
+<polyline points="1374,818 1400,818" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="822" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">SCLK</text>
+<polyline points="1374,842 1400,842" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="846" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">LRCK</text>
+<polyline points="1374,866 1400,866" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="870" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DSDIN</text>
+<polyline points="1374,890 1400,890" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1406" y="894" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">ASDOUT</text>
+<polyline points="1590,794 1616,794" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="798" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">LIN1</text>
+<polyline points="1590,818 1616,818" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="822" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">LIN2</text>
+<polyline points="1590,842 1616,842" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="846" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">RIN2</text>
+<polyline points="1590,866 1616,866" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="870" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">MICBIAS</text>
+<polyline points="1590,890 1616,890" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="894" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">LOUT1</text>
+<polyline points="1590,914 1616,914" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="918" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ROUT1</text>
+<polyline points="1590,938 1616,938" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="942" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">LOUT2</text>
+<polyline points="1590,962 1616,962" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="966" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ROUT2</text>
+<polyline points="1590,1010 1616,1010" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="1014" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">CCLK</text>
+<polyline points="1590,1034 1616,1034" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="1038" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">CDATA</text>
+<polyline points="1590,1058 1616,1058" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="1062" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">DVDD</text>
+<polyline points="1590,1082 1616,1082" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="1086" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">AVDD</text>
+<polyline points="1590,1106 1616,1106" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1584" y="1110" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GND</text>
+<polyline points="1186,794 1374,794" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="790" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">I2S_MCLK</text>
+<polyline points="1186,818 1374,818" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="814" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">I2S_BCLK</text>
+<polyline points="1186,842 1374,842" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="838" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">I2S_LRCK</text>
+<polyline points="1186,866 1374,866" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="862" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">I2S_DOUT</text>
+<polyline points="1186,890 1374,890" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1280.0" y="886" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#1d4ed8">I2S_DIN</text>
+<rect x="1616" y="1002" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1646.5" y="1014" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SCL</text>
+<rect x="1616" y="1026" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1646.5" y="1038" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SDA</text>
+<rect x="1616" y="1050" width="75" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="1653.5" y="1062" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_AUDIO</text>
+<rect x="1616" y="1074" width="75" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="1653.5" y="1086" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_AUDIO</text>
+<polyline points="1616,1106 1624,1106" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1624,1106 1624,1114" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1616,1114 1632,1114" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1619,1117 1629,1117" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1622,1120 1626,1120" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1616" y="786" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1632.5" y="798" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">MIC</text>
+<rect x="1616" y="810" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1643.0" y="822" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">HS_MIC</text>
+<rect x="1616" y="834" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1646.5" y="846" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">AEC_REF</text>
+<rect x="1616" y="858" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1646.5" y="870" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">MICBIAS</text>
+<rect x="1616" y="882" width="40" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1636.0" y="894" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">HS_L</text>
+<rect x="1616" y="906" width="40" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1636.0" y="918" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">HS_R</text>
+<rect x="1616" y="930" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1632.5" y="942" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">EAR</text>
+<rect x="1616" y="954" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1643.0" y="966" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">SPK_IN</text>
+<rect x="1759" y="492" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1789.5" y="504" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">MICBIAS</text>
+<polyline points="1820,500 1840,500" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1840" y="495" width="30" height="10" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<text x="1855" y="491" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">R 2.2k</text>
+<polyline points="1870,500 1900,500 1900,522" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1900" cy="522" r="2.6" fill="#111827"/>
+<rect x="1787" y="514" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1803.5" y="526" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">MIC</text>
+<polyline points="1820,522 1930,522" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1946" cy="522" r="16" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1932,508 1932,536" fill="none" stroke="#111827" stroke-width="2"/>
+<polyline points="1962,522 1980,522" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1980,522 1980,530" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1972,530 1988,530" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1975,533 1985,533" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1978,536 1982,536" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1946" y="554" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#111827">MK1 analog MEMS mic (1µF series C)</text>
+<rect x="1860" y="600" width="140" height="144" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="1860" y="593" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">J4</text>
+<text x="2000" y="593" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">3.5 mm TRRS (CTIA)</text>
+<polyline points="1838,630 1860,630" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="634" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">TIP</text>
+<polyline points="1838,654 1860,654" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="658" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">RING1</text>
+<polyline points="1838,678 1860,678" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="682" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">RING2</text>
+<polyline points="1838,702 1860,702" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="706" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">SLEEVE</text>
+<polyline points="1838,726 1860,726" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="730" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">DET</text>
+<rect x="1798" y="622" width="40" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1818.0" y="634" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">HS_L</text>
+<rect x="1798" y="646" width="40" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1818.0" y="658" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">HS_R</text>
+<rect x="1784" y="694" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1811.0" y="706" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">HS_MIC</text>
+<rect x="1784" y="718" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1811.0" y="730" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">HP_DET</text>
+<polyline points="1838,678 1830,678" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1830,678 1830,686" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1822,686 1838,686" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1825,689 1835,689" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1828,692 1832,692" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1930" y="760" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">HS_MIC: bias 2.2k from MICBIAS</text>
+<rect x="1787" y="772" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1803.5" y="784" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">EAR</text>
+<polyline points="1820,780 1850,780" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1850,772 1850,788" fill="none" stroke="#111827" stroke-width="2"/>
+<polyline points="1856,772 1856,788" fill="none" stroke="#111827" stroke-width="2"/>
+<polyline points="1856,780 1900,780" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1900" y="772" width="10" height="16" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<polygon points="1910,772 1924,762 1924,798 1910,788" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<polyline points="1905,788 1905,804" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1905,804 1905,812" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1897,812 1913,812" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1900,815 1910,815" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1903,818 1907,818" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1932" y="784" font-size="9.5" text-anchor="start" font-weight="normal" fill="#111827">LS1 earpiece 32 Ω</text>
+<text x="1853" y="768" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">10µF</text>
+<rect x="1860" y="860" width="110" height="144" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="1860" y="853" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U6</text>
+<text x="1970" y="853" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">NS4150B</text>
+<polyline points="1838,890 1860,890" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="894" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IN+</text>
+<polyline points="1838,914 1860,914" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="918" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IN−</text>
+<polyline points="1838,938 1860,938" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="942" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">CTRL</text>
+<polyline points="1838,962 1860,962" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="966" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VDD</text>
+<polyline points="1838,986 1860,986" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1866" y="990" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="1970,890 1992,890" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1964" y="894" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">OUT+</text>
+<polyline points="1970,914 1992,914" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1964" y="918" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">OUT−</text>
+<rect x="1784" y="882" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1811.0" y="894" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">SPK_IN</text>
+<rect x="1791" y="930" width="47" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1814.5" y="942" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">PA_EN</text>
+<rect x="1798" y="954" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="1818.0" y="966" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBAT</text>
+<polyline points="1838,986 1830,986" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1830,986 1830,994" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1822,994 1838,994" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1825,997 1835,997" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1828,1000 1832,1000" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1838,914 1830,914" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1830,914 1830,922" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1822,922 1838,922" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1825,925 1835,925" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1828,928 1832,928" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1992,890 2012,890 2012,894" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1992,914 2012,914 2012,910" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="2006" y="894" width="12" height="16" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<polygon points="2018,894 2034,882 2034,922 2018,910" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<text x="1988" y="866" font-size="9.5" text-anchor="start" font-weight="normal" fill="#111827">LS2 speaker 8 Ω 1 W</text>
+<text x="1915" y="1022" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">SPK_IN: 0.1µF series C at IN+</text>
+<rect x="1626" y="1152" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1653.0" y="1164" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">SPK_IN</text>
+<polyline points="1680,1160 1710,1160" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1710" y="1155" width="30" height="10" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<polyline points="1740,1160 1780,1160" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1760" cy="1160" r="2.6" fill="#111827"/>
+<polyline points="1760,1160 1760,1166" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1755" y="1166" width="10" height="22" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<polyline points="1760,1188 1760,1194" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1760,1194 1760,1202" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1752,1202 1768,1202" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1755,1205 1765,1205" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1758,1208 1762,1208" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1780,1152 1780,1168" fill="none" stroke="#111827" stroke-width="2"/>
+<polyline points="1786,1152 1786,1168" fill="none" stroke="#111827" stroke-width="2"/>
+<polyline points="1786,1160 1810,1160" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1810" y="1152" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1840.5" y="1164" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">AEC_REF</text>
+<text x="1725" y="1150" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">10k</text>
+<text x="1770" y="1182" font-size="9" text-anchor="start" font-weight="normal" fill="#111827">2.2k</text>
+<text x="1783" y="1148" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">1µF</text>
+<text x="1620" y="1222" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">AEC reference: speaker signal back into the right ADC</text>
+<rect x="270" y="920" width="190" height="312" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="270" y="913" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U2</text>
+<text x="460" y="913" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">AXP2101 PMU</text>
+<text x="365.0" y="935" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e" font-style="italic">charger 1 A · fuel gauge</text>
+<polyline points="244,950 270,950" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="276" y="954" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VBUS</text>
+<polyline points="244,974 270,974" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="276" y="978" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">TS</text>
+<polyline points="244,1022 270,1022" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="276" y="1026" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">PWRON</text>
+<polyline points="244,1046 270,1046" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="276" y="1050" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VBAT</text>
+<polyline points="244,1094 270,1094" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="276" y="1098" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="460,950 486,950" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="954" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">DCDC1</text>
+<polyline points="460,974 486,974" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="978" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">DCDC2</text>
+<polyline points="460,998 486,998" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1002" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ALDO1</text>
+<polyline points="460,1022 486,1022" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1026" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ALDO2</text>
+<polyline points="460,1046 486,1046" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1050" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ALDO3</text>
+<polyline points="460,1070 486,1070" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1074" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">ALDO4</text>
+<polyline points="460,1094 486,1094" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1098" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">BLDO1</text>
+<polyline points="460,1118 486,1118" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1122" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">BLDO2</text>
+<polyline points="460,1142 486,1142" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1146" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">DLDO1</text>
+<polyline points="460,1166 486,1166" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1170" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">IRQ</text>
+<polyline points="460,1190 486,1190" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1194" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">SDA</text>
+<polyline points="460,1214 486,1214" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="454" y="1218" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">SCL</text>
+<rect x="486" y="942" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="502.5" y="954" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3</text>
+<rect x="486" y="966" width="68" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="520.0" y="978" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VDD_CORE</text>
+<rect x="486" y="990" width="61" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="516.5" y="1002" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">2V8_CAM</text>
+<rect x="486" y="1014" width="68" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="520.0" y="1026" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_LORA</text>
+<rect x="486" y="1038" width="75" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="523.5" y="1050" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_AUDIO</text>
+<rect x="486" y="1062" width="54" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="513.0" y="1074" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_SD</text>
+<rect x="486" y="1086" width="61" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="516.5" y="1098" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_LCD</text>
+<rect x="486" y="1110" width="61" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="516.5" y="1122" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_GPS</text>
+<rect x="486" y="1134" width="33" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="502.5" y="1146" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">1V8</text>
+<rect x="486" y="1158" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="516.5" y="1170" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">PMU_IRQ</text>
+<rect x="486" y="1182" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="516.5" y="1194" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SDA</text>
+<rect x="486" y="1206" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="516.5" y="1218" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SCL</text>
+<rect x="204" y="942" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="224.0" y="954" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBUS</text>
+<polyline points="244,1094 236,1094" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="236,1094 236,1102" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="228,1102 244,1102" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="231,1105 241,1105" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="234,1108 238,1108" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="244,1046 174,1046" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="204" cy="1046" r="2.6" fill="#111827"/>
+<polyline points="204,1046 204,1056" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="190,1056 218,1056" fill="none" stroke="#111827" stroke-width="2.2"/>
+<polyline points="196,1062 212,1062" fill="none" stroke="#111827" stroke-width="2.2"/>
+<polyline points="204,1062 204,1070" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="204,1070 204,1078" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="196,1078 212,1078" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="199,1081 209,1081" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="202,1084 206,1084" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="184" y="1072" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">BT1 Li-ion (NTC inside)</text>
+<rect x="134" y="1038" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="154.0" y="1050" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBAT</text>
+<polyline points="244,974 232,974" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="228" y="978" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">NTC 10k in the battery</text>
+<polyline points="244,1022 232,1022" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="229" cy="1022" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="202" cy="1022" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="227,1013 204,1013" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="216,1013 216,1007" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="199,1022 188,1022" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="188,1022 188,1030" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="180,1030 196,1030" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="183,1033 193,1033" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="186,1036 190,1036" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="216" y="1003" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">SW52 POWER</text>
+<rect x="700" y="1110" width="160" height="120" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="700" y="1103" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U7</text>
+<text x="860" y="1103" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">PCF85063A RTC</text>
+<polyline points="674,1140 700,1140" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="706" y="1144" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">OSCI</text>
+<polyline points="674,1164 700,1164" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="706" y="1168" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">OSCO</text>
+<polyline points="674,1188 700,1188" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="706" y="1192" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VDD</text>
+<polyline points="674,1212 700,1212" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="706" y="1216" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VSS</text>
+<polyline points="860,1140 886,1140" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="854" y="1144" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">SDA</text>
+<polyline points="860,1164 886,1164" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="854" y="1168" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">SCL</text>
+<polyline points="860,1188 886,1188" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="854" y="1192" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">INT</text>
+<rect x="634" y="1180" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="654.0" y="1192" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VRTC</text>
+<polyline points="674,1212 666,1212" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="666,1212 666,1220" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="658,1220 674,1220" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="661,1223 671,1223" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="664,1226 668,1226" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="886" y="1132" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="916.5" y="1144" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SDA</text>
+<rect x="886" y="1156" width="61" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="916.5" y="1168" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">I2C_SCL</text>
+<polyline points="674,1140 654,1140 654,1146" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="674,1164 654,1164 654,1158" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="648" y="1148" width="12" height="8" rx="2" fill="#fff" stroke="#111827" stroke-width="1.1"/>
+<text x="642" y="1156" font-size="9.5" text-anchor="end" font-weight="normal" fill="#111827">Y1 32.768 kHz</text>
+<text x="892" y="1192" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">n.c.</text>
+<rect x="700" y="1270" width="160" height="72" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="700" y="1263" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">U8</text>
+<text x="860" y="1263" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">TPS7A02 3.0 V, 25 nA</text>
+<polyline points="674,1300 700,1300" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="706" y="1304" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">IN</text>
+<polyline points="674,1324 700,1324" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="706" y="1328" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<polyline points="860,1300 886,1300" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="854" y="1304" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">OUT</text>
+<rect x="634" y="1292" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="654.0" y="1304" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBAT</text>
+<polyline points="674,1324 666,1324" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="666,1324 666,1332" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="658,1332 674,1332" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="661,1335 671,1335" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="664,1338 668,1338" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="886" y="1292" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="906.0" y="1304" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VRTC</text>
+<rect x="1060" y="1190" width="180" height="144" rx="2" fill="#fff8db" stroke="#7c2d12" stroke-width="1.6"/>
+<text x="1060" y="1183" font-size="12.5" text-anchor="start" font-weight="bold" fill="#111827">J6</text>
+<text x="1240" y="1183" font-size="11" text-anchor="end" font-weight="normal" fill="#111827">GPS / LTE option</text>
+<polyline points="1034,1220 1060,1220" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1066" y="1224" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">RXD</text>
+<polyline points="1034,1244 1060,1244" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1066" y="1248" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">TXD</text>
+<polyline points="1034,1268 1060,1268" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1066" y="1272" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">RESET</text>
+<polyline points="1034,1292 1060,1292" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1066" y="1296" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">VCC</text>
+<polyline points="1034,1316 1060,1316" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1066" y="1320" font-size="11" text-anchor="start" font-weight="normal" fill="#111827">GND</text>
+<rect x="994" y="1212" width="40" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1014.0" y="1224" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">TXD1</text>
+<rect x="994" y="1236" width="40" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1014.0" y="1248" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">RXD1</text>
+<rect x="973" y="1284" width="61" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="1003.5" y="1296" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_GPS</text>
+<polyline points="1034,1316 1026,1316" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1026,1316 1026,1324" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1018,1324 1034,1324" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1021,1327 1031,1327" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1024,1330 1028,1330" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1028" y="1272" font-size="9.5" text-anchor="end" font-weight="normal" fill="#57534e">n.c. (rail reset)</text>
+<text x="1150" y="1352" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">L76K GPS or A7670 LTE: fit one</text>
+<text x="1300" y="1170" font-size="11" text-anchor="start" font-weight="bold" fill="#111827">Side buttons</text>
+<rect x="1346" y="1192" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1373.0" y="1204" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">VOL_UP</text>
+<polyline points="1400,1200 1450,1200" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1490,1200 1478,1200" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1475" cy="1200" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1448" cy="1200" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1473,1191 1450,1191" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1462,1191 1462,1185" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1445,1200 1434,1200" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1434,1200 1434,1208" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1426,1208 1442,1208" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1429,1211 1439,1211" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1432,1214 1436,1214" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1462" y="1181" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">SW53 Vol+</text>
+<polyline points="1450,1200 1478,1200" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1346" y="1232" width="54" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1373.0" y="1244" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">VOL_DN</text>
+<polyline points="1400,1240 1450,1240" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1490,1240 1478,1240" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1475" cy="1240" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1448" cy="1240" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1473,1231 1450,1231" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1462,1231 1462,1225" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1445,1240 1434,1240" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1434,1240 1434,1248" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1426,1248 1442,1248" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1429,1251 1439,1251" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1432,1254 1436,1254" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1462" y="1221" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">SW54 Vol−</text>
+<polyline points="1450,1240 1478,1240" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1367" y="1272" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1383.5" y="1284" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">PTT</text>
+<polyline points="1400,1280 1450,1280" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1490,1280 1478,1280" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1475" cy="1280" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1448" cy="1280" r="3" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1473,1271 1450,1271" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1462,1271 1462,1265" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1445,1280 1434,1280" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1434,1280 1434,1288" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1426,1288 1442,1288" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1429,1291 1439,1291" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1432,1294 1436,1294" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1462" y="1261" font-size="9" text-anchor="middle" font-weight="normal" fill="#111827">SW55 PTT</text>
+<polyline points="1450,1280 1478,1280" fill="none" stroke="#111827" stroke-width="1.3"/>
+<text x="1300" y="1310" font-size="9.5" text-anchor="start" font-weight="normal" fill="#57534e">internal or 10k pull-ups</text>
+<rect x="1487" y="1244" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1503.5" y="1256" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">VIB</text>
+<polyline points="1520,1252 1560,1252" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1560" y="1238" width="60" height="34" rx="2" fill="#fff" stroke="#111827" stroke-width="1.2"/>
+<text x="1590.0" y="1254" font-size="10" text-anchor="middle" font-weight="bold" fill="#111827">Q2</text>
+<text x="1590.0" y="1266" font-size="8.5" text-anchor="middle" font-weight="normal" fill="#111827">AO3400</text>
+<polyline points="1590.0,1272 1590.0,1280" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1590.0,1280 1590.0,1288" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1582.0,1288 1598.0,1288" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1585.0,1291 1595.0,1291" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1588.0,1294 1592.0,1294" fill="none" stroke="#111827" stroke-width="1.3"/>
+<polyline points="1620,1252 1670,1252" fill="none" stroke="#111827" stroke-width="1.3"/>
+<circle cx="1684" cy="1252" r="14" fill="#fff" stroke="#111827" stroke-width="1.3"/>
+<text x="1684" y="1256" font-size="11" text-anchor="middle" font-weight="bold" fill="#111827">M</text>
+<polyline points="1698,1252 1720,1252" fill="none" stroke="#111827" stroke-width="1.3"/>
+<rect x="1720" y="1244" width="40" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="1740.0" y="1256" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">VBAT</text>
+<text x="1684" y="1282" font-size="9.5" text-anchor="middle" font-weight="normal" fill="#57534e">M1 coin motor + flyback diode</text>
+<rect x="1560" y="1300" width="370" height="92" rx="2" fill="#fff" stroke="#9ca3af" stroke-width="1"/>
+<text x="1570" y="1320" font-size="12" text-anchor="start" font-weight="bold" fill="#111827">mesh-msg handheld · Model P (ESP32-P4 + C6)</text>
+<text x="1570" y="1338" font-size="10.5" text-anchor="start" font-weight="normal" fill="#111827">Rev A draft · 2026-11-13 · not for fabrication</text>
+<text x="1570" y="1356" font-size="10.5" text-anchor="start" font-weight="normal" fill="#111827">Design notes, BOM and pin rules: docs/handheld.md</text>
+<rect x="1570" y="1368" width="33" height="16" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.1"/>
+<text x="1586.5" y="1380" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1d4ed8">NET</text>
+<text x="1620" y="1380" font-size="10" text-anchor="start" font-weight="normal" fill="#111827">signal net</text>
+<rect x="1690" y="1368" width="47" height="16" rx="8" fill="#fff" stroke="#b91c1c" stroke-width="1.1"/>
+<text x="1713.5" y="1380" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#b91c1c">3V3_x</text>
+<text x="1750" y="1380" font-size="10" text-anchor="start" font-weight="normal" fill="#111827">power rail (from U2)</text>
+</svg>

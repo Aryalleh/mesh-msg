@@ -835,3 +835,10 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   matching the pin map in docs/handheld.md §4. Roadmap: **M10 iPhone app** added as the last
   milestone (Go core via `gomobile bind -target=ios`, SwiftUI, APNs/CallKit, LoRa over the
   firmware BLE host link).
+- Handheld redesigned as touchscreen devices (owner asked for "like a smartphone", both
+  variants): **Model S** (ESP32-S3, 3.5" 320×480 ST7796S + touch, side buttons on one ADC pin,
+  keyboard and TCA8418 removed) and **Model P** (ESP32-P4NRW32 + ESP32-C6-MINI-1 over SDIO,
+  5" 720×1280 MIPI-DSI + GT911, optional OV5647 camera, USB-C high speed with host mode).
+  Shared LoRa/audio/PMU/RTC blocks. `scripts/handheld-schematic.py s|p` draws
+  `docs/images/handheld-{s,p}-schematic.svg`. Model P GPIO numbers are a suggestion to verify
+  against the ESP32-P4 datasheet.
