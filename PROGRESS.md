@@ -869,3 +869,10 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   a TCA9535 expander; battery 4500 mAh; BOM ~125–150 USD); **Model S gets an LTE add-on board**
   on J6 (now with VBAT; data + SMS only, no PCM pins). docs/handheld.md and both schematics
   updated (Model P schematic has a new cellular row).
+
+### 2026-11-13 — main only
+
+- Deleted the leftover branches `ccr-23656715-q9ut0d` (old CI attempt, superseded; last
+  commit `9768191`) and `ccr-d1290771-8bh9o1` (fully merged). CLAUDE.md: everything ends up
+  on `main`; side branches are merged and deleted before a session finishes.
+

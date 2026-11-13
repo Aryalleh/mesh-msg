@@ -5,6 +5,10 @@
 - **Update PROGRESS.md after every step** (what changed, commit hash, what's next) and
   include it in the same commit, then push to `origin main`. Keep "Current state" and
   "Next step" accurate; append to "Log".
+- **Everything ends up on `main`.** `main` is the only long-lived branch. If a session works
+  on another branch (e.g. a `ccr-*` cloud-session branch), it merges or rebases that work
+  onto `main` and pushes `main` before it finishes, then deletes its branch on origin. Tags
+  are cut from `main` commits only. No work may be left only on a side branch.
 - No Claude attribution lines (Co-Authored-By etc.) in commits or PRs.
 - Checks before committing: `go build ./... && go test ./...` and `make -C firmware test`.
 - **Every release gets a new version.** Release = push an annotated tag `vX.Y.Z[-alphaN]`
