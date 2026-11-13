@@ -28,7 +28,7 @@ Software that can still be done without hardware: firmware BLE host link (docs/f
 + Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
 Plan of record: docs/roadmap.md "Code changes required by the 2026-11-12 design decisions".
 **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
-STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.0-alpha12** (tag on `7be33cc`: UDP socket per local address bound to its network on Android, for issue #2). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
+STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.0-alpha13** (tag on `91f2061`: Android 11+ local addresses for direct links, meshd single instance). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
 then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
@@ -814,3 +814,10 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   **v0.1.0-alpha13** pushed by the owner on `91f2061` (release run 43352305873). Next: phone
   test on one Wi-Fi (voice message, then call); `adb logcat -s NetBinder` shows the
   `local addresses:` line.
+
+### 2026-11-13 — Release v0.1.0-alpha13
+
+- CI run 45 green on `91f2061`. The tag was not on GitHub (made where tag pushes are
+  refused); pushed `v0.1.0-alpha13` on `91f2061` from the owner's machine, release published.
+  Contains `dfcea2c` (meshd single instance) and `91f2061` (Android 11+ local addresses).
+  Owner's desktop updated to alpha13. Next: phone test on one Wi-Fi (voice message, call).
