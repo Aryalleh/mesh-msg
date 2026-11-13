@@ -850,3 +850,13 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   mesh; Android banner + notification, desktop web UI / `mesh status` / `mesh update`;
   minimum-supported-version for security releases), decision **D20**, rule added to CLAUDE.md (`0f415d2` + next commit).
   Not built yet; it must be in `v0.2.0-beta1`.
+- Branch cleanup: `ccr-23656715-q9ut0d` was the pre-snapshot history (already merged into main
+  on 2026-11-11, `e507654`; main was later restarted from a snapshot, so the branch shared no
+  commit with main). Brought over the two files main never had: `.github/workflows/ci.yml`
+  (Go build/vet/`test -race`, firmware host tests + `scripts/e2e-lora.sh`, PlatformIO builds of
+  the four boards; its Android job dropped, `android.yml` does that) and `scripts/sign-apks.sh`
+  (version now from `$VERSION` or the latest tag; for beta item A1). Not brought over:
+  `release.yml` (replaced by `android.yml`) and the old vector launcher icon (replaced by the
+  logo). Verified here: `go test -race ./...`, `make -C firmware test`, `scripts/e2e-lora.sh`
+  pass; the board builds run first in CI. Then deleted `ccr-23656715-q9ut0d` and the session
+  branch `ccr-d1290771-8bh9o1`; only `main` remains.

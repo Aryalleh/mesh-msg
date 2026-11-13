@@ -1,0 +1,57 @@
+# Go and firmware checks on every push and pull request. Android builds and releases are in
+# android.yml (do not rename that one; its run number feeds the APK versionCode).
+name: CI (Go + firmware)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go (core, relay, desktop, simulator)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  firmware-host:
+    name: Firmware host tests + LoRa end-to-end (simulated radio)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: make -C firmware test
+      - run: scripts/e2e-lora.sh
+
+  firmware-boards:
+    name: Firmware builds (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [heltec_v3, tbeam_s3, rak4631, techo]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ matrix.env }}-${{ hashFiles('firmware/platformio.ini') }}
+      - run: pip install platformio
+      # Redirect instead of piping: `pio run | head` hangs when the pipe closes.
+      - run: pio run -d firmware -e ${{ matrix.env }} > pio.log 2>&1 || { tail -n 60 pio.log; exit 1; }
