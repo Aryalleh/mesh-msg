@@ -32,7 +32,7 @@ meshd/web UI/`mesh update`, Android banner + notification + verified APK install
 needs the GitHub secret `RELEASE_SIGNING_KEY` (private key: `~/.config/mesh-msg/release-signing.key`
 on the owner's machine, never in the repo). Other beta criteria (A1 release key for APKs, A2, A3, B1–B6)
 are still open; the owner chose to tag the beta now. **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
-STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Beta3 adds profile pictures (direct links only), chat folders, Telegram-like desktop theme, minimal Android service notification. **Planned next (owner's list, 2026-11-13)**: Android video calls, desktop audio+video calls (browser WebRTC-free: same call protocol over meshd), group calls (mesh of 1:1 links, ≤4) with a high-data-use warning. Latest release **v0.1.1-beta2** (tag on `529c34d`; first published beta: update check B7, new release key, eu-1 on https://eu-1.mfadem.ir, mesh always on, call path badge). `v0.1.1-beta1` was tagged but never published (missing signing secret). Before them: v0.1.0-alpha13 (`91f2061`). eu-1 runs 0.1.1-beta2 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
+STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Beta3 adds profile pictures (direct links only), chat folders, Telegram-like desktop theme, minimal Android service notification. **Planned next (owner's list, 2026-11-13)**: Android video calls, desktop audio+video calls (browser WebRTC-free: same call protocol over meshd), group calls (mesh of 1:1 links, ≤4) with a high-data-use warning. Latest release **v0.1.1-beta3** (tag on `16579db`). Before: **v0.1.1-beta2** (tag on `529c34d`; first published beta: update check B7, new release key, eu-1 on https://eu-1.mfadem.ir, mesh always on, call path badge). `v0.1.1-beta1` was tagged but never published (missing signing secret). Before them: v0.1.0-alpha13 (`91f2061`). eu-1 runs 0.1.1-beta2 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
 then direct links and calls have no reflector on the real network. Still open: test calls on two real phones; calls.md "Not
 yet" items (path change mid-call, bitrate adaptation, call log). Alpha only: **no
@@ -1051,3 +1051,12 @@ links. Chose: quick items in beta3; calls follow in later betas.
   via `LocalAvatars`; opening a contact chat requests its picture.
 - Checks: `go test -race ./...`, `make -C firmware test`, AAR rebuilt, `compileDebugKotlin`,
   `testDebugUnitTest` (new FoldersTest) pass locally; lint left to CI (3 GB RAM).
+
+### 2026-11-13 — v0.1.1-beta3 released
+
+- Both CI workflows green on `16579db`; tag **`v0.1.1-beta3`** pushed there, release build green,
+  pre-release published (4 APKs, desktop + relay tarballs, `SHA256SUMS`, `release.json`);
+  `release-manifest verify` accepts its `release.json`. eu-1 not updated (relay unchanged); its
+  hourly cache switches `/v1/release?channel=beta` to beta3. Beta2 installs should show the update banner.
+- Next (owner's list): Android video calls, desktop audio+video calls, group calls with a
+  data-use warning.
