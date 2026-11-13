@@ -979,3 +979,20 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   (power copper + ground scripted, rest Freerouting), build_package.py (Gerbers/BOM/CPL), ASSEMBLY.md.
 - Next: finish routing (Freerouting run 1 left 10 connections open: route them by hand in
   route_board.py), DRC to zero, `python3 build_package.py`, commit jlc/.
+
+### 2026-11-13 — flaky TestNormalMediaOverAutoDirectLink fixed (real bugs)
+
+- CI's Go job failed on `dc17f17` (and earlier on `14f6323`) in
+  `core/node` TestNormalMediaOverAutoDirectLink; reproduced locally under load (3 of 4 runs).
+  Traced with packet logs to three bugs in direct links:
+  1. `core/direct` paired a socket bound to loopback with non-loopback remotes (and the
+     reverse): such pairs can pass checks on one host and still lose data. Now skipped.
+  2. Both ends "follow" authenticated data from a new address; when each side had chosen a
+     different pair they could swap back and forth. Now the controlled side follows; the
+     controlling side follows at once only on the same socket (NAT rebinding) and on
+     another socket only after its pair has been silent 3 s (`followAfter`).
+  3. `fetchP2P` over a direct link gave up after one 3 s gap (one lost UDP datagram), so the
+     file waited for the 2-minute retry, despite the comment saying it re-asks. Now it
+     re-asks the window from the current offset, up to 5 stalls in a row (`maxStalls`).
+- After the fix: 8/8 runs pass under load; full `go test -race ./...` and
+  `make -C firmware test` pass.

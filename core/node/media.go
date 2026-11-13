@@ -778,6 +778,10 @@ func (n *Node) serveP2P(link string, peer router.PeerID, id string, off, ln int6
 var errNoBlob = errors.New("neighbour does not have it")
 
 // fetchP2P pulls a blob from a neighbour window by window.
+// maxStalls: how often a direct-link download re-asks for a window that
+// stopped arriving before it gives up (and waits for the next retry).
+const maxStalls = 5
+
 func (n *Node) fetchP2P(ctx context.Context, nb router.Neighbour, id string, size int, f *os.File, from int64) error {
 	bid, err := packet.ParseHash(id)
 	if err != nil {
@@ -796,6 +800,7 @@ func (n *Node) fetchP2P(ctx context.Context, nb router.Neighbour, id string, siz
 	window, _ := p2pSizes(nb.Link)
 	off := from
 	lastEvent := time.Now()
+	stalls := 0 // direct links: windows re-asked in a row without progress
 	for off < int64(size) {
 		req := make([]byte, 0, reqLen)
 		req = append(req, frameReq)
@@ -818,6 +823,12 @@ func (n *Node) fetchP2P(ctx context.Context, nb router.Neighbour, id string, siz
 				timeout.Stop()
 				return ctx.Err()
 			case <-timeout.C:
+				// Over a direct (UDP) link a datagram was lost: ask again from
+				// where the data stopped. Other links are reliable: give up.
+				if nb.Link == "direct" && stalls < maxStalls {
+					stalls++
+					break window
+				}
 				return errors.New("neighbour timed out")
 			case fr := <-ch:
 				o := int64(binary.BigEndian.Uint32(fr[17:]))
@@ -838,6 +849,7 @@ func (n *Node) fetchP2P(ctx context.Context, nb router.Neighbour, id string, siz
 					return err
 				}
 				off += int64(len(data))
+				stalls = 0
 				timeout.Reset(wait)
 			}
 		}

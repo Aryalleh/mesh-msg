@@ -29,6 +29,10 @@ func (p Path) Relayed() bool { return p.Class == 6 }
 // MaxPayload is the largest datagram Send takes (stays under 1200 bytes).
 const MaxPayload = 1200 - dataHead - chacha20poly1305.Overhead
 
+// followAfter: how long the controlling side's pair must be silent before it
+// follows data arriving on another of its sockets.
+const followAfter = 3 * time.Second
+
 const (
 	dataMagic = "MDD\x01"
 	dataHead  = 4 + 8 // magic | seq
@@ -52,6 +56,7 @@ type Link struct {
 	maxRx  uint64
 	window uint64 // replay bitmap below maxRx
 	lastRx time.Time
+	curRx  time.Time // last data on the pair in use (l.s, l.remote)
 
 	recv chan []byte
 	done chan struct{}
@@ -66,7 +71,7 @@ func newLink(a *Agent, s *sock, remote netip.AddrPort, p Path) *Link {
 	seal, _ := chacha20poly1305.New(derive(a.key, out))
 	open, _ := chacha20poly1305.New(derive(a.key, in))
 	return &Link{a: a, path: p, s: s, remote: remote, seal: seal, open: open,
-		lastRx: time.Now(), recv: make(chan []byte, 512), done: make(chan struct{})}
+		lastRx: time.Now(), curRx: time.Now(), recv: make(chan []byte, 512), done: make(chan struct{})}
 }
 
 // Path is the pair in use.
@@ -128,10 +133,21 @@ func (l *Link) onData(s *sock, b []byte, from netip.AddrPort) {
 		return
 	}
 	l.mark(seq)
-	l.lastRx = time.Now()
+	now := time.Now()
+	l.lastRx = now
 	if from != l.remote || s != l.s {
-		// Authenticated data from a new address: the peer moved. Follow it.
-		l.remote, l.s = from, s
+		// Authenticated data from another address. On the same socket the
+		// peer moved (a NAT rebinding): follow it at once. On another socket
+		// the two sides chose different pairs on their own: the controlled
+		// side takes the controlling side's pair, and the controlling side
+		// keeps its own unless that has gone quiet. If both switched at
+		// once they could swap pairs back and forth and lose data.
+		if s == l.s || !l.a.controlling || now.Sub(l.curRx) > followAfter {
+			l.remote, l.s = from, s
+			l.curRx = now
+		}
+	} else {
+		l.curRx = now
 	}
 	l.mu.Unlock()
 	if len(p) == 0 {

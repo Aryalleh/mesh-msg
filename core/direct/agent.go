@@ -511,6 +511,12 @@ func (a *Agent) addPair(s *sock, r Candidate) *pair {
 	if r.Addr.Addr().Is4() != addrIs4(s) && !s.relayed {
 		return nil // other family
 	}
+	if la := addrPort(s.pc.LocalAddr()).Addr(); !s.relayed && !la.IsUnspecified() && la.IsLoopback() != r.Addr.Addr().IsLoopback() {
+		// A socket on the loopback address only reaches loopback, and one on
+		// another address never reaches loopback: such a pair can pass its
+		// check on one host and still lose data one way.
+		return nil
+	}
 	p := &pair{s: s, remote: r, interval: 100 * time.Millisecond}
 	rand.Read(p.tx[:])
 	a.pairs[k] = p
