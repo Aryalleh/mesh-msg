@@ -96,6 +96,14 @@
       <p class="hint">Every important file needs proof-of-work: base bits + the extra for the account's age + 1 per file it sent today on any relay + up to 2 when storage fills. Each bit doubles the work. These apply at once.</p>
       <label for="s_media_accounts">Accounts allowed to upload media (one id per line; empty = anyone)</label>
       <textarea id="s_media_accounts" spellcheck="false"></textarea>
+      <h2 style="margin-top:18px">TURN for this relay's admins</h2>
+      <p class="hint" id="turnSummary"></p>
+      <label><input type="checkbox" id="s_turn_enabled" style="width:auto"> Let this relay's admins relay calls and direct sessions through it when no direct path exists</label>
+      <div class="row">
+        <div><label for="s_turn_max_sessions">Sessions at once</label><input id="s_turn_max_sessions" type="number" min="1" max="1000"></div>
+        <div><label for="s_turn_max_kbps">Speed per session, kbit/s</label><input id="s_turn_max_kbps" type="number" min="16"></div>
+        <div><label for="s_turn_monthly_gb">Traffic per month, GB</label><input id="s_turn_monthly_gb" type="number" min="1"></div>
+      </div>
       <label><input type="checkbox" id="s_log" style="width:auto"> Request logs (off is safer)</label>
       <div class="actions">
         <button id="btnSave">Save</button>
@@ -171,7 +179,8 @@ $("loginId").onkeydown = (e) => { if (e.key === "Enter") $("btnCode").click(); }
 $("btnLogout").onclick = async () => { await api("logout", {}).catch(() => {}); load(); };
 
 const fields = ["pow_bits", "ttl_hours", "media_max_mb", "media_store_mb", "media_important_per_day", "media_important_hours",
-  "media_new_account_days", "media_new_account_per_day", "media_pow_base_bits", "media_pow_max_bits"];
+  "media_new_account_days", "media_new_account_per_day", "media_pow_base_bits", "media_pow_max_bits",
+  "turn_max_sessions", "turn_max_kbps", "turn_monthly_gb"];
 let state = null;
 
 async function load() {
@@ -216,6 +225,11 @@ async function load() {
     el("td", {textContent: new Date(s.last).toLocaleString()}),
     el("td", {textContent: s.blocked ? "ignored" : ""}))));
   $("s_log").checked = saved.log ?? cur.log ?? false;
+  $("s_turn_enabled").checked = saved.turn_enabled ?? cur.turn_enabled ?? false;
+  const tu = state.turn;
+  $("turnSummary").textContent = !tu ? "The UDP reflector isn't running on this relay (port 3478/3479 busy, or \"reflector\": false)."
+    : !tu.available ? "Address reflector on UDP 3478/3479 is on. TURN needs a public IPv4 address (set public_ip in relay.json)."
+    : `Reflector on. TURN ${tu.enabled ? "on" : "off"} — ${tu.sessions} live session(s), ${size(tu.month_bytes)} relayed in ${tu.month} (relayed from ${tu.public_ip}). Ordinary users never get TURN.`;
   renderAdmins(state.admins);
   $("mediaSummary").textContent = m.on
     ? `${m.count} files, ${size(m.used)} of ${size(m.cap)}. Each is deleted when all its readers downloaded it, or at the time shown.`
@@ -252,6 +266,7 @@ $("btnSave").onclick = async () => {
   const tiers = $("s_media_pow_age_tiers").value.trim();
   if (tiers !== "") body.media_pow_age_tiers = tiers;
   body.log = $("s_log").checked;
+  body.turn_enabled = $("s_turn_enabled").checked;
   try { say("saveMsg", (await api("settings", body)).info); load(); } catch (e) { say("saveMsg", e.message, true); }
 };
 $("btnRestart").onclick = async () => {

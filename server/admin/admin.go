@@ -29,6 +29,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/packet"
 	"github.com/Aryalleh/mesh-msg/server/api"
 	"github.com/Aryalleh/mesh-msg/server/relay"
+	"github.com/Aryalleh/mesh-msg/server/turn"
 )
 
 // OwnerID is the network owner's account: an admin of every relay built
@@ -56,15 +57,20 @@ type Settings struct {
 	MediaMaxMB   *int     `json:"media_max_mb,omitempty"`
 	MediaStoreMB *int     `json:"media_store_mb,omitempty"`
 	// Important media (api.MediaPolicy): apply at once, without a restart.
-	MediaPerDay           *int     `json:"media_important_per_day,omitempty"`
-	MediaImportantHours   *int     `json:"media_important_hours,omitempty"`
-	MediaNewAccountDays   *int     `json:"media_new_account_days,omitempty"`
-	MediaNewAccountPerDay *int     `json:"media_new_account_per_day,omitempty"`
-	MediaPowBaseBits      *int     `json:"media_pow_base_bits,omitempty"`
-	MediaPowMaxBits       *int     `json:"media_pow_max_bits,omitempty"`
-	MediaPowAgeTiers      *string  `json:"media_pow_age_tiers,omitempty"` // "3:3, 30:2, 180:1" (days:bits)
-	MediaAccounts         []string `json:"media_accounts,omitempty"`
-	Log                   *bool    `json:"log,omitempty"`
+	MediaPerDay           *int    `json:"media_important_per_day,omitempty"`
+	MediaImportantHours   *int    `json:"media_important_hours,omitempty"`
+	MediaNewAccountDays   *int    `json:"media_new_account_days,omitempty"`
+	MediaNewAccountPerDay *int    `json:"media_new_account_per_day,omitempty"`
+	MediaPowBaseBits      *int    `json:"media_pow_base_bits,omitempty"`
+	MediaPowMaxBits       *int    `json:"media_pow_max_bits,omitempty"`
+	MediaPowAgeTiers      *string `json:"media_pow_age_tiers,omitempty"` // "3:3, 30:2, 180:1" (days:bits)
+	// TURN for this relay's admins (turn.Limits): apply at once.
+	TurnEnabled     *bool    `json:"turn_enabled,omitempty"`
+	TurnMaxSessions *int     `json:"turn_max_sessions,omitempty"`
+	TurnMaxKbps     *int     `json:"turn_max_kbps,omitempty"`
+	TurnMonthlyGB   *int     `json:"turn_monthly_gb,omitempty"`
+	MediaAccounts   []string `json:"media_accounts,omitempty"`
+	Log             *bool    `json:"log,omitempty"`
 }
 
 // Policy lays the saved important-media settings over base (relay.json's)
@@ -91,6 +97,23 @@ func (s Settings) Policy(base api.MediaPolicy) (api.MediaPolicy, error) {
 		p.AgeTiers = ts
 	}
 	return p, p.Check()
+}
+
+// TurnLimits lays the saved TURN settings over base (relay.json's).
+func (s Settings) TurnLimits(base turn.Limits) (turn.Limits, error) {
+	l := base
+	if s.TurnEnabled != nil {
+		l.Enabled = *s.TurnEnabled
+	}
+	for _, f := range []struct {
+		dst *int
+		v   *int
+	}{{&l.MaxSessions, s.TurnMaxSessions}, {&l.MaxKbps, s.TurnMaxKbps}, {&l.MonthlyGB, s.TurnMonthlyGB}} {
+		if f.v != nil {
+			*f.dst = *f.v
+		}
+	}
+	return l, l.Check()
 }
 
 // SettingsPath is where the overrides live.
@@ -164,6 +187,10 @@ type Config struct {
 	// BasePolicy: the important-media rules from relay.json (panel
 	// settings are laid over it).
 	BasePolicy api.MediaPolicy
+	// TURN: the relay's reflector/TURN service (nil: not running) and the
+	// TURN settings from relay.json.
+	TURN     *turn.Service
+	BaseTURN turn.Limits
 	// Effective returns the settings in use (relay.json + panel.json).
 	Effective func() map[string]any
 	// Restart asks the process to exit so its supervisor restarts it with
@@ -198,6 +225,9 @@ type session struct {
 func New(cfg Config) *Panel {
 	if cfg.BasePolicy.PerDay == 0 {
 		cfg.BasePolicy = api.DefaultMediaPolicy()
+	}
+	if cfg.BaseTURN.MaxSessions == 0 {
+		cfg.BaseTURN = turn.DefaultLimits()
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
@@ -450,7 +480,15 @@ func (p *Panel) state(w http.ResponseWriter, r *http.Request, admin string) {
 			"on": on, "used": used, "cap": capB, "count": len(files), "files": files[:min(len(files), 200)],
 		},
 		"ledger": p.cfg.API.Ledger().Stats(),
+		"turn":   p.turnStats(),
 	})
+}
+
+func (p *Panel) turnStats() any {
+	if p.cfg.TURN == nil {
+		return nil
+	}
+	return p.cfg.TURN.Stats()
 }
 
 func (p *Panel) saveSettings(w http.ResponseWriter, r *http.Request, _ string) {
@@ -495,6 +533,11 @@ func (p *Panel) saveSettings(w http.ResponseWriter, r *http.Request, _ string) {
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	limits, err := in.TurnLimits(p.cfg.BaseTURN)
+	if err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	cur, _ := LoadSettings(p.cfg.DataDir)
 	in.Admins = cur.Admins // changed only through /admins
 	in.MediaAccounts = accounts
@@ -503,6 +546,9 @@ func (p *Panel) saveSettings(w http.ResponseWriter, r *http.Request, _ string) {
 		return
 	}
 	p.cfg.API.SetMediaPolicy(policy)
+	if p.cfg.TURN != nil {
+		p.cfg.TURN.SetLimits(limits)
+	}
 	jsonOut(w, http.StatusOK, map[string]string{"info": "Saved. Important-file rules apply now; restart the relay for the rest."})
 }
 

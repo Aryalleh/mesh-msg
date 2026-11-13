@@ -623,3 +623,19 @@ kept**; replace old apps and relays (old apps can't upload to new relays: unsign
 - `server/turn` (new, not wired into the relay yet): pion/turn v4 server on UDP 3478+3479,
   STUN for all, TURN only for admins (10-min HMAC credentials, `POST /v1/turn/credentials`
   signed), session/speed/monthly limits, counters. Port mapping and TURN client: stubs.
+
+### 2026-11-13 — Step 3 (part 2): port mapping, TURN client, relay UDP services wired
+
+- Part 1 commit `dde907d`.
+- `core/direct/portmap.go`: PCP MAP → NAT-PMP → UPnP IGD (SSDP, description, SOAP
+  Add/DeletePortMapping), gateway from /proc/net/route or x.y.z.1, 10-min lease renewed every
+  5 min, removed on close. Tests with fake PCP/NAT-PMP routers and a fake UPnP device.
+- `core/direct/turnclient.go`: pion TURN client allocation → relayed socket in the checks
+  (chosen last). `Config.RelayOnly` for tests/diagnostics.
+- Relay: `server/turn` started by meshmsg-relay (unless `"reflector": false`): STUN on UDP
+  3478+3479; TURN only for panel admins, off by default; `public_ip` (auto: first public
+  IPv4); `turn_enabled`, `turn_max_sessions` (10), `turn_max_kbps` (256), `turn_monthly_gb`
+  (50) in relay.json and panel (apply at once); `POST /v1/turn/credentials`; `/v1/info`
+  `reflector`, `turn`. Panel: TURN section with live sessions and month traffic.
+- Tests: server/turn reflector (NAT open on loopback), TURN: non-admin 403, admin
+  allocation, relayed path + data, bytes counted, wrong password refused, off → 404.

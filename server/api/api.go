@@ -46,7 +46,9 @@ type Config struct {
 	// Ledger: important-media usage shared by all relays, and account ages
 	// (nil: an in-memory one, for tests).
 	Ledger *ledger.Ledger
-	Logf   func(format string, args ...any)
+	// UDP reports the relay's UDP services for /v1/info (nil: none).
+	UDP  func() (reflector, turn bool)
+	Logf func(format string, args ...any)
 }
 
 // Server is an http.Handler.
@@ -134,6 +136,9 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 	if s.media != nil {
 		p := s.MediaPolicy()
 		in.MediaPerDay, in.MediaImportantHours = p.PerDay, p.Hours
+	}
+	if s.cfg.UDP != nil {
+		in.Reflector, in.TURN = s.cfg.UDP()
 	}
 	writeJSON(w, in)
 }

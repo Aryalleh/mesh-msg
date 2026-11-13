@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -39,6 +40,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/server/api"
 	"github.com/Aryalleh/mesh-msg/server/ledger"
 	"github.com/Aryalleh/mesh-msg/server/relay"
+	"github.com/Aryalleh/mesh-msg/server/turn"
 )
 
 // Config is the JSON config file.
@@ -72,6 +74,17 @@ type Config struct {
 	// UsagePeers: relays to exchange the usage ledger with (URLs). Default:
 	// the origin relays of network/relays.json plus the federation peers.
 	UsagePeers []string `json:"usage_peers"`
+	// UDP services for direct links (docs/server.md §6c, §6d): the
+	// reflector (STUN, UDP 3478 + 3479) is on unless "reflector": false;
+	// TURN for this relay's admins is off unless turn_enabled. public_ip is
+	// the address TURN relays from (default: the first public IPv4 of an
+	// interface; without one, TURN stays unavailable).
+	Reflector       *bool  `json:"reflector"`
+	PublicIP        string `json:"public_ip"`
+	TurnEnabled     *bool  `json:"turn_enabled"`
+	TurnMaxSessions *int   `json:"turn_max_sessions"` // default 10
+	TurnMaxKbps     *int   `json:"turn_max_kbps"`     // default 256
+	TurnMonthlyGB   *int   `json:"turn_monthly_gb"`   // default 50
 	// MediaAccounts: if set, only these accounts (identity hashes, as
 	// "mesh id" shows them) may upload media. Empty: anyone (with PoW).
 	MediaAccounts []string `json:"media_accounts"`
@@ -274,9 +287,40 @@ func run(cfg *Config) error {
 		OnAnnounce: func(dest packet.Hash, at time.Time) { led.Seen(dest.String(), at) },
 	})
 	backfillAges(st, led)
+
+	// Reflector and TURN; admins come from the panel (set below).
+	baseTURN, err := admin.Settings{TurnEnabled: cfg.TurnEnabled, TurnMaxSessions: cfg.TurnMaxSessions,
+		TurnMaxKbps: cfg.TurnMaxKbps, TurnMonthlyGB: cfg.TurnMonthlyGB}.TurnLimits(turn.DefaultLimits())
+	if err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+	turnLimits, err := saved.TurnLimits(baseTURN)
+	if err != nil {
+		return fmt.Errorf("%s: %w", admin.SettingsPath(cfg.DataDir), err)
+	}
+	var panel *admin.Panel
+	var udp *turn.Service
+	if cfg.Reflector == nil || *cfg.Reflector {
+		udp, err = turn.Start(turn.Config{
+			PublicIP: publicIP(cfg.PublicIP), DataDir: cfg.DataDir, Identity: key, Limits: turnLimits, Logf: logf,
+			IsAdmin: func(h string) bool { return panel != nil && slices.Contains(panel.Admins(), h) },
+		})
+		if err != nil {
+			log.Printf("reflector/TURN off: %v", err)
+			udp = nil
+		} else {
+			defer udp.Close()
+		}
+	}
 	h := api.New(api.Config{
 		Relay: rl, Identity: key, PowBits: cfg.PowBits,
 		SyncTokens: cfg.SyncTokens, Relays: cfg.Relays, Logf: logf, Ledger: led,
+		UDP: func() (bool, bool) {
+			if udp == nil {
+				return false, false
+			}
+			return true, udp.Available() && udp.Limits().Enabled
+		},
 		Media: api.MediaConfig{
 			Dir: filepath.Join(cfg.DataDir, "media"), MaxMB: cfg.MediaMaxMB, StoreMB: cfg.MediaStoreMB,
 			Policy: &policy, Accounts: cfg.MediaAccounts,
@@ -290,12 +334,15 @@ func run(cfg *Config) error {
 	for _, p := range cfg.Peers {
 		peers = append(peers, p.Name)
 	}
-	admin.New(admin.Config{
+	if udp != nil {
+		h.Handle("POST /v1/turn/credentials", http.HandlerFunc(udp.CredentialsHandler))
+	}
+	panel = admin.New(admin.Config{
 		Info: admin.Info{
 			Name: cfg.Name, Region: cfg.Region, Version: version, PubKey: hex.EncodeToString(key.Bytes()),
 			Listen: cfg.Listen, Peers: peers, Started: time.Now(),
 		},
-		DataDir: cfg.DataDir, Identity: key, Relay: rl, API: h, BasePolicy: base,
+		DataDir: cfg.DataDir, Identity: key, Relay: rl, API: h, BasePolicy: base, TURN: udp, BaseTURN: baseTURN,
 		Effective: func() map[string]any {
 			p := h.MediaPolicy()
 			return map[string]any{
@@ -306,11 +353,14 @@ func run(cfg *Config) error {
 				"media_pow_base_bits": p.PowBaseBits, "media_pow_max_bits": p.PowMaxBits,
 				"media_pow_age_tiers": api.FormatTiers(p.AgeTiers),
 				"media_accounts":      cfg.MediaAccounts,
+				"turn_enabled":        turnNow(udp).Enabled, "turn_max_sessions": turnNow(udp).MaxSessions,
+				"turn_max_kbps": turnNow(udp).MaxKbps, "turn_monthly_gb": turnNow(udp).MonthlyGB,
 			}
 		},
 		// Exit cleanly; systemd (Restart=always) or Docker starts it again.
 		Restart: stop,
-	}).Routes(h.Handle)
+	})
+	panel.Routes(h.Handle)
 
 	var wg sync.WaitGroup
 	for _, u := range usagePeers(cfg, key) {
@@ -512,4 +562,28 @@ func syncUsage(ctx context.Context, cfg *Config, led *ledger.Ledger, u string) {
 		case <-time.After(time.Minute):
 		}
 	}
+}
+
+func turnNow(s *turn.Service) turn.Limits {
+	if s == nil {
+		return turn.DefaultLimits()
+	}
+	return s.Limits()
+}
+
+// publicIP: the configured address, else the first public IPv4 of an
+// interface (nil: none; TURN can't run, the reflector still does).
+func publicIP(conf string) net.IP {
+	if conf != "" {
+		return net.ParseIP(conf)
+	}
+	as, _ := net.InterfaceAddrs()
+	for _, a := range as {
+		if n, ok := a.(*net.IPNet); ok {
+			if ip := n.IP.To4(); ip != nil && ip.IsGlobalUnicast() && !ip.IsPrivate() && !(ip[0] == 100 && ip[1]&0xc0 == 64) {
+				return ip
+			}
+		}
+	}
+	return nil
 }

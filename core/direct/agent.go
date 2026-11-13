@@ -36,6 +36,8 @@ type Config struct {
 	// CheckTimeout bounds the normal checks (default 10 s); symmetric-NAT
 	// methods may add up to 20 s more.
 	CheckTimeout time.Duration
+	// RelayOnly uses nothing but a relayed (TURN) path: diagnostics and tests.
+	RelayOnly bool
 	// SymmetricTimeout bounds the symmetric-NAT methods (default 20 s).
 	SymmetricTimeout time.Duration
 	Logf             func(format string, args ...any)
@@ -679,7 +681,7 @@ func (a *Agent) choose() (*Link, error) {
 	var best *pair
 	bestClass := 99
 	for _, p := range a.pairs {
-		if !p.ok {
+		if !p.ok || (a.cfg.RelayOnly && !p.s.relayed) {
 			continue
 		}
 		lk := a.localKind(p)
