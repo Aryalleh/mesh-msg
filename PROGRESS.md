@@ -26,7 +26,7 @@ Needs hardware now, for both open milestones:
 
 Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
 + Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
-Plan of record: docs/roadmap.md "Code changes required by the 2026-11-12 design decisions".
+Plan of record: docs/roadmap.md "Beta criteria" (alpha → beta) and "Code changes required by the 2026-11-12 design decisions".
 **Steps 1–4 done** (two media classes + allowance/ledger/PoW, direct links across NAT with
 STUN on relays and TURN for relay admins, 1:1 voice calls on Android). Latest release **v0.1.0-alpha13** (tag on `91f2061`: Android 11+ local addresses for direct links, meshd single instance). eu-1 runs alpha10 (STUN listens on 3478/3479 and answers locally) but **UDP from outside gets
 no answer: the provider's cloud firewall must open UDP 3478, 3479 and 61000–61999** — until
@@ -842,3 +842,6 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   Shared LoRa/audio/PMU/RTC blocks. `scripts/handheld-schematic.py s|p` draws
   `docs/images/handheld-{s,p}-schematic.svg`. Model P GPIO numbers are a suggestion to verify
   against the ESP32-P4 datasheet.
+- `docs/roadmap.md` "Beta criteria": what Android and desktop need to leave alpha (B1–B6 both,
+  A1–A7 Android, D1–D6 desktop, release process, order). Next software steps without
+  hardware: B1 schema version, B3 call clock skew, A1 release key, A2 Keystore, A3 crash log.

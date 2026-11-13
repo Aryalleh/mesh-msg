@@ -24,6 +24,53 @@ Order rationale: the Go core and relay come first because desktop, Android and t
 simulator all reuse them, and Linux desktop + relay is the fastest way to a working
 end-to-end system with no special hardware.
 
+## Beta criteria (alpha → beta, Android + desktop)
+
+The first beta (`v0.2.0-beta1`) ends D18: from then on formats and APIs stay compatible and
+updates must keep users' data. A beta ships when every item below is done or explicitly
+moved out of the beta's scope in this file. Status as of 2026-11-13.
+
+**Both platforms**
+
+| # | Item | Today | Done when |
+|---|---|---|---|
+| B1 | Database schema version | ad-hoc `ALTER TABLE` in `core/node/db.go`, no version | `user_version` + numbered migrations; an update from the previous beta keeps all messages (test in CI) |
+| B2 | Protocol and relay API frozen | breaking changes allowed (D18) | protocol.md and `/v1` declared stable; CI test exchanges messages between this build and the previous beta |
+| B3 | Call offer independent of clock skew | absolute expiry, `core/call/call.go` (issue #2, cause 3) | a callee whose clock is minutes off still rings |
+| B4 | Real-device tests | BLE mesh never run on a phone; issues #1 and #2 open | M5 exit scenario on two real phones (offline phone → BLE → phone with relay → desktop); issues #1 and #2 closed |
+| B5 | Relays | eu-1: plain HTTP on an IP, provider blocks UDP 3478/3479/61000–61999, runs alpha10 | eu-1 on a domain with HTTPS (cleartext exception removed from the app), UDP open, on the beta release; a second relay in the default list |
+| B6 | Security | no external review, no panic wipe | external review of crypto, key storage and relay, findings fixed (M6); panic wipe on Android and desktop |
+
+**Android**
+
+| # | Item | Today | Done when |
+|---|---|---|---|
+| A1 | Release signing | APKs signed with the public `android/debug.keystore` | private release key kept outside the repository; SHA-256 sums of each release signed; reproducible builds (M6) |
+| A2 | Identity key at rest | `identity.key` as plain hex (mode 0600) | wrapped with an Android Keystore key |
+| A3 | Crash log | no handler | local crash log the user can export from Settings; no third-party telemetry |
+| A4 | Background running | untested | messages keep arriving in Doze and on Xiaomi/Samsung/Huawei phones; battery-optimisation prompt; Android 13 notification permission; Android 14+ foreground service types checked |
+| A5 | Tests | JVM tests only | instrumented tests on an emulator in CI; manual pass on Android 8–15 across several brands |
+| A6 | Updates | none in the app | version shown; new release announced (relay or GitHub); APK sharing phone to phone (M6) |
+| A7 | Scope | QR scanning, LoRa over BLE, USB CP2102 driver, LoRa settings screen not built | QR scanning in the beta; the LoRa items may follow after the beta |
+
+**Desktop (`meshd`, `mesh`, web UI)**
+
+| # | Item | Today | Done when |
+|---|---|---|---|
+| D1 | Packaging | `desktop/deploy/install.sh` + systemd user unit, Linux only | `.deb` and AppImage with signed checksums |
+| D2 | Updates | re-run `install.sh` | update keeps data and settings and runs migrations (B1) |
+| D3 | Platforms | Linux only (Windows/macOS are M8) | first beta is Linux only; M8 follows |
+| D4 | Voice calls | Android only | either built for desktop, or the release notes say desktop has no calls |
+| D5 | Identity key at rest | file on disk | optional passphrase or the OS keyring |
+| D6 | Web UI parity | — | voice messages, important media, groups as on Android; Persian/RTL checked |
+
+**Release process:** version `v0.2.0-beta1`, release notes in Persian and English, a way for
+testers to report bugs, testers outside the lab, and written criteria for leaving beta (for
+example 30 days with no message-loss bug).
+
+**Order:** (1) no hardware needed: B1, B3, A1, A2, A3 → (2) two real phones: B4, A4, together
+with B5 → (3) B2 and the compatibility test, D1, D2 → (4) B6, then the release.
+
 ## Code changes required by the 2026-11-12 design decisions (steps 1–4 built)
 
 The app is **alpha, tested in the lab only**; no beta or original release exists yet. Until
