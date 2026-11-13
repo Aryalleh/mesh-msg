@@ -41,4 +41,13 @@ interface MeshBackend {
     /** Joins a public chat by link (meshgroup:#tehran) or name ("global", "#tehran"). */
     fun joinGroup(link: String): Result<Contact>
     fun leaveGroup(hash: String): Result<Unit>
+
+    /** The call in progress (or just ended), if any. */
+    val call: StateFlow<CallInfo?> get() = NoCall
+    fun startCall(hash: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+    fun answerCall(id: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+    fun endCall(id: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+    fun muteCall(id: String, muted: Boolean): Result<Unit> = Result.failure(UnsupportedOperationException())
 }
+
+private val NoCall: StateFlow<CallInfo?> = kotlinx.coroutines.flow.MutableStateFlow(null)

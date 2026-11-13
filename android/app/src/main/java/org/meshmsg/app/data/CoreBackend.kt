@@ -31,6 +31,9 @@ class CoreBackend(dataDir: String, configJson: String) : MeshBackend, Listener {
     override val status: StateFlow<NetStatus> = _status
     override val messages: StateFlow<List<Message>> = _messages
 
+    private val _call = MutableStateFlow<CallInfo?>(null)
+    override val call: StateFlow<CallInfo?> = _call
+
     /** Incoming messages, for notifications: (contact hash, text). */
     val incoming = Channel<Message>(Channel.BUFFERED)
 
@@ -63,6 +66,10 @@ class CoreBackend(dataDir: String, configJson: String) : MeshBackend, Listener {
     override fun onEvent(json: String) {
         runCatching {
             val o = JSONObject(json)
+            if (o.optString("type") == "call") {
+                o.optJSONObject("call")?.let { onCall(Json.call(it)) }
+                return
+            }
             if (o.optString("type") == "message") {
                 o.optJSONObject("message")?.let { m ->
                     val msg = Json.message(m, true)
@@ -72,6 +79,26 @@ class CoreBackend(dataDir: String, configJson: String) : MeshBackend, Listener {
         }
         refresh.trySend(Unit)
     }
+
+    private fun onCall(c: CallInfo) {
+        val cur = _call.value
+        // A missed call or a busy reject of another call doesn't replace the live one.
+        if (cur != null && !cur.ended && cur.id != c.id) return
+        _call.value = c
+        if (c.ended) {
+            scope.launch {
+                delay(2_500)
+                if (_call.value?.id == c.id) _call.value = null
+            }
+        }
+    }
+
+    override fun startCall(hash: String): Result<Unit> = runCatching {
+        onCall(Json.call(JSONObject(core.startCall(hash, CallAudio.codecs()))))
+    }
+    override fun answerCall(id: String): Result<Unit> = runCatching { core.answerCall(id, CallAudio.codecs()) }
+    override fun endCall(id: String): Result<Unit> = runCatching { core.endCall(id) }
+    override fun muteCall(id: String, muted: Boolean): Result<Unit> = runCatching { core.muteCall(id, muted) }
 
     override fun openChat(hash: String) {
         open = hash

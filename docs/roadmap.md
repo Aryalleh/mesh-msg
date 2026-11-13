@@ -17,7 +17,7 @@ Order rationale: the Go core and relay come first because desktop, Android and t
 simulator all reuse them, and Linux desktop + relay is the fastest way to a working
 end-to-end system with no special hardware.
 
-## Code changes required by the 2026-11-12 design decisions (steps 1 and 2 done)
+## Code changes required by the 2026-11-12 design decisions (steps 1–4 built)
 
 The app is **alpha, tested in the lab only**; no beta or original release exists yet. Until
 the first beta there is **no backward compatibility with alpha builds**: formats, APIs and
@@ -39,7 +39,11 @@ Existing code that must change:
 | 8 | relay `eu-1` server | TCP only | a UDP port for the reflector; TURN ports if its admins turn TURN on |
 
 Done: (1), (2), (3) (signatures, allowance, quota, account age, proof-of-work, usage
-ledger), (7) — v0.1.0-alpha10.
+ledger), (7) — v0.1.0-alpha10. (5) direct links (core/direct, relay reflector and TURN for
+admins, node `direct` link, normal media over it) and (6) voice calls (core/call, node and
+mobile API, Android audio, call screen and service) are built; tested in an in-memory NAT
+simulator and on loopback, not yet between real phones on real networks. (4) stays as it
+is (LAN discovery still runs beside core/direct). (8) waits for the next eu-1 update.
 Relay ports fixed for all relays (server.md §6d).
 
 Order: (1)+(2)+per-relay allowance → (3) age, PoW, ledger → (5) direct links with netns NAT

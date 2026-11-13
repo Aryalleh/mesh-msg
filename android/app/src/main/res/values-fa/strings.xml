@@ -224,4 +224,26 @@
     <string name="important_hint">فایل بعدی از راه رله هم می‌رود و وقتی آفلاین‌اند هم به دستشان می‌رسد. چند تا در روز.</string>
     <string name="important_on">مهم: فایل بعدی از راه رله هم می‌رود. برای لغو بزنید.</string>
     <string name="media_waits_direct">وقتی هر دو با اتصال مستقیم آنلاین باشید می‌رسد</string>
+    <!-- Calls -->
+    <string name="call_start">تماس صوتی</string>
+    <string name="call_calling">در حال تماس…</string>
+    <string name="call_incoming">تماس صوتی ورودی</string>
+    <string name="call_connecting">در حال اتصال…</string>
+    <string name="call_answer">پاسخ</string>
+    <string name="call_decline">رد</string>
+    <string name="call_hang_up">قطع تماس</string>
+    <string name="call_mute">بی‌صدا</string>
+    <string name="call_speaker">بلندگو</string>
+    <string name="call_code_hint">این کد را برای هم بخوانید. اگر یکی بود، کسی گوش نمی‌دهد.</string>
+    <string name="call_relayed">این تماس از رله‌ی شما می‌گذرد (مسیر مستقیمی پیدا نشد).</string>
+    <string name="call_peer_muted">%1$s میکروفونش را بست</string>
+    <string name="call_ongoing">تماس در جریان است</string>
+    <string name="call_ended">تماس تمام شد</string>
+    <string name="call_end_declined">رد شد</string>
+    <string name="call_end_busy">در تماس دیگری است</string>
+    <string name="call_end_no_path">اتصال مستقیم برقرار نشد. وای‌فای یا شبکه‌ی دیگری را امتحان کنید.</string>
+    <string name="call_end_no_answer">پاسخی نداد</string>
+    <string name="call_end_lost">اتصال قطع شد</string>
+    <string name="call_channel_ring">تماس‌های ورودی</string>
+    <string name="call_channel_ongoing">تماس جاری</string>
 </resources>

@@ -672,3 +672,19 @@ kept**; replace old apps and relays (old apps can't upload to new relays: unsign
   `TestCallThroughRelaySignaling`.
 - Next: mobile API + Android audio (AudioRecord/AudioTrack, MediaCodec Opus or AMR-WB),
   call screen, foreground service; docs.
+
+### 2026-11-13 — Step 4 (part 2): mobile API, Android calls, docs
+
+- Part 1 commit `27d3255`.
+- `mobile`: StartCall / AnswerCall / EndCall / MuteCall / CallAudio / PullCallAudio
+  (`result byte | frame`) / CurrentCall; `call` events reach Kotlin through the listener.
+- Android: `CallInfo` + `Json.call`, backend `call` flow and actions, `CallAudio`
+  (MediaCodec Opus on Android 10+ else AMR-WB, AudioRecord/AudioTrack voice mode, AEC/NS),
+  `CallService` (foreground microphone) + hang-up action, ring notification (full-screen
+  intent, insistent ringtone), `CallScreen` overlay (answer/decline, mute, speaker, code,
+  relayed note, end reasons), call button in contact chats, mic permission asked on demand,
+  show over lock screen; en + fa strings; manifest permissions/service; JsonTest.call.
+  Not built locally (disk full); CI builds and lints it.
+- Docs: calls.md §7, connectivity.md §8, decisions D19 (deviations), roadmap.
+- Next: watch CI; then (when the owner asks) tag v0.1.0-alpha10, update eu-1 (open UDP
+  3478/3479 and 61000–61999, `install.sh` does it), test calls between two real phones.

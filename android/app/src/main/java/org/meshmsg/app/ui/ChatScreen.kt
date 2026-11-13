@@ -36,6 +36,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -108,6 +109,7 @@ fun ChatScreen(
     nowMs: Long = System.currentTimeMillis(),
     initialDraft: String = "",
     media: MediaActions = MediaActions(),
+    onCall: (() -> Unit)? = null,
 ) {
     var draft by rememberSaveable(contact.hash) { mutableStateOf(initialDraft) }
     var menu by remember { mutableStateOf(false) }
@@ -149,6 +151,9 @@ fun ChatScreen(
                     }
                 },
                 actions = {
+                    if (group == null && onCall != null) {
+                        IconButton(onClick = onCall) { Icon(Icons.Filled.Call, stringResource(R.string.call_start)) }
+                    }
                     IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.more_options)) }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         if (group != null) {

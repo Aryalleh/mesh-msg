@@ -68,6 +68,16 @@ class MainActivity : ComponentActivity() {
     /** A meshmsg: link or a chat to open, from the launching intent. */
     private val pendingLink = mutableStateOf<String?>(null)
     private val pendingChat = mutableStateOf<String?>(null)
+    private var callAfterPermission: String? = null
+    private val askMic = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
+        callAfterPermission?.let { if (ok) vm.startCall(it) }
+        callAfterPermission = null
+    }
+
+    /** Starts a call, asking for the microphone first if needed. */
+    private fun callMic(hash: String) {
+        if (hasMic()) vm.startCall(hash) else { callAfterPermission = hash; askMic.launch(Manifest.permission.RECORD_AUDIO) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,7 +86,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             MeshMsgTheme {
                 val onboarded by vm.onboarded.collectAsStateWithLifecycle()
-                if (!onboarded) Onboarding() else Main()
+                if (!onboarded) Onboarding() else androidx.compose.foundation.layout.Box {
+                    Main()
+                    Call()
+                }
             }
         }
     }
@@ -109,6 +122,42 @@ class MainActivity : ComponentActivity() {
 
     private fun startPermissions(): Array<String> =
         MeshApp.BLE_PERMISSIONS + if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else emptyArray()
+
+    /** The call screen over everything, while there is a call. */
+    @Composable
+    private fun Call() {
+        val call by vm.call.collectAsStateWithLifecycle()
+        val chats by vm.chats.collectAsStateWithLifecycle()
+        val st = call?.state
+        LaunchedEffect(st) { showOverLock(st == "ringing" || st == "active") }
+        val c = call ?: return
+        val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+            if (ok) vm.answerCall(c.id) else vm.endCall(c.id)
+        }
+        org.meshmsg.app.ui.CallScreen(
+            c, chats.firstOrNull { it.contact.hash == c.peer }?.contact,
+            org.meshmsg.app.ui.CallActions(
+                answer = {
+                    if (hasMic()) vm.answerCall(c.id) else mic.launch(Manifest.permission.RECORD_AUDIO)
+                },
+                end = { vm.endCall(c.id) },
+                mute = { vm.muteCall(c.id, it) },
+                speaker = { vm.speaker(it) },
+            ),
+        )
+        androidx.activity.compose.BackHandler(enabled = !c.ended) {} // the call stays until it ends
+    }
+
+    private fun hasMic() = androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+        android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    /** Rings and calls show over the lock screen and turn it on. */
+    private fun showOverLock(on: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(on)
+            setTurnScreenOn(on)
+        }
+    }
 
     @Composable
     private fun Main() {
@@ -184,6 +233,7 @@ class MainActivity : ComponentActivity() {
                         ChatScreen(
                             contact, messages, status.anyPathUp, vm.limits,
                             onSend = { vm.send(hash, it) },
+                            onCall = if (contact.isGroup) null else ({ callMic(hash) }),
                             media = remember(hash) {
                                 org.meshmsg.app.ui.MediaActions(
                                     pick = { uri, caption, important -> vm.sendUri(hash, uri, caption, important) },

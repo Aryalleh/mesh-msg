@@ -36,6 +36,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     val chats: StateFlow<List<Chat>> = from(emptyList()) { it.chats }
     val status: StateFlow<NetStatus> = from(NetStatus()) { it.status }
     val messages: StateFlow<List<Message>> = from(emptyList()) { it.messages }
+    val call: StateFlow<org.meshmsg.app.data.CallInfo?> = from<org.meshmsg.app.data.CallInfo?>(null) { it.call }
 
     private val _settingsState = MutableStateFlow(readSettings())
     val settingsState: StateFlow<SettingsState> = _settingsState
@@ -87,6 +88,15 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
             block(b).exceptionOrNull()?.let { _errors.trySend(it.message ?: it.toString()) }
         }
     }
+
+    fun startCall(hash: String) = io { it.startCall(hash) }
+    fun answerCall(id: String) = io { it.answerCall(id) }
+    fun endCall(id: String) = io { it.endCall(id) }
+    fun muteCall(id: String, muted: Boolean) {
+        org.meshmsg.app.service.CallService.current?.muted = muted
+        io { it.muteCall(id, muted) }
+    }
+    fun speaker(on: Boolean) { org.meshmsg.app.service.CallService.current?.setSpeaker(on) }
 
     fun openChat(hash: String) = backend.value?.openChat(hash)
     fun closeChat() = backend.value?.closeChat()

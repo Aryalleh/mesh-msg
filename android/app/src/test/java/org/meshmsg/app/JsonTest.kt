@@ -158,4 +158,15 @@ class JsonTest {
         assertEquals(0.5f, media.progress, 0.01f)
         assertNull(Json.message(JSONObject("""{"id":"m2","peer":"aa11","text":"hi"}"""), true).media)
     }
+
+    @Test fun call() {
+        val c = Json.call(JSONObject("""{"id":"c1","peer":"aa11","incoming":true,"state":"active","codec":2,"code":"123 456","started":5,"peer_muted":true}"""))
+        assertEquals("c1", c.id)
+        assertEquals(true, c.incoming)
+        assertEquals(2, c.codec)
+        assertEquals("123 456", c.code)
+        assertEquals(true, c.peerMuted)
+        assertEquals(false, c.ended)
+        assertEquals(true, Json.call(JSONObject("""{"id":"c2","state":"ended","missed":true}""")).missed)
+    }
 }

@@ -27,6 +27,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -666,3 +667,53 @@ func OnePacketBytes() int { return message.OnePacketTextBytes }
 
 // MaxTextBytes is the longest text Send accepts.
 func MaxTextBytes() int { return message.MaxTextBytes }
+
+// ---- calls (docs/calls.md) ----
+//
+// codecs: the audio codecs this phone can encode and decode, best first,
+// as ids: "1,2" (Opus, AMR-WB) or "2". Call state arrives as "call" events.
+
+func parseCodecs(s string) []byte {
+	var out []byte
+	for _, f := range strings.Split(s, ",") {
+		if v, err := strconv.Atoi(strings.TrimSpace(f)); err == nil && v > 0 && v < 256 {
+			out = append(out, byte(v))
+		}
+	}
+	return out
+}
+
+// StartCall calls a contact; returns the call as JSON.
+func (c *Core) StartCall(contact, codecs string) (string, error) {
+	return toJSON(c.n.StartCall(contact, parseCodecs(codecs)...))
+}
+
+// AnswerCall accepts a ringing call.
+func (c *Core) AnswerCall(id, codecs string) error { return c.n.AnswerCall(id, parseCodecs(codecs)...) }
+
+// EndCall hangs up, cancels or declines.
+func (c *Core) EndCall(id string) error { return c.n.EndCall(id) }
+
+// MuteCall tells the other side the microphone is muted.
+func (c *Core) MuteCall(id string, muted bool) error { return c.n.MuteCall(id, muted) }
+
+// CallAudio sends one encoded 20 ms frame.
+func (c *Core) CallAudio(id string, frame []byte) error { return c.n.CallAudio(id, frame) }
+
+// PullCallAudio returns the next frame to play every 20 ms, as one byte of
+// result (0 frame, 1 lost: conceal, 2 nothing: silence) followed by the
+// frame.
+func (c *Core) PullCallAudio(id string) []byte {
+	p, r := c.n.PullCallAudio(id)
+	return append([]byte{byte(r)}, p...)
+}
+
+// CurrentCall is the call in progress as JSON, or "" when there is none.
+func (c *Core) CurrentCall() string {
+	in, ok := c.n.CurrentCall()
+	if !ok {
+		return ""
+	}
+	s, _ := toJSON(in, nil)
+	return s
+}

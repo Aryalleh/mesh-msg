@@ -152,3 +152,25 @@ protocol, the transport or the signaling. On Android, video would use hardware
 3. Budget: video gets what the estimator leaves after audio (typically 150–800 kbps).
 4. Privacy note: video uses far more data; warn on mobile data.
 No change to signaling ops, frame format, encryption or path discovery is needed.
+
+## 7. Implementation (alpha)
+
+- `core/call`: signals as in §2 (the OFFER also carries the 32-byte path-check key, and
+  `candidates` is core/direct's offer: NAT type first, then the candidate list), the state
+  machine (outgoing → ringing → connecting → active → ended), the path from core/direct,
+  Noise KK on the path (datagram types 1/2 handshake, 3 frames), frames sealed with the
+  Noise transport keys (nonce = `stream_id << 32 | seq`), a 6-digit code from the handshake
+  hash, keepalive frames every 2 s, end after 20 s without frames, and the jitter buffer
+  (40–200 ms target from RFC 3550 inter-arrival jitter, loss → conceal, underrun →
+  rebuffer, skip when far behind).
+- Codecs: Opus (1) where the phone encodes it through MediaCodec (Android 10+), AMR-WB (2)
+  everywhere (every Android phone with a microphone encodes it, both decode everywhere). The
+  callee takes the caller's first codec it also has. Lost frames play as silence.
+- `core/node`: `StartCall`, `AnswerCall`, `EndCall`, `MuteCall`, `CallAudio`,
+  `PullCallAudio`, `call` events; setting `calls_from_anyone`. `mobile`: the same for Kotlin.
+- Android: `CallAudio` (AudioRecord VOICE_COMMUNICATION + echo canceller + noise suppressor,
+  MediaCodec, AudioTrack voice mode), `CallService` (foreground, type microphone, while a
+  call is active), a ringing notification with a full-screen intent, the call screen (code
+  to compare, mute, speaker, "through your relay" note) and a call button in chats. Not
+  yet: path changes mid-call (op 2), bitrate adaptation, system call log integration.
+

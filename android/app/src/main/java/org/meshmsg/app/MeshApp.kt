@@ -68,12 +68,42 @@ class MeshApp : Application() {
         scope.launch {
             lock.withLock {
                 if (_backend.value == null) {
-                    _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig())
+                    _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig()).also(::watchCalls)
                     restartBle()
                     usb = UsbLoRa(this@MeshApp).also { it.attachIfPresent(_backend.value!!.core) }
                 }
             }
             if (settings.batteryMode != BatteryMode.Off) MeshService.start(this@MeshApp)
+        }
+    }
+
+    /**
+     * Rings for incoming calls and runs [org.meshmsg.app.service.CallService]
+     * (the audio) while a call is active.
+     */
+    private fun watchCalls(b: CoreBackend) {
+        scope.launch {
+            var ringing: String? = null
+            var active: String? = null
+            b.call.collect { c ->
+                if (c != null && c.incoming && c.state == "ringing") {
+                    if (ringing != c.id) {
+                        ringing = c.id
+                        val name = b.chats.value.firstOrNull { it.contact.hash == c.peer }?.contact?.displayName ?: c.peer.take(8)
+                        org.meshmsg.app.service.CallService.ring(this@MeshApp, name)
+                    }
+                } else if (ringing != null) {
+                    ringing = null
+                    org.meshmsg.app.service.CallService.stopRinging(this@MeshApp)
+                }
+                if (c != null && c.state == "active" && active != c.id) {
+                    active = c.id
+                    org.meshmsg.app.service.CallService.start(this@MeshApp, c.id, c.codec)
+                } else if (active != null && (c == null || c.ended || c.id != active)) {
+                    active = null
+                    org.meshmsg.app.service.CallService.stop(this@MeshApp)
+                }
+            }
         }
     }
 
@@ -84,7 +114,7 @@ class MeshApp : Application() {
             delay(1_500) // the user may still be typing
             lock.withLock {
                 stopLocked()
-                _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig())
+                _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig()).also(::watchCalls)
                 restartBle()
                 usb = UsbLoRa(this@MeshApp).also { it.attachIfPresent(_backend.value!!.core) }
             }

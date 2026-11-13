@@ -146,7 +146,41 @@ val ROLES = listOf("client", "repeater", "gateway")
 val REGIONS = listOf("EU_868", "EU_868_1PCT", "EU_433", "US_915", "AU_915", "IN_865", "AS_923")
 val PRESETS = listOf("FAST", "BALANCED", "LONG")
 
+/** A call, as the core reports it (docs/calls.md). */
+data class CallInfo(
+    val id: String,
+    val peer: String,
+    val incoming: Boolean,
+    /** outgoing | ringing | connecting | active | ended */
+    val state: String,
+    val codec: Int = 0,
+    /** Six digits both people can compare by voice. */
+    val code: String = "",
+    val relayed: Boolean = false,
+    val reason: String = "",
+    val missed: Boolean = false,
+    /** When it became active (ms), 0 before. */
+    val started: Long = 0,
+    val peerMuted: Boolean = false,
+) {
+    val ended: Boolean get() = state == "ended"
+}
+
 object Json {
+    fun call(o: JSONObject) = CallInfo(
+        id = o.optString("id"),
+        peer = o.optString("peer"),
+        incoming = o.optBoolean("incoming"),
+        state = o.optString("state"),
+        codec = o.optInt("codec"),
+        code = o.optString("code"),
+        relayed = o.optBoolean("relayed"),
+        reason = o.optString("reason"),
+        missed = o.optBoolean("missed"),
+        started = o.optLong("started"),
+        peerMuted = o.optBoolean("peer_muted"),
+    )
+
     private fun time(s: String): Long = runCatching { Instant.parse(s).toEpochMilli() }.getOrDefault(0L)
 
     fun contact(o: JSONObject) = Contact(o.optString("hash"), o.optString("name"), o.optString("uri"))

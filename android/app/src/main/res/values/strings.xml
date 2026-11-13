@@ -232,4 +232,26 @@
     <string name="important_hint">The next file also goes through a relay and reaches them while they are offline. A few per day.</string>
     <string name="important_on">Important: the next file also goes through a relay. Tap to cancel.</string>
     <string name="media_waits_direct">Arrives when you are both online on a direct connection</string>
+    <!-- Calls -->
+    <string name="call_start">Voice call</string>
+    <string name="call_calling">Calling…</string>
+    <string name="call_incoming">Incoming voice call</string>
+    <string name="call_connecting">Connecting…</string>
+    <string name="call_answer">Answer</string>
+    <string name="call_decline">Decline</string>
+    <string name="call_hang_up">Hang up</string>
+    <string name="call_mute">Mute</string>
+    <string name="call_speaker">Speaker</string>
+    <string name="call_code_hint">Read this code to each other. If it matches, nobody is listening in.</string>
+    <string name="call_relayed">This call goes through your relay (no direct path was found).</string>
+    <string name="call_peer_muted">%1$s muted their microphone</string>
+    <string name="call_ongoing">Call in progress</string>
+    <string name="call_ended">Call ended</string>
+    <string name="call_end_declined">Declined</string>
+    <string name="call_end_busy">Busy on another call</string>
+    <string name="call_end_no_path">No direct connection could be made. Try Wi-Fi, or another network.</string>
+    <string name="call_end_no_answer">No answer</string>
+    <string name="call_end_lost">Connection lost</string>
+    <string name="call_channel_ring">Incoming calls</string>
+    <string name="call_channel_ongoing">Ongoing call</string>
 </resources>
