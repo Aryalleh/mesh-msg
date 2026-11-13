@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Add contact · Mava</title>
+<style>
+  :root { --bg: #f4f4f5; --card: #fff; --ink: #111; --muted: #666; --accent: #3390ec; --line: #e2e4e7; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0e1621; --card: #17212b; --ink: #f5f5f5; --muted: #8a9aab; --accent: #5288c1; --line: #233040; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Vazirmatn, Tahoma, sans-serif; padding: 16px; }
+  main { background: var(--card); border-radius: 16px; padding: 24px; width: min(440px, 100%); text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 8px 0; }
+  .who { font-size: 22px; font-weight: 600; margin: 12px 0; unicode-bidi: plaintext; }
+  a.btn, button { display: block; width: 100%; padding: 13px; border-radius: 12px; border: 0; margin-top: 12px; font: inherit; font-weight: 600;
+                  text-decoration: none; cursor: pointer; background: var(--accent); color: #fff; }
+  .ghost { background: transparent !important; color: var(--accent) !important; border: 1px solid var(--line) !important; }
+  code { display: block; text-align: start; direction: ltr; word-break: break-all; font-size: 12px; background: var(--bg); padding: 10px; border-radius: 8px; margin-top: 8px; }
+  details { margin-top: 16px; text-align: start; color: var(--muted); font-size: 14px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
+  .fa { direction: rtl; }
+  .sub { display: block; font-weight: 500; font-size: .92em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Mava</h1>
+  <div id="ok" hidden>
+    <p>Add this person to your contacts</p>
+    <p class="fa">این شخص را به مخاطبان خود اضافه کنید</p>
+    <div class="who" id="who"></div>
+    <a class="btn" id="open">Open in Mava<span class="fa sub">باز کردن در Mava</span></a>
+    <a class="btn ghost" href="https://github.com/Aryalleh/mesh-msg/releases">Get Mava<span class="fa sub">دریافت Mava</span></a>
+    <details>
+      <summary>Add by hand <span dir="rtl">(افزودن دستی)</span></summary>
+      <p>In Mava: New chat → Add contact, and paste:</p>
+      <p class="fa">در Mava: گفتگوی تازه ← افزودن مخاطب، و این را جای‌گذاری کنید:</p>
+      <code id="uri"></code>
+      <button class="ghost" id="copy">Copy <span dir="rtl">(کپی)</span></button>
+    </details>
+  </div>
+  <div id="bad" hidden>
+    <p>This contact link is incomplete. Ask for the link again.</p>
+    <p class="fa">این پیوند مخاطب ناقص است. دوباره پیوند را بخواهید.</p>
+  </div>
+  <hr>
+  <p style="font-size:13px">The contact key stays in your browser; it is not sent to this server.
+  <span class="fa sub">کلید مخاطب در مرورگر شما می‌ماند و به این سرور فرستاده نمی‌شود.</span></p>
+</main>
+<script>
+"use strict";
+const raw = location.hash.slice(1);
+const key = raw.split("?")[0];
+if (/^[A-Za-z0-9_-]{80,}$/.test(key)) {
+  const uri = "meshmsg:" + raw;
+  const name = new URLSearchParams(raw.split("?")[1] || "").get("n") || "";
+  document.getElementById("who").textContent = name || key.slice(0, 12) + "…";
+  document.getElementById("open").href = uri;
+  document.getElementById("uri").textContent = location.href;
+  document.getElementById("copy").onclick = () => navigator.clipboard && navigator.clipboard.writeText(location.href);
+  document.getElementById("ok").hidden = false;
+} else {
+  document.getElementById("bad").hidden = false;
+}
+</script>
+</body>
+</html>

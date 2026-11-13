@@ -84,6 +84,8 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("POST /v1/sync/push", s.syncPush)
 	s.mux.HandleFunc("GET /v1/sync/pull", s.syncPull)
 	s.mux.HandleFunc("GET /v1/release", s.release)
+	s.mux.HandleFunc("GET /add", s.addLink)
+	s.mux.HandleFunc("GET /.well-known/assetlinks.json", s.assetLinks)
 	p := DefaultMediaPolicy()
 	if cfg.Media.Policy != nil {
 		p = *cfg.Media.Policy

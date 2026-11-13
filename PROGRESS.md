@@ -1083,3 +1083,21 @@ links. Chose: quick items in beta3; calls follow in later betas.
   9–11 min; meshd and Android check every 5–7 h; Android also checks on resume if the last
   check is > 1 h old.
 - eu-1 needs the new relay build for the 10-minute refresh (not required: GitHub covers it).
+
+### 2026-11-13 — contact links as web links (beta4)
+
+- Owner: QR is fine, but a link sent as text in other apps meant manual input. Contact links
+  are now `https://eu-1.mfadem.ir/add#<key>?n=<name>` (`identity.Contact.Link`, `LinkBase`);
+  `ParseURI` accepts any http(s) `…/add#…` as well as `meshmsg:`. Key in the fragment, so the
+  server never sees it.
+- Relay serves `GET /add` (embedded `server/api/add.html`: "Open in Mava" → `meshmsg:` link,
+  download, copy for manual input; en + fa; screenshot checked) and
+  `/.well-known/assetlinks.json` (package `org.meshmsg.app`, cert SHA-256 of
+  `android/debug.keystore`; update with A1). Caddy on eu-1 already passes both paths to the relay.
+- Android: App Link intent filter (autoVerify, https eu-1.mfadem.ir /add); share/copy send the
+  web link (QR stays `meshmsg:`); `ContactLink` helper + test. meshd `/id` has `link`; web UI
+  "Me" and `mesh id` show it.
+- **Needs eu-1 on the new relay build** for the page and App Link verification (until then
+  the link 404s in a browser; apps still parse it when pasted).
+- Seen twice under heavy load: `TestVideoOverLANWithoutRelay` timing flake (LAN link not up
+  within 30 s, Have 0); 0/32 on both old and new code in repeat runs.

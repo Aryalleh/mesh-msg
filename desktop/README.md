@@ -61,7 +61,7 @@ Leaving the app does not stop meshd; messages keep arriving in the background.
 ### Commands
 
 ```bash
-mesh id                          # your contact link — share it
+mesh id                          # your contact link (https://…/add#…, opens the app) and the meshmsg: form
 mesh add 'meshmsg:…' Sara        # add a contact
 mesh send Sara "سلام"            # send
 mesh read Sara                   # history (✓ sent, ✓✓ delivered)

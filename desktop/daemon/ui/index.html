@@ -899,7 +899,7 @@ $("grpOk").onclick = async () => {
 };
 $("joinGlobal").onclick = () => joinGroup("global");
 $("joinRegion").onclick = () => { const r = $("regionName").value.trim(); if (r) joinGroup("#" + r.replace(/^#/, "")); };
-$("btnMe").onclick = async () => { $("myUri").textContent = (await api("/id")).uri; $("dlgMe").showModal(); };
+$("btnMe").onclick = async () => { $("myUri").textContent = (await api("/id")).link; $("dlgMe").showModal(); };
 $("copyUri").onclick = () => navigator.clipboard.writeText($("myUri").textContent);
 
 // ---- Settings ----

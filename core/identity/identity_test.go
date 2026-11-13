@@ -1,6 +1,9 @@
 package identity
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSeedRoundTrip(t *testing.T) {
 	a, err := Generate()
@@ -39,5 +42,24 @@ func TestURI(t *testing.T) {
 	}
 	if _, err := ParseURI("http://x"); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestLink(t *testing.T) {
+	a, _ := Generate()
+	c := Contact{Public: a.Public, Name: "علی رضایی"}
+	l := c.Link()
+	if !strings.HasPrefix(l, "https://eu-1.mfadem.ir/add#") || strings.Contains(l, "meshmsg:") {
+		t.Fatal(l)
+	}
+	for _, s := range []string{l, " " + l + "\n", strings.Replace(l, "eu-1.mfadem.ir", "other.example/", 1) /* trailing slash */, "http://h/add/#" + strings.TrimPrefix(c.URI(), "meshmsg:")} {
+		if got, err := ParseURI(s); err != nil || got != c {
+			t.Fatalf("%q: %v %+v", s, err, got)
+		}
+	}
+	for _, s := range []string{"https://eu-1.mfadem.ir/other#x", "https://eu-1.mfadem.ir/add", "https://eu-1.mfadem.ir/add#garbage"} {
+		if _, err := ParseURI(s); err == nil {
+			t.Fatalf("%q accepted", s)
+		}
 	}
 }

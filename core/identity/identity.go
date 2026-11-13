@@ -120,10 +120,34 @@ func (c Contact) URI() string {
 	return s
 }
 
-// ParseURI parses a contact URI.
+// LinkBase is where shared contact links point: a web page there opens the
+// app (or explains how to get it). The contact goes in the fragment, so it
+// never reaches the web server.
+const LinkBase = "https://eu-1.mfadem.ir/add#"
+
+// Link is the contact as a web link (https://…/add#<key>?n=<name>) that
+// messengers make clickable; ParseURI accepts it like the meshmsg: form.
+func (c Contact) Link() string {
+	return LinkBase + strings.TrimPrefix(c.URI(), uriScheme+":")
+}
+
+// fromLink turns an http(s) contact link (any host, path ending in /add)
+// into the meshmsg: form; other strings are returned unchanged.
+func fromLink(s string) string {
+	if !strings.HasPrefix(s, "https://") && !strings.HasPrefix(s, "http://") {
+		return s
+	}
+	page, frag, ok := strings.Cut(s, "#")
+	if !ok || !strings.HasSuffix(strings.TrimRight(page, "/"), "/add") {
+		return s
+	}
+	return uriScheme + ":" + frag
+}
+
+// ParseURI parses a contact URI (meshmsg:… or a contact web link).
 func ParseURI(s string) (Contact, error) {
 	var c Contact
-	rest, ok := strings.CutPrefix(strings.TrimSpace(s), uriScheme+":")
+	rest, ok := strings.CutPrefix(fromLink(strings.TrimSpace(s)), uriScheme+":")
 	if !ok {
 		return c, fmt.Errorf("identity: not a %s: URI", uriScheme)
 	}

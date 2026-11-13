@@ -76,6 +76,16 @@
                 <!-- Group invite links: meshgroup:… -->
                 <data android:scheme="meshgroup" />
             </intent-filter>
+            <!-- Contact links shared as text: https://eu-1.mfadem.ir/add#… (verified
+                 through the relay's /.well-known/assetlinks.json). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="eu-1.mfadem.ir" />
+                <data android:path="/add" />
+            </intent-filter>
             <!-- A LoRa node was plugged in: opening the app grants USB access to it. -->
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />

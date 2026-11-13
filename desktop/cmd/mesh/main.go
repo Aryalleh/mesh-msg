@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -207,6 +208,7 @@ func run(args []string) error {
 		if err := call("GET", "/id", nil, &id); err != nil {
 			return err
 		}
+		fmt.Fprintln(out, cmp.Or(id["link"], id["uri"])) // https link: clickable in messengers
 		fmt.Fprintln(out, id["uri"])
 	case "contacts":
 		var cs []node.Contact

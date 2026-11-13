@@ -183,7 +183,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
     /** Returns null on success, or why the link was refused. */
     suspend fun addContact(uri: String, name: String): LinkError? {
         val b = backend.value ?: return LinkError.Invalid
-        val link = uri.trim()
+        val link = org.meshmsg.app.data.ContactLink.toUri(uri.trim())
         if (link == b.myUri || link.substringBefore('?') == b.myUri.substringBefore('?')) return LinkError.Own
         return withContext(Dispatchers.IO) { if (b.addContact(link, name).isSuccess) null else LinkError.Invalid }
     }

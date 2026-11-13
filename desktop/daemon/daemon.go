@@ -287,7 +287,7 @@ func (d *Daemon) apiHandler() http.Handler {
 	}))
 	mux.HandleFunc("GET /id", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		id := n.Identity()
-		writeJSON(w, map[string]string{"hash": id.Hash().String(), "uri": id.URI(), "ui": d.UIURL()})
+		writeJSON(w, map[string]string{"hash": id.Hash().String(), "uri": id.URI(), "link": id.Link(), "ui": d.UIURL()})
 	}))
 	mux.HandleFunc("GET /contacts", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		cs, err := n.Contacts()

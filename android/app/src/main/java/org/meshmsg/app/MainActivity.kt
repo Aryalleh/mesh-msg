@@ -115,7 +115,11 @@ class MainActivity : ComponentActivity() {
 
     private fun handle(intent: Intent?) {
         intent ?: return
-        if (intent.action == Intent.ACTION_VIEW && intent.data?.scheme in setOf("meshmsg", "meshgroup")) pendingLink.value = intent.dataString
+        val data = intent.data
+        if (intent.action == Intent.ACTION_VIEW && data != null) {
+            val web = data.scheme in setOf("https", "http") && data.host == org.meshmsg.app.data.ContactLink.HOST
+            if (data.scheme in setOf("meshmsg", "meshgroup") || web) pendingLink.value = org.meshmsg.app.data.ContactLink.toUri(intent.dataString.orEmpty())
+        }
         intent.getStringExtra(EXTRA_CHAT)?.let { pendingChat.value = it }
     }
 
@@ -273,7 +277,7 @@ class MainActivity : ComponentActivity() {
                             onRename = { vm.rename(hash, it) },
                             onRemove = { vm.remove(hash); nav.popBackStack() },
                             onInvite = {
-                                startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, contact.uri), null))
+                                startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, org.meshmsg.app.data.ContactLink.toWeb(contact.uri)), null))
                             },
                             contacts = chats.map { it.contact }.filter { !it.isGroup },
                             onAddMembers = { vm.addMembers(hash, it) },
@@ -299,12 +303,12 @@ class MainActivity : ComponentActivity() {
                         initialLink = remember { pendingLink.value.orEmpty().also { pendingLink.value = null } },
                         onBack = { nav.popBackStack() },
                         onCopy = {
-                            clipboard.setPrimaryClip(ClipData.newPlainText("mesh-msg", myUri))
+                            clipboard.setPrimaryClip(ClipData.newPlainText("mesh-msg", org.meshmsg.app.data.ContactLink.toWeb(myUri)))
                             // Android 13+ shows its own confirmation.
                             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) scope.launch { snackbar.showSnackbar(copied) }
                         },
                         onShare = {
-                            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, myUri), null))
+                            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, org.meshmsg.app.data.ContactLink.toWeb(myUri)), null))
                         },
                         onPaste = { clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty().trim() },
                         onAdd = { uri, name ->

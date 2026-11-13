@@ -225,6 +225,10 @@ func wipeDir(dir string) error {
 // URI is this identity's contact link (meshmsg:…), for QR codes and sharing.
 func (c *Core) URI() string { return c.n.Identity().URI() }
 
+// Link is the contact link as https://…/add#… for sharing as text: messengers
+// make it clickable and it opens the app (AddContact accepts both forms).
+func (c *Core) Link() string { return c.n.Identity().Link() }
+
 // ExportIdentity returns the account key sealed with passphrase
 // (meshkey1:…, fits a QR code). It fails if the passphrase is shorter than
 // MinPassphraseLength characters. Slow (~1 s): call it off the main thread.
