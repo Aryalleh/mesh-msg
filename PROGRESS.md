@@ -1240,9 +1240,9 @@ links. Chose: quick items in beta3; calls follow in later betas.
   BUSY 13 on SPI 40/38/41, rail enable GPIO 10, battery GPIO 4, native USB, 16 MB flash) and
   `board.cpp` holds the display and SD chip selects high (`SPI_IDLE_CS_A/B`). It is a LoRa
   node like the other boards. Pins from the vendor's pin map, **not verified on hardware**.
-- **`pio run -e tdeck_plus` not built yet**: this session ran in the "Default" cloud
-  environment, whose network refuses the PlatformIO registry (403); the "mesh-msg"
-  environment allows it. Host tests unaffected (`make -C firmware test` passes).
+- `pio run -e tdeck_plus` builds (RAM 24.5 %, flash 566 KB), after moving the session to the
+  "mesh-msg" cloud environment (the Default one refuses the PlatformIO registry). Host tests
+  pass. Never flashed: no board here.
 - Plan: `docs/tdeck.md` (steps T1 device UI + BLE host link, T2 identity sent from a
   phone/PC sealed to a one-time device key confirmed by a 6-digit code, T3 stand-alone
   messaging = C++ client kept identical to the Go core by vectors, T4 calls over Wi-Fi with
