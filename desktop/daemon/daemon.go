@@ -252,6 +252,24 @@ func (d *Daemon) apiHandler() http.Handler {
 		}
 		w.WriteHeader(204)
 	}))
+	// Read receipts (relays only): {"on": bool}.
+	mux.HandleFunc("GET /read-receipts", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, map[string]bool{"on": n.ReadReceipts()})
+	}))
+	mux.HandleFunc("PUT /read-receipts", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		var v struct {
+			On bool `json:"on"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		if err := n.SetReadReceipts(v.On); err != nil {
+			httpErr(w, err, 500)
+			return
+		}
+		w.WriteHeader(204)
+	}))
 	// Profile pictures (fetched from contacts over direct links only).
 	mux.HandleFunc("GET /avatar/{hash}", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		hash := r.PathValue("hash")

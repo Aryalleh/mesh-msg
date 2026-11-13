@@ -84,6 +84,7 @@ func (l *relayLink) setUp(up bool) {
 			d.poke() // share it in our announces, fetch its relay list
 		}
 		l.n.mediaLinkUp()
+		go l.n.flushReadReceipts()
 		// Carry the store backlog (our announce first, then held packets).
 		l.n.router.LinkUp(l.name)
 	} else if !up && was {

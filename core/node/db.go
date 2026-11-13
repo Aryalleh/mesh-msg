@@ -68,7 +68,7 @@ func openAppDB(path string) (*appDB, error) {
 			return nil, err
 		}
 	}
-	for _, col := range []string{"sender BLOB", "sender_name TEXT NOT NULL DEFAULT ''", "media TEXT NOT NULL DEFAULT ''"} {
+	for _, col := range []string{"sender BLOB", "sender_name TEXT NOT NULL DEFAULT ''", "media TEXT NOT NULL DEFAULT ''", "seen INTEGER NOT NULL DEFAULT 0"} {
 		var n int
 		db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name=?`, strings.Fields(col)[0]).Scan(&n)
 		if n == 0 {
@@ -137,6 +137,8 @@ type Message struct {
 	Sent      time.Time `json:"sent"`
 	Received  time.Time `json:"received"`
 	Delivered bool      `json:"delivered"`
+	// Read: the contact has seen it (read receipt, over relays only).
+	Read bool `json:"read,omitempty"`
 	// Group messages: Peer is the group's hash, From the sender's hash and
 	// FromName the name the sender gave (a contact's saved name wins).
 	Group    bool   `json:"group,omitempty"`
@@ -185,7 +187,7 @@ func (d *appDB) messages(peer *packet.Hash, limit int) ([]Message, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	q := `SELECT id,peer,outgoing,body,sent,received,delivered,sender,sender_name,media FROM messages`
+	q := `SELECT id,peer,outgoing,body,sent,received,delivered,sender,sender_name,media,seen FROM messages`
 	var args []any
 	if peer != nil {
 		q += ` WHERE peer=?`
@@ -204,7 +206,7 @@ func (d *appDB) messages(peer *packet.Hash, limit int) ([]Message, error) {
 		var sent, recv int64
 		var sender []byte
 		var media string
-		if err := rows.Scan(&m.ID, &pb, &m.Outgoing, &m.Text, &sent, &recv, &m.Delivered, &sender, &m.FromName, &media); err != nil {
+		if err := rows.Scan(&m.ID, &pb, &m.Outgoing, &m.Text, &sent, &recv, &m.Delivered, &sender, &m.FromName, &media, &m.Read); err != nil {
 			return nil, err
 		}
 		if media != "" {
@@ -248,6 +250,11 @@ func (d *appDB) get(k string) (string, bool) {
 
 func (d *appDB) set(k, v string) error {
 	_, err := d.db.Exec(`INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v`, k, v)
+	return err
+}
+
+func (d *appDB) del(k string) error {
+	_, err := d.db.Exec(`DELETE FROM kv WHERE k=?`, k)
 	return err
 }
 

@@ -355,7 +355,7 @@ private fun Bubble(m: Message, showSender: Boolean = false, media: MediaActions 
                 when {
                     !m.outgoing -> {}
                     // Public chats have no delivery receipts: never claim "delivered".
-                    m.group && m.recipients == 0 -> DeliveryMark(if (m.delivery == Delivery.Delivered) Delivery.Sent else m.delivery, meta)
+                    m.group && m.recipients == 0 -> DeliveryMark(if (m.delivery >= Delivery.Delivered) Delivery.Sent else m.delivery, meta)
                     // Private groups: one receipt per member.
                     m.group && m.deliveredTo < m.recipients -> {
                         val deliveredLabel = stringResource(R.string.delivered_to_n, m.deliveredTo, m.recipients)

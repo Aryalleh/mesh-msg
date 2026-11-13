@@ -85,7 +85,14 @@ private val Light = lightColorScheme(
 
 /** Semantic colours Material 3 has no slot for. */
 @Immutable
-data class ExtraColors(val success: Color, val warning: Color, val avatars: List<Color>, val onAvatar: Color)
+data class ExtraColors(
+    val success: Color,
+    val warning: Color,
+    val avatars: List<Color>,
+    val onAvatar: Color,
+    /** The second tick once the contact has read the message (on the outgoing bubble). */
+    val read: Color = Color(0xFF5EEAD4),
+)
 
 private val DarkExtra = ExtraColors(
     success = Color(0xFF4ADE80),
@@ -98,7 +105,7 @@ private val DarkExtra = ExtraColors(
     onAvatar = Color(0xFFFFFFFF),
 )
 
-private val LightExtra = DarkExtra.copy(success = Color(0xFF047857), warning = Color(0xFFB45309))
+private val LightExtra = DarkExtra.copy(success = Color(0xFF047857), warning = Color(0xFFB45309), read = Color(0xFF0F766E))
 
 private val LocalExtra = staticCompositionLocalOf { DarkExtra }
 

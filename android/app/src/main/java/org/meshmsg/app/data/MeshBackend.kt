@@ -46,6 +46,11 @@ interface MeshBackend {
     val avatars: StateFlow<Map<String, AvatarFile>> get() = NoAvatars
     /** Sets (bytes: a JPEG) or removes (null) this account's picture. */
     fun setAvatar(jpeg: ByteArray?): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Whether read receipts are sent (over relays only). */
+    var readReceipts: Boolean
+        get() = true
+        set(_) {}
     /** Asks a contact for their picture over a direct link (never relays). */
     fun requestAvatar(hash: String) {}
 

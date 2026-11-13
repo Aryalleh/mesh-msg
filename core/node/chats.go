@@ -77,7 +77,13 @@ func (n *Node) MarkRead(ref string) error {
 	} else {
 		hash = g.Hash
 	}
-	return n.db.set("read:"+hash, strconv.FormatInt(time.Now().UnixMilli(), 10))
+	if err := n.db.set("read:"+hash, strconv.FormatInt(time.Now().UnixMilli(), 10)); err != nil {
+		return err
+	}
+	if c != nil {
+		n.sendReadReceipt(c)
+	}
+	return nil
 }
 
 func (n *Node) readMark(hash string) int64 {

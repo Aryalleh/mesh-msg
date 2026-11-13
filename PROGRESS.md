@@ -1146,3 +1146,19 @@ links. Chose: quick items in beta3; calls follow in later betas.
   beta5 manifest right away. Relay unchanged since beta4: no redeploy.
 - Next: owner tests video calls on two phones; then desktop calls, then group calls with the
   data-use warning.
+
+### 2026-11-13 — beta6 batch, step 1: read receipts (colored second tick)
+
+- Owner asked (beta6, all items): WhatsApp-style call notification/answer/ongoing call bar,
+  Bluetooth headset, full-screen call permission, file manager (delete by time range / chat),
+  full-size zoomable profile picture, merge an old account's history into a new one with an
+  animation, colored second tick for read — read receipts over relays only, not LoRa/BLE.
+- Done: content type 9 (`core/node/readreceipts.go`, protocol.md §3a). Opening a 1:1 chat
+  sends the newest seen packet id; the sender marks messages up to it read (`seen` column,
+  `Message.read`, event `read`). NOLORA and handed straight to relay links (outside the
+  store, so the backlog never takes it over Bluetooth); waits for a relay if none; the RECEIPT
+  of a NOLORA packet is NOLORA too. Setting on by default (`ReadReceipts`/`SetReadReceipts`,
+  daemon `GET/PUT /read-receipts`, Android Settings switch, desktop Privacy card). Colored ✓✓
+  on Android (`Delivery.Read`, `ExtraColors.read`) and desktop (`--read`).
+- Tests: `TestReadReceiptThroughRelay`, `TestReadReceiptsOff`, `TestReadReceiptNotOverLAN`.
+- Next: file manager, account merge, profile picture viewer, calls.

@@ -410,6 +410,9 @@ func (r *Router) deliver(acts *actions, local *identity.Identity, p *packet.Pack
 	}
 	r.stats.Delivered++
 	rc := announce.BuildReceipt(local, full.ID, r.cfg.MaxHops)
+	if full.NoLoRa() {
+		rc.Ctx |= packet.CtxNoLoRa // what stayed off LoRa is acked off LoRa too
+	}
 	r.originate(acts, rc)
 	if cb := r.cfg.OnMessage; cb != nil {
 		acts.add(func() { cb(local, m) })

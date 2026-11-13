@@ -81,10 +81,11 @@ fun DeliveryMark(delivery: Delivery, tint: Color, modifier: Modifier = Modifier)
         Delivery.Queued -> MeshIcons.Schedule to R.string.delivery_queued
         Delivery.Sent -> Icons.Filled.Check to R.string.delivery_sent
         Delivery.Delivered -> MeshIcons.DoneAll to R.string.delivery_delivered
+        Delivery.Read -> MeshIcons.DoneAll to R.string.delivery_read
     }
     // Sized in sp so it grows with the timestamp next to it at large font scales.
     val size = with(LocalDensity.current) { 16.sp.toDp() }
-    Icon(icon, contentDescription = stringResource(label), tint = tint, modifier = modifier.size(size))
+    Icon(icon, contentDescription = stringResource(label), tint = if (delivery == Delivery.Read) MeshTheme.extra.read else tint, modifier = modifier.size(size))
 }
 
 /** A quiet note with an icon, for "no path" and similar states. */

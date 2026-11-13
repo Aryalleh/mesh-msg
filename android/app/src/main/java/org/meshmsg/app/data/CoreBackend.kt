@@ -117,6 +117,9 @@ class CoreBackend(dataDir: String, configJson: String, binder: NetworkBinder? = 
     override fun muteCall(id: String, muted: Boolean): Result<Unit> = runCatching { core.muteCall(id, muted) }
 
     override fun setAvatar(jpeg: ByteArray?): Result<Unit> = call { core.setAvatar(jpeg ?: ByteArray(0)) }
+    override var readReceipts: Boolean
+        get() = runCatching { core.readReceipts() }.getOrDefault(true)
+        set(v) { runCatching { core.setReadReceipts(v) } }
     override fun requestAvatar(hash: String) { scope.launch { runCatching { core.requestAvatar(hash) } } }
     override fun setFolders(folders: List<ChatFolder>): Result<Unit> = call { core.setFolders(Folders.json(folders)) }
 

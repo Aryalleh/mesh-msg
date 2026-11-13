@@ -291,4 +291,7 @@
     <string name="call_switch_camera">Switch camera</string>
     <string name="call_video_data">Video on mobile data uses a lot of data (about 3–15 MB a minute).</string>
     <string name="call_camera_denied">Video needs the camera permission. The call goes on as voice.</string>
+    <string name="delivery_read">Read</string>
+    <string name="read_receipts">Read receipts</string>
+    <string name="read_receipts_help">Tell contacts when you have read their messages (the second tick turns colored). Sent only through relays, never over LoRa or Bluetooth.</string>
 </resources>

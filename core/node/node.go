@@ -260,6 +260,12 @@ func (n *Node) onMessage(_ *identity.Identity, m *message.Received) {
 		n.calls.OnSignal(m.From, m.Content)
 		return
 	}
+	if m.ContentType == e2e.ContentRead {
+		if !m.FirstContact {
+			n.onReadReceipt(m.From, m.Content)
+		}
+		return
+	}
 	if m.ContentType == e2e.ContentDirect {
 		// Direct-link signaling: only from saved contacts (no first contact).
 		if !m.FirstContact && n.direct != nil {

@@ -433,6 +433,12 @@ func (c *Core) RequestAvatar(hash string) { c.n.RequestAvatar(hash) }
 // ForgetRelay stops using a discovered relay and never picks it up again.
 func (c *Core) ForgetRelay(ref string) error { return c.n.ForgetRelay(ref) }
 
+// ReadReceipts reports whether read receipts are sent (relays only).
+func (c *Core) ReadReceipts() bool { return c.n.ReadReceipts() }
+
+// SetReadReceipts turns sending read receipts on or off.
+func (c *Core) SetReadReceipts(on bool) error { return c.n.SetReadReceipts(on) }
+
 // CreateGroup makes a private group with contacts (a JSON array of hashes or
 // names) and returns it as JSON. Each message goes to every member separately.
 func (c *Core) CreateGroup(name, membersJSON string) (string, error) {

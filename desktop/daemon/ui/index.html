@@ -9,25 +9,25 @@
 <style>
   :root {
     --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2024; --muted: #6b7280; --line: #e3e6ea;
-    --accent: #0f766e; --accent-ink: #ffffff; --mine: #d9f2ee; --theirs: #ffffff; --warn: #b45309;
+    --accent: #0f766e; --accent-ink: #ffffff; --mine: #d9f2ee; --theirs: #ffffff; --warn: #b45309; --read: #1d4ed8;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #111416; --panel: #181c1f; --ink: #e6e8ea; --muted: #9aa3ab; --line: #2a3035;
-      --accent: #2dd4bf; --accent-ink: #062b27; --mine: #123d38; --theirs: #1f2427; --warn: #f59e0b;
+      --accent: #2dd4bf; --accent-ink: #062b27; --mine: #123d38; --theirs: #1f2427; --warn: #f59e0b; --read: #93c5fd;
     }
   }
   :root { --chatbg: var(--bg); --mine-ink: var(--ink); }
   /* Telegram-like theme (default): blue accent, green-grey chat backdrop. */
   :root[data-theme="telegram"] {
     --bg: #f4f4f5; --panel: #ffffff; --ink: #000000; --muted: #707579; --line: #e2e4e7;
-    --accent: #3390ec; --accent-ink: #ffffff; --mine: #e3fee0; --theirs: #ffffff; --warn: #e53935;
+    --accent: #3390ec; --accent-ink: #ffffff; --mine: #e3fee0; --theirs: #ffffff; --warn: #e53935; --read: #1e7fd8;
     --chatbg: #cfdcc0; --active: #3390ec; --active-ink: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
     :root[data-theme="telegram"] {
       --bg: #0e1621; --panel: #17212b; --ink: #f5f5f5; --muted: #7f91a4; --line: #0b121a;
-      --accent: #5288c1; --accent-ink: #ffffff; --mine: #2b5278; --theirs: #182533; --warn: #ef5350;
+      --accent: #5288c1; --accent-ink: #ffffff; --mine: #2b5278; --theirs: #182533; --warn: #ef5350; --read: #7dd3fc;
       --chatbg: #0e1621; --active: #2b5278; --active-ink: #ffffff;
     }
   }
@@ -112,6 +112,7 @@
          border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext; }
   .msg.mine { align-self: flex-end; background: var(--mine); border-color: transparent; }
   .msg .meta { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; text-align: end; }
+  .msg .meta .read { color: var(--read); font-weight: 700; }
   form#compose { display: flex; gap: 8px; padding: 12px 20px; background: var(--panel); border-top: 1px solid var(--line); }
   form#compose textarea { resize: none; height: 44px; unicode-bidi: plaintext; }
   form#compose .icon { padding: 0 12px; font-size: 18px; }
@@ -197,6 +198,11 @@
         <label class="field">Display name<input id="sName" maxlength="32" dir="auto"></label>
         <label class="check"><input type="checkbox" id="sDelegate"><span>Let gateways fetch my messages<small>A nearby node with internet can pick up your messages from relays and carry them to you. They stay end-to-end encrypted.</small></span></label>
         <label class="field">Announce every (minutes)<input id="sAnnounce" type="number" min="1" max="1440"></label>
+      </div>
+
+      <div class="card">
+        <h3>Privacy</h3>
+        <label class="check"><input type="checkbox" id="sReadReceipts"><span>Send read receipts<small>Contacts see when you have read their messages (a colored ✓✓). Sent only through relays, never over LoRa or Bluetooth.</small></span></label>
       </div>
 
       <div class="card">
@@ -544,6 +550,8 @@ $("avDel").onclick = async () => {
   await fetch("/api/avatar", {method: "DELETE", headers: {"X-Meshd": "1"}});
   avVer.me = Date.now(); renderMyAvatar();
 };
+api("/read-receipts").then((v) => { $("sReadReceipts").checked = !!v.on; }).catch(() => {});
+$("sReadReceipts").onchange = (e) => api("/read-receipts", { method: "PUT", body: JSON.stringify({ on: e.target.checked }) }).catch((err) => alert(err.message));
 $("sTheme").value = document.documentElement.dataset.theme;
 $("sTheme").onchange = (e) => { document.documentElement.dataset.theme = e.target.value; store.set("theme", e.target.value); };
 
@@ -573,7 +581,12 @@ function addMessage(m) {
   t.textContent = m.text;
   const meta = document.createElement("span");
   meta.className = "meta";
-  meta.textContent = fmtTime(m.outgoing ? m.sent : m.received) + (m.outgoing ? (m.delivered ? " ✓✓" : " ✓") : "");
+  meta.textContent = fmtTime(m.outgoing ? m.sent : m.received) + (m.outgoing && !m.read ? (m.delivered ? " ✓✓" : " ✓") : "");
+  if (m.outgoing && m.read) {
+    const rd = document.createElement("span");
+    rd.className = "read"; rd.textContent = " ✓✓"; rd.title = "Read";
+    meta.append(rd);
+  }
   if (m.group && m.outgoing) {
     if (!m.recipients) { meta.textContent = fmtTime(m.sent) + " ✓"; meta.title = "Sent. Public chats have no delivery receipts."; }
     else if (!m.delivered) { meta.textContent = fmtTime(m.sent) + ` ✓ ${m.delivered_to || 0}/${m.recipients}`; meta.title = "Delivered to some members so far"; }
@@ -1135,6 +1148,9 @@ function listen() {
     } else if (e.type === "delivered" && current && current.group && current.kind === "private") {
       // A member confirmed a copy: refresh the marks (✓ n/m).
       const ms = await api("/messages?with=" + current.hash + "&limit=200");
+      $("messages").replaceChildren(); ms.forEach(addMessage);
+    } else if (e.type === "read" && current && !current.group && e.info === current.hash) {
+      const ms = await api("/messages?with=" + current.hash + "&limit=" + Math.max(100, document.querySelectorAll(".msg").length));
       $("messages").replaceChildren(); ms.forEach(addMessage);
     } else if (e.type === "delivered") {
       const el = document.querySelector(`.msg[data-id="${e.info}"] .meta`);

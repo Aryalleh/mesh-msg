@@ -283,4 +283,7 @@
     <string name="call_switch_camera">تعویض دوربین</string>
     <string name="call_video_data">ویدیو روی اینترنت همراه حجم زیادی مصرف می‌کند (حدود ۳ تا ۱۵ مگابایت در دقیقه).</string>
     <string name="call_camera_denied">برای ویدیو اجازهٔ دوربین لازم است. تماس به‌صورت صوتی ادامه می‌یابد.</string>
+    <string name="delivery_read">خوانده شد</string>
+    <string name="read_receipts">رسید خواندن</string>
+    <string name="read_receipts_help">به مخاطبان خبر بده که پیامشان را خوانده‌ای (تیک دوم رنگی می‌شود). فقط از راه رله فرستاده می‌شود، هرگز روی LoRa یا بلوتوث.</string>
 </resources>

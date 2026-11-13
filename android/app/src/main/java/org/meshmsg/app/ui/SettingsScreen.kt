@@ -47,6 +47,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.Switch
+import androidx.compose.ui.semantics.Role
 import org.meshmsg.app.R
 import org.meshmsg.app.data.Relay
 import org.meshmsg.app.ui.theme.MeshTheme
@@ -57,6 +61,7 @@ data class SettingsState(
     val myHash: String = "",
     val relays: List<Relay> = emptyList(),
     val appVersion: String = "",
+    val readReceipts: Boolean = true,
 )
 
 interface SettingsActions {
@@ -67,6 +72,8 @@ interface SettingsActions {
 
     /** Sets (image bytes) or removes (null) this account's profile picture. */
     fun setAvatar(image: ByteArray?) {}
+
+    fun setReadReceipts(on: Boolean) {}
 
     /** Checks for a newer release now (roadmap B7); the result shows on the chat list. */
     fun checkUpdate() {}
@@ -120,6 +127,12 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                 modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s),
             )
             HideRunningNotification()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.read_receipts)) },
+                supportingContent = { Text(stringResource(R.string.read_receipts_help)) },
+                trailingContent = { Switch(checked = state.readReceipts, onCheckedChange = actions::setReadReceipts) },
+                modifier = Modifier.toggleable(value = state.readReceipts, role = Role.Switch, onValueChange = actions::setReadReceipts),
+            )
 
             SectionHeader(stringResource(R.string.settings_relays))
             if (state.relays.isEmpty()) {

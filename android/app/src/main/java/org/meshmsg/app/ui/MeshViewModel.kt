@@ -63,7 +63,15 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
         displayName = settings.displayName, myHash = app.backend.value?.myHash.orEmpty(),
         relays = settings.relays,
         appVersion = app.updates.currentVersion,
+        readReceipts = app.backend.value?.readReceipts ?: true,
     )
+
+    override fun setReadReceipts(on: Boolean) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            app.backend.value?.readReceipts = on
+            _settingsState.value = readSettings()
+        }
+    }
 
     override fun checkUpdate() {
         viewModelScope.launch {

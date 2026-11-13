@@ -46,7 +46,7 @@ data class Contact(
 }
 
 /** How far an outgoing message got. Never shown by colour alone. */
-enum class Delivery { Queued, Sent, Delivered }
+enum class Delivery { Queued, Sent, Delivered, Read }
 
 @Immutable
 data class Message(
@@ -215,6 +215,7 @@ object Json {
     fun message(o: JSONObject, linkUp: Boolean): Message {
         val outgoing = o.optBoolean("outgoing")
         val delivery = when {
+            o.optBoolean("read") -> Delivery.Read
             o.optBoolean("delivered") -> Delivery.Delivered
             linkUp -> Delivery.Sent
             else -> Delivery.Queued

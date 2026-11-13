@@ -69,7 +69,8 @@ e (32) | enc(s) (48) | ciphertext(inner) | tag (16)   overhead = 96
 Inner plaintext:
 
 ```
-0  1  content_type   0=text, 1=text-compressed, 2=contact-card, 3=(reserved), 4=e2e-ack, 5=group, 6=media
+0  1  content_type   0=text, 1=text-compressed, 2=contact-card, 3=(reserved), 4=e2e-ack, 5=group, 6=media,
+                     7=call, 8=direct, 9=read receipt (§3a)
 1  4  timestamp      unix seconds
 5  1  sender_ed_hint first byte of sender ed25519 key (fast path; optional)
 6  .. content
@@ -87,6 +88,19 @@ frame. To be specified and benchmarked in M0.
 Forward secrecy: v0 gets partial FS from the ephemeral `e`. v1 adds periodic key rotation
 (contacts exchange fresh prekeys inside messages). A full Double Ratchet is not planned for
 LoRa because of header overhead and heavy reordering.
+
+### 3a. Read receipts (content type 9)
+
+When the user opens a 1:1 chat, the app sends the contact the **packet id (8 bytes)** of the
+newest message from them it has; the contact's app marks its own messages up to that one
+(by its local send time) as read: the second tick turns colored. Clock-independent; one
+receipt covers everything before it.
+
+Read receipts go **over relays only**: the DATA packet carries `NOLORA`, and the sender hands it
+straight to its relay links, outside the store (whose backlog also goes to Bluetooth
+neighbours). The RECEIPT acking a `NOLORA` packet carries `NOLORA` too. Without a relay link
+the newest receipt per chat waits for one. Only from saved contacts; users can turn sending
+off (then nothing is sent). Groups: none yet.
 
 ## 4. RECEIPT
 
