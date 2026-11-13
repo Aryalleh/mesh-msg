@@ -779,3 +779,9 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
   family (the dual-stack socket skipped IPv6 pairs). Test `TestBoundSocketPerAddress`.
   All Go and firmware tests pass; Android compiles in CI only. Needs a phone test
   (`adb logcat -s NetBinder`), then the next tag v0.1.0-alpha12.
+- Fix commit `7be33cc`; CI green on main (run 43349515677: desktop + Android). Tag
+  **v0.1.0-alpha12** pushed by the owner on `7be33cc` (release run 43350141430): per-address
+  sockets bound to their network, Network screen without the "direct" relay card, no-relay
+  call tests. The owner also reported a normal voice message not arriving on the same Wi-Fi:
+  same direct-link path, same suspected cause. Next: phone test of alpha12 (voice message,
+  then call, on one Wi-Fi); eu-1 provider firewall UDP for calls across networks.
