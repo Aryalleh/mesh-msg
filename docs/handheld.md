@@ -2,7 +2,7 @@
 
 A device that does what the Android app does without a phone: a touchscreen with an
 on-screen keyboard (like a smartphone), a microphone, an earpiece, a loudspeaker and a headset
-jack, plus Wi-Fi, Bluetooth and LoRa. This document covers **hardware only**; the firmware for
+jack, plus Wi-Fi, Bluetooth, LoRa and 4G LTE (built into Model P, an add-on board for Model S). This document covers **hardware only**; the firmware for
 it is out of scope here.
 
 There are **two models** that share the radio, audio, power and clock design:
@@ -13,11 +13,12 @@ There are **two models** that share the radio, audio, power and clock design:
 | Screen | 3.5" IPS 320×480, capacitive touch | 5" IPS 720×1280, capacitive multi-touch |
 | On-screen keyboard | keys about 4.5 mm wide upright, 9 mm sideways | keys about 6 mm wide upright, like a phone |
 | **LoRa (built in)** | SX1262 module on the main board, SPI to the ESP32-S3; SMA antenna on the top edge | SX1262 module on the main board, SPI to the ESP32-P4; SMA antenna on the top edge |
+| **4G LTE (SIM7600G-H)** | add-on LTE board on the GPS/LTE connector: mobile data + SMS | **built in**: mobile data, phone calls on the cellular network, SMS, GNSS (GPS) — a nano-SIM like a phone |
 | Camera | none | optional 5 MP (photos, round video messages) |
 | USB | USB-C, charging + flashing | USB-C, charging + flashing + host (USB keyboard, USB stick) |
-| Battery | 2500 mAh | 4000 mAh |
-| Size | about 62 × 110 × 14 mm | about 72 × 150 × 12 mm |
-| Parts cost at 10 units | about 55–70 USD | about 80–100 USD |
+| Battery | 2500 mAh | 4500 mAh |
+| Size | about 62 × 110 × 14 mm (16 mm with the LTE board) | about 72 × 150 × 13 mm |
+| Parts cost at 10 units | about 55–70 USD (+ about 50 with the LTE board) | about 125–150 USD |
 | Schematic | [handheld-s-schematic.svg](images/handheld-s-schematic.svg) | [handheld-p-schematic.svg](images/handheld-p-schematic.svg) |
 
 Both models are complete LoRa nodes on their own: the radio is built in, no external node or
@@ -55,7 +56,7 @@ to draw the real schematics from in KiCad, not fabrication drawings.
 | RTC | **NXP PCF85063A** + 32.768 kHz crystal, supplied straight from the battery through a nanopower LDO (TPS7A02, 25 nA) | Keeps correct time while the device is off or flat. Call offers and message expiry use absolute times (GitHub issue #2, cause 3), and a device without internet can't sync its clock. |
 | Storage | microSD socket | Photos, voice notes and backups. |
 | Haptics | 10 mm coin vibration motor, N-MOSFET, flyback diode | Silent ring. |
-| Options | Quectel L76K GPS **or** SIMCom A7670 LTE Cat-1 modem on a UART | GPS for location sharing; LTE reaches a relay anywhere without Wi-Fi. Fit one. |
+| Options (Model S) | Quectel L76K GPS **or** the LTE board with a SIMCom SIM7600G-H (§2) on UART0 | GPS for location sharing; LTE reaches a relay anywhere without Wi-Fi. Fit one. Model P has the SIM7600G-H built in, with GNSS, so it needs neither (§3). |
 
 There is no hardware Opus chip on the market worth using. The ES8388 is the converter
 (ADC/DAC); Opus encoding and decoding run on the main processor at 16 kHz with 20 ms frames,
@@ -98,8 +99,7 @@ powers off, a 10 s press forces off.
 - **2.4 GHz:** the module's PCB antenna at the opposite top corner, at the board edge, with the
   module datasheet's copper keep-out on every layer and no battery, screen frame or metal
   under it. The case must be plastic there.
-- **LoRa does not carry voice** (airtime and duty-cycle limits); calls need Wi-Fi or the LTE
-  option.
+- **LoRa does not carry voice** (airtime and duty-cycle limits); calls need Wi-Fi or LTE.
 
 ## 2. Model S — ESP32-S3, 3.5" touchscreen
 
@@ -161,6 +161,24 @@ takes a software reset command. The GPS/LTE option is reset by switching its rai
 
 With 2500 mAh: about 7–12 days standby, 9–12 hours talk.
 
+### Model S LTE board (option)
+
+Model S has no free pins for a modem's control and audio lines, so LTE comes as a small board
+that plugs into J6 (the GPS/LTE connector) and carries everything the modem needs:
+
+- **SIMCom SIM7600G-H** (same module as Model P, §3), nano-SIM holder with ESD protection,
+  u.FL connectors for the main, diversity and GNSS antennas.
+- **Power:** straight from the battery (J6 has a VBAT pin) through a 4 A load switch with
+  470 µF + 100 µF bulk capacitors for the 2 A transmit peaks. The switch is enabled by the
+  3V3_GPS rail (AXP2101 BLDO2): switching that rail on powers the modem, and an RC on PWRKEY
+  turns it on by itself, so no extra GPIO is needed.
+- **Logic levels:** the modem's I/O is 1.8 V; a TXS0104E on the board shifts UART TX/RX to
+  3.3 V.
+- **What works:** mobile data (PPP over UART0 at up to 3 Mbaud, with CMUX so AT commands and
+  SMS run beside it) and SMS. **Not** cellular phone calls: the modem's PCM audio would need
+  four more ESP32-S3 pins. App voice calls over LTE data work.
+- Battery life with the modem registered on the network drops to about 3–5 days standby.
+
 ### Model S BOM (approx. USD at 10 units)
 
 | Item | USD |
@@ -173,6 +191,7 @@ With 2500 mAh: about 7–12 days standby, 9–12 hours talk.
 | Mic, earpiece, speaker, TRRS jack, side buttons | 4 |
 | microSD, USB-C, SMA + whip, u.FL pigtail | 4 |
 | Battery 2500 mAh | 5 |
+| *LTE board option: SIM7600G-H, SIM holder, load switch, shifter, 3 antennas* | *about 50* |
 | Passives, ESD, MOSFETs, motor | 4 |
 | 4-layer PCB + assembly (share of a batch) | 10–15 |
 | Printed case | 5–10 |
@@ -192,10 +211,45 @@ With 2500 mAh: about 7–12 days standby, 9–12 hours talk.
 | USB | USB-C on the P4's **USB 2.0 high-speed OTG** port, **TUSB320** CC logic (dual role) and a **5 V boost + load switch** (TPS61023 + TPS22918) for host mode | Charging and flashing, and as host: a USB keyboard or a USB stick. In host mode the boost feeds the connector (VBUS_C) and a second load switch cuts the connector from the PMU's VBUS input, so the PMU never charges from its own boost. |
 | LoRa | **SX1262 module, built in** (§1), on the P4's SPI: GPIO 20 SCK, 21 MOSI, 22 MISO, 23 CS, 32 RST, 33 BUSY, 3 DIO1 (a low-power GPIO, so a received packet wakes the P4) | On the P4, not the C6: the C6 only serves Wi-Fi and Bluetooth. Powered from AXP2101 ALDO2. |
 | Storage | microSD on the P4's SDMMC slot 0, 4-bit | Fast media storage. |
-| Battery | 4000 mAh LiPo pouch with NTC | |
+| Cellular | **SIMCom SIM7600G-H** (LTE Cat-4 global bands, 3G/2G fallback, GNSS), nano-SIM, details below | Makes Model P a phone that works anywhere there is a mobile network: data for relays and app calls, cellular phone calls and SMS, and GPS. |
+| Battery | 4500 mAh LiPo pouch with NTC | Sized for the modem's peaks (2 A in 2G) as well as the screen. |
 
-Wi-Fi (on the C6) and LoRa (SX1262) are separate radios, and the C6's 2.4 GHz radio is
-time-shared between Wi-Fi and Bluetooth as on the S3.
+Wi-Fi (on the C6), LoRa (SX1262) and cellular (SIM7600G-H) are separate radios, and the C6's
+2.4 GHz radio is time-shared between Wi-Fi and Bluetooth as on the S3.
+
+### Cellular: SIM7600G-H
+
+```
+            1.8 V                         3.3 V
+ SIM7600G-H ─ UART RXD/TXD/RTS/CTS ─┐                ┌─ GPIO45–48 (UART, PPP + CMUX)
+            ─ PCM CLK/SYNC/DIN/DOUT ┴─ U17 TXS0108E ─┴─ GPIO49–51, GPIO2 (I2S1, call audio)
+            ─ DTR, STATUS, RI, FLIGHTMODE ── U19 TXS0104E ─┐
+            ─ PWRKEY, RESET ── NPN open-collector Q3/Q4 ───┴─ U18 TCA9535 I2C expander ── INT → GPIO6
+            ─ VBAT ── 470 µF + 100 µF ── U20 load switch (4 A) ── battery
+                                              └ EN: MDM_PWR_EN (expander) and SW56 cellular kill switch
+            ─ USIM ── J8 nano-SIM + ESD
+            ─ MAIN / DIV / GNSS antennas (u.FL → flex antennas inside the case)
+```
+
+- **Data:** PPP over the UART at up to 3 Mbaud with hardware flow control, with CMUX so AT
+  commands, SMS and GNSS run beside the data link. Enough for messages, relay sync, app voice
+  calls and photos; for faster media, the modem's USB could later go to the P4's full-speed
+  USB port if that port is free on the final pin plan.
+- **Cellular phone calls:** the modem's PCM audio (8 or 16 kHz) goes to the P4's second I2S
+  port (I2S1, P4 as slave). The P4 mixes it into the ES8388 path, so cellular calls use the same
+  earpiece, speaker, headset and echo cancellation as app calls.
+- **Waking up:** RI (ring indicator) pulses on an incoming call or SMS; it reaches the P4 through
+  the I2C expander's interrupt on GPIO6, a low-power GPIO, so it wakes the P4 from sleep. DTR
+  lets the modem sleep between network pages.
+- **Power:** straight from the battery through its own load switch (not through the AXP2101's
+  power path), as in SIMCom's reference design; bulk capacitors at the module's VBAT pins for
+  2 A peaks in 2G. The firmware turns the modem off below about 3.5 V battery.
+- **Kill switch:** SW56, a small slide switch on the side, holds the load switch's enable low,
+  so the modem has no power at all whatever the software does (§4).
+- **Antennas:** three flex antennas inside the case — LTE main along the bottom edge (away from
+  the LoRa antenna at the top and the head), diversity and GNSS along the top sides.
+- **Prototype:** LilyGO's T-SIM7600G-H board (ESP32 + SIM7600G-H) is a ready-made way to bring
+  up the modem firmware (PPP, CMUX, SMS, call audio) before the Model P board exists.
 
 ### Model P power rails (AXP2101)
 
@@ -208,9 +262,9 @@ time-shared between Wi-Fi and Bluetooth as on the S3.
 | ALDO3 | 3.3 V | ES8388 |
 | ALDO4 | 3.3 V | microSD |
 | BLDO1 | 3.3 V | screen VCI, touch |
-| BLDO2 | 3.3 V | GPS / LTE option |
+| BLDO2 | 3.3 V | spare (off) |
 | DLDO1 | 1.8 V | screen IOVCC, camera DOVDD |
-| VBAT | 3.0–4.2 V | backlight boost, speaker amp, OTG boost, vibration motor |
+| VBAT | 3.0–4.2 V | backlight boost, speaker amp, OTG boost, vibration motor, and the modem through its own load switch (not through the AXP2101) |
 
 ### ESP32-P4 pin plan
 
@@ -235,11 +289,27 @@ layout**, especially the strapping pins and the low-power GPIOs that can wake th
 | microSD (slot 0, 4-bit) | GPIO43 CLK, GPIO44 CMD, GPIO39–42 D0–D3 | |
 | I2S to ES8388 | GPIO13 MCLK, GPIO12 BCLK, GPIO10 LRCK, GPIO9 DOUT, GPIO11 DIN | |
 | Speaker amp enable / headset detect | GPIO53 / GPIO52 | |
-| Vol+ / Vol− / PTT | GPIO47 / GPIO48 / GPIO49 | pull-ups, buttons to GND |
-| Vibration / OTG 5 V enable | GPIO50 / GPIO51 | 100 k pull-downs |
-| GPS / LTE UART | GPIO45 TX, GPIO46 RX | |
+| Modem UART (via U17) | GPIO45 TX, GPIO46 RX, GPIO47 RTS, GPIO48 CTS | to SIM7600G-H RXD, TXD, RTS, CTS |
+| Modem PCM audio (I2S1, via U17) | GPIO49 CLK, GPIO50 SYNC, GPIO51 out, GPIO2 in | modem is the PCM clock master |
+| I2C expander INT (U18 TCA9535) | GPIO6 | low-power GPIO: buttons, modem RI and SIM detect wake the P4 |
 | BOOT button | GPIO35 (strap) | |
 | USB | USB_DP / USB_DM (high-speed PHY) | 90 Ω differential pair, ESD at the connector |
+
+The slower lines moved to **U18 TCA9535** (I2C, 16 I/O) so the modem's UART and PCM get real
+GPIOs:
+
+| TCA9535 | Signal | Notes |
+|---|---|---|
+| P0.0 | MDM_PWR_EN | modem load switch; 100 k pull-down, so the modem is off at reset |
+| P0.1 / P0.2 | MDM_PWRKEY / MDM_RESET | through NPN open-collector Q3 / Q4 |
+| P0.3 | MDM_DTR | via U19 |
+| P0.4 / P0.5 | MDM_STATUS / MDM_RI | inputs, via U19; RI raises INT |
+| P0.6 | VIB | vibration motor gate; 100 k pull-down |
+| P0.7 | OTG_EN | 100 k pull-down |
+| P1.0 / P1.1 / P1.2 | VOL_UP / VOL_DN / PTT | inputs with pull-ups, raise INT |
+| P1.3 | SIM_DET | SIM holder's card-detect switch |
+| P1.4 | MDM_FLIGHT | airplane mode, via U19 |
+| P1.5–P1.7 | spare | |
 
 ### Model P power (estimates from datasheets, to be measured)
 
@@ -250,8 +320,13 @@ layout**, especially the strapping pins and the low-power GPIOs that can wake th
 | Screen on, idle | 250–400 mA |
 | Voice call over Wi-Fi, earpiece, screen off | 250–350 mA |
 | Video recording with the screen on | 600–800 mA |
+| Modem registered on LTE, idle (DTR sleep), added to standby | +3–6 mA |
+| Mobile data active (LTE) | 300–700 mA |
+| Cellular phone call, earpiece, screen off | 350–500 mA |
+| Modem transmit peak (2G) | up to 2 A for a few ms |
 
-With 4000 mAh: about 5–9 days standby, 10–14 hours talk, 8–12 hours of screen-on use.
+With 4500 mAh: about 5–9 days standby with the modem off, 3–5 days with it registered;
+8–12 hours of cellular or app calls; 8–12 hours of screen-on use.
 
 ### Model P BOM (approx. USD at 10 units)
 
@@ -267,11 +342,14 @@ With 4000 mAh: about 5–9 days standby, 10–14 hours talk, 8–12 hours of scr
 | OV5647 camera module (option) | 5–8 |
 | Mic, earpiece, speaker, TRRS jack, side buttons | 4 |
 | microSD, USB-C, SMA + whip, u.FL pigtail | 4 |
-| Battery 4000 mAh | 7 |
+| SIMCom SIM7600G-H | 35–45 |
+| Modem support: TXS0108E, TXS0104E, TCA9535, load switch, bulk capacitors, nano-SIM holder + ESD, kill switch | 5 |
+| 3 flex antennas (LTE main, diversity, GNSS) | 4–6 |
+| Battery 4500 mAh | 8 |
 | Passives, ESD, MOSFETs, motor | 5 |
 | 6-layer PCB + assembly (share of a batch) | 15–20 |
 | Printed case | 5–10 |
-| **Total** | **about 80–100** |
+| **Total** | **about 125–150** |
 
 **PCB:** 6 layers (signal / ground / signal / power / ground / signal) for the P4's 0.4 mm
 pitch package and the MIPI and USB high-speed pairs; impedance control from the board house.
@@ -284,6 +362,12 @@ prototype, a third-party P4 + C6 core module can be used on a simpler carrier bo
   with the eFuse **HMAC** key so a copy of the flash is useless on another device.
 - **JTAG disabled by eFuse** in production units.
 - Panic wipe (M6): a held combination of Vol− + PTT + power, read by the firmware.
+- **Cellular privacy:** a SIM and the modem's IMEI identify the device to the mobile operator,
+  and the network knows roughly where it is whenever the modem is on; SMS and cellular calls
+  are not end-to-end encrypted. So the modem is **off by default**, the app shows clearly when
+  it is on, and Model P's SW56 kill switch cuts its power in hardware. App messages and app
+  calls over LTE data stay end-to-end encrypted like on any other network. In some countries a
+  modem's IMEI must be registered with the regulator before local networks accept it.
 - Model P's camera is on a power rail that the firmware switches off when not in use, and its
   power-down pin is held active by a pull-up/pull-down at reset.
 
@@ -302,7 +386,7 @@ prototype, a third-party P4 + C6 core module can be used on a simpler carrier bo
 
 1. **Software before custom boards:** Model S firmware can start on a ready-made ESP32-S3 3.5"
    touch board plus a Heltec V3 for LoRa; Model P on Espressif's ESP32-P4 Function EV board
-   (P4 + C6, MIPI screen) with an SX1262 breakout.
+   (P4 + C6, MIPI screen) with an SX1262 breakout; the modem on LilyGO's T-SIM7600G-H board.
 2. **Model S rev A first** (4 layers, module-based, cheaper), then **Model P rev A** (6 layers).
    Both with test points, 0 Ω links on every rail and a UART header. Bring up in order: power
    and charging, USB flashing, screen and touch, LoRa (reuse `firmware/` with a new

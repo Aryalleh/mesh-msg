@@ -863,3 +863,9 @@ compatibility with old alpha builds is kept**; replace old apps and relays.
 - docs/handheld.md: LoRa made explicit as built in on both models (comparison table row, a LoRa
   row in each model's parts table with its SPI pins; USB host text no longer suggests a USB
   LoRa node). No design change: the SX1262 (U4) was already on both boards.
+- Handheld + 4G LTE (SIMCom SIM7600G-H): **built into Model P** (UART + CMUX/PPP data, PCM call
+  audio into the P4's I2S1 and the ES8388 path, RI wake, nano-SIM, 3 flex antennas, own 4 A load
+  switch from the battery, SW56 cellular kill switch, modem off by default; slow lines moved to
+  a TCA9535 expander; battery 4500 mAh; BOM ~125–150 USD); **Model S gets an LTE add-on board**
+  on J6 (now with VBAT; data + SMS only, no PCM pins). docs/handheld.md and both schematics
+  updated (Model P schematic has a new cellular row).

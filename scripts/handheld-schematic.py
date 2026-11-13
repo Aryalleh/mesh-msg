@@ -254,13 +254,14 @@ def rtc(x, y):
 
 
 def option(x, y, tx, rx, reset):
-    j6 = ic(x, y, 180, 'J6', 'GPS / LTE option', ['RXD', 'TXD', 'RESET', 'VCC', 'GND'], [])
-    lab(j6, {'RXD': tx, 'TXD': rx, 'VCC': '3V3_GPS', 'GND': 'GND'}, 'l')
+    j6 = ic(x, y, 180, 'J6', 'GPS / LTE option', ['RXD', 'TXD', 'RESET', 'VCC', 'VBAT', 'GND'], [])
+    lab(j6, {'RXD': tx, 'TXD': rx, 'VCC': '3V3_GPS', 'VBAT': 'VBAT', 'GND': 'GND'}, 'l')
     if reset:
         lab(j6, {'RESET': reset}, 'l')
     else:
         x1, y1 = j6['RESET']; note(x1 - 6, y1 + 4, 'n.c. (rail reset)', 'end')
-    note(x + 90, y + 162, 'L76K GPS or A7670 LTE: fit one', 'middle')
+    note(x + 90, y + 186, 'L76K GPS, or LTE board (SIM7600G-H): fit one', 'middle')
+    note(x + 90, y + 200, 'VCC also switches the LTE board on', 'middle')
 
 
 def vibration(src, x, mx=None):
@@ -355,7 +356,7 @@ def draw_s():
 
 # ------------------------------------------------------------------ Model P
 def draw_p():
-    W, H = 2140, 1420
+    W, H = 2140, 1960
     frame(W, H, 'mesh-msg handheld, Model P — schematic overview (rev A draft)',
           'ESP32-P4 + ESP32-C6 + 5" MIPI touchscreen. GPIO numbers are a suggestion: verify against the ESP32-P4 datasheet. ± = differential pair drawn as one line.')
     EX = 900
@@ -368,11 +369,11 @@ def draw_p():
          'GPIO20', 'GPIO21', 'GPIO22', 'GPIO23', 'GPIO32', 'GPIO33', 'GPIO3', None, None,
          'GPIO43', 'GPIO44', 'GPIO39', 'GPIO40', 'GPIO41', 'GPIO42', None, None,
          'GPIO13', 'GPIO12', 'GPIO10', 'GPIO9', 'GPIO11', 'GPIO53', 'GPIO52', None,
-         'GPIO47', 'GPIO48', 'GPIO49', 'GPIO50', 'GPIO51', 'GPIO45', 'GPIO46']
+         'GPIO45', 'GPIO46', 'GPIO47', 'GPIO48', 'GPIO49', 'GPIO50', 'GPIO51', 'GPIO2', 'GPIO6']
     u1 = ic(EX, 140, 260, 'U1', 'ESP32-P4NRW32', L, R, part='RISC-V 400 MHz · 32 MB PSRAM')
     lab(u1, {'GPIO7': 'I2C_SDA', 'GPIO8': 'I2C_SCL', 'GPIO4': 'TP_INT', 'GPIO5': 'PMU_IRQ', 'VDD (3V3)': '3V3', 'GND': 'GND'}, 'l')
-    lab(u1, {'GPIO53': 'PA_EN', 'GPIO52': 'HP_DET', 'GPIO47': 'VOL_UP', 'GPIO48': 'VOL_DN', 'GPIO49': 'PTT', 'GPIO50': 'VIB', 'GPIO51': 'OTG_EN',
-             'GPIO45': 'TXD1', 'GPIO46': 'RXD1'}, 'r')
+    lab(u1, {'GPIO53': 'PA_EN', 'GPIO52': 'HP_DET', 'GPIO45': 'MDM_TXD', 'GPIO46': 'MDM_RXD', 'GPIO47': 'MDM_RTS', 'GPIO48': 'MDM_CTS',
+             'GPIO49': 'PCM_CLK', 'GPIO50': 'PCM_SYNC', 'GPIO51': 'PCM_OUT', 'GPIO2': 'PCM_IN', 'GPIO6': 'EXP_INT'}, 'r')
     x, y = u1['CHIP_PU']; label(x, y, 'EN', 'l'); note(x - 40, y + 20, 'R 10k to 3V3, C 1µF to GND', 'end')
     x, y = u1['XTAL_P/N']; line([(x, y), (x - 20, y)]); rect(x - 46, y - 6, 26, 12, fill='#fff', stroke=INK, sw=1.1); note(x - 52, y + 4, 'Y3 40 MHz', 'end')
     hbutton(*u1['GPIO35'], 'SW51 BOOT')
@@ -445,7 +446,6 @@ def draw_p():
     pmu(270, 920, [('DCDC1', '3V3'), ('DCDC2', 'VDD_CORE'), ('ALDO1', '2V8_CAM'), ('ALDO2', '3V3_LORA'), ('ALDO3', '3V3_AUDIO'),
                    ('ALDO4', '3V3_SD'), ('BLDO1', '3V3_LCD'), ('BLDO2', '3V3_GPS'), ('DLDO1', '1V8')])
     rtc(700, 1110)
-    option(1060, 1190, 'TXD1', 'RXD1', None)
     bx0, by0 = 1340, 1200
     t(bx0 - 40, by0 - 30, 'Side buttons', 11, weight='bold')
     for i, n in enumerate(('VOL_UP', 'VOL_DN', 'PTT')):
@@ -454,8 +454,62 @@ def draw_p():
         line([(bx0 + 110, y), (bx0 + 138, y)])
     note(bx0 - 40, by0 + 110, 'internal or 10k pull-ups')
     vibration(None, 1560, mx=1252)
-    title_block(1560, 1300, 'Model P (ESP32-P4 + C6)')
+    modem_row(1450)
+    title_block(1730, 1845, 'Model P (P4 + C6 + LTE)')
     return W, H
+
+
+def antenna(x, y, text):
+    line([(x, y), (x, y - 30)])
+    out.append(f'<polygon points="{x-10},{y-50} {x+10},{y-50} {x},{y-30}" fill="none" stroke="{INK}" stroke-width="1.3"/>')
+    t(x + 14, y - 40, text, 9.5)
+
+
+def modem_row(y0):
+    """Model P: SIM7600G-H with level shifter, I2C expander, power switch, SIM and antennas."""
+    t(40, y0 - 40, 'Cellular: SIM7600G-H (4G LTE Cat-4, 3G/2G, GNSS) — modem I/O is 1.8 V', 13, weight='bold')
+    u18 = ic(130, y0, 170, 'U18', 'TCA9535 I/O expander', ['VDD', 'A0–A2', 'GND'],
+             ['SDA', 'SCL', 'INT', 'P0.0', 'P0.1', 'P0.2', 'P0.3', 'P0.4', 'P0.5', 'P0.6', 'P0.7', 'P1.0', 'P1.1', 'P1.2', 'P1.3', 'P1.4'],
+             part='I2C 0x20')
+    lab(u18, {'VDD': '3V3', 'GND': 'GND'}, 'l'); x, y = u18['A0–A2']; note(x - 6, y + 4, 'to GND', 'end')
+    lab(u18, {'SDA': 'I2C_SDA', 'SCL': 'I2C_SCL', 'INT': 'EXP_INT', 'P0.0': 'MDM_PWR_EN', 'P0.1': 'MDM_PWRKEY', 'P0.2': 'MDM_RESET',
+              'P0.3': 'MDM_DTR', 'P0.4': 'MDM_STATUS', 'P0.5': 'MDM_RI', 'P0.6': 'VIB', 'P0.7': 'OTG_EN', 'P1.0': 'VOL_UP',
+              'P1.1': 'VOL_DN', 'P1.2': 'PTT', 'P1.3': 'SIM_DET', 'P1.4': 'MDM_FLIGHT'}, 'r')
+    u17 = ic(600, y0, 170, 'U17', 'TXS0108E', ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'VCCB', 'OE', 'GND'],
+             ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'VCCA'], part='3.3 V (B) ↔ 1.8 V (A)')
+    lab(u17, {'B1': 'MDM_TXD', 'B2': 'MDM_RXD', 'B3': 'MDM_RTS', 'B4': 'MDM_CTS', 'B5': 'PCM_CLK', 'B6': 'PCM_SYNC',
+              'B7': 'PCM_OUT', 'B8': 'PCM_IN', 'VCCB': '3V3', 'OE': '3V3', 'GND': 'GND'}, 'l')
+    lab(u17, {'VCCA': '1V8_MDM'}, 'r')
+    u16 = ic(1000, y0, 210, 'U16', 'SIMCom SIM7600G-H',
+             ['RXD', 'TXD', 'RTS', 'CTS', 'PCM_CLK', 'PCM_SYNC', 'PCM_DIN', 'PCM_DOUT', 'VDD_EXT', 'PWRKEY', 'RESET', 'DTR', 'STATUS', 'RI', 'FLIGHTMODE', 'GND'],
+             ['MAIN_ANT', 'AUX_ANT', 'GNSS_ANT', None, 'USIM_VDD', 'USIM_DATA', 'USIM_CLK', 'USIM_RST', None, 'USB', None, None, 'VBAT'],
+             part='LTE Cat-4 · 3G/2G · GNSS')
+    for a, b in zip(['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8'], ['RXD', 'TXD', 'RTS', 'CTS', 'PCM_CLK', 'PCM_SYNC', 'PCM_DIN', 'PCM_DOUT']):
+        wire(u17[a], u16[b])
+    lab(u16, {'VDD_EXT': '1V8_MDM', 'PWRKEY': 'MDM_PWRKEY', 'RESET': 'MDM_RESET', 'DTR': 'MDM_DTR', 'STATUS': 'MDM_STATUS',
+              'RI': 'MDM_RI', 'FLIGHTMODE': 'MDM_FLIGHT', 'GND': 'GND'}, 'l')
+    note(600, y0 + 430, 'PWRKEY, RESET: NPN open collector Q3 / Q4 (pulled to GND from the expander side)')
+    note(600, y0 + 444, 'DTR, STATUS, RI, FLIGHTMODE: through U19 TXS0104E (1.8 V ↔ 3.3 V), not drawn')
+    # antennas
+    for (pin, dx, txt) in (('MAIN_ANT', 60, 'ANT2 LTE main'), ('AUX_ANT', 130, 'ANT3 diversity'), ('GNSS_ANT', 200, 'ANT4 GNSS')):
+        x, y = u16[pin]; line([(x, y), (x + dx, y)]); antenna(x + dx, y, txt)
+    # SIM holder
+    j8 = ic(1420, u16['USIM_VDD'][1] - 30, 140, 'J8', 'nano-SIM', ['VCC', 'DATA', 'CLK', 'RST'], ['DET', 'GND'])
+    for a, b, n in (('USIM_VDD', 'VCC', 'USIM_VDD'), ('USIM_DATA', 'DATA', 'USIM_DATA'), ('USIM_CLK', 'CLK', 'USIM_CLK'), ('USIM_RST', 'RST', 'USIM_RST')):
+        wire(u16[a], j8[b], n)
+    lab(j8, {'DET': 'SIM_DET', 'GND': 'GND'}, 'r')
+    note(1490, j8['RST'][1] + 34, 'ESD: SMF05C, 22 Ω series, 33 pF', 'middle')
+    # power switch + kill switch
+    x, ya = u16['VBAT']
+    line([(x, ya), (1300, ya)]); rect(1300, ya - 18, 100, 40, fill='#fff', stroke=INK, sw=1.2)
+    t(1350, ya - 2, 'U20', 10, 'middle', 'bold'); t(1350, ya + 12, 'TPS22965 4 A', 8.5, 'middle')
+    line([(1400, ya), (1430, ya)]); label(1430, ya, 'VBAT', 'r')
+    note(1480, ya + 4, '(battery, not via U2)')
+    note(1240, ya - 26, 'C 470µF + 100µF + 10nF + 33pF at VBAT')
+    line([(1350, ya + 22), (1350, ya + 50)]); dot(1350, ya + 50); line([(1350, ya + 50), (1330, ya + 50)]); label(1330, ya + 50, 'MDM_PWR_EN', 'l')
+    line([(1350, ya + 50), (1390, ya + 50), (1390, ya + 56)]); vbutton(1390, ya + 56); line([(1390, ya + 86), (1390, ya + 92)]); gnd(1390, ya + 92)
+    t(1404, ya + 76, 'SW56 cellular kill switch', 9.5)
+    x, y = u16['USB']; note(x + 6, y + 4, 'n.c. (later: P4 full-speed USB)')
 
 
 def main():
