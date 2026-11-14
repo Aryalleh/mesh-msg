@@ -1,0 +1,44 @@
+# Compiles the iPhone app (ios/) with the Go core for the iOS simulator, unsigned.
+# There is no release from here yet: TestFlight / App Store builds need an Apple
+# Developer account and signing secrets (docs/ios.md).
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths: ["ios/**", "mobile/**", "scripts/build-ios-core.sh", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Go core → Meshcore.xcframework
+        run: scripts/build-ios-core.sh
+      - name: Xcode project
+        run: |
+          brew install xcodegen
+          cd ios && xcodegen
+      - name: Build for the simulator
+        run: |
+          cd ios
+          set -o pipefail
+          xcodebuild -project Mava.xcodeproj -scheme Mava -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log | grep -E "error|warning: unre|BUILD|\*\*" || true
+          grep -q "BUILD SUCCEEDED" build.log
+      - name: Errors
+        if: failure()
+        run: grep -E "error:" -A3 ios/build.log | head -150 || tail -80 ios/build.log

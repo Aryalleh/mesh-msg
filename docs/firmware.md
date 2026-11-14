@@ -190,10 +190,15 @@ enforced by `mac/Airtime`; EU_868_1PCT and other regions are a config setting.
 ## 6. Phone link (BLE GATT)
 
 ```
-Service  6e6d0001-...           (UUID to be generated)
-  RX  (write w/o response)  phone → node: framed packets / commands
-  TX  (notify)              node → phone: framed packets / events
+Service  6d657368-6c72-0000-8000-00805f9b34fb     ("meshlr", then the Bluetooth base tail)
+  RX     6d657368-6c72-0001-8000-00805f9b34fb     write w/o response   phone → node
+  TX     6d657368-6c72-0002-8000-00805f9b34fb     notify               node → phone
 ```
+
+The bytes are the host link stream of §2b, unchanged (COBS frames, any split across
+writes/notifications). The node advertises the service and its name. The iPhone app already
+speaks this (`ios/Mava/LoRaBle.swift`, docs/ios.md §4: iPhones can't use a USB node); the
+firmware side is **not implemented yet**.
 
 Frame: `kind(1) | len(2) | payload`. `kind`: 0 = mesh packet, 1 = command, 2 = event,
 3 = uplink tunnel (gateway session bytes, §2b).

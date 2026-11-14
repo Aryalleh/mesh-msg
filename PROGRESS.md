@@ -1249,3 +1249,19 @@ links. Chose: quick items in beta3; calls follow in later betas.
   Opus, push-to-talk first). roadmap M11, decisions D21, firmware docs, threat-model note.
   Open question for the owner: own identity on the T-Deck, or move the account to it (one
   account can't run on two devices yet).
+
+### 2026-11-14 — iPhone app, first version (M10)
+
+- Owner asked for the iPhone app with calls, Bluetooth mesh and LoRa through Bluetooth nodes
+  (no USB on iPhones).
+- New `ios/` (SwiftUI, XcodeGen `project.yml`): `Core.swift` (gomobile wrapper), `AppModel`,
+  `Views` (onboarding, chats, chat, add contact with own QR, network, settings, call),
+  `BleMesh` (Core Bluetooth central + peripheral, Android's GATT protocol; session ID in the
+  local name because iOS can't advertise manufacturer data; the iPhone always connects to
+  Androids), `LoRaBle` (node host link over GATT as a `Stream` for `AttachLoRa`), `CallAudio`
+  (AVAudioEngine with voice processing, Opus 16 kHz through AVAudioConverter).
+  `scripts/build-ios-core.sh` (gomobile → `ios/Frameworks/Meshcore.xcframework`),
+  `.github/workflows/ios.yml` (macOS runner: core, xcodegen, unsigned simulator build).
+- docs/ios.md (what exists, iOS limits, next steps); firmware.md §6 now fixes the LoRa host
+  link GATT UUIDs (`6d657368-6c72-000x-…`). **Firmware side of that service is not written.**
+- Written without a Mac: never run on a simulator or phone; CI only compiles it.

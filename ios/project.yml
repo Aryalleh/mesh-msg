@@ -1,0 +1,46 @@
+# Xcode project for the iPhone app, generated with XcodeGen:
+#   scripts/build-ios-core.sh && cd ios && xcodegen && open Mava.xcodeproj
+name: Mava
+options:
+  bundleIdPrefix: org.meshmsg
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.1"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Mava:
+    type: application
+    platform: iOS
+    sources:
+      - Mava
+    dependencies:
+      # The Go core (mobile/, package meshcore), built by scripts/build-ios-core.sh.
+      - framework: Frameworks/Meshcore.xcframework
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.meshmsg.app
+        PRODUCT_NAME: Mava
+        TARGETED_DEVICE_FAMILY: "1"
+        OTHER_LDFLAGS: "-lresolv"
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_BITCODE: NO
+    info:
+      path: Mava/Info.plist
+      properties:
+        CFBundleDisplayName: Mava
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSBluetoothAlwaysUsageDescription: Mava passes encrypted messages to phones and LoRa nodes around you over Bluetooth.
+        NSLocalNetworkUsageDescription: Mava connects directly to your contacts on the same network for calls and files.
+        NSMicrophoneUsageDescription: Mava uses the microphone for voice calls.
+        UIBackgroundModes: [bluetooth-central, bluetooth-peripheral, audio]
+        CFBundleURLTypes:
+          - CFBundleURLName: org.meshmsg.app
+            CFBundleURLSchemes: [meshmsg]
