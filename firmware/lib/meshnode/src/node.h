@@ -65,6 +65,10 @@ class Node {
   mac::Action radio_next(Millis now);
   void radio_cad(bool busy, Millis now);
   void radio_tx_done(Millis now);
+  // Inject one raw Mava packet from a non-LoRa transport (BLE/Wi-Fi/relay).
+  // The packet is queued by the normal router/MAC path; the caller must not
+  // include the one-byte LoRa link header.
+  bool send_raw(const uint8_t* raw, size_t n, Millis now);
 
   // ---- host ----
   void host_attach(Millis now);
