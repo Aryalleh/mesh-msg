@@ -5,6 +5,9 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <NimBLEDevice.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/task.h>
 
 #include "gateway_config.h"
 #include "packet.h"
@@ -32,7 +35,7 @@ class RxCallbacks final : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* c, NimBLEConnInfo&) override {
     std::string v = c->getValue();
     if (!g_gateway || v.empty()) return;
-    g_gateway->enqueue(reinterpret_cast<const uint8_t*>(v.data()), v.size());
+    g_gateway->push_ble(reinterpret_cast<const uint8_t*>(v.data()), v.size());
   }
 };
 
@@ -112,7 +115,7 @@ bool Gateway::begin(node::Node& node) {
 #endif
 }
 
-bool Gateway::enqueue(const uint8_t* data, size_t len) {
+bool Gateway::push_ble(const uint8_t* data, size_t len) {
   if (!data || len == 0 || len > kMaxPacket) {
     ble_rx_dropped_++;
     return false;
@@ -138,14 +141,14 @@ bool Gateway::enqueue(const uint8_t* data, size_t len) {
   return true;
 }
 
-bool Gateway::forward_lora(const Item& item, Millis now) {
+bool Gateway::forward_lora(const Item& item, route::Millis now) {
   if (!node_) return false;
   if (!node_->send_raw(item.data, item.len, now)) return false;
   lora_forwarded_++;
   return true;
 }
 
-void Gateway::loop(Millis now) {
+void Gateway::loop(route::Millis now) {
   while (rx_tail_ != rx_head_) {
     Item item = rx_[rx_tail_];
     rx_tail_ = uint8_t((rx_tail_ + 1) % kQueueDepth);
