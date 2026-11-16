@@ -112,6 +112,11 @@ With Wi-Fi up, a FreeRTOS task runs the gateway session (`POST /v1/gateway`, doc
 - `https://` relays are checked against Let's Encrypt's roots (`firmware/src/roots.h`);
   `http://` works for a relay on a LAN.
 
+## 5a. Browser access
+
+On the home Wi-Fi (or its own hotspot) the board serves the Mava web client at `/app/`
+and links browsers into the mesh as host port 2: [web-access.md](web-access.md).
+
 ## 6. Not done yet
 
 - Not run on hardware: no board in the build container. Verify pins, radio, BLE pairing with

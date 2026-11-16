@@ -36,3 +36,6 @@ identities/
 
 # Android: Go core built by scripts/build-android-core.sh
 android/app/libs/
+
+# Browser client build output (scripts/build-web.sh)
+firmware/data/web/

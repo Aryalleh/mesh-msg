@@ -57,7 +57,9 @@ Node::Node(const host::NodeConfig& cfg, const uint8_t seed[kSeedSize], Platform&
       rng_(random ? random : 1),
       router_(router_config(cfg_, short_id_, random)),
       mac_(mac_config(cfg_, random, modulation)),
-      store_(persist) {}
+      store_(persist) {
+  ports_[kWebPort].trusted = false;
+}
 
 uint32_t Node::rand32() {
   rng_ ^= rng_ << 13;
@@ -157,7 +159,10 @@ void Node::radio_tx_done(Millis now) {
 
 // ---- host ----
 
-uint8_t Node::sink_of(size_t port) { return port == 0 ? store::kSinkPhone : store::kSinkHost1; }
+uint8_t Node::sink_of(size_t port) {
+  static constexpr uint8_t kSinks[kHostPorts] = {store::kSinkPhone, store::kSinkHost1, store::kSinkHost2};
+  return kSinks[port];
+}
 
 bool Node::any_host_attached() const {
   for (const Port& p : ports_)
@@ -276,7 +281,7 @@ void Node::host_rx(size_t port, const uint8_t* b, size_t n, Millis now) {
         // forwarding to a broadcast link); send as is with implicit-ACK retries.
         if (!router_.send(raw, rn, true, now)) stats_.host_packets_rejected++;
         // The other host and the relay get it too.
-        ingest(p, raw, rn, store::Origin::Phone, sink_of(port), true, now);  // our own host: trusted
+        ingest(p, raw, rn, store::Origin::Phone, sink_of(port), h.trusted, now);  // a trusted host's receipts purge
         break;
       }
       case host::kKindCommand:
@@ -360,6 +365,11 @@ void Node::command(size_t port, const uint8_t* p, size_t n, Millis now) {
   uint8_t op = p[0], req = p[1];
   const uint8_t* a = p + 2;
   size_t an = n - 2;
+  if (!ports_[port].trusted && op != host::kOpHello && op != host::kOpGetStatus && op != host::kOpGetConfig &&
+      op != host::kOpGetIdentity && op != host::kOpResync) {
+    ack(port, op, req, host::kAckNotAllowed);
+    return;
+  }
   switch (op) {
     case host::kOpHello: {
       if (an == 4) {

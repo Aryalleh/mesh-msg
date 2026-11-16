@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1f6feb">
+<title>Mava</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--fg:#15171b;--muted:#6b7280;--accent:#1f6feb;--mine:#d9f2d5;--theirs:#fff;--line:#e3e6ea}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#181b21;--fg:#e8eaee;--muted:#9aa1ad;--accent:#4c8dff;--mine:#1f3b23;--theirs:#20242c;--line:#2a2f38}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Vazirmatn",Tahoma,sans-serif;height:100dvh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--accent);color:#fff;padding-top:max(10px,env(safe-area-inset-top))}
+header h1{font-size:18px;margin:0;flex:1}
+header button{background:none;border:0;color:#fff;font-size:20px;padding:4px 8px}
+#status{font-size:12px;opacity:.9}
+main{flex:1;overflow:auto;padding:10px 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.row{display:flex;gap:8px;align-items:center}
+.contact{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--line);cursor:pointer}
+.contact:last-child{border-bottom:0}
+.muted{color:var(--muted);font-size:13px}
+input,textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg)}
+button.primary{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:inherit}
+button.link{background:none;border:0;color:var(--accent);font:inherit;padding:6px 0}
+.msgs{display:flex;flex-direction:column;gap:6px}
+.msg{max-width:82%;padding:7px 11px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word;unicode-bidi:plaintext}
+.msg.mine{align-self:flex-start;background:var(--mine)}
+.msg.theirs{align-self:flex-end;background:var(--theirs);border:1px solid var(--line)}
+.msg small{display:block;font-size:11px;color:var(--muted);direction:ltr;text-align:left}
+footer{display:flex;gap:8px;padding:8px 10px;background:var(--card);border-top:1px solid var(--line);padding-bottom:max(8px,env(safe-area-inset-bottom))}
+footer textarea{resize:none;height:44px}
+.ltr{direction:ltr;unicode-bidi:plaintext;word-break:break-all;font-size:13px}
+.hidden{display:none!important}
+#loading{margin:auto;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <button id="back" class="hidden" aria-label="بازگشت">→</button>
+  <h1 id="title">Mava</h1>
+  <span id="status"></span>
+  <button id="menu" aria-label="تنظیمات">⚙</button>
+</header>
+<main id="main"><div id="loading">در حال بارگذاری… <div class="muted">Loading the client (≈3 MB, once)</div></div></main>
+<footer id="composer" class="hidden">
+  <textarea id="text" placeholder="پیام…" dir="auto"></textarea>
+  <button class="primary" id="send">ارسال</button>
+</footer>
+<script src="wasm_exec.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

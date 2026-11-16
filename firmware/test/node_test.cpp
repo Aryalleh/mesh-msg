@@ -558,9 +558,35 @@ void two_hosts_and_uplink() {
   CHECK(ble.packets().size() >= 4 && usb.packets().empty());
 }
 
+// The web port (anyone on the Wi-Fi) exchanges packets and reads status but
+// cannot change, reboot or wipe the node.
+void web_port_untrusted() {
+  Rig r(30);
+  auto& n = *r.node;
+  Host web, usb;
+  web.port = mesh::node::Node::kWebPort;
+  web.cmd(n, host::kOpHello, 1, be32(1767225600), 1000);
+  web.cmd(n, host::kOpWipe, 2, {'W', 'I', 'P', 'E'}, 1000);
+  web.cmd(n, host::kOpSetConfig, 3, {host::kTagAnnounceMin, 2, 0, 0}, 1000);
+  web.cmd(n, host::kOpReboot, 4, {}, 1000);
+  web.drain(n);
+  auto acks = web.events(host::kEvAck);
+  CHECK(web.events(host::kEvStatus).size() == 1 && acks.size() == 3);
+  for (auto& a : acks) CHECK(a.size() == 4 && a[3] == host::kAckNotAllowed);
+  CHECK(r.board.wipes == 0 && r.board.saves == 0 && !n.reboot_requested());
+  // Packets still flow both ways.
+  Bytes d = data_packet(0x51);
+  web.send(n, host::kKindPacket, d, 1000);
+  usb.cmd(n, host::kOpHello, 1, {}, 1000);
+  usb.drain(n);
+  auto got = usb.packets();
+  CHECK(got.size() == 1 && got[0] == d);
+}
+
 }  // namespace
 
 void run_node() {
+  web_port_untrusted();
   two_hosts_and_uplink();
   commands();
   announces();

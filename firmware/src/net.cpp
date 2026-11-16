@@ -9,6 +9,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
+#include <LittleFS.h>
+#include <mbedtls/base64.h>
 #include <mbedtls/sha256.h>
 #include <time.h>
 
@@ -132,12 +134,14 @@ void start_station() {
   WiFi.setAutoReconnect(true);
   WiFi.begin(g_s->wifi_ssid, g_s->wifi_pass);
   configTime(0, 0, "pool.ntp.org", "time.google.com");
+  g_web.begin();  // the web app for browsers on this network
 }
 
 void set_mode(Mode m) {
   if (m == g_mode) return;
   if (g_mode == Mode::Setup) stop_setup();
   if (g_mode == Mode::Station) {
+    g_web.stop();
     WiFi.disconnect(true);
     g_wifi_up = false;
   }
@@ -241,12 +245,66 @@ void page_panel(const char* msg) {
        "تغییر)<input name=newpass type=password minlength=8 maxlength=16></label></fieldset>";
   b += "<button>ذخیره</button></form>";
   b += "<p class=n>بعد از ذخیره، کلید setup را خاموش کنید تا برد به وای‌فای وصل شود.</p>";
+  b += "<p><a href=/app/>پیام‌رسان در مرورگر (Mava web)</a></p>";
   send_page(b);
 }
 
 void handle_root() {
+  if (g_mode != Mode::Setup) {  // on the home Wi-Fi the board serves the web app
+    g_web.sendHeader("Location", "/app/");
+    g_web.send(302);
+    return;
+  }
   if (!authed()) return page_login(nullptr);
   page_panel(nullptr);
+}
+
+// ---- web app link (docs/web-access.md) ----
+//
+// POST /api/link?s=<session>: the body is base64 host-link bytes from the
+// browser; the reply is base64 host-link bytes for it. The browser is host
+// port 2 of the node (untrusted: packets and status only). One browser at a
+// time; a session that stops polling for 15 s is detached.
+
+constexpr Millis kWebIdleMs = 15000;
+String g_web_session;
+Millis g_web_last = 0;
+
+void handle_link() {
+  Millis now = board::now_ms();
+  String s = g_web.arg("s");
+  if (s.length() < 8 || s.length() > 32) return g_web.send(400, "text/plain", "session");
+  if (g_web_session.length() && s != g_web_session && now - g_web_last < kWebIdleMs)
+    return g_web.send(409, "text/plain", "another browser is attached");
+  if (s != g_web_session) {
+    g_node->host_detach(mesh::node::Node::kWebPort);
+    g_web_session = s;
+  }
+  g_web_last = now;
+  const String& body = g_web.arg("plain");
+  static uint8_t in[3072], out[4096];
+  static char text[5600];
+  size_t n = 0;
+  if (body.length() && mbedtls_base64_decode(in, sizeof in, &n, reinterpret_cast<const uint8_t*>(body.c_str()),
+                                             body.length()) != 0)
+    return g_web.send(400, "text/plain", "base64");
+  if (n) g_node->host_rx(mesh::node::Node::kWebPort, in, n, now);
+  else if (!g_node->host_attached(mesh::node::Node::kWebPort)) g_node->host_attach(mesh::node::Node::kWebPort, now);
+  size_t m = g_node->host_tx(mesh::node::Node::kWebPort, out, sizeof out);
+  size_t tn = 0;
+  mbedtls_base64_encode(reinterpret_cast<uint8_t*>(text), sizeof text, &tn, out, m);
+  text[tn] = 0;
+  g_web.sendHeader("Cache-Control", "no-store");
+  g_web.send(200, "text/plain", text);
+}
+
+void not_found() {
+  if (g_mode == Mode::Setup) {
+    g_web.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/");
+    g_web.send(302);
+  } else {
+    g_web.send(404, "text/plain", "not found");
+  }
 }
 
 void handle_login() {
@@ -590,7 +648,9 @@ bool begin(Settings& s, mesh::node::Node& node, void* node_lock, const Hooks& ho
   g_web.on("/hotspot-detect.html", redirect_portal);
   g_web.on("/connecttest.txt", redirect_portal);
   g_web.on("/ncsi.txt", redirect_portal);
-  g_web.onNotFound(redirect_portal);
+  g_web.on("/api/link", HTTP_POST, handle_link);
+  g_web.serveStatic("/app/", LittleFS, "/web/", "max-age=600");  // index.htm, *.gz
+  g_web.onNotFound(not_found);
 
   g_switch = g_switch_raw = board::setup_switch_on();
   g_switch_since = board::now_ms();
@@ -607,9 +667,11 @@ void loop(Millis now) {
     g_switch = raw;
     set_mode(g_switch ? Mode::Setup : Mode::Station);
   }
-  if (g_mode == Mode::Setup) {
-    g_dns.processNextRequest();
-    g_web.handleClient();
+  if (g_mode == Mode::Setup) g_dns.processNextRequest();
+  if (g_mode != Mode::Off) g_web.handleClient();
+  if (g_web_session.length() && now - g_web_last > kWebIdleMs) {
+    g_node->host_detach(mesh::node::Node::kWebPort);
+    g_web_session = "";
   }
   if (g_mode == Mode::Station && !g_time_given) {
     time_t t = time(nullptr);

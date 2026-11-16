@@ -1360,3 +1360,21 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - No messaging client core on the handheld yet: `ui::Messenger` interface, stub = local notes.
 - Screenshots in docs/images/handheld-ui. `make test`, `pio run` pass.
 
+### 2026-11-16 — Browser access for iPhones (text)
+
+- Owner: iPhone apps can't be published on the App Store, so phones on the same network as
+  a board / handheld use Mava from the browser. docs/web-access.md.
+- `web/lite`: browser client = core identity / e2e / message / announce / receipt without
+  core/node's SQLite (which can't run in WebAssembly); state as one JSON blob
+  (localStorage); transports: the board's host link over HTTP (`/api/link`) and relays over
+  HTTPS (mailbox long-poll, receipts by ID, uploads with PoW). `web/cmd/webclient` (wasm,
+  11 MB / 2.9 MB gz), `web/static` (Persian RTL page), `scripts/build-web.sh`.
+- Board: web app at `/app/` from LittleFS in both Wi-Fi modes, `/api/link` = host port 2;
+  `Node` ports 3 with per-port trust (web port can't configure / wipe; tested); custom
+  partition table (2 × 4 MB app, 7.9 MB LittleFS).
+- Relay API: CORS (preflight + headers), tested.
+- Tests: `go test ./web/...` (relay in process + board stand-in); `scripts/test-web.sh`
+  (two headless Chromium windows via `web/cmd/devboard`: board link and relay, PASS).
+- Not built: calls in the browser (HTTPS secure context, WebCodecs/Opus, UDP proxy) —
+  written up in docs/web-access.md.
+

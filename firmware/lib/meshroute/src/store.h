@@ -33,6 +33,7 @@ enum Sink : uint8_t {
   kSinkPhone = 1 << 0,   // host port 0 (USB)
   kSinkUplink = 1 << 1,  // internet relay
   kSinkHost1 = 1 << 2,   // host port 1 (BLE)
+  kSinkHost2 = 1 << 3,   // host port 2 (web browser on the LAN)
 };
 
 enum class Origin : uint8_t { Air = 0, Phone = 1, Uplink = 2, Local = 3 };

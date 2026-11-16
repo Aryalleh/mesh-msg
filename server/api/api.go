@@ -115,7 +115,24 @@ func New(cfg Config) *Server {
 // Handle mounts another handler (the admin panel) behind the same rate limit.
 func (s *Server) Handle(pattern string, h http.Handler) { s.mux.Handle(pattern, h) }
 
+// CORS: browsers on any origin may use the API — in particular the web
+// client a Mava board serves on a local network (docs/web-access.md). The API
+// has no cookies or ambient credentials: requests are authorised by proof of
+// work, signatures or explicit tokens, so allowing every origin exposes
+// nothing a non-browser client could not already do.
+const corsHeaders = "Content-Type, X-PoW, X-Origin, X-Region, X-Nonce, X-Signature, X-Readers, X-Account, X-Day, Authorization"
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h := w.Header()
+	h.Set("Access-Control-Allow-Origin", "*")
+	h.Set("Access-Control-Expose-Headers", "X-Cursor, X-More")
+	if r.Method == http.MethodOptions {
+		h.Set("Access-Control-Allow-Methods", "GET, POST, PUT")
+		h.Set("Access-Control-Allow-Headers", corsHeaders)
+		h.Set("Access-Control-Max-Age", "86400")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if !s.lim.allow(clientIP(r)) {
 		http.Error(w, "rate limited", http.StatusTooManyRequests)
 		return

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -202,5 +203,29 @@ func TestLongPoll(t *testing.T) {
 	}
 	if d := time.Since(start); d > 3*time.Second {
 		t.Fatalf("long poll returned late: %v", d)
+	}
+}
+
+func TestCORS(t *testing.T) {
+	tr := startRelay(t, "cors", "global")
+	req, _ := http.NewRequest(http.MethodOptions, tr.srv.URL+"/v1/packets", nil)
+	req.Header.Set("Origin", "http://192.168.4.1")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent || resp.Header.Get("Access-Control-Allow-Origin") != "*" ||
+		!strings.Contains(resp.Header.Get("Access-Control-Allow-Headers"), "X-PoW") {
+		t.Fatalf("preflight: %d %v", resp.StatusCode, resp.Header)
+	}
+	resp, err = http.Get(tr.srv.URL + "/v1/info")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.Header.Get("Access-Control-Allow-Origin") != "*" || !strings.Contains(resp.Header.Get("Access-Control-Expose-Headers"), "X-Cursor") {
+		t.Fatalf("cors headers: %v", resp.Header)
 	}
 }

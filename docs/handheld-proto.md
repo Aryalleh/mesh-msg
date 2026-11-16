@@ -284,7 +284,9 @@ Screens rendered by the same code on a PC (`make -C firmware uishots`, after `pi
 
 ## 10. Browser access
 
-See docs/web-access.md.
+iPhones (no App Store) and any other device on the same Wi-Fi use Mava in the browser,
+served by the board: [web-access.md](web-access.md). The handheld's *Web access* screen
+shows the address and a QR code.
 
 ## 11. Bring-up order
 
