@@ -141,7 +141,7 @@ bool Gateway::push_ble(const uint8_t* data, size_t len) {
   return true;
 }
 
-bool Gateway::forward_lora(const Item& item, route::Millis now) {
+bool Gateway::forward_lora(const Item& item, node::Millis now) {
   if (!node_) return false;
   if (!node_->send_raw(item.data, item.len, now)) return false;
   lora_forwarded_++;
