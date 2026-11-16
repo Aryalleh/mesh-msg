@@ -123,6 +123,30 @@ void Node::radio_tx_done(Millis now) {
   if (mac_.tx_done(now, &k)) router_.on_transmitted(k, now);
 }
 
+void Node::external_rx(const uint8_t* raw, size_t n, int snr_db, Millis now) {
+  if (!raw || n == 0 || n > kLoRaMTU) return;
+
+  // The Mava router expects the native one-byte LoRa link header. External
+  // transports (Meshtastic, Wi-Fi relay, BLE) do not carry that byte, so
+  // synthesize a stable low-byte sender hint from the packet source.
+  uint8_t frame[kLoRaRadioMax] = {};
+  frame[0] = 0;
+  memcpy(frame + kLoRaLinkHeader, raw, n);
+  router::RxResult r = router_.on_receive(frame, n + kLoRaLinkHeader, snr_db, now);
+  if (r.verdict == route::Verdict::Invalid) return;
+  heard(r.sender, now);
+  if (r.verdict != route::Verdict::New) return;
+  const Packet& p = r.packet;
+  if (p.type == Type::Receipt && r.purged) {
+    uint8_t acked[8];
+    if (receipt_acked(p, acked) == AnnounceErr::Ok) store_.delete_data(acked);
+  }
+  if (p.type == Type::Data || p.type == Type::Receipt || p.type == Type::Announce) {
+    store_.put(raw, n, store::Origin::Air, 0, uint32_t(now / 1000), kStoreTTL);
+    pump();
+  }
+}
+
 bool Node::send_raw(const uint8_t* raw, size_t n, Millis now) {
   if (!raw || n == 0 || n > mesh::kLoRaMTU) return false;
   Packet p;
