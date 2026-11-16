@@ -267,6 +267,7 @@ void loop() {
       if (n > 0) Serial.write(buf, n);
     }
   }
+#endif
 
   // ---- timer ----
   if (now - last_tick >= kTickEvery) {
@@ -277,7 +278,6 @@ void loop() {
     board::led(false);
     g_led_off = 0;
   }
-#endif
 
   if (node.reboot_requested() && node.host_pending() == 0) {
     Serial.flush();
