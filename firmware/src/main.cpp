@@ -17,6 +17,7 @@
 #include <cstdio>
 
 #include "board.h"
+#include "gateway.h"
 #include "node.h"
 #include "radio.h"
 
@@ -30,6 +31,7 @@ constexpr Millis kTickEvery = 1000;
 constexpr Millis kLedFlash = 30;
 
 mesh::node::Node* g_node = nullptr;
+mesh::gateway::Gateway g_gateway;
 bool g_radio_ok = false;
 Millis g_led_off = 0;
 char g_line[160];
@@ -155,6 +157,8 @@ void setup() {
   static mesh::node::Node node(cfg, seed, g_board, &g_persist, board::random32());
   memset(seed, 0, sizeof seed);
   g_node = &node;
+  bool gateway_ok = g_gateway.begin(node);
+  logf("gateway: BLE %s, Wi-Fi/relay worker %s", gateway_ok ? "ready" : "FAILED", gateway_ok ? "ready" : "FAILED");
 
   g_radio_ok = radio::begin(cfg);
   logf("%s: %s, %s %s %lu Hz %d dBm, role %u, short id 0x%02x", radio::chip_name(), g_radio_ok ? "ok" : "NOT FOUND",
@@ -172,6 +176,9 @@ void loop() {
   static uint8_t buf[512];
   static Millis last_tick = 0;
   Millis now = board::now_ms();
+
+  // ---- ESP32-S3 gateway ----
+  g_gateway.loop(now);
 
   // ---- radio ----
   if (g_radio_ok) {
