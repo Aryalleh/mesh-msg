@@ -123,6 +123,14 @@ void Node::radio_tx_done(Millis now) {
   if (mac_.tx_done(now, &k)) router_.on_transmitted(k, now);
 }
 
+bool Node::send_raw(const uint8_t* raw, size_t n, Millis now) {
+  if (!raw || n == 0 || n > mesh::kLoRaMTU) return false;
+  Packet p;
+  if (decode(raw, n, p) != Err::Ok) return false;
+  if (p.no_lora()) return false;
+  return router_.send(raw, n, true, now);
+}
+
 // ---- host ----
 
 bool Node::emit(uint8_t kind, const uint8_t* payload, size_t n) {
