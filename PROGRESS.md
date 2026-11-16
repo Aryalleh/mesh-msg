@@ -1334,3 +1334,15 @@ links. Chose: quick items in beta3; calls follow in later betas.
   are logged so the unknown flex line order can be found by pressing keys. CI builds all three.
 - docs/handheld-proto.md §7 (B) and §8 (C). Keypad connector part number unknown (measure).
 
+### 2026-11-16 — Keyboard module (RP2040) for all handheld versions
+
+- Owner: drive the keyboard from a separate microcontroller (a Pico). Done for all three
+  versions: `firmware/keyboard` (Arduino-Pico, envs `kb_matrix`, `kb_bb9900`, `kb_bb9900tp`)
+  scans the keyboard and the 9900 trackpad, drives the keyboard backlight, is an I2C target
+  at 0x1F with an INT line; protocol `lib/meshkeys/src/kbproto.*` (host-tested). The ESP32
+  driver `src/kbmodule.*` applies the layout; one ESP32 build for A, B and C.
+- ESP32 pin map redone (docs/handheld-proto.md rewritten): display, touch and microSD on
+  their own SPI bus (39/40/41), LoRa RESET back on GPIO 8, touch IRQ 6, SD CS 7, keyboard INT
+  9, setup switch 14, vibration motor 38; 3, 43, 44 free. Setup switch left the key tables.
+- CI builds the keyboard module. `make test`, `pio run` (ESP32 and RP2040) pass.
+

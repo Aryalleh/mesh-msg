@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [mava_handheld_s3, mava_handheld_bb, mava_handheld_bbtp]
+        env: [mava_handheld_s3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
@@ -56,3 +56,15 @@ jobs:
       - run: pip install platformio
       # Redirect instead of piping: `pio run | head` hangs when the pipe closes.
       - run: pio run -d firmware -e ${{ matrix.env }} > pio.log 2>&1 || { tail -n 60 pio.log; exit 1; }
+
+  keyboard-module:
+    name: Keyboard module build (RP2040, all three keyboards)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-keyboard-${{ hashFiles('firmware/keyboard/platformio.ini') }}
+      - run: pip install platformio
+      - run: pio run -d firmware/keyboard > pio.log 2>&1 || { tail -n 60 pio.log; exit 1; }

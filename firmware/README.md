@@ -29,8 +29,11 @@ lib/meshnode/src/    the node application, still pure and host-tested
 lib/meshtastic/src/  the Meshtastic backbone: Mava packets as PRIVATE_APP payloads in
                      Meshtastic radio frames (channel AES-CTR, hash), relays under the
                      original sender/id so Meshtastic nodes do not flood twice
-lib/meshkeys/src/    handheld keyboard: 7 × 7 matrix debounce, Persian (ISIRI 9147) / QWERTY
-                     layers, Alt + Shift switch, phone and navigation keys
+lib/meshkeys/src/    handheld keyboards (7 × 7 matrix, BlackBerry 9900, 9900 + trackpad):
+                     debounce, Persian (ISIRI 9147) / Latin layers, Alt + Shift, Sym, and
+                     kbproto: the keyboard module's I2C protocol
+keyboard/            keyboard module firmware (RP2040, Arduino-Pico): scans the keyboard
+                     and the 9900 trackpad, I2C target 0x1F for the ESP32-S3
 lib/monocypher/      Monocypher 4.0.2 (X25519, Ed25519), vendored unmodified, CC0/BSD-2
 src/                 the board layer (Arduino / PlatformIO), nothing that decides anything:
   main                boots the node from flash (identity, config, stored packets) and runs
@@ -69,10 +72,11 @@ pio device monitor       # log: device password, BLE passkey, packets heard
 ```
 
 Pins are build flags in `platformio.ini`, wired as the handheld
-([docs/handheld-proto.md](../docs/handheld-proto.md)): SX1262 on the SPI bus it shares with
-the ILI9341 and touch (SCK 12, MOSI 11, MISO 13, CS 10, DIO1 1, BUSY 4, reset on EN), WM8960
-on I2S/I2C, a 7 × 7 key matrix whose last position is the setup switch. **Not yet verified on
-hardware.**
+([docs/handheld-proto.md](../docs/handheld-proto.md)): SX1262 on its own SPI bus (SCK 12,
+MOSI 11, MISO 13, CS 10, DIO1 1, BUSY 4, RESET 8), the display, touch and microSD on a second
+bus, WM8960 on I2S/I2C, setup switch on GPIO 14, and the **keyboard module** (an RP2040,
+`keyboard/`, three envs: `kb_matrix`, `kb_bb9900`, `kb_bb9900tp`) at I2C 0x1F with INT on
+GPIO 9. One ESP32 build serves all three handheld versions. **Not yet verified on hardware.**
 
 Files in LittleFS: `/id` identity, `/cfg` node config, `/net` Wi-Fi + relay + channel +
 device password, `/cur` relay cursor, `/s00`–`/s63` stored packets. `WIPE` (from a host)

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "check.h"
+#include "kbproto.h"
 #include "keys.h"
 
 namespace k = mesh::keys;
@@ -49,7 +50,7 @@ struct Rig {
 
 // Every Persian letter and a–z exactly once (Persian letters may be direct
 // or on Alt); every position wired; no special key twice.
-void check_layout(const k::Keyboard& kb, size_t specials_want, bool setup = true) {
+void check_layout(const k::Keyboard& kb, size_t specials_want, int none_want = 0) {
   const char32_t fa[] = {0x0627, 0x0628, 0x067E, 0x062A, 0x062B, 0x062C, 0x0686, 0x062D, 0x062E, 0x062F, 0x0630,
                          0x0631, 0x0632, 0x0698, 0x0633, 0x0634, 0x0635, 0x0636, 0x0637, 0x0638, 0x0639, 0x063A,
                          0x0641, 0x0642, 0x06A9, 0x06AF, 0x0644, 0x0645, 0x0646, 0x0648, 0x0647, 0x06CC};
@@ -70,21 +71,20 @@ void check_layout(const k::Keyboard& kb, size_t specials_want, bool setup = true
         specials.insert(d.key);
       }
     }
-  CHECK(none == 0 && specials.size() == specials_want);
+  CHECK(none == none_want && specials.size() == specials_want);
   for (char32_t f : fa) CHECKC(letters.count(f) == 1, "Persian letter");
   for (char ch = 'a'; ch <= 'z'; ch++) CHECKC(latin.count(ch) == 1, "Latin letter");
   for (k::Key x : {k::Key::Space, k::Key::Backspace, k::Key::Enter, k::Key::Alt, k::Key::Call, k::Key::End,
                    k::Key::Menu, k::Key::Back, k::Key::VolUp, k::Key::VolDown})
     CHECKC(specials.count(x) == 1, "special key");
-  CHECK(specials.count(k::Key::Setup) == (setup ? 1u : 0u));
 }
 
 void blackberry() {
   const k::Keyboard& kb = k::keyboard(k::Variant::BB9900);
   CHECK(kb.rows == 7 && kb.cols == 6);
-  check_layout(kb, 14);  // 42 positions − 26 letters − $ − 0 (two Shifts)
+  check_layout(kb, 13, 1);  // 42 positions − 26 letters − $ − 0 − (0,0) free (two Shifts)
   const k::Keyboard& tp = k::keyboard(k::Variant::BB9900Trackpad);
-  check_layout(tp, 14, false);
+  check_layout(tp, 14);
   CHECK(tp.at(k::Pos{0, 0}).key == k::Key::TrackClick && tp.at(k::Pos{6, 5}).key == k::Key::Enter);
   {
     Rig t(k::Variant::BB9900Trackpad);
@@ -194,17 +194,59 @@ void run_keys() {
   r.step(30);
   CHECK(r.l.persian() && r.out.size() == 1);
 
-  // Phone keys and the setup switch (held for as long as it is latched).
+  // Phone keys; a held key does not block others (diodes: no ghosting).
   r.out.clear();
   r.tap(r.kb.find(k::Key::Call));
   r.tap(r.kb.find(k::Key::End));
   r.tap(r.kb.find(k::Key::Ok));
   CHECK(r.out.size() == 3 && r.out[0].action == k::Action::Call && r.out[1].action == k::Action::End &&
         r.out[2].action == k::Action::Ok);
-  k::Pos setup = r.kb.find(k::Key::Setup);
-  r.set(setup, true);
+  k::Pos vol = r.kb.find(k::Key::VolUp);
+  r.set(vol, true);
   r.step(30);
-  CHECK(r.m.down(k::Key::Setup));
-  r.tap(q);  // other keys still work while the switch is on (diodes: no ghosting)
-  CHECK(r.m.down(k::Key::Setup) && r.out.size() == 4);
+  CHECK(r.m.down(k::Key::VolUp));
+  r.tap(q);
+  CHECK(r.m.down(k::Key::VolUp) && r.out.size() == 5);
+  r.tap(r.kb.find(k::Key::Sym));
+  CHECK(r.out.size() == 6 && r.out[5].action == k::Action::Symbols);
+}
+
+// Keyboard module protocol: ID, event FIFO (order, overflow, popped by
+// reads), saturated motion, backlight writes.
+void run_kbproto() {
+  namespace kk = mesh::keys;
+  kk::ModuleState m(kk::Variant::BB9900Trackpad);
+  uint8_t b[32];
+  kk::Variant v;
+  CHECK(m.read(kk::kRegId, b, sizeof b) == 4 && kk::parse_id(b, 4, &v) && v == kk::Variant::BB9900Trackpad);
+  b[1] = 'X';
+  CHECK(!kk::parse_id(b, 4, &v));
+  CHECK(!m.pending());
+
+  for (int i = 0; i < 20; i++) m.push(kk::Event{kk::Pos{int8_t(i % 7), int8_t(i % 6)}, i % 2 == 0});
+  CHECK(m.pending() && m.queued() == 20);
+  kk::Event ev[16];
+  size_t n = m.read(kk::kRegEvents, b, sizeof b);
+  size_t k = kk::parse_events(b, n, ev, 16);
+  CHECK(n == 16 && k == 15 && ev[0].pos.row == 0 && ev[0].pressed && ev[3].pos.row == 3 && ev[3].pos.col == 3 &&
+        !ev[3].pressed);
+  n = m.read(kk::kRegEvents, b, sizeof b);
+  k = kk::parse_events(b, n, ev, 16);
+  CHECK(k == 5 && ev[0].pos.row == 15 % 7 && ev[0].pos.col == 15 % 6 && m.queued() == 0);
+  n = m.read(kk::kRegEvents, b, sizeof b);
+  CHECK(n == 1 && b[0] == 0);
+
+  // Overflow keeps the newest kFifo events.
+  for (int i = 0; i < int(kk::kFifo) + 10; i++) m.push(kk::Event{kk::Pos{int8_t(i % 7), 0}, true});
+  CHECK(m.queued() == kk::kFifo);
+  m.read(kk::kRegEvents, b, sizeof b);
+  CHECK(kk::decode_event(b[1]).pos.row == 10 % 7);
+  while (m.queued()) m.read(kk::kRegEvents, b, sizeof b);
+
+  m.motion(100, -5);
+  m.motion(100, -3);
+  CHECK(m.pending() && m.read(kk::kRegTrack, b, sizeof b) == 2 && int8_t(b[0]) == 127 && int8_t(b[1]) == -8);
+  CHECK(!m.pending());
+  uint8_t w[2] = {kk::kRegBacklight, 200};
+  CHECK(m.write(w, 2) == 200 && m.write(w, 1) == -1);
 }

@@ -63,7 +63,7 @@ const KeyDef k7x7[7 * 7] = {
     // R5
     K(Key::Shift), K(Key::Alt), K(Key::Up), K(Key::Down), K(Key::Left), K(Key::Right), K(Key::Ok),
     // R6
-    K(Key::Call), K(Key::End), K(Key::Menu), K(Key::Back), K(Key::VolUp), K(Key::VolDown), K(Key::Setup),
+    K(Key::Call), K(Key::End), K(Key::Menu), K(Key::Back), K(Key::VolUp), K(Key::VolDown), K(Key::Sym),
 };
 
 // ---- versions B / C: BlackBerry Bold 9900 keyboard ----
@@ -73,11 +73,11 @@ const KeyDef k7x7[7 * 7] = {
 // Alt symbols are the ones printed on the keycaps. Persian: ISIRI letters on
 // the 26 letter keys, و on $, ک on 0; Alt + ح = ج, Alt + ع = چ, Alt + م = گ,
 // Alt + ذ = ژ (their printed symbols @ _ " ! are in the symbol picker).
-// (0,0): setup switch (B) or trackpad click (C); (6,0) / (6,1): Vol+ / Vol−
-// side buttons on our board — each with a diode.
+// (0,0): free (B) or trackpad click (C); (6,0) / (6,1): Vol+ / Vol− side
+// buttons on the keyboard module — each with a diode.
 constexpr KeyDef kBB9900[7 * 6] = {
     // R0
-    K(Key::Setup), C('w', SAD, '1', fa_digit(1)), C('g', LAM, '/'), C('s', SIN, '4', fa_digit(4), 0, Action::Left),
+    K(Key::None), C('w', SAD, '1', fa_digit(1)), C('g', LAM, '/'), C('s', SIN, '4', fa_digit(4), 0, Action::Left),
     C('l', MIM, '"', GAF), C('h', ALEF, ':', 0, ALEF_MADDA),
     // R1
     C('a', SHIN, '*'), C('q', ZAD, '#'), C('r', GHAF, '3', fa_digit(3)), C('e', SE, '2', fa_digit(2), 0, Action::Up),
@@ -226,7 +226,7 @@ Output Layout::press(const KeyDef& d) {
     case Key::Back: o.action = Action::Back; return o;
     case Key::VolUp: o.action = Action::VolUp; return o;
     case Key::VolDown: o.action = Action::VolDown; return o;
-    default: return o;  // Setup is a switch, read by the board
+    default: return o;
   }
 }
 

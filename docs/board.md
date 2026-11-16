@@ -35,8 +35,8 @@ relies on:
 | Part | Pin(s) |
 |---|---|
 | ESP32-S3-N16R8 (16 MB flash, 8 MB octal PSRAM) | native USB-C (CDC) for flashing, log and the USB host link |
-| SX1262 | SCK 12, MISO 13, MOSI 11 (shared with the display), CS 10, DIO1 1, BUSY 4, NRESET → EN; TCXO 1.8 V; DIO2 drives the RF switch |
-| Setup switch (physical, latching) | a position of the key matrix (row R6 / GPIO 14, column C6 / GPIO 44), with its diode |
+| SX1262 | SCK 12, MISO 13, MOSI 11 (the radio's own bus), CS 10, DIO1 1, BUSY 4, NRESET 8; TCXO 1.8 V; DIO2 drives the RF switch |
+| Setup switch (physical, latching) | GPIO 14 to GND |
 
 The pins are build flags in `firmware/platformio.ini`. The board definition is
 `firmware/boards/esp32-s3-n16r8.json`.

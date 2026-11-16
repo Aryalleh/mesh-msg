@@ -1,12 +1,14 @@
 // Handheld keyboards (docs/handheld-proto.md §4, §7):
 //
-//   Matrix7x7  version A: our own 7 × 7 diode matrix on 14 GPIOs — 32 Persian
-//              letters on their ISIRI 9147 positions (QWERTY Latin layer),
-//              arrows + OK, call / end, menu / back, volume, setup switch.
+// All three are scanned by the keyboard module (an RP2040, firmware/keyboard)
+// and reach the ESP32-S3 over I2C (kbproto.h).
+//
+//   Matrix7x7  version A: our own 7 × 7 diode matrix — 32 Persian letters on
+//              their ISIRI 9147 positions (QWERTY Latin layer), arrows + OK,
+//              call / end, menu / back, volume, Sym (symbol picker).
 //   BB9900     versions B and C: an original BlackBerry Bold 9900 keyboard,
-//              7 rows × 6 columns on its flex (39 keys), plus three positions
-//              we add on our board: setup switch (B) or trackpad click (C),
-//              Vol+ and Vol−. 26 letter keys carry the ISIRI letters; و and ک
+//              7 rows × 6 columns on its flex (39 keys), plus positions we add
+//              on the module: trackpad click (C), Vol+ and Vol−. 26 letter keys carry the ISIRI letters; و and ک
 //              sit on the $ and 0 keys; ج چ گ ژ are Alt + ح ع م ذ.
 //
 //   Matrix   debounces raw scans (one byte of pressed rows per column) and
@@ -52,7 +54,6 @@ enum class Key : uint8_t {
   VolUp,
   VolDown,
   TrackClick,  // trackpad press = OK
-  Setup,       // latching setup switch (hotspot + panel), not a key
 };
 
 enum class Action : uint8_t {
@@ -90,8 +91,7 @@ struct Pos {
   bool valid() const { return row >= 0; }
 };
 
-// BB9900Trackpad: version C — the trackpad click takes (0,0), the setup
-// switch moves to its own GPIO.
+// BB9900Trackpad: version C — the trackpad click takes (0,0).
 enum class Variant : uint8_t { Matrix7x7, BB9900, BB9900Trackpad };
 
 struct Keyboard {

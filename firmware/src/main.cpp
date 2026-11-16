@@ -25,7 +25,8 @@
 #include "net.h"
 #include "node.h"
 #include "radio.h"
-#include "trackpad.h"
+#include "kbmodule.h"
+#include <Wire.h>
 
 using mesh::route::Millis;
 
@@ -42,7 +43,6 @@ mesh::meshtastic::Backend g_mt;
 net::Settings g_net;
 SemaphoreHandle_t g_lock = nullptr;
 bool g_radio_ok = false;
-bool g_trackpad = false;
 Millis g_led_off = 0;
 char g_line[160];
 
@@ -155,30 +155,15 @@ void describe(const char* what, const uint8_t* raw, size_t n, uint32_t from, int
        p.id[3], p.dest[0], p.dest[1], p.dest[2], p.dest[3], snr);
 }
 
-// Keyboard and trackpad: until the messenger UI exists, every key and
-// trackpad movement is logged, so the wiring can be checked on the serial
-// monitor (docs/handheld-proto.md §6).
+// Keyboard module: until the UI takes them (ui.cpp), keys and trackpad
+// motion are logged, so the wiring can be checked on the serial monitor
+// (docs/handheld-proto.md §6).
 void input_loop(Millis now) {
-  static mesh::keys::Matrix keys(board::keyboard());
-  static Millis last_scan = 0, last_track = 0;
+  static Millis last_track = 0;
   static int track_x = 0, track_y = 0;
-  if (now - last_scan >= 5) {
-    last_scan = now;
-    uint8_t scan[mesh::keys::kMaxCols] = {};
-    board::scan_keys(scan);
-    mesh::keys::Event ev[8];
-    size_t n = keys.update(scan, uint32_t(now), ev, 8);
-    for (size_t i = 0; i < n; i++) {
-      const mesh::keys::KeyDef& d = board::keyboard().at(ev[i].pos);
-      logf("key R%d C%d %s %c", ev[i].pos.row, ev[i].pos.col, ev[i].pressed ? "down" : "up",
-           d.latin ? d.latin : '-');
-    }
-  }
-  int8_t dx, dy;
-  if (g_trackpad && trackpad::read(&dx, &dy)) {
-    track_x += dx;
-    track_y += dy;
-  }
+  mesh::keys::Output out[8];
+  size_t n = kbmodule::poll(uint32_t(now), out, 8, &track_x, &track_y);
+  for (size_t i = 0; i < n; i++) logf("key action %u U+%04lX", unsigned(out[i].action), (unsigned long)out[i].cp);
   if ((track_x || track_y) && now - last_track >= 250) {
     last_track = now;
     logf("trackpad %+d %+d", track_x, track_y);
@@ -235,10 +220,16 @@ void setup() {
   logf("BLE %s as %s (passkey %06lu); Wi-Fi %s, setup switch %s", ble_ok ? "ok" : "FAILED", name,
        (unsigned long)g_net.ble_passkey, net_ok ? "ok" : "FAILED", board::setup_switch_on() ? "ON" : "off");
   logf("hotspot %s, device password: %s", name, g_net.password);
-  g_trackpad = trackpad::begin();
-  logf("keyboard: %s; trackpad %s", board::keyboard().variant == mesh::keys::Variant::Matrix7x7 ? "7x7 matrix" : "BlackBerry 9900",
-       g_trackpad ? "ok (ADBS-A320)" : "none");
-  board::keyboard_backlight(64);
+#if defined(I2C_SDA) && defined(I2C_SCL)
+  Wire.begin(I2C_SDA, I2C_SCL, 400000);
+  static const char* kVariants[] = {"7x7 matrix", "BlackBerry 9900", "BlackBerry 9900 + trackpad"};
+  if (kbmodule::begin()) {
+    logf("keyboard module: %s", kVariants[int(kbmodule::variant())]);
+    kbmodule::backlight(64);
+  } else {
+    logf("keyboard module: none");
+  }
+#endif
   logf("ready; attach meshd ([lora] port = this serial port), pair a phone, or watch the air");
 }
 
