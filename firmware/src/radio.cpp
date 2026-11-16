@@ -27,15 +27,33 @@ void on_dio1() { g_irq = true; }
 bool apply(const mesh::host::NodeConfig& cfg, bool first) {
   const mesh::host::PresetInfo& p = mesh::host::kPresets[cfg.preset];
   const mesh::host::RegionInfo& r = mesh::host::kRegions[cfg.region];
+#ifdef MESH_BACKEND_MESHTASTIC
+  // Meshtastic LongFast radio parameters. The channel/frequency must match
+  // the Meshtastic mesh configured on the node.
+  constexpr float kMeshtasticBwKHz = 250.0f;
+  constexpr uint8_t kMeshtasticSf = 11;
+  constexpr uint8_t kMeshtasticCr = 1;  // RadioLib 4/(4+1) = 4/5
+  constexpr uint8_t kMeshtasticSync = 0x2B;
+  constexpr uint16_t kMeshtasticPreamble = 16;
+  float mhz = cfg.channel_hz() / 1e6f;
+  float bw_khz = kMeshtasticBwKHz;
+  int8_t dbm = cfg.tx_dbm;
+#else
   float mhz = cfg.channel_hz() / 1e6f;
   float bw_khz = p.bw_hz / 1000.0f;
   int8_t dbm = cfg.tx_dbm;
+#endif
   if (dbm > r.max_dbm) dbm = r.max_dbm;
   if (dbm > 22) dbm = 22;
   int16_t st;
   if (first) {
+#ifdef MESH_BACKEND_MESHTASTIC
+    st = g_radio.begin(mhz, bw_khz, kMeshtasticSf, kMeshtasticCr + 4, kMeshtasticSync, dbm,
+                       kMeshtasticPreamble, RADIO_TCXO_MV / 1000.0f, false);
+#else
     st = g_radio.begin(mhz, bw_khz, p.sf, p.cr + 4, kSyncWord, dbm, kPreambleSymbols, RADIO_TCXO_MV / 1000.0f,
                        false);
+#endif
     if (st != RADIOLIB_ERR_NONE) return false;
 #if RADIO_DIO2_RF_SWITCH
     g_radio.setDio2AsRfSwitch(true);
@@ -48,8 +66,13 @@ bool apply(const mesh::host::NodeConfig& cfg, bool first) {
     g_radio.standby();
     if (g_radio.setFrequency(mhz) != RADIOLIB_ERR_NONE) return false;
     if (g_radio.setBandwidth(bw_khz) != RADIOLIB_ERR_NONE) return false;
+#ifdef MESH_BACKEND_MESHTASTIC
+    if (g_radio.setSpreadingFactor(kMeshtasticSf) != RADIOLIB_ERR_NONE) return false;
+    if (g_radio.setCodingRate(kMeshtasticCr + 4) != RADIOLIB_ERR_NONE) return false;
+#else
     if (g_radio.setSpreadingFactor(p.sf) != RADIOLIB_ERR_NONE) return false;
     if (g_radio.setCodingRate(p.cr + 4) != RADIOLIB_ERR_NONE) return false;
+#endif
     if (g_radio.setOutputPower(dbm) != RADIOLIB_ERR_NONE) return false;
   }
   g_txing = false;
