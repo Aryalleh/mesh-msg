@@ -20,7 +20,6 @@ constexpr char kRxUuid[]      = "7b2f0002-5a56-4d61-7661-4d6176610001";
 constexpr char kTxUuid[]      = "7b2f0003-5a56-4d61-7661-4d6176610001";
 
 constexpr uint32_t kWifiRetryMs = 10000;
-constexpr uint32_t kRelayRetryMs = 3000;
 
 struct RelayItem {
   uint16_t len;
@@ -148,7 +147,7 @@ bool Gateway::forward_lora(const Item& item, node::Millis now) {
   return true;
 }
 
-void Gateway::loop(route::Millis now) {
+void Gateway::loop(node::Millis now) {
   while (rx_tail_ != rx_head_) {
     Item item = rx_[rx_tail_];
     rx_tail_ = uint8_t((rx_tail_ + 1) % kQueueDepth);
