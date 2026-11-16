@@ -10,6 +10,7 @@ void run_net();
 void run_store();
 void run_node();
 void run_meshtastic();
+void run_keys();
 
 int main(int argc, char** argv) {
   const char* vectors = argc > 1 ? argv[1] : "../spec/test-vectors/vectors.json";
@@ -21,6 +22,7 @@ int main(int argc, char** argv) {
   run_store();
   run_node();
   run_meshtastic();
+  run_keys();
   if (check::failures() != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", check::failures());
     return 1;

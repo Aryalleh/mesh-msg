@@ -1,5 +1,5 @@
-// Board glue for the Mava custom board (docs/board.md): ESP32-S3-N16R8 with an
-// SX1262. Pins come from the build flags in platformio.ini.
+// Board glue for the Mava handheld (docs/board.md, docs/handheld-proto.md):
+// ESP32-S3-N16R8, SX1262, ILI9341 + XPT2046, WM8960, 7 × 7 key matrix. Pins come from the build flags in platformio.ini.
 #pragma once
 
 #include <cstddef>
@@ -14,12 +14,15 @@ uint64_t now_ms();
 uint32_t random32();
 void random_bytes(uint8_t* out, size_t n);
 
-void init();  // radio power pin, LED, ADC, setup switch
+void init();  // chip selects, strapping pins, keyboard matrix
 void led(bool on);
+// One scan of the keyboard matrix: out[col] bit row = pressed (mesh::keys).
+void scan_keys(uint8_t out[]);
 uint16_t battery_mv();  // 0 = unknown / mains
 
 // The physical setup switch (docs/board.md §2): on = hotspot + setup panel,
-// off = join the saved Wi-Fi. Debounced by the caller.
+// off = join the saved Wi-Fi. A position of the keyboard matrix on the
+// handheld (docs/handheld-proto.md §4). Debounced by the caller.
 bool setup_switch_on();
 
 void reboot();

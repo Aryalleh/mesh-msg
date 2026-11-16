@@ -1299,3 +1299,21 @@ links. Chose: quick items in beta3; calls follow in later betas.
   `scripts/e2e-lora.sh`, `pio run` (RAM 36 %, flash 1.36 MB) all pass. Android/iOS: only a
   comment and UI strings changed; not rebuilt here. Nothing run on hardware.
 
+### 2026-11-16 — Handheld prototype wiring: ILI9341, WM8960, 7 × 7 key matrix
+
+- Owner chose the parts: Hailege 2.4" ILI9341 240×320 SPI + XPT2046 touch, Waveshare WM8960
+  audio module, a raw 14-pin key matrix (32 Persian letters, Alt + Shift to QWERTY, answer /
+  hang up, navigation, space, enter). Voice calls on the handheld; video receive-only at best.
+- `docs/handheld-proto.md`: parts, full ESP32-S3 pin map (all 31 GPIOs used: one SPI bus for
+  SX1262 + LCD + touch, SX1262 and LCD reset on EN, battery % by a MAX17048 on I2C, setup
+  switch inside the matrix, no LED), module pin tables, backlight high-side switch, power
+  path, matrix with diodes, ISIRI 9147 layout, layers, call/video plan, bring-up order.
+  The WM8960 module has no crystal (MCLK from GPIO 15); www.waveshare.com was not reachable
+  here to confirm its header names — check the silkscreen.
+- Firmware: `lib/meshkeys` (matrix debounce + layout, `test/keys_test.cpp`: every Persian
+  letter and a–z exactly once, layers, Alt + Shift, no ghosting with the switch latched);
+  `board.cpp` scans the matrix for the setup switch, holds LCD/touch CS high before the
+  radio uses the shared bus, keeps strap pins 45/46 low; `platformio.ini` pins updated
+  (SX1262 RST now EN → `RADIOLIB_NC`, LED gone). `make test`, `pio run` pass.
+- Not written: display (LVGL), touch, WM8960 driver, Opus, messenger UI, H.264 receive.
+

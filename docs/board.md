@@ -26,17 +26,20 @@ before they reach the board; the board only ever sees ciphertext.
 Phones and laptops are full nodes of the same mesh: each runs relay + Bluetooth itself, and
 uses LoRa through a board on USB (meshd, Android OTG) or Bluetooth (iPhone, Android).
 
-## 1. Hardware (first prototype)
+## 1. Hardware
+
+The board is built as the **handheld** (2.4" ILI9341 touch screen, WM8960 audio, 49-key
+matrix): the full wiring is in [handheld-proto.md](handheld-proto.md). The parts board.md
+relies on:
 
 | Part | Pin(s) |
 |---|---|
 | ESP32-S3-N16R8 (16 MB flash, 8 MB octal PSRAM) | native USB-C (CDC) for flashing, log and the USB host link |
-| SX1262 | SCK 12, MISO 13, MOSI 11, CS 10, DIO1 1, RESET 5, BUSY 4; TCXO 1.8 V; DIO2 drives the RF switch |
-| Setup switch (physical, latching) | GPIO 14 to GND = setup mode |
-| LED | GPIO 48 |
+| SX1262 | SCK 12, MISO 13, MOSI 11 (shared with the display), CS 10, DIO1 1, BUSY 4, NRESET → EN; TCXO 1.8 V; DIO2 drives the RF switch |
+| Setup switch (physical, latching) | a position of the key matrix (row R6 / GPIO 14, column C6 / GPIO 44), with its diode |
 
-The pins are build flags in `firmware/platformio.ini`; change them there when the final
-schematic is fixed. The board definition is `firmware/boards/esp32-s3-n16r8.json`.
+The pins are build flags in `firmware/platformio.ini`. The board definition is
+`firmware/boards/esp32-s3-n16r8.json`.
 
 ## 2. Setup: hotspot, captive portal, switch
 

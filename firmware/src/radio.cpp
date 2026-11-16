@@ -6,6 +6,12 @@
 
 #include "meshtastic.h"
 
+// SX1262 NRESET is tied to the ESP32-S3 EN line on the handheld (no GPIO
+// left): the radio resets with the chip, and begin() rewrites every setting.
+#ifndef RADIO_RST
+#define RADIO_RST RADIOLIB_NC
+#endif
+
 namespace radio {
 namespace {
 

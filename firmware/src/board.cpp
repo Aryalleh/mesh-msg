@@ -6,11 +6,35 @@
 #include <esp_random.h>
 #include <esp_system.h>
 
-#ifndef SETUP_SWITCH_ACTIVE
-#define SETUP_SWITCH_ACTIVE LOW  // switch closes to GND
-#endif
+#include "keys.h"
 
 namespace board {
+
+namespace {
+
+// Keyboard matrix (docs/handheld-proto.md §4): rows are inputs with pull-ups
+// (RTC GPIOs, so a key can wake the chip), columns are driven low one at a
+// time and float otherwise; a diode per key, cathode towards the column.
+constexpr uint8_t kRowPins[mesh::keys::kRows] = {KB_ROW_PINS};
+constexpr uint8_t kColPins[mesh::keys::kCols] = {KB_COL_PINS};
+
+uint8_t scan_column(int c) {
+  pinMode(kColPins[c], OUTPUT);
+  digitalWrite(kColPins[c], LOW);
+  delayMicroseconds(10);
+  uint8_t rows = 0;
+  for (int r = 0; r < mesh::keys::kRows; r++)
+    if (digitalRead(kRowPins[r]) == LOW) rows |= uint8_t(1u << r);
+  pinMode(kColPins[c], INPUT);
+  return rows;
+}
+
+void deselect(int pin) {
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, HIGH);
+}
+
+}  // namespace
 
 uint64_t now_ms() {
   static uint32_t last = 0;
@@ -39,29 +63,34 @@ void init() {
   digitalWrite(RADIO_POWER_PIN, HIGH);
   delay(10);
 #endif
-#ifdef LED_PIN
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
-#endif
-#ifdef SETUP_SWITCH_PIN
-  pinMode(SETUP_SWITCH_PIN, SETUP_SWITCH_ACTIVE == LOW ? INPUT_PULLUP : INPUT_PULLDOWN);
-#endif
+  // Shared SPI bus (LoRa, display, touch): every other chip select high
+  // before the radio uses it.
+  deselect(LCD_CS);
+  deselect(TOUCH_CS);
+  // Strapping pins 45 (backlight) and 46 (I2S DOUT) stay low: off, no pop.
+  pinMode(LCD_BL, OUTPUT);
+  digitalWrite(LCD_BL, LOW);
+  pinMode(I2S_DOUT, OUTPUT);
+  digitalWrite(I2S_DOUT, LOW);
+  for (uint8_t p : kRowPins) pinMode(p, INPUT_PULLUP);
+  for (uint8_t p : kColPins) pinMode(p, INPUT);
+}
+
+void scan_keys(uint8_t out[]) {
+  for (int c = 0; c < mesh::keys::kCols; c++) out[c] = scan_column(c);
 }
 
 void led(bool on) {
 #ifdef LED_PIN
   digitalWrite(LED_PIN, on ? HIGH : LOW);
 #else
-  (void)on;
+  (void)on;  // the handheld has no LED: activity shows on the screen
 #endif
 }
 
 bool setup_switch_on() {
-#ifdef SETUP_SWITCH_PIN
-  return digitalRead(SETUP_SWITCH_PIN) == SETUP_SWITCH_ACTIVE;
-#else
-  return false;
-#endif
+  mesh::keys::Pos p = mesh::keys::find(mesh::keys::Key::Setup);
+  return scan_column(p.col) >> p.row & 1;
 }
 
 uint16_t battery_mv() {

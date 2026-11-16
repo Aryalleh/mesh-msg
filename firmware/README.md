@@ -29,6 +29,8 @@ lib/meshnode/src/    the node application, still pure and host-tested
 lib/meshtastic/src/  the Meshtastic backbone: Mava packets as PRIVATE_APP payloads in
                      Meshtastic radio frames (channel AES-CTR, hash), relays under the
                      original sender/id so Meshtastic nodes do not flood twice
+lib/meshkeys/src/    handheld keyboard: 7 × 7 matrix debounce, Persian (ISIRI 9147) / QWERTY
+                     layers, Alt + Shift switch, phone and navigation keys
 lib/monocypher/      Monocypher 4.0.2 (X25519, Ed25519), vendored unmodified, CC0/BSD-2
 src/                 the board layer (Arduino / PlatformIO), nothing that decides anything:
   main                boots the node from flash (identity, config, stored packets) and runs
@@ -66,9 +68,11 @@ pio run -t upload        # flash over USB-C (esptool)
 pio device monitor       # log: device password, BLE passkey, packets heard
 ```
 
-Pins are build flags in `platformio.ini` (first prototype; change them to the final
-schematic): SX1262 SCK 12, MISO 13, MOSI 11, CS 10, DIO1 1, RESET 5, BUSY 4; setup switch
-GPIO 14 to GND; LED GPIO 48. **Not yet verified on hardware.**
+Pins are build flags in `platformio.ini`, wired as the handheld
+([docs/handheld-proto.md](../docs/handheld-proto.md)): SX1262 on the SPI bus it shares with
+the ILI9341 and touch (SCK 12, MOSI 11, MISO 13, CS 10, DIO1 1, BUSY 4, reset on EN), WM8960
+on I2S/I2C, a 7 × 7 key matrix whose last position is the setup switch. **Not yet verified on
+hardware.**
 
 Files in LittleFS: `/id` identity, `/cfg` node config, `/net` Wi-Fi + relay + channel +
 device password, `/cur` relay cursor, `/s00`–`/s63` stored packets. `WIPE` (from a host)
