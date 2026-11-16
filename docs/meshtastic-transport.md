@@ -6,6 +6,12 @@ Mava owns end-to-end encryption, logical transfer IDs, chunk ordering/reassembly
 and duplicate suppression. Meshtastic owns radio framing, hop/rebroadcast
 behavior, and its own packet/node IDs.
 
+## Application port
+
+Initial interoperability uses Meshtastic PRIVATE_APP / portnum 256.
+Meshtastic documents 256-511 as private application ports; a public Mava port
+can be registered later once the wire format is stable.
+
 ## Envelope
 
 The transport envelope is 17 bytes:
@@ -33,17 +39,26 @@ after all chunks arrive. Selective ACKs use a 16-bit bitmap.
 
 ## Meshtastic compatibility
 
-The adapter should send this binary envelope as a dedicated Meshtastic
-application portnum. A normal Meshtastic node does not need to parse Mava.
-Relay nodes intended to carry Mava traffic must not use CORE_PORTNUMS_ONLY,
-because that setting restricts rebroadcasting to standard Meshtastic portnums.
+The envelope is sent as binary application data on port 256. A normal
+Meshtastic node does not need to parse Mava. Relay nodes intended to carry
+Mava traffic must not use CORE_PORTNUMS_ONLY, because that setting restricts
+rebroadcasting to standard Meshtastic portnums.
+
+For initial testing, configure the Meshtastic relay nodes to rebroadcast
+private application traffic. The exact relay behavior must be verified with
+the firmware version and device role used in the field.
+
+## Security
 
 The envelope is not a cryptographic boundary. Mava's existing E2E encryption
 remains authoritative. Meshtastic packet IDs are never used as Mava transfer IDs.
 
 ## Integration boundary
 
-This commit adds the reusable transfer/envelope layer and strict parsing. It
-does not embed a full Meshtastic protobuf implementation into Mava firmware.
-The next adapter step is wiring this envelope to a Meshtastic radio interface
-and registering a Mava application portnum.
+This commit adds the reusable transfer/envelope layer and a small firmware
+adapter for the Meshtastic application payload/port. It intentionally does not
+embed a Meshtastic protobuf implementation into Mava firmware.
+
+The remaining board-specific work is to connect encode_app/decode_app to
+the chosen Meshtastic radio/serial interface and then feed decoded Mava chunks
+into the existing Mava router/transfer manager.
