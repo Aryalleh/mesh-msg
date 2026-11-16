@@ -25,6 +25,7 @@
 #include "net.h"
 #include "node.h"
 #include "radio.h"
+#include "trackpad.h"
 
 using mesh::route::Millis;
 
@@ -41,6 +42,7 @@ mesh::meshtastic::Backend g_mt;
 net::Settings g_net;
 SemaphoreHandle_t g_lock = nullptr;
 bool g_radio_ok = false;
+bool g_trackpad = false;
 Millis g_led_off = 0;
 char g_line[160];
 
@@ -153,6 +155,37 @@ void describe(const char* what, const uint8_t* raw, size_t n, uint32_t from, int
        p.id[3], p.dest[0], p.dest[1], p.dest[2], p.dest[3], snr);
 }
 
+// Keyboard and trackpad: until the messenger UI exists, every key and
+// trackpad movement is logged, so the wiring can be checked on the serial
+// monitor (docs/handheld-proto.md §6).
+void input_loop(Millis now) {
+  static mesh::keys::Matrix keys(board::keyboard());
+  static Millis last_scan = 0, last_track = 0;
+  static int track_x = 0, track_y = 0;
+  if (now - last_scan >= 5) {
+    last_scan = now;
+    uint8_t scan[mesh::keys::kMaxCols] = {};
+    board::scan_keys(scan);
+    mesh::keys::Event ev[8];
+    size_t n = keys.update(scan, uint32_t(now), ev, 8);
+    for (size_t i = 0; i < n; i++) {
+      const mesh::keys::KeyDef& d = board::keyboard().at(ev[i].pos);
+      logf("key R%d C%d %s %c", ev[i].pos.row, ev[i].pos.col, ev[i].pressed ? "down" : "up",
+           d.latin ? d.latin : '-');
+    }
+  }
+  int8_t dx, dy;
+  if (g_trackpad && trackpad::read(&dx, &dy)) {
+    track_x += dx;
+    track_y += dy;
+  }
+  if ((track_x || track_y) && now - last_track >= 250) {
+    last_track = now;
+    logf("trackpad %+d %+d", track_x, track_y);
+    track_x = track_y = 0;
+  }
+}
+
 void on_channel_changed(const net::Settings& s) {
   bool ok = g_mt.set_channel(channel_of(s));
   logf("Meshtastic channel %s (hash %u) %s", s.channel, g_mt.channel_hash(), ok ? "" : "INVALID");
@@ -202,6 +235,10 @@ void setup() {
   logf("BLE %s as %s (passkey %06lu); Wi-Fi %s, setup switch %s", ble_ok ? "ok" : "FAILED", name,
        (unsigned long)g_net.ble_passkey, net_ok ? "ok" : "FAILED", board::setup_switch_on() ? "ON" : "off");
   logf("hotspot %s, device password: %s", name, g_net.password);
+  g_trackpad = trackpad::begin();
+  logf("keyboard: %s; trackpad %s", board::keyboard().variant == mesh::keys::Variant::Matrix7x7 ? "7x7 matrix" : "BlackBerry 9900",
+       g_trackpad ? "ok (ADBS-A320)" : "none");
+  board::keyboard_backlight(64);
   logf("ready; attach meshd ([lora] port = this serial port), pair a phone, or watch the air");
 }
 
@@ -275,6 +312,9 @@ void loop() {
 
   // ---- BLE host (port 1) ----
   ble::loop(node, now);
+
+  // ---- keyboard, trackpad ----
+  input_loop(now);
 
   // ---- Wi-Fi: setup switch, hotspot panel, NTP ----
   net::loop(now);

@@ -1,6 +1,14 @@
 # Mava handheld — prototype wiring
 
-The handheld built from modules: the Mava board's ESP32-S3-N16R8 and SX1262 (board.md), a
+Three versions share everything except the input devices:
+
+| Version | Keyboard | Pointing | Firmware env |
+|---|---|---|---|
+| **A** | our own 7 × 7 diode matrix (§4) | touch screen | `mava_handheld_s3` |
+| **B** | original BlackBerry Bold 9900 keyboard (§7) | touch screen | `mava_handheld_bb` |
+| **C** | original BlackBerry Bold 9900 keyboard (§7) | BlackBerry 9900 optical trackpad (§8), no touch | `mava_handheld_bbtp` |
+
+§1–§6 describe version A; §7 and §8 list what B and C change. The handheld built from modules: the Mava board's ESP32-S3-N16R8 and SX1262 (board.md), a
 2.4" ILI9341 touch display, a Waveshare WM8960 audio module and a 49-key diode matrix on 14
 GPIOs. It does everything board.md describes (LoRa on the Meshtastic backbone, BLE, USB,
 Wi-Fi relay, setup hotspot), plus a screen, a keyboard and voice calls. Firmware pins:
@@ -208,3 +216,107 @@ the soft keys shown at the bottom of the screen.
 4. ILI9341 + backlight, then touch, on the same bus while LoRa runs.
 5. WM8960: I2C probe at 0x1A, then a 1 kHz tone on each speaker driver, then mic loopback.
 6. Firmware for the UI, messaging and calls (not written yet).
+
+## 7. Version B — BlackBerry 9900 keyboard
+
+The original keypad of the BlackBerry Bold 9900 (QWERTY or QWERTZ legends, both work)
+replaces our matrix. Everything else is as version A, touch screen included.
+
+**Matrix.** 39 keys on **7 rows × 6 columns = 13 lines** of the keypad's flex, mapped by
+ZitaoTech's RP2040 board for the same keypad (BB9900-USB-keyboard, QMK `info.json`). The
+keypad has no diodes; its layout keeps normal combinations (Alt or Shift + a key) free of
+ghosting. Three positions are unused on the flex; our board adds a switch at each, **with a
+diode** (cathode to the column) so they cannot cause ghosts:
+
+| | C0 (38) | C1 (39) | C2 (40) | C3 (41) | C4 (42) | C5 (43) |
+|---|---|---|---|---|---|---|
+| **R0 (0)** | *Setup switch* | W | G | S | L | H |
+| **R1 (3)** | A | Q | R | E | O | U |
+| **R2 (6)** | 📞 Call | 0 | F | ⇧ left | K | J |
+| **R3 (7)** | ⛔ End | Space | C | Z (QWERTZ: Y) | M | N |
+| **R4 (8)** | ⊞ BlackBerry (Menu) | Sym | T | D | I | Y (QWERTZ: Z) |
+| **R5 (9)** | ↩ Back | Alt | V | X | $ | B |
+| **R6 (14)** | *Vol + side key* | *Vol − side key* | ⇧ right | P | Del | ⏎ Enter |
+
+Italic positions are on our board, not on the keypad. The flex lines' order is not
+published: **wire them to the GPIOs, flash `mava_handheld_bb`, and press each key** — the
+USB log prints `key R<r> C<c> down`. Swap wires (or the order in `KB_ROW_PINS` /
+`KB_COL_PINS`) until every key prints the position in the table. The keypad's connector is
+a board-to-board type whose part number the reference project does not give: measure the
+flex (contact count, pitch) and pick the matching receptacle, or solder fine wires to the
+flex pads for the prototype.
+
+**Pins (changes from A):**
+
+| GPIO | A | B |
+|---|---|---|
+| 38–43 | columns C0–C5 | columns C0–C5 (keypad flex) |
+| 44 | column C6 | **keyboard backlight** PWM → gate of an AO3400 N-FET (100 k to GND); the FET switches the keypad's LED return; series resistor chosen after measuring the LEDs' forward voltage |
+| 0, 3, 6, 7, 8, 9, 14 | rows R0–R6 | rows R0–R6 (keypad flex) |
+
+**Persian on 26 letter keys.** The letters stay on their ISIRI 9147 positions (as in A);
+the six letters ISIRI puts on punctuation keys go where a BlackBerry has room:
+
+| Key | Persian | Shift (Persian) | Alt (Persian) | Latin / Alt (printed) |
+|---|---|---|---|---|
+| Q W E R T Y U I O P | ض ص ث ق ف غ ع ه خ ح | — / ة on ه | U: **چ**, P: **ج**; W E R: ۱ ۲ ۳ | QWERTY letters / # 1 2 3 ( ) _ - + @ |
+| A S D F G H J K L | ش س ی ب ل ا ت ن م | ئ on ی, آ on ا | L: **گ**; S D F: ۴ ۵ ۶ | / * 4 5 6 / : ; ' " |
+| Z X C V B N M | ظ ط ز ر ذ د پ | ء on ز | B: **ژ**; Z X C: ۷ ۸ ۹ | / 7 8 9 ? ! , . |
+| $ | **و** | ؤ | — | $ |
+| 0 | **ک** | — | ۰ | 0 |
+
+- **Alt + Shift** (held together, or tapped one after the other) switches Persian ↔ Latin.
+- Alt and Shift work held or **tapped once for the next key**, as on a BlackBerry.
+- Shift + Space = ZWNJ (نیم‌فاصله).
+- **Sym** tapped opens the on-screen symbol and digit picker (@ « » ! ؟ … everything the
+  Persian Alt layer gave up for ج چ گ ژ). **Sym held**: E S D F are ▲ ◀ ▼ ▶, Enter is OK —
+  the arrows version A has as keys. The BlackBerry key is Menu, ↩ is Back, 📞 / ⛔ answer and
+  hang up.
+- Stickers with the Persian letters go on the keycaps (the 9900 keypad only exists with
+  Latin legends).
+
+## 8. Version C — BlackBerry 9900 keyboard + trackpad
+
+Version B plus the 9900's optical trackpad, which replaces the touch screen: the XPT2046
+lines (T_CLK, T_CS, T_DIN, T_DO, T_IRQ) stay unconnected, and GPIO 5 is free for the setup
+switch. The trackpad moves the selection (and the cursor in text); pressing it is OK.
+
+**Sensor:** Avago **ADBS-A320** optical finger navigation, **I2C at 0x3B**, product ID 0x83
+(register 0), motion register 0x02 (bit 7 = moved), ΔX 0x03, ΔY 0x04 (signed bytes).
+Pinout from stolen/blackberry_trackpad (cable seen from the back, pads towards you):
+
+| Trackpad pin | Function | To |
+|---|---|---|
+| 1 | dome switch A | row R0 (GPIO 0) |
+| 2 | dome switch B | diode → column C0 (GPIO 38): the click is matrix position (0,0) |
+| 3 | backlight LED − | 200 Ω → the keyboard-backlight FET's drain (dims with the keyboard) |
+| 4 | backlight LED + | 3.3 V |
+| 5 | DVDD | **1.8 V** from a small LDO (XC6206P182 or AP2112K-1.8): its own 1.8 V regulator is not used on this module |
+| 6 | VDDA / VDDIO / VLED+ | 3.3 V |
+| 7, 12 | GND | GND |
+| 8 | NRST | EN (resets with the chip) |
+| 9 | SDA | GPIO 47 (shared I2C) |
+| 10 | MOTION_N | not connected: the firmware polls register 0x02 |
+| 11 | SCL | GPIO 48 (shared I2C) |
+| 13 | SHTDWN | GND (always on) |
+
+Connector: the trackpad's 13-contact, 0.3 mm dual-row flex fits a **Hirose FH35C-17S**
+(two positions unused on each side); the flex is thinner than the connector expects, so a
+layer of Kapton tape behind it helps. With the trackpad on the bus, use **3.3 k** I2C
+pull-ups (the sensor's notes use 3 k) instead of 4.7 k. Don't swap the 1.8 V and 3.3 V
+pins: the sensor then answers at 0x33 and misbehaves.
+
+**Pins (changes from B):**
+
+| GPIO | B | C |
+|---|---|---|
+| 5 | touch CS | **setup switch** (latching, to GND; internal pull-up; RTC pin) |
+| 47 / 48 | I2C (WM8960, MAX17048) | + trackpad at 0x3B |
+
+Firmware: `trackpad.cpp` checks the product ID at start (the USB log says
+`trackpad ok (ADBS-A320)`) and logs movement until the UI uses it.
+
+Sources for §7–§8: ZitaoTech, *BB9900-USB-keyboard* (QMK keyboard for the 9900 keypad and
+trackpad: matrix, trackpad registers); stolen, *blackberry_trackpad* (9900 trackpad pinout,
+voltages, connector).
+

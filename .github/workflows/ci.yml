@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [mava_handheld_s3]
+        env: [mava_handheld_s3, mava_handheld_bb, mava_handheld_bbtp]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4

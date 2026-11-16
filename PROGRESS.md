@@ -1317,3 +1317,20 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (SX1262 RST now EN → `RADIOLIB_NC`, LED gone). `make test`, `pio run` pass.
 - Not written: display (LVGL), touch, WM8960 driver, Opus, messenger UI, H.264 receive.
 
+### 2026-11-16 — Handheld versions B and C: BlackBerry 9900 keyboard (+ trackpad)
+
+- Owner asked for a version with the BlackBerry Bold 9900 keyboard only (B) and one with the
+  9900 keyboard and its trackpad (C), next to the 7 × 7 matrix version (A).
+- From ZitaoTech/BB9900-USB-keyboard (QMK) and stolen/blackberry_trackpad: the keypad is a
+  7 × 6 matrix on 13 flex lines (39 keys, 3 free positions); the trackpad is an Avago
+  ADBS-A320 on I2C 0x3B (ID 0x83, motion 0x02, ΔX 0x03, ΔY 0x04), 1.8 V core + 3.3 V I/O,
+  13-contact 0.3 mm flex (Hirose FH35C-17S fits).
+- `lib/meshkeys`: keyboards per variant (`Matrix7x7`, `BB9900`, `BB9900Trackpad`); Persian
+  on the 9900 = ISIRI letters on the 26 letter keys, و on $, ک on 0, Alt + ح ع م ذ = ج چ گ ژ;
+  Alt / Shift also one-shot when tapped; Sym tap = symbol picker, Sym held = arrows on E S D F,
+  OK on Enter. Tests for all three.
+- Board: three envs (`mava_handheld_s3`, `_bb`, `_bbtp`), keyboard backlight on GPIO 44 (B, C),
+  setup switch on GPIO 5 in C (no touch), `trackpad.cpp`; key presses and trackpad movement
+  are logged so the unknown flex line order can be found by pressing keys. CI builds all three.
+- docs/handheld-proto.md §7 (B) and §8 (C). Keypad connector part number unknown (measure).
+
