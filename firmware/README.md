@@ -1,7 +1,8 @@
-# LoRa node firmware
+# Mava board firmware
 
-Design: [docs/firmware.md](../docs/firmware.md). This tree is being built bottom-up:
-board-independent libraries first, tested on the host, then the radio/board layer.
+Firmware for the Mava custom board (ESP32-S3-N16R8 + SX1262), the only supported LoRa
+device: [docs/board.md](../docs/board.md). Design of the node: [docs/firmware.md](../docs/firmware.md).
+Board-independent libraries, tested on the host, then a thin board layer.
 
 ```
 lib/meshproto/src/   pure C++17, no heap, no Arduino (runs on boards and on the host)
@@ -22,17 +23,22 @@ lib/meshroute/src/   LoRa managed-flood router: seen-cache (packet ID + fragment
 lib/meshnode/src/    the node application, still pure and host-tested
   hostlink           phone/PC byte stream (COBS frames + CRC, commands/events, config
                      TLVs, status block, region frequency plans, presets)
-  node               wires router + MAC + store to a radio and the host link: config,
-                     own announces once the host gives the time, backlog to the host
+  node               wires router + MAC + store to a radio, two host ports at once (USB,
+                     BLE) and the internet uplink: every packet in on one side goes out on
+                     all the others; config, own announces once the time is known
+lib/meshtastic/src/  the Meshtastic backbone: Mava packets as PRIVATE_APP payloads in
+                     Meshtastic radio frames (channel AES-CTR, hash), relays under the
+                     original sender/id so Meshtastic nodes do not flood twice
 lib/monocypher/      Monocypher 4.0.2 (X25519, Ed25519), vendored unmodified, CC0/BSD-2
 src/                 the board layer (Arduino / PlatformIO), nothing that decides anything:
   main                boots the node from flash (identity, config, stored packets) and runs
-                      the radio / host / timer loop; prints decoded headers of every packet
-                      heard until a host attaches over USB serial
-  radio               SX1262 through RadioLib: TX, RX, CAD, presets (8-symbol preamble,
-                      explicit header, CRC, auto LDRO — what the MAC's airtime assumes)
-  board               MCU/board glue: hardware RNG, LittleFS files, battery, LED, PMU
-                      rails (T-Beam), reboot; pins are build flags in platformio.ini
+                      the loop: Meshtastic radio, USB host (port 0), BLE host (port 1),
+                      Wi-Fi, timer; logs what is heard until a USB host attaches
+  radio               SX1262 through RadioLib: Meshtastic LongFast, TX, RX, CAD, retune
+  ble                 NimBLE GATT host link (docs/firmware.md §6), passkey pairing
+  net                 setup switch, hotspot + captive-portal panel, Wi-Fi, NTP, relay worker
+                      (POST /v1/gateway with proof of work: upload + long-poll)
+  board               hardware RNG, LittleFS files, LED, setup switch, reboot
 sim/                 meshnode-sim: real nodes on a simulated radio, one pty per node
 test/                host tests: spec/test-vectors conformance, edge cases, random-input
                      round-trip fuzz, router behaviour + router fuzz, MAC, and a multi-node
@@ -52,30 +58,21 @@ increments, fragment sets, link frames, identities, announces and receipts, incl
 rebuilding signed packets from their seeds. The compact-text vectors are end-to-end payload
 that nodes never see, so the firmware does not implement them.
 
-## Boards
+## Board
 
 ```
-pio run                          # all five: heltec_v3, tbeam_s3, tdeck_plus, rak4631, techo
-pio run -e heltec_v3 -t upload   # ESP32-S3 boards: esptool over USB
-pio run -e rak4631 -t upload     # nRF52 boards: double-tap reset, then nrfutil DFU
-pio device monitor               # decoded headers of everything heard
+pio run                  # build (env mava_handheld_s3)
+pio run -t upload        # flash over USB-C (esptool)
+pio device monitor       # log: device password, BLE passkey, packets heard
 ```
 
-| env | board | notes |
-|---|---|---|
-| `heltec_v3` | Heltec WiFi LoRa 32 V3 | battery ADC on GPIO1 |
-| `tbeam_s3` | LilyGO T-Beam Supreme (ESP32-S3) | AXP2101 PMU powers the radio rail |
-| `tdeck_plus` | LilyGO T-Deck Plus (868 MHz) | LoRa node only for now; display, keyboard, audio, GPS not driven (docs/tdeck.md) |
-| `rak4631` | RAKwireless RAK4631 (WisBlock) | radio power enable on P1.05 |
-| `techo` | LilyGO T-Echo | e-ink / GPS not driven yet |
+Pins are build flags in `platformio.ini` (first prototype; change them to the final
+schematic): SX1262 SCK 12, MISO 13, MOSI 11, CS 10, DIO1 1, RESET 5, BUSY 4; setup switch
+GPIO 14 to GND; LED GPIO 48. **Not yet verified on hardware.**
 
-The pin tables in `platformio.ini` follow the vendors' schematics and the usual open-source
-pin maps; they are **not yet verified on hardware** (no boards in the build container).
-The default config is EU_868 / BALANCED / 14 dBm / client; change it with
-`mesh lora set …` from meshd. Check local rules before transmitting.
-
-The node identity, config and stored packets live in LittleFS (`/id`, `/cfg`,
-`/s00`–`/s63`); `mesh lora set` persists, `WIPE` formats the file system.
+Files in LittleFS: `/id` identity, `/cfg` node config, `/net` Wi-Fi + relay + channel +
+device password, `/cur` relay cursor, `/s00`–`/s63` stored packets. `WIPE` (from a host)
+formats the file system, so a new device password is generated on the next boot.
 
 ## Next
 

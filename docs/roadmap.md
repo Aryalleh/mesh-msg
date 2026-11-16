@@ -6,13 +6,13 @@
 | **M1 Core + sim** | `core/` packet, identity, e2e, router, store; `sim/` drives it: phones, LoRa, regional + global relays, bridges, blackout scenario | delivery ratio / latency / airtime reported for Tehran ↔ Berlin and City A ↔ City B |
 | **M2 Relay** | `server/` relay: packets, mailbox, receipts, federation `/v1/sync`, gateway sessions | two relays federate; packet uploaded to one is fetched from the other |
 | **M3 Linux desktop** | `meshd` + `mesh` CLI: client, gateway, bridge roles, LAN interface | two Linux PCs chat via IR-style relay ↔ bridge ↔ EU-style relay |
-| **M4 LoRa link** | firmware radio, codec, router, store, hop ACK; USB serial to meshd | text crosses PC → node → repeater → node → PC |
+| **M4 LoRa link** | firmware radio, codec, router, store, hop ACK; USB serial to meshd; the Mava custom board on the Meshtastic backbone, two-way on USB, BLE and Wi-Fi relay ([board.md](board.md)) | text crosses PC → node → repeater → node → PC |
 | **M5 Android** | gomobile core, BLE mesh, LoRa-over-BLE, gateway mode, chat UI | message: phone (BLE) → phone gateway → relay → desktop |
 | **M6 Hardening** | panic wipe, APK sharing, Tor path, reproducible builds, security review | external review findings addressed |
 | **M7 Field test** | 10 km LoRa test + simulated domestic-only network test | measured delivery report |
 | **M8 Windows / macOS** | desktop builds + installers | |
 | **M9 Direct links + calls** | direct IP link across any NAT ([connectivity.md](connectivity.md)), then 1:1 voice calls on Android ([calls.md](calls.md), stream-based so video can be added later) | call between two phones behind different NATs and on one hotspot; relay counters show zero audio bytes |
-| **M11 T-Deck Plus handheld** | board support (T0, done), then device UI, remote identity import, stand-alone messaging, calls over Wi-Fi ([tdeck.md](tdeck.md)) | a T-Deck with no phone exchanges messages with a phone over LoRa and a relay, and makes a call over Wi-Fi |
+| ~~M11 T-Deck Plus handheld~~ | dropped 2026-11-16: only the Mava custom board is supported (decisions.md D22) | |
 | **M10 iPhone app** | Go core as an iOS framework (`gomobile bind -target=ios`, built on a macOS CI runner); native SwiftUI app: chat over relays, Bluetooth mesh (Core Bluetooth, foreground first), push from relays through APNs for messages and calls (PushKit + CallKit), LoRa through a node's Bluetooth host link (firmware.md §6; iPhones can't use USB LoRa nodes), TestFlight distribution | iPhone ↔ Android message over Bluetooth and over a relay; iPhone ↔ Android call; incoming message and call arrive while the app is in the background |
 
 iOS limits that shape M10: no always-running background service, so an iPhone is an endpoint,

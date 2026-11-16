@@ -250,7 +250,7 @@ struct SettingsView: View {
             } header: {
                 Text("LoRa node")
             } footer: {
-                Text("An iPhone can't use a node on a cable. Use a node with Bluetooth (Heltec V3, T-Beam, T-Deck and similar).")
+                Text("An iPhone can't use a node on a cable. Pair the Mava board over Bluetooth with the 6-digit passkey from its setup panel.")
             }
             Section("Relays") {
                 ForEach(relays) { r in

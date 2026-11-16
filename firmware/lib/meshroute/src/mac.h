@@ -26,11 +26,14 @@ struct Preset {
   uint8_t sf;      // spreading factor 6..12
   uint32_t bw_hz;  // bandwidth
   uint8_t cr;      // coding rate 1..4 → 4/5..4/8
+  uint8_t preamble = 8;  // preamble symbols
 };
 
 // docs/firmware.md §4.
 constexpr Preset kFast{7, 250000, 1};
 constexpr Preset kBalanced{9, 125000, 1};
+// Meshtastic LongFast, the board's only modulation (docs/board.md §3).
+constexpr Preset kMeshtasticLongFast{11, 250000, 1, 16};
 constexpr Preset kLong{11, 125000, 4};
 
 // airtime_us is the Semtech SX126x time on air for a payload of n bytes:

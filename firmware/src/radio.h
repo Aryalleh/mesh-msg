@@ -1,8 +1,8 @@
-// SX1262 through RadioLib, in the shape node::Node expects (docs/firmware.md
-// §4, §5): a frame is a raw LoRa payload (sender short ID || packet), modulation
-// comes from the node's preset — 8-symbol preamble, explicit header, CRC on, low
-// data rate optimisation chosen by RadioLib exactly as mac::airtime_us assumes
-// — private sync word, frequency / power from the node's config.
+// SX1262 through RadioLib on the Meshtastic backbone (docs/board.md §3): a
+// frame is a Meshtastic radio packet (meshtastic::Backend wraps the Mava
+// packet); modulation is LongFast — SF11, 250 kHz, 4/5, 16-symbol preamble,
+// sync word 0x2B, explicit header, CRC on, as mac::kMeshtasticLongFast
+// assumes. Frequency and power come from the node's config.
 #pragma once
 
 #include <cstddef>

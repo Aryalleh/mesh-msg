@@ -19,13 +19,10 @@ import org.meshmsg.meshcore.StreamOpener
 import java.io.IOException
 
 /**
- * Tier 1: a LoRa node on a USB-OTG cable (docs/android.md §5). Speaks USB
- * CDC-ACM directly — the serial class of boards with native USB (ESP32-S3:
- * T-Beam Supreme; nRF52840: RAK4631, T-Echo) — and hands the byte stream to
- * the core, which runs the same host link meshd uses.
- *
- * Boards behind a USB-UART bridge chip (Heltec V3: CP2102) need that chip's
- * vendor protocol, which is not implemented yet.
+ * Tier 1: the Mava board on a USB-OTG cable (docs/android.md §5,
+ * docs/board.md). Speaks USB CDC-ACM directly — the ESP32-S3's native USB —
+ * and hands the byte stream to the core, which runs the same host link
+ * meshd uses.
  */
 class UsbLoRa(private val context: Context) : StreamOpener {
     private val usb = context.getSystemService(UsbManager::class.java)

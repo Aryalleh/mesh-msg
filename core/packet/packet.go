@@ -20,7 +20,10 @@ const (
 	// and know whose rebroadcast acknowledges a frame (docs/firmware.md §5).
 	LoRaLinkHeader = 1
 	// LoRaMTU is the hard limit for any packet that may cross the LoRa layer.
-	LoRaMTU = LoRaRadioMax - LoRaLinkHeader
+	// LoRa runs on the Meshtastic backbone (docs/board.md): a Mava packet is
+	// the payload of a Meshtastic private-app Data message, whose payload is
+	// capped at 233 bytes (Meshtastic DATA_PAYLOAD_LEN).
+	LoRaMTU = 233
 	// MaxFragments is the number of fragments one packet may be split into.
 	MaxFragments = 16
 	// FragBodySize is the body bytes available per fragment on LoRa

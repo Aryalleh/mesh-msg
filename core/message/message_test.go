@@ -12,8 +12,9 @@ import (
 func TestShortPersianFitsOneFrame(t *testing.T) {
 	ali, _ := identity.Generate()
 	sara, _ := identity.Generate()
-	// ~170 Persian characters must fit one LoRa frame for a known contact.
-	text := strings.Repeat("سلامدوستمن", 17) // 170 runes
+	// ~150 Persian characters must fit one LoRa frame (233-byte Meshtastic
+	// payload) for a known contact.
+	text := strings.Repeat("سلامدوستمن", 15) // 150 runes
 	pkts, err := BuildText(ali, sara.Public, text, Options{KnownContact: true})
 	if err != nil {
 		t.Fatal(err)

@@ -30,8 +30,9 @@ using route::Priority;
 constexpr size_t kSlots = MESH_STORE_SLOTS;
 
 enum Sink : uint8_t {
-  kSinkPhone = 1 << 0,
-  kSinkUplink = 1 << 1,
+  kSinkPhone = 1 << 0,   // host port 0 (USB)
+  kSinkUplink = 1 << 1,  // internet relay
+  kSinkHost1 = 1 << 2,   // host port 1 (BLE)
 };
 
 enum class Origin : uint8_t { Air = 0, Phone = 1, Uplink = 2, Local = 3 };

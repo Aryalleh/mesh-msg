@@ -9,7 +9,7 @@ uint32_t airtime_us(const Preset& p, size_t n) {
   // Work in nanoseconds so every common bandwidth gives an exact symbol time.
   const uint64_t tsym = (uint64_t(1) << p.sf) * 1000000000ull / p.bw_hz;
   const int de = tsym > 16000000ull ? 1 : 0;  // low data rate optimisation
-  const uint64_t preamble = tsym * 49 / 4;    // (8 + 4.25) symbols
+  const uint64_t preamble = tsym * (4 * uint64_t(p.preamble) + 17) / 4;  // (preamble + 4.25) symbols
   const int64_t num = 8 * int64_t(n) - 4 * int64_t(p.sf) + 28 + 16;  // CRC on, explicit header
   const int64_t den = 4 * (int64_t(p.sf) - 2 * de);
   int64_t nsym = 0;

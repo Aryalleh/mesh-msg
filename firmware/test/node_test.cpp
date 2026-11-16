@@ -51,11 +51,12 @@ struct Frame {
 struct Host {
   host::Decoder dec;
   std::vector<Frame> got;
+  size_t port = 0;
 
   void send(mesh::node::Node& n, uint8_t kind, const Bytes& payload, Millis now) {
     uint8_t buf[host::kMaxEncoded];
     size_t e = host::encode(kind, payload.data(), payload.size(), buf, sizeof buf);
-    n.host_rx(buf, e, now);
+    n.host_rx(port, buf, e, now);
   }
   void cmd(mesh::node::Node& n, uint8_t op, uint8_t req, const Bytes& args, Millis now) {
     Bytes p = {op, req};
@@ -65,7 +66,7 @@ struct Host {
   void drain(mesh::node::Node& n, size_t chunk = 20) {
     uint8_t buf[64];
     for (;;) {
-      size_t k = n.host_tx(buf, chunk < sizeof buf ? chunk : sizeof buf);
+      size_t k = n.host_tx(port, buf, chunk < sizeof buf ? chunk : sizeof buf);
       if (k == 0) break;
       size_t off = 0;
       while (off < k) {
@@ -458,9 +459,109 @@ void fuzz() {
   CHECK(n.config().valid());
 }
 
+// USB and BLE hosts at once plus the internet uplink: whatever enters on
+// one side reaches every other side exactly once.
+void two_hosts_and_uplink() {
+  Rig r(20), rx(21);
+  auto& n = *r.node;
+  Host usb, ble;
+  ble.port = 1;
+  usb.cmd(n, host::kOpHello, 1, be32(1767225600), 1000);
+  ble.cmd(n, host::kOpHello, 1, {}, 1000);
+  usb.drain(n);
+  ble.drain(n);
+  CHECK(usb.events(host::kEvStatus).size() == 1 && ble.events(host::kEvStatus).size() == 1);
+  CHECK(n.host_attached(0) && n.host_attached(1) && n.any_host_attached());
+
+  // USB → BLE + uplink + air, not back to USB.
+  Bytes d1 = data_packet(0x10);
+  usb.send(n, host::kKindPacket, d1, 1000);
+  usb.drain(n);
+  ble.drain(n);
+  CHECK(usb.packets().empty());
+  auto bp = ble.packets();
+  CHECK(bp.size() == 1 && bp[0] == d1);
+  uint8_t body[1024];
+  uint32_t seqs[8];
+  size_t k = 0;
+  size_t bn = n.uplink_take(body, sizeof body, seqs, 8, &k);
+  CHECK(k == 1 && bn == 4 + d1.size() && body[3] == d1.size() && Bytes(body + 4, body + bn) == d1);
+  // Upload failed: handed back, taken again; then nothing left.
+  n.uplink_return(seqs, k);
+  CHECK(n.uplink_take(body, sizeof body, seqs, 8, &k) == bn && k == 1);
+  CHECK(n.uplink_take(body, sizeof body, seqs, 8, &k) == 0 && k == 0);
+
+  // Uplink → both hosts and the air, not back to the uplink; once only.
+  Bytes d2 = data_packet(0x20, 0xa0);
+  CHECK(n.uplink_rx(d2.data(), d2.size(), 2000));
+  CHECK(!n.uplink_rx(d2.data(), d2.size(), 2000));
+  usb.drain(n);
+  ble.drain(n);
+  auto up = usb.packets(), bl = ble.packets();
+  CHECK(up.size() == 1 && up[0] == d2 && bl.size() == 1 && bl[0] == d2);
+  CHECK(n.uplink_take(body, sizeof body, seqs, 8, &k) == 0);
+  Air air;
+  air.now = 2000;
+  std::vector<mesh::node::Node*> two = {&n, rx.node.get()};
+  air.run(two, 20000);
+  rx.host.cmd(*rx.node, host::kOpHello, 1, {}, air.now);
+  rx.host.drain(*rx.node);
+  int heard_d1 = 0, heard_d2 = 0;
+  for (auto& p : rx.host.packets()) {
+    mesh::Packet q;
+    if (mesh::decode(p.data(), p.size(), q) != mesh::Err::Ok) continue;
+    heard_d1 += q.id[0] == 0x10;
+    heard_d2 += q.id[0] == 0x20 && q.hop_count == 1;  // another tier: hop counted
+  }
+  CHECK(heard_d1 == 1 && heard_d2 == 1);
+
+  // Air → both hosts and the uplink.
+  Bytes d3 = data_packet(0x30, 0xb0);
+  rx.host.send(*rx.node, host::kKindPacket, d3, air.now);
+  air.run(two, air.now + 20000);
+  usb.drain(n);
+  ble.drain(n);
+  CHECK(usb.packets().size() == 1 && ble.packets().size() == 1);
+  CHECK(n.uplink_take(body, sizeof body, seqs, 8, &k) > 0 && k == 1);
+
+  // An identity announced over BLE is served by the gateway fetch.
+  Bytes s = seed(99);
+  mesh::Identity id = mesh::Identity::from_seed(s.data());
+  mesh::AppData app;
+  uint8_t pid[8] = {1, 2, 3, 4, 5, 6, 7, 8}, abody[mesh::kMaxAnnounceBody];
+  mesh::Packet ap;
+  CHECK(mesh::build_announce(id, 1767225700, app, 3, pid, abody, sizeof abody, ap) == mesh::AnnounceErr::Ok);
+  Bytes araw(ap.size());
+  size_t an = 0;
+  mesh::encode(ap, araw.data(), araw.size(), &an);
+  ble.send(n, host::kKindPacket, araw, air.now);
+  uint8_t served[4][16];
+  CHECK(n.served(served, 4) == 1 && std::memcmp(served[0], ap.dest, 16) == 0);
+  usb.drain(n);
+  CHECK(usb.packets().size() == 1);
+
+  // BLE drops mid-stream: what it did not receive comes again on reconnect.
+  Bytes d4 = data_packet(0x40, 0xc0);
+  usb.send(n, host::kKindPacket, d4, air.now);
+  n.host_detach(1);
+  CHECK(!n.host_attached(1) && n.host_attached(0));
+  ble = Host();
+  ble.port = 1;
+  ble.cmd(n, host::kOpHello, 2, {}, air.now);
+  ble.drain(n);
+  auto again = ble.packets();
+  CHECK(again.size() == 1 && again[0] == d4);
+  // Resync on one port leaves the other alone.
+  ble.cmd(n, host::kOpResync, 3, {}, air.now);
+  ble.drain(n);
+  usb.drain(n);
+  CHECK(ble.packets().size() >= 4 && usb.packets().empty());
+}
+
 }  // namespace
 
 void run_node() {
+  two_hosts_and_uplink();
   commands();
   announces();
   relay_through_nodes();

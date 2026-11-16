@@ -1,0 +1,69 @@
+# Mava over Meshtastic: transfer envelope (not used yet)
+
+> The board does not use this envelope: it puts each Mava packet (≤ 233 bytes, the
+> LoRa MTU) straight into a Meshtastic PRIVATE_APP payload, and Mava's own fragmentation
+> splits larger messages (docs/board.md §3). `core/transfer` is kept for transfers larger
+> than Mava's 16-fragment limit, if they are ever needed on LoRa.
+
+Mava uses Meshtastic as a transport/relay, not as the owner of Mava messages.
+
+Mava owns end-to-end encryption, logical transfer IDs, chunk ordering/reassembly,
+and duplicate suppression. Meshtastic owns radio framing, hop/rebroadcast
+behavior, and its own packet/node IDs.
+
+## Application port
+
+Initial interoperability uses Meshtastic PRIVATE_APP / portnum 256.
+Meshtastic documents 256-511 as private application ports; a public Mava port
+can be registered later once the wire format is stable.
+
+## Envelope
+
+The transport envelope is 17 bytes:
+- 0..1 magic: MV
+- 2 version: 1
+- 3 kind: DATA=1, ACK=2, CANCEL=3
+- 4 flags
+- 5..12 transfer_id
+- 13..14 chunk_index
+- 15..16 total_chunks
+- 17.. body
+
+The current Meshtastic API exposes a 233-byte application DATA payload limit,
+so this leaves 216 bytes for Mava transfer data. The implementation rejects
+larger payloads.
+
+## Large transfers
+
+A logical Mava body is split into independent chunks. The existing Mava
+packet.Packet 16-fragment limit remains a per-packet limit and is no longer
+the logical size limit for a transfer.
+
+A receiver stores chunks by transfer_id and chunk_index and can reassemble
+after all chunks arrive. Selective ACKs use a 16-bit bitmap.
+
+## Meshtastic compatibility
+
+The envelope is sent as binary application data on port 256. A normal
+Meshtastic node does not need to parse Mava. Relay nodes intended to carry
+Mava traffic must not use CORE_PORTNUMS_ONLY, because that setting restricts
+rebroadcasting to standard Meshtastic portnums.
+
+For initial testing, configure the Meshtastic relay nodes to rebroadcast
+private application traffic. The exact relay behavior must be verified with
+the firmware version and device role used in the field.
+
+## Security
+
+The envelope is not a cryptographic boundary. Mava's existing E2E encryption
+remains authoritative. Meshtastic packet IDs are never used as Mava transfer IDs.
+
+## Integration boundary
+
+This commit adds the reusable transfer/envelope layer and a small firmware
+adapter for the Meshtastic application payload/port. It intentionally does not
+embed a Meshtastic protobuf implementation into Mava firmware.
+
+The remaining board-specific work is to connect encode_app/decode_app to
+the chosen Meshtastic radio/serial interface and then feed decoded Mava chunks
+into the existing Mava router/transfer manager.

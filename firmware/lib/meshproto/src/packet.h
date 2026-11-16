@@ -12,7 +12,9 @@ constexpr uint8_t kVersion = 1;
 constexpr size_t kHeaderSize = 26;
 constexpr size_t kLoRaRadioMax = 255;  // SX126x maximum radio payload
 constexpr size_t kLoRaLinkHeader = 1;  // sender short ID (docs/firmware.md §5)
-constexpr size_t kLoRaMTU = kLoRaRadioMax - kLoRaLinkHeader;
+// Meshtastic backbone: a Mava packet is a Meshtastic private-app payload,
+// capped at 233 bytes (DATA_PAYLOAD_LEN). Same value as core/packet.LoRaMTU.
+constexpr size_t kLoRaMTU = 233;
 constexpr size_t kMaxFragments = 16;
 constexpr size_t kFragBodySize = kLoRaMTU - kHeaderSize - 1;
 constexpr size_t kMaxSize = 64 * 1024;

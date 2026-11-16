@@ -1,20 +1,16 @@
 # LoRa Node Firmware ("hardware framework")
 
-## 1. Hardware targets
+## 1. Hardware target
 
-| Board | MCU | Radio | Use |
-|---|---|---|---|
-| Heltec WiFi LoRa 32 V3 | ESP32-S3 | SX1262 | client / gateway (cheap, has Wi-Fi, OLED) |
-| LilyGO T-Beam Supreme | ESP32-S3 | SX1262 | client with GPS, 18650 holder |
-| RAKwireless RAK4631 (WisBlock) | nRF52840 | SX1262 | solar repeater (very low power) |
-| LilyGO T-Echo | nRF52840 | SX1262 | pocket client, e-ink |
-| LilyGO T-Deck Plus | ESP32-S3 | SX1262 | LoRa node today; planned stand-alone handheld with screen, keyboard, microphone and speaker ([tdeck.md](tdeck.md)) |
+One board: the **Mava custom board** (ESP32-S3-N16R8 + SX1262), described in
+[board.md](board.md) — its pins, the setup switch and hotspot, the Meshtastic backbone,
+BLE and the Wi-Fi relay worker. Earlier off-the-shelf boards (Heltec V3, T-Beam S3, T-Deck
+Plus, RAK4631, T-Echo) are no longer supported (decisions.md D22).
 
-All share the SX1262, so one radio driver. MCU differences are hidden behind a small HAL.
-
-**Repeater kit (rooftop):** RAK4631 + 5–8 dBi omni (or Yagi for fixed point-to-point
-backbone links) + 6 W solar panel + LiFePO4 cell + IP65 box. Antenna height matters more than
-power: 10 km between cities needs line of sight from elevated sites.
+On air the board speaks Meshtastic (LongFast, Mava packets as PRIVATE_APP payloads), so the
+sections below on the native LoRa link header, presets and region plans describe the Mava
+router and MAC, which run unchanged on top: the router's frames go through the Meshtastic
+adapter (`lib/meshtastic`) instead of straight to the radio.
 
 ## 2. Node roles
 
@@ -161,9 +157,9 @@ firmware/
 
 Everything that decides anything is in `lib/` and runs on the host: `node::Node` takes
 received frames, host bytes and the time, and says what to transmit, when to do CAD and what
-to send to the host. `src/` is the only Arduino code. Planned, not yet built: the BLE phone
-link (§6), direct uplinks (§2b: Wi-Fi, Ethernet, cellular), display and GPS, deep sleep for
-the solar repeater.
+to send to the host. `src/` is the only Arduino code: radio, USB, the BLE phone link (§6),
+Wi-Fi (setup hotspot + relay worker, board.md §2, §5). Not built: Ethernet and cellular
+uplinks, display, GPS, deep sleep.
 
 ## 4. Radio presets
 
@@ -196,9 +192,10 @@ Service  6d657368-6c72-0000-8000-00805f9b34fb     ("meshlr", then the Bluetooth 
 ```
 
 The bytes are the host link stream of §2b, unchanged (COBS frames, any split across
-writes/notifications). The node advertises the service and its name. The iPhone app already
-speaks this (`ios/Mava/LoRaBle.swift`, docs/ios.md §4: iPhones can't use a USB node); the
-firmware side is **not implemented yet**.
+writes/notifications). The node advertises the service and its name. The iPhone app speaks this
+(`ios/Mava/LoRaBle.swift`, docs/ios.md §4: iPhones can't use a USB node); the board
+implements it as host port 1 (`firmware/src/ble.cpp`), next to USB on port 0. Writing needs
+a bonded link (6-digit passkey, board.md §4).
 
 Frame: `kind(1) | len(2) | payload`. `kind`: 0 = mesh packet, 1 = command, 2 = event,
 3 = uplink tunnel (gateway session bytes, §2b).

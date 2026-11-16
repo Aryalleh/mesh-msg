@@ -1,4 +1,5 @@
-# Host build of the board-independent firmware libraries.
+# Host build of the board-independent firmware libraries (needs OpenSSL's
+# libcrypto for the Meshtastic channel AES).
 #   make test     build and run the tests (ASan + UBSan) against spec/test-vectors
 #   make sim      build build/meshnode-sim (real nodes on a simulated radio, ptys for meshd)
 
@@ -6,28 +7,28 @@ CC ?= cc
 CXX ?= c++
 BUILD := build
 SAN := -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all
-INC := -Ilib/meshproto/src -Ilib/meshroute/src -Ilib/meshnode/src -Ilib/monocypher/src
+INC := -Ilib/meshproto/src -Ilib/meshroute/src -Ilib/meshnode/src -Ilib/meshtastic/src -Ilib/monocypher/src
 CFLAGS := -std=c99 -O1 -g $(SAN) $(INC)
 CXXFLAGS := -std=c++17 -O1 -g -Wall -Wextra -Wpedantic -Wshadow -Werror $(SAN) $(INC)
 
 LIB_C := lib/monocypher/src/monocypher.c lib/monocypher/src/monocypher-ed25519.c
-LIB_CXX := $(wildcard lib/meshproto/src/*.cpp lib/meshroute/src/*.cpp lib/meshnode/src/*.cpp)
+LIB_CXX := $(wildcard lib/meshproto/src/*.cpp lib/meshroute/src/*.cpp lib/meshnode/src/*.cpp lib/meshtastic/src/*.cpp)
 TEST_CXX := $(wildcard test/*.cpp)
 OBJS := $(LIB_C:%.c=$(BUILD)/%.o) $(LIB_CXX:%.cpp=$(BUILD)/%.o) $(TEST_CXX:%.cpp=$(BUILD)/%.o)
-HDRS := $(wildcard lib/meshproto/src/*.h lib/meshroute/src/*.h lib/meshnode/src/*.h test/*.h)
+HDRS := $(wildcard lib/meshproto/src/*.h lib/meshroute/src/*.h lib/meshnode/src/*.h lib/meshtastic/src/*.h test/*.h)
 
 .PHONY: test sim clean
 test: $(BUILD)/host_tests
 	./$(BUILD)/host_tests ../spec/test-vectors/vectors.json
 
 $(BUILD)/host_tests: $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lcrypto
 
 # Native node simulator (real nodes on a simulated radio, one pty per node).
 LIB_OBJS := $(LIB_C:%.c=$(BUILD)/%.o) $(LIB_CXX:%.cpp=$(BUILD)/%.o)
 sim: $(BUILD)/meshnode-sim
 $(BUILD)/meshnode-sim: $(LIB_OBJS) $(BUILD)/sim/meshsim.o
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lcrypto
 
 $(BUILD)/%.o: %.c
 	@mkdir -p $(dir $@)

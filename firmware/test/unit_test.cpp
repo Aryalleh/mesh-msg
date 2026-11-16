@@ -101,7 +101,7 @@ void hops_and_frames() {
   uint8_t pkt[mesh::kLoRaMTU + 1] = {};
   size_t n = 0;
   CHECK(mesh::encode_link_frame(1, pkt, mesh::kLoRaMTU, frame, sizeof frame, &n) == mesh::Err::Ok &&
-        n == mesh::kLoRaRadioMax);
+        n == mesh::kLoRaMTU + mesh::kLoRaLinkHeader);
   CHECK(mesh::encode_link_frame(1, pkt, mesh::kLoRaMTU + 1, frame, sizeof frame, &n) == mesh::Err::TooLarge);
   uint8_t sender;
   const uint8_t* raw;

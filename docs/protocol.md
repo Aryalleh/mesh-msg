@@ -82,7 +82,7 @@ Inner plaintext:
 
 Persian/Arabic in UTF-8 is 2 bytes/char (≈ 87 chars per frame). Content type 1 uses a
 **window encoding** (SCSU-style: one byte per char inside the Arabic block, escape for others)
-followed by an optional static-dictionary compressor, targeting ~150–170 Persian chars per
+followed by an optional static-dictionary compressor, targeting ~150 Persian chars per
 frame. To be specified and benchmarked in M0.
 
 Forward secrecy: v0 gets partial FS from the ephemeral `e`. v1 adds periodic key rotation

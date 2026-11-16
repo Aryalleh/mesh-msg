@@ -4,7 +4,7 @@
 #include <RadioLib.h>
 #include <SPI.h>
 
-#include "mac.h"
+#include "meshtastic.h"
 
 namespace radio {
 namespace {
@@ -14,28 +14,27 @@ volatile bool g_irq = false;
 bool g_txing = false;
 bool g_ok = false;
 
-// Private-network LoRa sync word: we are not LoRaWAN.
-constexpr uint8_t kSyncWord = RADIOLIB_SX126X_SYNC_WORD_PRIVATE;
-constexpr uint16_t kPreambleSymbols = 8;
+// Meshtastic LongFast (docs/board.md §3): the board joins the Meshtastic
+// backbone, so modulation, sync word and preamble are Meshtastic's. Region
+// and frequency come from the node config; the frequency must be the one
+// the local Meshtastic mesh uses (869.525 MHz for EU_868, 906.875 MHz for US
+// with the default LongFast channel).
+constexpr float kBwKHz = 250.0f;
+constexpr uint8_t kSf = 11;
+constexpr uint8_t kCr = 5;  // 4/5
+constexpr uint8_t kSyncWord = 0x2B;
+constexpr uint16_t kPreamble = 16;
 
-#if defined(ESP32)
 void IRAM_ATTR on_dio1() { g_irq = true; }
-#else
-void on_dio1() { g_irq = true; }
-#endif
 
 bool apply(const mesh::host::NodeConfig& cfg, bool first) {
-  const mesh::host::PresetInfo& p = mesh::host::kPresets[cfg.preset];
   const mesh::host::RegionInfo& r = mesh::host::kRegions[cfg.region];
   float mhz = cfg.channel_hz() / 1e6f;
-  float bw_khz = p.bw_hz / 1000.0f;
   int8_t dbm = cfg.tx_dbm;
   if (dbm > r.max_dbm) dbm = r.max_dbm;
   if (dbm > 22) dbm = 22;
-  int16_t st;
   if (first) {
-    st = g_radio.begin(mhz, bw_khz, p.sf, p.cr + 4, kSyncWord, dbm, kPreambleSymbols, RADIO_TCXO_MV / 1000.0f,
-                       false);
+    int16_t st = g_radio.begin(mhz, kBwKHz, kSf, kCr, kSyncWord, dbm, kPreamble, RADIO_TCXO_MV / 1000.0f, false);
     if (st != RADIOLIB_ERR_NONE) return false;
 #if RADIO_DIO2_RF_SWITCH
     g_radio.setDio2AsRfSwitch(true);
@@ -47,9 +46,6 @@ bool apply(const mesh::host::NodeConfig& cfg, bool first) {
   } else {
     g_radio.standby();
     if (g_radio.setFrequency(mhz) != RADIOLIB_ERR_NONE) return false;
-    if (g_radio.setBandwidth(bw_khz) != RADIOLIB_ERR_NONE) return false;
-    if (g_radio.setSpreadingFactor(p.sf) != RADIOLIB_ERR_NONE) return false;
-    if (g_radio.setCodingRate(p.cr + 4) != RADIOLIB_ERR_NONE) return false;
     if (g_radio.setOutputPower(dbm) != RADIOLIB_ERR_NONE) return false;
   }
   g_txing = false;
@@ -60,14 +56,7 @@ bool apply(const mesh::host::NodeConfig& cfg, bool first) {
 }  // namespace
 
 bool begin(const mesh::host::NodeConfig& cfg) {
-#if defined(ESP32)
   SPI.begin(RADIO_SCK, RADIO_MISO, RADIO_MOSI, RADIO_CS);
-#elif defined(NRF52_RADIO_SPI_PINS)
-  SPI.setPins(RADIO_MISO, RADIO_SCK, RADIO_MOSI);
-  SPI.begin();
-#else
-  SPI.begin();
-#endif
   g_ok = apply(cfg, true);
   return g_ok;
 }
@@ -78,7 +67,7 @@ bool configure(const mesh::host::NodeConfig& cfg) {
 }
 
 bool transmit(const uint8_t* frame, size_t n) {
-  if (!g_ok || g_txing || n == 0 || n > mesh::kLoRaRadioMax) return false;
+  if (!g_ok || g_txing || n == 0 || n > mesh::meshtastic::kRadioMax) return false;
   g_irq = false;
   if (g_radio.startTransmit(const_cast<uint8_t*>(frame), n) != RADIOLIB_ERR_NONE) {
     g_radio.startReceive();

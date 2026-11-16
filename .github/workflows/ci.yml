@@ -36,16 +36,17 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - run: sudo apt-get install -y libssl-dev  # Meshtastic channel AES in the host tests
       - run: make -C firmware test
       - run: scripts/e2e-lora.sh
 
   firmware-boards:
-    name: Firmware builds (${{ matrix.env }})
+    name: Firmware build (Mava board, ${{ matrix.env }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        env: [heltec_v3, tbeam_s3, rak4631, techo]
+        env: [mava_handheld_s3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4

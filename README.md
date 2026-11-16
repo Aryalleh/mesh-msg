@@ -70,8 +70,10 @@ M0–M3 implemented: Go core, simulator, relay and Linux desktop (`meshd` + `mes
 with language-neutral test vectors. M4 (LoRa firmware): the whole node
 (protocol, router, MAC, store, host link) is board-independent and host-tested against the same
 vectors (`make -C firmware test`); `scripts/e2e-lora.sh` sends a text PC → node → repeater →
-node → PC with real firmware nodes on a simulated radio; PlatformIO builds for Heltec V3,
-T-Beam S3, RAK4631 and T-Echo exist but are not yet verified on hardware. M5 (Android): the core is bound with gomobile
+node → PC with real firmware nodes on a simulated radio; the firmware for the Mava custom
+board (ESP32-S3 + SX1262: USB, BLE and Wi-Fi relay at once, LoRa on the Meshtastic backbone,
+setup hotspot behind a physical switch — [docs/board.md](docs/board.md)) builds but is not yet
+verified on hardware. M5 (Android): the core is bound with gomobile
 (`mobile/`), and `android/` has the app — Compose UI in Persian and English, BLE mesh
 transport, USB LoRa link, foreground service — built and tested on the JVM, not yet on phones.
 See [roadmap](docs/roadmap.md).

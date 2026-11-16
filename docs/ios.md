@@ -56,8 +56,8 @@ it stops the app after a while: an iPhone is an endpoint, not a relay or gateway
 ## 4. LoRa on an iPhone
 
 An iPhone can't use a LoRa node on a cable (no USB serial access for apps), so the node
-must offer the host link over Bluetooth: boards with BLE such as Heltec V3, T-Beam,
-T-Deck, T-Echo, RAK4631. The host link bytes are the same as over USB (firmware.md §2b):
+must offer the host link over Bluetooth: the Mava board does (board.md §4; pairing asks
+for the board's 6-digit passkey). The host link bytes are the same as over USB (firmware.md §2b):
 
 ```
 Service  6d657368-6c72-0000-8000-00805f9b34fb

@@ -47,7 +47,7 @@ platform APIs, but BLE behaviour differs between phone makers — expect bring-u
 
 ## Not built yet (docs/android.md)
 
-Wi-Fi Direct bulk transfer, LoRa node over BLE (needs the firmware's BLE host link) and USB
-bridge chips (CP2102: Heltec V3), QR scanning (the app shows your QR and accepts pasted /
+Wi-Fi Direct bulk transfer, the Mava board over BLE (the firmware side exists: docs/board.md §4),
+QR scanning (the app shows your QR and accepts pasted /
 shared `meshmsg:` links), node configuration UI, bridge mode, database encryption with a
 Keystore key, app PIN, duress wipe, disguised icon, APK sharing — the last five are M6.

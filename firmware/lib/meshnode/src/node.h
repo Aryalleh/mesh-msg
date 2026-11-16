@@ -1,14 +1,23 @@
-// The node application (docs/firmware.md §2, §5, §6): wires the router, MAC
-// and store to a radio and to a host (phone over BLE or PC over USB, one
-// byte stream in core/hostlink format). Pure C++17 and I/O-free, so the
-// whole node runs in the host tests; the board layer (src/) only moves
+// The node application (docs/firmware.md §2, §5, §6, docs/board.md): wires
+// the router, MAC and store to a radio, to up to kHostPorts hosts at once
+// (PC over USB, phone over BLE; each one byte stream in core/hostlink format)
+// and to an internet uplink (the relay worker). Pure C++17 and I/O-free, so
+// the whole node runs in the host tests; the board layer (src/) only moves
 // bytes and calls these methods:
 //
-//   radio:  radio_rx() on every received frame;
+//   radio:  radio_rx() on every received link frame, or air_rx() for a
+//           packet a radio backend (Meshtastic) already unwrapped;
 //           loop { a = radio_next(now): Idle → listen until a.wake,
 //                  Cad → radio_cad(busy), Transmit → send, radio_tx_done() }
-//   host:   host_attach() / host_detach(), host_rx(bytes), host_tx(buf) drains output
+//   host:   host_attach(port) / host_detach(port), host_rx(port, bytes),
+//           host_tx(port, buf) drains that port's output
+//   uplink: uplink_take() packets the relay does not have, uplink_done() /
+//           uplink_return() after the upload, uplink_rx() what the relay sent
 //   timer:  tick(now) about once a second
+//
+// Every packet that enters on one side (air, a host, the uplink) is stored
+// and handed to all the others: the store keeps one "already has it" bit per
+// host port and one for the uplink.
 #pragma once
 
 #include <cstddef>
@@ -32,6 +41,8 @@ constexpr size_t kHostOut = 4096;               // host output buffer (bytes)
 constexpr size_t kNeighbours = 32;
 constexpr Millis kNeighbourTTL = 3600ull * 1000;
 constexpr size_t kInflight = 32;  // packets in the host output buffer
+constexpr size_t kHostPorts = 2;  // 0 = USB, 1 = BLE on the board
+constexpr size_t kServed = 32;    // identities announced near us (gateway serve list)
 
 // What the board provides.
 class Platform {
@@ -51,29 +62,58 @@ class Platform {
 struct Stats {
   uint32_t host_packets_in = 0, host_packets_rejected = 0, host_bad_frames = 0;
   uint32_t host_packets_out = 0, host_events_dropped = 0, announces = 0;
+  uint32_t uplink_in = 0, uplink_out = 0;
 };
 
 class Node {
  public:
   // seed: the node identity (x25519 || ed25519 seeds, from flash; generated
   // on first boot). random: a hardware random value.
+  // modulation: if set, the MAC times frames with it instead of the
+  // config's preset (the board's radio always runs Meshtastic LongFast).
   Node(const host::NodeConfig& cfg, const uint8_t seed[kSeedSize], Platform& platform,
-       store::Persist* persist, uint32_t random);
+       store::Persist* persist, uint32_t random, const mac::Preset* modulation = nullptr);
 
   // ---- radio ----
   void radio_rx(const uint8_t* frame, size_t n, int snr_db, Millis now);
   mac::Action radio_next(Millis now);
   void radio_cad(bool busy, Millis now);
   void radio_tx_done(Millis now);
+  // air_rx takes one packet (no link header) that a radio backend unwrapped
+  // from its own framing; sender is a one-byte hint of who transmitted it.
+  void air_rx(const uint8_t* raw, size_t n, uint8_t sender, int snr_db, Millis now);
 
   // ---- host ----
-  void host_attach(Millis now);
-  void host_detach();
-  bool host_attached() const { return attached_; }
-  void host_rx(const uint8_t* b, size_t n, Millis now);
-  // host_tx copies up to cap pending output bytes; returns how many.
-  size_t host_tx(uint8_t* out, size_t cap);
-  size_t host_pending() const { return out_len_; }
+  void host_attach(size_t port, Millis now);
+  void host_detach(size_t port);
+  bool host_attached(size_t port) const { return port < kHostPorts && ports_[port].attached; }
+  bool any_host_attached() const;
+  void host_rx(size_t port, const uint8_t* b, size_t n, Millis now);
+  // host_tx copies up to cap pending output bytes of port; returns how many.
+  size_t host_tx(size_t port, uint8_t* out, size_t cap);
+  size_t host_pending(size_t port) const { return port < kHostPorts ? ports_[port].out_len : 0; }
+  size_t hosts_pending() const;
+  // Single-host form (port 0), as used by the simulator and older tests.
+  void host_attach(Millis now) { host_attach(0, now); }
+  void host_detach() { host_detach(0); }
+  bool host_attached() const { return host_attached(0); }
+  void host_rx(const uint8_t* b, size_t n, Millis now) { host_rx(0, b, n, now); }
+  size_t host_tx(uint8_t* out, size_t cap) { return host_tx(0, out, cap); }
+  size_t host_pending() const { return host_pending(0); }
+
+  // ---- uplink (internet relay) ----
+  // uplink_take writes packets the relay does not have yet into out as
+  // relay frames (len u32 BE || packet), at most max packets, and their
+  // store sequence numbers into seqs. They count as taken until
+  // uplink_done() (uploaded) or uplink_return() (upload failed).
+  size_t uplink_take(uint8_t* out, size_t cap, uint32_t* seqs, size_t max, size_t* count);
+  void uplink_return(const uint32_t* seqs, size_t count);
+  // uplink_rx takes one packet the relay sent: stored for the hosts and
+  // broadcast on LoRa. Returns false if it was invalid or not new.
+  bool uplink_rx(const uint8_t* raw, size_t n, Millis now);
+  // served copies the destinations announced near us (air or hosts), for the
+  // relay's gateway fetch; returns how many.
+  size_t served(uint8_t (*out)[16], size_t max) const;
 
   void tick(Millis now);
   // A reboot (or wipe) was requested; the board reboots once host output drained.
@@ -81,6 +121,11 @@ class Node {
 
   // Restores a stored record read back from flash at boot.
   bool restore(size_t slot, const store::Record& r, Millis now);
+
+  // apply_config validates, saves and applies a new config (as SET_CONFIG).
+  bool apply_config(const host::NodeConfig& c, Millis now);
+  // set_time gives the node the Unix time (a host's HELLO, or NTP over Wi-Fi).
+  void set_time(uint32_t unix_now, Millis now);
 
   host::Status status(Millis now) const;
   const host::NodeConfig& config() const { return cfg_; }
@@ -96,12 +141,32 @@ class Node {
  private:
   Millis first_announce(Millis now);  // 5–30 s from now
   static route::Config router_config(const host::NodeConfig& c, uint8_t short_id, uint32_t random);
-  static mac::Config mac_config(const host::NodeConfig& c, uint32_t random);
-  void command(const uint8_t* p, size_t n, Millis now);
-  bool emit(uint8_t kind, const uint8_t* payload, size_t n);
-  void event(uint8_t ev, uint8_t req, const uint8_t* data, size_t n);
-  void ack(uint8_t op, uint8_t req, uint8_t status);
+  static mac::Config mac_config(const host::NodeConfig& c, uint32_t random, const mac::Preset* modulation);
+  struct Inflight {
+    uint32_t seq;
+    size_t end;  // offset in out just past the frame
+  };
+  struct Port {
+    host::Decoder dec;
+    uint8_t out[kHostOut];
+    size_t out_len = 0;
+    Inflight inflight[kInflight];
+    size_t inflight_n = 0;
+    bool attached = false;
+  };
+  static uint8_t sink_of(size_t port);
+  void command(size_t port, const uint8_t* p, size_t n, Millis now);
+  bool emit(size_t port, uint8_t kind, const uint8_t* payload, size_t n);
+  void event(size_t port, uint8_t ev, uint8_t req, const uint8_t* data, size_t n);
+  void ack(size_t port, uint8_t op, uint8_t req, uint8_t status);
   void pump();
+  void pump(size_t port);
+  // ingest handles a new packet from any side: purges on receipts (if purge:
+  // the receipt is verified or from a trusted host), learns announced
+  // destinations, stores it for every sink but `have`.
+  void ingest(const Packet& p, const uint8_t* raw, size_t n, store::Origin origin, uint8_t have, bool purge,
+              Millis now);
+  void serve(const uint8_t dest[16]);
   void announce(Millis now);
   void heard(uint8_t sender, Millis now);
   uint32_t rand32();
@@ -109,23 +174,16 @@ class Node {
   host::NodeConfig cfg_;
   Identity id_;
   Platform& platform_;
+  const mac::Preset* modulation_;
   uint8_t short_id_;
   uint32_t rng_;
   route::Router router_;
   mac::Mac mac_;
   store::Store store_;
-  host::Decoder dec_;
-
-  uint8_t out_[kHostOut];
-  size_t out_len_ = 0;
-  struct Inflight {
-    uint32_t seq;
-    size_t end;  // offset in out_ just past the frame
-  };
-  Inflight inflight_[kInflight];
-  size_t inflight_n_ = 0;
-  bool attached_ = false;
+  Port ports_[kHostPorts];
   bool reboot_ = false;
+  uint8_t served_[kServed][16] = {};
+  size_t served_n_ = 0, served_next_ = 0;
 
   uint32_t unix_at_ = 0;      // unix time given by the host...
   Millis unix_given_ = 0;     // ...at this uptime

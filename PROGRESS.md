@@ -12,7 +12,7 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 | M1 Core + sim | done |
 | M2 Relay | done — relay `eu-1` (`https://eu-1.mfadem.ir`, Let's Encrypt via Caddy; `http://87.106.5.192` is the same relay) runs and is the default relay in meshd and the Android app |
 | M3 Linux desktop | done (`meshd` + `mesh` CLI + web UI) |
-| M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`); board layer builds for all four boards (`pio run`), **not yet run on hardware** |
+| M4 LoRa link | **in progress** — exit criterion met in simulation (`scripts/e2e-lora.sh`); one board only now, the **Mava custom board** (ESP32-S3-N16R8 + SX1262, [docs/board.md](docs/board.md)): USB + BLE + Wi-Fi relay two-way at once, LoRa on the Meshtastic backbone, setup hotspot behind a physical switch; `pio run` builds, **not yet run on hardware** |
 | M5 Android | **in progress** — core binding + app built and tested on the JVM (65 tests, screenshots); exit scenario passes in Go; **radio code never run on a phone** |
 | M6–M8 | not started |
 | Model S power board | routed, DRC clean, JLC package in `hardware/power-s/jlc/`, not yet ordered |
@@ -23,10 +23,13 @@ Needs hardware now, for both open milestones:
 - **M5**: install `android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` on two phones;
   bring up `BleMesh` (advertise / scan / GATT both ways), then the exit scenario on real
   devices (phone A offline → BLE → phone B with a relay → desktop). Then USB node on OTG.
-- **M4**: flash two boards, verify pin tables (firmware/README.md).
+- **M4**: flash two Mava boards (pins in firmware/platformio.ini are the first prototype's);
+  check: log shows device password + BLE passkey; setup switch → hotspot `Mava-XXXX` →
+  captive panel → save Wi-Fi → switch off → relay "online"; LoRa against a Meshtastic node
+  (it must relay our frames); iPhone pairing over BLE; meshd on USB.
 
-Software that can still be done without hardware: firmware BLE host link (docs/firmware.md §6)
-+ Android LoRa-over-BLE, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
+Software that can still be done without hardware: Android LoRa-over-BLE to the board,
+meshd Bluetooth to phones, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
 Plan of record: docs/roadmap.md "Beta criteria" (alpha → beta) and "Code changes required by the 2026-11-12 design decisions".
 **v0.1.1-beta1 (first beta)**: update check B7 built (signed `release.json`, relay `GET /v1/release`,
 meshd/web UI/`mesh update`, Android banner + notification + verified APK install). The release job
@@ -1265,3 +1268,34 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - docs/ios.md (what exists, iOS limits, next steps); firmware.md §6 now fixes the LoRa host
   link GATT UUIDs (`6d657368-6c72-000x-…`). **Firmware side of that service is not written.**
 - Written without a Mac: never run on a simulator or phone; CI only compiles it.
+
+### 2026-11-16 — Mava custom board only; Meshtastic backbone; hotspot setup (M4)
+
+- Owner: drop every board, build one custom board (keep `mava_handheld_s3`); it must be
+  two-way on internet relay, BLE and LoRa-on-Meshtastic, phones and laptops use LoRa through
+  it over USB; Wi-Fi is set up from a hotspot + captive portal while a **physical switch** is
+  on, and joins the saved Wi-Fi when it is off. Everything on `main`.
+- Merged `feature/meshtastic-transfer` (did not compile: `#` comments in
+  `gateway_config.h`, missing members in `handheld.cpp`, nRF boards pulled in Wi-Fi/NimBLE)
+  and reworked it:
+  - **LoRa MTU 233** (Meshtastic DATA_PAYLOAD_LEN) in Go and C++; vectors regenerated; one
+    frame ≈ 150 Persian chars (tests adjusted). Link frames longer than the MTU rejected
+    (router fuzz found the overflow).
+  - `firmware/lib/meshtastic` (replaces `lib/meshtransport`): portable, host-tested; channel
+    hash (LongFast = 8 checked), AES-CTR (mbedtls on board, OpenSSL on host), relays under
+    the original sender/id with hop limit − 1, own retries keep their id, own packets
+    relayed back = implicit ACK. MAC times frames with LongFast airtime.
+  - `node::Node`: two host ports at once (USB 0, BLE 1; per-port store sink), uplink API
+    (`uplink_take/return/rx`, `served`), host packets reach the other host and the relay,
+    `apply_config`, `set_time`. New test `two_hosts_and_uplink`.
+  - Board layer rewritten: `ble.cpp` (GATT host link of firmware.md §6, bonded passkey),
+    `net.cpp` (switch, hotspot `Mava-XXXX` + captive panel in Persian, Wi-Fi, NTP, relay
+    worker on `/v1/gateway` with proof of work, Let's Encrypt roots), `main.cpp`, `radio.cpp`
+    (LongFast only), `board.cpp` (ESP32-S3 only). Old `gateway.*`/`handheld.*` removed.
+  - Removed Heltec/T-Beam/T-Deck/RAK/T-Echo envs, CI matrix, docs (`tdeck.md`, the branch's
+    `esp32s3-gateway.md`, `handheld-meshtastic.md`), app/desktop texts. New `docs/board.md`,
+    decision D22 (supersedes D21), roadmap M11 dropped.
+- Checks: `go build ./... && go test ./...`, `make -C firmware test` (+ `make sim`),
+  `scripts/e2e-lora.sh`, `pio run` (RAM 36 %, flash 1.36 MB) all pass. Android/iOS: only a
+  comment and UI strings changed; not rebuilt here. Nothing run on hardware.
+

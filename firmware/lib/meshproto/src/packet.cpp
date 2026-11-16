@@ -163,7 +163,7 @@ Err encode_link_frame(uint8_t sender, const uint8_t* raw, size_t n, uint8_t* out
 Err decode_link_frame(const uint8_t* frame, size_t n, uint8_t* sender, const uint8_t** raw,
                       size_t* raw_len) {
   if (n < kLoRaLinkHeader + kHeaderSize) return Err::Short;
-  if (n > kLoRaRadioMax) return Err::TooLarge;
+  if (n > kLoRaLinkHeader + kLoRaMTU) return Err::TooLarge;
   *sender = frame[0];
   *raw = frame + kLoRaLinkHeader;
   *raw_len = n - kLoRaLinkHeader;
