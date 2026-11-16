@@ -1346,3 +1346,17 @@ links. Chose: quick items in beta3; calls follow in later betas.
   9, setup switch 14, vibration motor 38; 3, 43, 44 free. Setup switch left the key tables.
 - CI builds the keyboard module. `make test`, `pio run` (ESP32 and RP2040) pass.
 
+### 2026-11-16 — Handheld UI framework and touch keyboard
+
+- LVGL 9.2 UI in `firmware/src/ui`: ILI9341 on its own SPI bus, XPT2046 touch, keypad
+  input from the keyboard module, trackpad as encoder; screens Home, Chats, Chat, Network,
+  Web access (URL + QR), Settings; status bar; sleep after 60 s.
+- Touch keyboard `lib/meshui/src/osk.*` (Persian ISIRI order + ZWNJ, Latin, symbols with
+  Persian / Latin digits), host-tested.
+- Host UI simulator (`make uishots`): found and fixed (1) keypad text must be UTF-8 packed in
+  a uint32 for LVGL, (2) LVGL 9.2 bidi lays Persian digits out RTL, (3) LVGL 9.2 draws ۲ as ۰
+  (bad table entry) — (2) and (3) patched at build time by `scripts/patch_lvgl.py`;
+  (4) DejaVu lacks « » … → own font from Vazirmatn (OFL) via lv_font_conv.
+- No messaging client core on the handheld yet: `ui::Messenger` interface, stub = local notes.
+- Screenshots in docs/images/handheld-ui. `make test`, `pio run` pass.
+

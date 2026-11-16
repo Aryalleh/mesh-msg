@@ -43,7 +43,12 @@ src/                 the board layer (Arduino / PlatformIO), nothing that decide
   ble                 NimBLE GATT host link (docs/firmware.md §6), passkey pairing
   net                 setup switch, hotspot + captive-portal panel, Wi-Fi, NTP, relay worker
                       (POST /v1/gateway with proof of work: upload + long-poll)
-  board               hardware RNG, LittleFS files, LED, setup switch, reboot
+  board               hardware RNG, LittleFS files, chip selects, setup switch, reboot
+  kbmodule            the keyboard module on I2C: key positions → text and actions
+  ui/                 LVGL UI: display (ILI9341 + XPT2046 touch), screens, touch keyboard,
+                      Messenger interface (stub: local notes), Vazirmatn font
+lib/meshui/src/      touch keyboard layouts (Persian, Latin, symbols), host-tested
+sim/ui/              the UI on the host: `make uishots` renders every screen to PPM
 sim/                 meshnode-sim: real nodes on a simulated radio, one pty per node
 test/                host tests: spec/test-vectors conformance, edge cases, random-input
                      round-trip fuzz, router behaviour + router fuzz, MAC, and a multi-node

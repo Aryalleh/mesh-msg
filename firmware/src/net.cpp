@@ -624,4 +624,16 @@ Mode mode() { return g_mode; }
 bool wifi_up() { return g_wifi_up; }
 const char* relay_state() { return const_cast<const char*>(g_relay_state); }
 
+const char* web_url() {
+  static char url[40];
+  if (g_mode == Mode::Setup) {
+    snprintf(url, sizeof url, "http://%s/", WiFi.softAPIP().toString().c_str());
+  } else if (g_mode == Mode::Station && WiFi.status() == WL_CONNECTED) {
+    snprintf(url, sizeof url, "http://%s/", WiFi.localIP().toString().c_str());
+  } else {
+    url[0] = 0;
+  }
+  return url;
+}
+
 }  // namespace net

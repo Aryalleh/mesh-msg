@@ -26,6 +26,8 @@
 #include "node.h"
 #include "radio.h"
 #include "kbmodule.h"
+#include "ui/messenger.h"
+#include "ui/ui.h"
 #include <Wire.h>
 
 using mesh::route::Millis;
@@ -171,6 +173,45 @@ void input_loop(Millis now) {
   }
 }
 
+bool g_ui = false;
+
+// What the screen shows, copied under the node lock (ui::Status).
+ui::Status ui_status() {
+  ui::Status st;
+  xSemaphoreTake(g_lock, portMAX_DELAY);
+  mesh::node::Node& node = *g_node;
+  Millis now = board::now_ms();
+  mesh::host::Status s = node.status(now);
+  const mesh::host::NodeConfig& c = node.config();
+  const mesh::PublicKey& pk = node.pub();
+  char b[24];
+  st.name = c.name;
+  snprintf(b, sizeof b, "%02x%02x%02x%02x%02x%02x%02x%02x", pk.ed[0], pk.ed[1], pk.ed[2], pk.ed[3], pk.ed[4], pk.ed[5],
+           pk.ed[6], pk.ed[7]);
+  st.id = b;
+  snprintf(b, sizeof b, "!%08lx", (unsigned long)g_mt.node_id());
+  st.meshtastic_id = b;
+  st.region = mesh::host::kRegions[c.region].name;
+  st.channel = g_net.channel;
+  st.freq_hz = s.freq_hz;
+  st.tx_dbm = s.tx_dbm;
+  st.neighbours = s.neighbours;
+  st.stored = s.stored;
+  st.air_used_s = s.air_used_ms / 1000;
+  st.air_budget_s = s.air_budget_ms / 1000;
+  st.usb = node.host_attached(kUsbPort);
+  st.ble = node.host_attached(ble::kPort);
+  st.unix_time = node.unix_time(now);
+  st.password = g_net.password;
+  st.passkey = g_net.ble_passkey;
+  xSemaphoreGive(g_lock);
+  st.relay = net::relay_state();
+  st.wifi = net::wifi_up();
+  st.setup_mode = net::mode() == net::Mode::Setup;
+  st.web_url = net::web_url();
+  return st;
+}
+
 void on_channel_changed(const net::Settings& s) {
   bool ok = g_mt.set_channel(channel_of(s));
   logf("Meshtastic channel %s (hash %u) %s", s.channel, g_mt.channel_hash(), ok ? "" : "INVALID");
@@ -230,6 +271,8 @@ void setup() {
     logf("keyboard module: none");
   }
 #endif
+  g_ui = ui::begin(ui_status, ui::stub_messenger());
+  logf("screen: %s", g_ui ? "ok" : "none");
   logf("ready; attach meshd ([lora] port = this serial port), pair a phone, or watch the air");
 }
 
@@ -305,7 +348,7 @@ void loop() {
   ble::loop(node, now);
 
   // ---- keyboard, trackpad ----
-  input_loop(now);
+  if (!g_ui) input_loop(now);  // with a screen, the UI reads the keyboard module
 
   // ---- Wi-Fi: setup switch, hotspot panel, NTP ----
   net::loop(now);
@@ -321,6 +364,9 @@ void loop() {
   }
   bool reboot = node.reboot_requested() && node.hosts_pending() == 0;
   xSemaphoreGive(g_lock);
+
+  // ---- screen (outside the lock: rendering takes milliseconds) ----
+  if (g_ui) ui::loop(uint32_t(now));
 
   if (reboot) {
     Serial.flush();

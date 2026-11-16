@@ -241,8 +241,37 @@ Sources for §6–§7: ZitaoTech, *BB9900-USB-keyboard*; stolen, *blackberry_tra
 
 ## 8. UI and touch keyboard
 
-See §8 of firmware/README.md once the UI framework lands (LVGL; Persian shaping and
-right-to-left; the on-screen keyboard in Persian and Latin for typing by touch).
+`firmware/src/ui` (LVGL 9.2): status bar (battery, LoRa neighbours, Wi-Fi / relay, BLE / USB
+host, typing language), **Home** → Chats · Network · Web access · Settings, a **chat** screen
+with history and an input line, **Network** (node status), **Web access** (address and QR
+code an iPhone on the same Wi-Fi opens, docs/web-access.md) and **Settings** (device
+password, BLE passkey). Persian is shaped and laid out right-to-left by LVGL; the font is
+**Vazirmatn** 16 px (`src/ui/fonts`, SIL OFL) with Montserrat for symbols.
+`scripts/patch_lvgl.py` fixes two LVGL 9.2 bugs at build time: Persian digits laid out
+right-to-left (۱۴۰۵ shown as ۵۰۴۱) and ۲ drawn as ۰.
+
+Input:
+
+- **Keyboard module** (A, B, C): typed text goes into the focused field; ▲ ▼ move between
+  items, OK / Enter selects; Menu = Home, Back / ⛔ = back, 📞 = call, Vol ± = brightness.
+- **Trackpad** (C): moves the selection; pressing it is OK.
+- **Touch keyboard** (`lib/meshui/src/osk.*`, host-tested): Persian (32 letters in ISIRI
+  order on three rows, ZWNJ key «نیم»), Latin QWERTY with one-shot Shift, and symbol pages
+  with Persian or Latin digits and آ ئ ؤ ة ء « » ؟ ؛ ،. It opens by itself when there is no
+  keyboard module, or when the text field is tapped; **Sym** on a hardware keyboard opens it
+  on the symbol page.
+
+The screen sleeps after 60 s without input; any key or touch wakes it.
+
+The handheld has **no messaging client core yet**: the UI talks to a `ui::Messenger`
+interface whose stub keeps local notes, so screens, keyboards and input are complete and
+testable now; a client core (C++ port of `core/`, decisions.md D21) plugs in behind it.
+
+Screens rendered by the same code on a PC (`make -C firmware uishots`, after `pio run`):
+
+| Home | Chat, hardware keyboard | Touch keyboard (Persian) | Symbols | Web access |
+|---|---|---|---|---|
+| ![](images/handheld-ui/1-home.png) | ![](images/handheld-ui/3-chat-hardware-keyboard.png) | ![](images/handheld-ui/5-chat-touch-persian.png) | ![](images/handheld-ui/4-chat-touch-symbols.png) | ![](images/handheld-ui/8-web-access.png) |
 
 ## 9. Calls and video
 
