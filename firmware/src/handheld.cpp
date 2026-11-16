@@ -22,7 +22,7 @@ class RxCallbacks final : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* c, NimBLEConnInfo&) override {
     if (!g_self) return;
     std::string v = c->getValue();
-    if (!v.empty()) g_self->push_ble_to_node(reinterpret_cast<const uint8_t*>(v.data()), v.size(), 0);
+    if (!v.empty()) g_self->push_ble_to_node(reinterpret_cast<const uint8_t*>(v.data()), v.size());
   }
 };
 
@@ -64,12 +64,13 @@ bool Handheld::begin(node::Node& node) {
   return true;
 }
 
-bool Handheld::push_ble_to_node(const uint8_t* data, size_t len, node::Millis now) {
-  if (!node_ || !data || len == 0 || len > node::kHostOut) return false;
-
-  // Phone sends the existing Mava host-link frame. The handheld owns the
-  // Mava node/router; BLE is only the local UI transport.
-  node_->host_rx(data, len, now);
+bool Handheld::push_ble_to_node(const uint8_t* data, size_t len) {
+  if (!data || len == 0 || len > kBlePacketMax) return false;
+  uint8_t next = uint8_t((ble_head_ + 1) % 8);
+  if (next == ble_tail_) return false;
+  memcpy(ble_rx_[ble_head_].data, data, len);
+  ble_rx_[ble_head_].len = uint16_t(len);
+  ble_head_ = next;
   return true;
 }
 
@@ -82,8 +83,16 @@ void Handheld::notify_phone(const uint8_t* data, size_t len) {
 void Handheld::loop(node::Millis now) {
   if (!node_) return;
 
+  // BLE callbacks only enqueue. All node/router access stays in loop().
+  while (ble_tail_ != ble_head_) {
+    BleItem item = ble_rx_[ble_tail_];
+    ble_tail_ = uint8_t((ble_tail_ + 1) % 8);
+    node_->host_rx(item.data, item.len, now);
+  }
+
   // Drain Mava packets/events produced by the node and expose them to the
-  // phone over BLE. This is the inverse of the gateway's old RX-only path.
+  // phone over BLE. This makes the handheld bidirectional rather than the
+  // old gateway's RX-only BLE bridge.
   uint8_t out[512];
   size_t n = node_->host_tx(out, sizeof out);
   if (n) notify_phone(out, n);
