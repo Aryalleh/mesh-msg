@@ -3,7 +3,6 @@
 #include <cstdint>
 
 #include "node.h"
-#include "route.h"
 
 namespace mesh::gateway {
 
@@ -17,7 +16,7 @@ class Gateway {
   Gateway() = default;
 
   bool begin(node::Node& node);
-  void loop(route::Millis now);
+  void loop(node::Millis now);
   // Called by the BLE GATT callback; only copies into the fixed RX queue.
   bool push_ble(const uint8_t* data, size_t len);
 
