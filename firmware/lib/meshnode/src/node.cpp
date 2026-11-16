@@ -132,7 +132,7 @@ void Node::external_rx(const uint8_t* raw, size_t n, int snr_db, Millis now) {
   uint8_t frame[kLoRaRadioMax] = {};
   frame[0] = 0;
   memcpy(frame + kLoRaLinkHeader, raw, n);
-  router::RxResult r = router_.on_receive(frame, n + kLoRaLinkHeader, snr_db, now);
+  route::RxResult r = router_.on_receive(frame, n + kLoRaLinkHeader, snr_db, now);
   if (r.verdict == route::Verdict::Invalid) return;
   heard(r.sender, now);
   if (r.verdict != route::Verdict::New) return;
