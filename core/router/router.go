@@ -8,6 +8,7 @@
 package router
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"sort"
@@ -69,7 +70,39 @@ type Config struct {
 	OnGroupMessage func(m *group.Message)
 	OnReceipt      func(acked packet.ID)
 	OnAnnounce     func(a announce.Announce, link string, hops uint8)
-	Logf           func(format string, args ...any)
+	// RelayList checks a relay-list bulletin (the body of a DATA packet to
+	// RelayListDest) and reports whether it is newer than what this node
+	// holds. Only then is it stored and passed on. Called with the router
+	// lock held: it must not call back into the Router. nil drops bulletins.
+	RelayList func(body []byte) bool
+	Logf      func(format string, args ...any)
+}
+
+// RelayListDest is the destination of relay-list bulletins: the official
+// relay list, signed with the project key, handed from device to device so
+// phones learn relays without GitHub (an Internet blackout, a fresh install).
+// Bulletins travel on mesh links only (Bluetooth, LAN, direct), never to
+// relays and never on LoRa, and only after Config.RelayList accepted them.
+var RelayListDest = func() packet.Hash {
+	var h packet.Hash
+	s := sha256.Sum256([]byte("MESHMSG-RELAYLIST-BULLETIN"))
+	copy(h[:], s[:])
+	return h
+}()
+
+// RelayListPacket builds the bulletin for a signed list (network.Signed
+// Encode). The ID derives from the content, so the same list published by
+// many nodes is one packet in the mesh.
+// maxHops 0 means 15, the most a packet allows: a list should spread as far
+// as the mesh reaches, and it is deduplicated by its content.
+func RelayListPacket(body []byte, maxHops uint8) *packet.Packet {
+	if maxHops == 0 {
+		maxHops = 15
+	}
+	sum := sha256.Sum256(body)
+	p := &packet.Packet{Type: packet.TypeData, Ctx: packet.CtxNoLoRa, MaxHops: maxHops, Dest: RelayListDest, Body: append([]byte(nil), body...)}
+	copy(p.ID[:], sum[:])
+	return p
 }
 
 // Route is what the router learned about a destination from announces.
@@ -250,11 +283,12 @@ func (r *Router) forward(acts *actions, k packet.Key, raw []byte, noLoRa bool, a
 	if !originate {
 		fwd, ok = packet.IncHop(raw)
 	}
+	meshOnly := isRelayList(raw)
 	for _, name := range r.order {
 		l := r.links[name]
 		switch l.Kind() {
 		case Uplink:
-			if r.hasIt(k, name, "") || len(raw) > l.MTU() {
+			if meshOnly || r.hasIt(k, name, "") || len(raw) > l.MTU() {
 				continue
 			}
 			r.markHas(k, name, "")
@@ -279,6 +313,12 @@ func (r *Router) forward(acts *actions, k packet.Key, raw []byte, noLoRa bool, a
 		}
 	}
 	r.stats.Forwarded++
+}
+
+// isRelayList reports whether an encoded packet is a relay-list bulletin.
+func isRelayList(raw []byte) bool {
+	return len(raw) >= packet.HeaderSize && packet.Type(raw[0]>>3&0x7) == packet.TypeData &&
+		string(raw[10:packet.HeaderSize]) == string(RelayListDest[:])
 }
 
 func sortedPeers(m map[PeerID]bool) []PeerID {
@@ -373,6 +413,15 @@ func (r *Router) inbound(acts *actions, link string, from PeerID, raw []byte) {
 		r.forward(acts, k, raw, false, link, from, false)
 
 	case packet.TypeData:
+		if p.Dest == RelayListDest {
+			if p.Fragmented() || r.cfg.RelayList == nil || !r.cfg.RelayList(p.Body) {
+				return
+			}
+			r.dropOldRelayLists(p.ID)
+			r.storeItem(p, raw, origin, r.cfg.DataTTL)
+			r.forward(acts, k, raw, true, link, from, false)
+			return
+		}
 		if ok, _ := r.cfg.Store.Has(packet.Key{ID: announce.ReceiptID(p.ID)}); ok {
 			return // already delivered
 		}
@@ -436,6 +485,29 @@ func (r *Router) deliverGroup(acts *actions, g *group.Group, p *packet.Packet) {
 }
 
 // originate stores and sends a packet created on this node.
+// PublishRelayList stores a relay-list bulletin and offers it to every mesh
+// neighbour (and to new ones as they appear); older bulletins are dropped.
+func (r *Router) PublishRelayList(p *packet.Packet) {
+	var acts actions
+	r.mu.Lock()
+	r.dropOldRelayLists(p.ID)
+	r.originate(&acts, p)
+	r.mu.Unlock()
+	acts.run()
+}
+
+func (r *Router) dropOldRelayLists(keep packet.ID) {
+	items, err := r.cfg.Store.ByDest(RelayListDest, 0, 0)
+	if err != nil {
+		return
+	}
+	for _, it := range items {
+		if it.Key.ID != keep {
+			r.cfg.Store.DeleteData(it.Key.ID)
+		}
+	}
+}
+
 func (r *Router) originate(acts *actions, p *packet.Packet) {
 	raw := p.MustEncode()
 	k := p.Key()
@@ -619,7 +691,7 @@ func (r *Router) backlog(acts *actions, l Link, peer PeerID) {
 			return
 		}
 		for _, it := range items {
-			if r.hasIt(it.Key, l.Name(), peer) {
+			if r.hasIt(it.Key, l.Name(), peer) || (l.Kind() == Uplink && it.Dest == RelayListDest) {
 				continue
 			}
 			raw := it.Raw

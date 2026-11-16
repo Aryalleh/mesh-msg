@@ -26,7 +26,9 @@ and macOS).
 The relay list updates itself: apps ship the official list ([network/relays.json](network/relays.json),
 starting with the original relay eu-1), refresh it, learn relays from other relays, and pass the
 relay they use to nearby phones, PCs and LoRa nodes, so a new relay spreads through the mesh even
-where the old one is blocked. Each relay is checked before use.
+where the old one is blocked. Each relay is checked before use. The list is kept on the device, so
+apps start with it at once and still have it in a blackout, and the signed official list is handed
+from phone to phone over Bluetooth and LAN to devices that can't reach GitHub.
 
 ```
    City A                          ~10 km                         City B

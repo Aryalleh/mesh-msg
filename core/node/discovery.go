@@ -2,11 +2,11 @@ package node
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
-	"io"
-	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/announce"
@@ -18,8 +18,9 @@ import (
 // Relay discovery: the mesh keeps its relay list up to date by itself.
 //
 // Candidates come from
-//   - the official list (network/relays.json) compiled into the build and
-//     refreshed from the repository,
+//   - the official list (network/relays.json): compiled into the build,
+//     refreshed from the repository, cached on disk and passed between
+//     nearby devices when signed (relaylist.go),
 //   - the signed lists relays serve (GET /v1/relays),
 //   - nearby devices: every node puts a relay it reaches right now into its
 //     announces (announce.TagRelay); phones, PCs and LoRa nodes pass announces
@@ -43,6 +44,10 @@ type DiscoveryConfig struct {
 	// AllowPrivate accepts relay hints on private / loopback addresses
 	// (tests, LAN-only deployments).
 	AllowPrivate bool `toml:"-" json:"-"`
+	// ListKey verifies signed relay lists (tests); nil = the project key.
+	ListKey ed25519.PublicKey `toml:"-" json:"-"`
+	// NoBuiltin ignores the list compiled into the build (tests).
+	NoBuiltin bool `toml:"-" json:"-"`
 }
 
 // KnownRelay is a relay this node has heard of.
@@ -90,6 +95,12 @@ type discovery struct {
 	mu       sync.Mutex
 	auto     map[string]*autoRelay // url → running automatic relay
 	lastHint time.Time
+
+	listMu      sync.Mutex
+	list        curList      // the official list held (relaylist.go)
+	lastList    atomic.Int64 // unix time of the last good GitHub fetch
+	fetching    atomic.Bool
+	lastPublish atomic.Int64 // unix time the held list was last offered nearby
 }
 
 type autoRelay struct {
@@ -157,15 +168,11 @@ func (d *discovery) configured(u string) bool {
 }
 
 func (d *discovery) run(ctx context.Context) {
-	if d.cfg.ListURL != "none" {
-		for _, r := range network.Bootstrap().Relays {
-			for _, u := range r.URLs {
-				d.add(u, r.Name, r.Region, r.PubKey, "bootstrap")
-			}
-		}
+	if d.listOn() {
+		d.loadList()
 	}
 	d.startKnown(ctx)
-	var lastList, lastRelayLists time.Time
+	var lastRelayLists time.Time
 	t := time.NewTicker(discoverEvery)
 	defer t.Stop()
 	first := time.After(2 * time.Second)
@@ -183,9 +190,14 @@ func (d *discovery) run(ctx context.Context) {
 				return
 			}
 		}
-		if d.cfg.ListURL != "none" && time.Since(lastList) > listEvery {
-			if d.fetchList(ctx) {
-				lastList = time.Now()
+		if d.listOn() {
+			// Never wait for GitHub: it may be blocked or slow. Relays from
+			// the cached list are probed and used meanwhile.
+			if time.Since(time.Unix(d.lastList.Load(), 0)) > listEvery {
+				d.refreshList(ctx)
+			}
+			if time.Since(time.Unix(d.lastPublish.Load(), 0)) > republishList {
+				d.publishList()
 			}
 		}
 		if time.Since(lastRelayLists) > relayListEvery && d.fetchRelayLists(ctx) {
@@ -196,39 +208,6 @@ func (d *discovery) run(ctx context.Context) {
 		d.prune()
 		d.updateHint()
 	}
-}
-
-func (d *discovery) fetchList(ctx context.Context) bool {
-	src := d.cfg.ListURL
-	if src == "" {
-		src = network.SourceURL
-	}
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", src, nil)
-	if err != nil {
-		return false
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	b, err := io.ReadAll(io.LimitReader(resp.Body, 256<<10))
-	if err != nil || resp.StatusCode != 200 {
-		return false
-	}
-	l, err := network.Parse(b)
-	if err != nil {
-		d.n.cfg.Logf("discovery: relay list: %v", err)
-		return false
-	}
-	for _, r := range l.Relays {
-		for _, u := range r.URLs {
-			d.add(u, r.Name, r.Region, r.PubKey, "list")
-		}
-	}
-	return true
 }
 
 // fetchRelayLists asks every reachable relay for its signed list.

@@ -28,6 +28,12 @@ Needs hardware now, for both open milestones:
   captive panel → save Wi-Fi → switch off → relay "online"; LoRa against a Meshtastic node
   (it must relay our frames); iPhone pairing over BLE; meshd on USB.
 
+**Relay list cached + shared nearby (D23)**: apps keep `network/relays.json` on disk and start
+with it at once (GitHub fetched in the background); a signed list spreads phone to phone. **Owner
+action needed**: sign the list once (`RELEASE_SIGNING_KEY=$(cat ~/.config/mesh-msg/release-signing.key)
+go run ./tools/relays-sign`, commit `network/relays.json.sig`); until then caching works but
+nothing is shared nearby. Needs a release to reach phones.
+
 Software that can still be done without hardware: Android LoRa-over-BLE to the board,
 meshd Bluetooth to phones, QR scanning, LoRa node settings screen, CP2102 USB driver, M6 items.
 Plan of record: docs/roadmap.md "Beta criteria" (alpha → beta) and "Code changes required by the 2026-11-12 design decisions".
@@ -1378,3 +1384,23 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Not built: calls in the browser (HTTPS secure context, WebCodecs/Opus, UDP proxy) —
   written up in docs/web-access.md.
 
+### 2026-11-16 — Relay list cached on disk and shared with nearby devices (D23)
+
+- Owner: every app should cache the servers list from GitHub and from nearby devices, so it
+  doesn't wait for it after every start and still has it in a blackout.
+- Before: relays were kept in `relays_known`, but every start fetched GitHub first (up to 20 s,
+  blocking first use of new relays), and the list only spread as one relay hint per announce.
+- `network`: `serial` in relays.json, `Signed` (sig || JSON), `Sign`/`DecodeSigned` with the
+  release key under `MESHMSG-RELAYS-v1\0`; embedded `relays.json.sig` (empty until signed);
+  `tools/relays-sign` (sign / verify); test fails on a stale signature.
+- `router`: relay-list bulletin (`RelayListDest`, `RelayListPacket`, `PublishRelayList`,
+  `Config.RelayList` check): stored and passed on only if accepted, mesh links only (no
+  uplinks, `NO_LORA`), older ones dropped from the store.
+- `core/node/relaylist.go`: list + signature + last-fetch time in `kv`; start uses the newer of
+  cache and build at once; GitHub refresh in the background every 6 h (not on every start);
+  accepted bulletins saved and applied; held signed list republished every 12 h. Covers meshd,
+  Android and iOS (all on core/node). The board firmware doesn't run discovery.
+- Tests: `TestSignedList`, `TestEmbeddedSignatureCurrent`, `TestRelayListBulletin`,
+  `TestRelayListFromNearbyDevice` (offline phone learns from a neighbour, keeps it across a
+  restart, hands it on), `TestRelayListWrongKeyIgnored`. `go build ./... && go test ./...`,
+  `make -C firmware test` pass. Not released yet.

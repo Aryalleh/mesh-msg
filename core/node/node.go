@@ -154,6 +154,7 @@ func Open(cfg Config) (*Node, error) {
 		OnReceipt:      n.onReceipt,
 		OnGroupMessage: n.onGroupMessage,
 		OnAnnounce:     n.onAnnounce,
+		RelayList:      func(b []byte) bool { return n.disc != nil && n.disc.onBulletin(b) },
 		Logf:           cfg.Logf,
 	})
 	n.av = &avatars{pending: map[string]bool{}, busy: map[string]bool{}}

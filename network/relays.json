@@ -1,7 +1,8 @@
 {
   "version": 1,
-  "updated": "2026-11-13",
-  "comment": "Official mesh-msg relays. Clients ship this file and refresh it from GitHub; relays they learn from each other and from nearby devices are added on top. The first entry is the original relay. pubkey pins each relay's identity (GET /v1/info).",
+  "updated": "2026-11-16",
+  "serial": 1,
+  "comment": "Official mesh-msg relays. Clients ship this file and refresh it from GitHub; relays they learn from each other and from nearby devices are added on top. Bump serial with every edit and re-sign (go run ./tools/relays-sign). The first entry is the original relay. pubkey pins each relay's identity (GET /v1/info).",
   "relays": [
     {
       "name": "eu-1",

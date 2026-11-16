@@ -1,6 +1,10 @@
 package network
 
-import "testing"
+import (
+	"crypto/ed25519"
+	"strings"
+	"testing"
+)
 
 func TestBootstrap(t *testing.T) {
 	l := Bootstrap()
@@ -27,5 +31,38 @@ func TestCheckURL(t *testing.T) {
 	}
 	if _, err := CheckURL("http://127.0.0.1:8080", true); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSignedList(t *testing.T) {
+	pub, priv, _ := ed25519.GenerateKey(nil)
+	b := []byte(`{"version":1,"updated":"2026-11-16","serial":3,"relays":[{"name":"x","region":"global","urls":["https://x.example"]}]}`)
+	s := Signed{JSON: b, Sig: Sign(b, priv)}
+	got, l, err := DecodeSigned(s.Encode(), pub)
+	if err != nil || l.Serial != 3 || string(got.JSON) != string(b) {
+		t.Fatalf("decode: %v %+v", err, l)
+	}
+	bad := s.Encode()
+	bad[len(bad)-3] ^= 1
+	if _, _, err := DecodeSigned(bad, pub); err == nil {
+		t.Fatal("tampered list accepted")
+	}
+	other, _, _ := ed25519.GenerateKey(nil)
+	if _, _, err := DecodeSigned(s.Encode(), other); err == nil {
+		t.Fatal("list signed by another key accepted")
+	}
+}
+
+// A relays.json.sig that no longer matches relays.json means the list was
+// edited without re-signing (go run ./tools/relays-sign).
+func TestEmbeddedSignatureCurrent(t *testing.T) {
+	if len(strings.TrimSpace(string(bootstrapSig))) == 0 {
+		t.Skip("relays.json is not signed yet")
+	}
+	if BootstrapSigned().Sig == nil {
+		t.Fatal("network/relays.json.sig does not match relays.json: bump serial and run go run ./tools/relays-sign")
+	}
+	if Bootstrap().Serial <= 0 {
+		t.Fatal("relays.json needs a serial")
 	}
 }

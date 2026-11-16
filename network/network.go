@@ -3,6 +3,8 @@
 package network
 
 import (
+	"crypto/ed25519"
+	"crypto/sha256"
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
@@ -10,15 +12,26 @@ import (
 	"net"
 	"net/url"
 	"strings"
+
+	"github.com/Aryalleh/mesh-msg/core/update"
 )
 
 //go:embed relays.json
 var bootstrap []byte
 
+// bootstrapSig is relays.json.sig: the project key's signature over
+// relays.json (see Sign). Empty until the list has been signed.
+//
+//go:embed relays.json.sig
+var bootstrapSig []byte
+
 // SourceURL is where clients refresh the list from (the repository's main
 // branch). Relays also share their lists (GET /v1/relays), so the list still
 // spreads where GitHub is blocked.
 const SourceURL = "https://raw.githubusercontent.com/Aryalleh/mesh-msg/main/network/relays.json"
+
+// SigSuffix is appended to a list URL to fetch its signature file.
+const SigSuffix = ".sig"
 
 // Relay is one entry of the list.
 type Relay struct {
@@ -31,9 +44,12 @@ type Relay struct {
 
 // List is relays.json.
 type List struct {
-	Version int     `json:"version"`
-	Updated string  `json:"updated"`
-	Relays  []Relay `json:"relays"`
+	Version int    `json:"version"`
+	Updated string `json:"updated"`
+	// Serial grows with every edit of the list; between two signed lists
+	// the higher serial wins, so an old list can't push out a newer one.
+	Serial int64   `json:"serial,omitempty"`
+	Relays []Relay `json:"relays"`
 }
 
 // Parse decodes and checks a relay list.
@@ -74,6 +90,69 @@ func Bootstrap() *List {
 	}
 	return l
 }
+
+// BootstrapSigned is the list compiled into this build as a Signed value
+// (Sig is nil if relays.json.sig is missing or doesn't match).
+func BootstrapSigned() Signed {
+	s := Signed{JSON: bootstrap}
+	if sig, err := hex.DecodeString(strings.TrimSpace(string(bootstrapSig))); err == nil && len(sig) == ed25519.SignatureSize {
+		s.Sig = sig
+		if !s.Verify(nil) {
+			s.Sig = nil
+		}
+	}
+	return s
+}
+
+// SignContext separates relay-list signatures from release manifests, which
+// the same project key (core/update.ReleaseKey) signs.
+const SignContext = "MESHMSG-RELAYS-v1\x00"
+
+// Signed is a relay list as published: the exact relays.json bytes and the
+// project key's signature over them (nil if unsigned). Only signed lists
+// are passed between nearby devices; the signature is what lets a phone
+// trust a list a stranger hands it during an Internet blackout.
+type Signed struct {
+	JSON []byte
+	Sig  []byte
+}
+
+// Sign signs relays.json bytes with the project key.
+func Sign(json []byte, priv ed25519.PrivateKey) []byte {
+	return ed25519.Sign(priv, append([]byte(SignContext), json...))
+}
+
+// Verify checks the signature (pub nil = core/update.ReleaseKey).
+func (s Signed) Verify(pub ed25519.PublicKey) bool {
+	if pub == nil {
+		pub = update.ReleaseKey()
+	}
+	return len(s.Sig) == ed25519.SignatureSize && ed25519.Verify(pub, append([]byte(SignContext), s.JSON...), s.Sig)
+}
+
+// Encode is the form carried in the mesh: signature || relays.json.
+func (s Signed) Encode() []byte {
+	return append(append([]byte(nil), s.Sig...), s.JSON...)
+}
+
+// DecodeSigned reverses Encode, verifies the signature and parses the list.
+func DecodeSigned(b []byte, pub ed25519.PublicKey) (Signed, *List, error) {
+	if len(b) <= ed25519.SignatureSize {
+		return Signed{}, nil, errors.New("network: signed relay list too short")
+	}
+	s := Signed{Sig: append([]byte(nil), b[:ed25519.SignatureSize]...), JSON: append([]byte(nil), b[ed25519.SignatureSize:]...)}
+	if !s.Verify(pub) {
+		return Signed{}, nil, errors.New("network: relay list signature does not verify")
+	}
+	l, err := Parse(s.JSON)
+	if err != nil {
+		return Signed{}, nil, err
+	}
+	return s, l, nil
+}
+
+// Hash identifies a list's exact bytes.
+func (s Signed) Hash() [32]byte { return sha256.Sum256(s.JSON) }
 
 // CheckURL normalises a relay URL (http/https, host[:port][/path], no user
 // info, query or fragment). Unless allowPrivate, it refuses loopback,
