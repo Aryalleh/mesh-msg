@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [heltec_v3, tbeam_s3, rak4631, techo]
+        env: [mava_handheld_s3, heltec_v3, tbeam_s3, rak4631, techo]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
