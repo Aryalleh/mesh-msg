@@ -29,7 +29,12 @@ class Handheld {
   bool ble_ready_ = false;
   bool meshtastic_ready_ = false;
 
-  bool push_ble_to_node(const uint8_t* data, size_t len, node::Millis now);
+  struct BleItem {
+    uint16_t len = 0;
+    uint8_t data[kBlePacketMax] = {};
+  };
+
+  bool push_ble_to_node(const uint8_t* data, size_t len);
   void notify_phone(const uint8_t* data, size_t len);
 };
 
