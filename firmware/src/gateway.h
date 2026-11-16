@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "node.h"
+#include "route.h"
 
 namespace mesh::gateway {
 
@@ -16,7 +17,9 @@ class Gateway {
   Gateway() = default;
 
   bool begin(node::Node& node);
-  void loop(Millis now);
+  void loop(route::Millis now);
+  // Called by the BLE GATT callback; only copies into the fixed RX queue.
+  bool push_ble(const uint8_t* data, size_t len);
 
   bool ble_ready() const { return ble_ready_; }
   bool wifi_ready() const { return wifi_ready_; }
@@ -31,8 +34,7 @@ class Gateway {
     uint8_t data[kMaxPacket] = {};
   };
 
-  bool enqueue(const uint8_t* data, size_t len);
-  bool forward_lora(const Item& item, Millis now);
+  bool forward_lora(const Item& item, route::Millis now);
   void relay_task();
 
   node::Node* node_ = nullptr;
