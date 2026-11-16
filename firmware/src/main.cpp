@@ -18,6 +18,8 @@
 
 #include "board.h"
 #include "gateway.h"
+#include "handheld.h"
+#include "meshtastic_backend.h"
 #include "node.h"
 #include "radio.h"
 
@@ -32,6 +34,8 @@ constexpr Millis kLedFlash = 30;
 
 mesh::node::Node* g_node = nullptr;
 mesh::gateway::Gateway g_gateway;
+mesh::handheld::Handheld g_handheld;
+mesh::meshtastic::Backend g_meshtastic;
 bool g_radio_ok = false;
 Millis g_led_off = 0;
 char g_line[160];
@@ -157,8 +161,15 @@ void setup() {
   static mesh::node::Node node(cfg, seed, g_board, &g_persist, board::random32());
   memset(seed, 0, sizeof seed);
   g_node = &node;
+#ifdef MESH_HANDHELD
+  bool handheld_ok = g_handheld.begin(node);
+  logf("handheld: BLE %s, Meshtastic backend %s", handheld_ok && g_handheld.ble_ready() ? "ready" : "FAILED",
+       handheld_ok && g_handheld.meshtastic_ready() ? "ready" : "FAILED");
+  g_meshtastic.begin(node.pub());
+#else
   bool gateway_ok = g_gateway.begin(node);
   logf("gateway: BLE %s, Wi-Fi/relay worker %s", gateway_ok ? "ready" : "FAILED", gateway_ok ? "ready" : "FAILED");
+#endif
 
   g_radio_ok = radio::begin(cfg);
   logf("%s: %s, %s %s %lu Hz %d dBm, role %u, short id 0x%02x", radio::chip_name(), g_radio_ok ? "ok" : "NOT FOUND",
@@ -177,8 +188,12 @@ void loop() {
   static Millis last_tick = 0;
   Millis now = board::now_ms();
 
+#ifdef MESH_HANDHELD
+  g_handheld.loop(now);
+#else
   // ---- ESP32-S3 gateway ----
   g_gateway.loop(now);
+#endif
 
   // ---- radio ----
   if (g_radio_ok) {
@@ -190,7 +205,16 @@ void loop() {
       if (n > 0) {
         flash_led();
         describe("rx", buf, n, snr);
+#ifdef MESH_BACKEND_MESHTASTIC
+        uint8_t mava[mesh::kLoRaMTU] = {};
+        mesh::meshtastic::RxMeta meta;
+        size_t mava_n = g_meshtastic.decode(buf, n, mava, sizeof mava, &meta);
+        if (mava_n) {
+          node.external_rx(mava, mava_n, snr, now);
+        }
+#else
         node.radio_rx(buf, n, snr, now);
+#endif
       }
     }
     if (!radio::transmitting()) {
@@ -200,7 +224,19 @@ void loop() {
         a = node.radio_next(now);
       }
       if (a.kind == mesh::mac::Kind::Transmit) {
-        if (radio::transmit(a.frame->data, a.frame->len)) {
+#ifdef MESH_BACKEND_MESHTASTIC
+        uint8_t mt_frame[mesh::kLoRaRadioMax] = {};
+        size_t mt_len = 0;
+        if (a.frame->len > mesh::kLoRaLinkHeader) {
+          mt_len = g_meshtastic.encode(a.frame->data + mesh::kLoRaLinkHeader,
+                                       a.frame->len - mesh::kLoRaLinkHeader,
+                                       mt_frame, sizeof mt_frame);
+        }
+        bool sent = mt_len && radio::transmit(mt_frame, mt_len);
+#else
+        bool sent = radio::transmit(a.frame->data, a.frame->len);
+#endif
+        if (sent) {
           flash_led();
           describe("tx", a.frame->data, a.frame->len, 0);
         } else {
@@ -211,6 +247,7 @@ void loop() {
     }
   }
 
+#ifndef MESH_HANDHELD
   // ---- host ----
   if (node.host_attached() && !Serial) {
     node.host_detach();
@@ -240,6 +277,8 @@ void loop() {
     board::led(false);
     g_led_off = 0;
   }
+#endif
+
   if (node.reboot_requested() && node.host_pending() == 0) {
     Serial.flush();
     board::reboot();
