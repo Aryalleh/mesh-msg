@@ -87,6 +87,9 @@ enum class Mode : uint8_t { Off, Setup, Station };
 Mode mode();
 bool wifi_up();
 const char* relay_state();  // short text for logs and the panel
+// Packets sent up to the relay and taken from it since boot.
+uint32_t relay_up();
+uint32_t relay_in();
 // The address a browser on the same network opens ("" = no network).
 const char* web_url();
 

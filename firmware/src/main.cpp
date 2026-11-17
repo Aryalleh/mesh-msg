@@ -483,7 +483,8 @@ void loop() {
                                                        : "off";
     logf("hotspot %s, device password: %s; Wi-Fi %s %s; radio %s", net::ap_name(), g_net.password, wifi,
          net::web_url(), g_radio_ok ? "ok" : "NOT FOUND");
-    logf("relay %s", net::relay_state());
+    logf("relay %s; packets up %lu, down %lu", net::relay_state(), (unsigned long)net::relay_up(),
+         (unsigned long)net::relay_in());
     logf("account %s", ui::client_state().c_str());
     char bt[320];
     ble::status(bt, sizeof bt);

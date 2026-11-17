@@ -1045,6 +1045,8 @@ void set_account(Account* a) { g_account = a; }
 Mode mode() { return g_mode; }
 bool wifi_up() { return g_wifi_up; }
 const char* relay_state() { return const_cast<const char*>(g_relay_state); }
+uint32_t relay_up() { return g_relay_up; }
+uint32_t relay_in() { return g_relay_in; }
 
 const char* web_url() {
   static char url[40];

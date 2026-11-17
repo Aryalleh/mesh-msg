@@ -1741,3 +1741,11 @@ links. Chose: quick items in beta3; calls follow in later betas.
   `mc::Client` logs its id and the last 4 destinations of DATA heard for other accounts
   (to show a phone writing to an old account). Release v0.1.1-beta25.
 - Released **v0.1.1-beta25** (2adce5a).
+- Owner's beta25 log: link up, relay online by IP, but no DATA at all reached the board's
+  client (not even "other accounts"), board → phone "sent 1" yet BLE out frozen; board dropped
+  the link itself (0x216) and after the reconnect in/out froze. Cause: `ble.cpp` `post()`
+  dropped events when its 32-slot queue was full (phone gatewaying relay traffic); a lost
+  write desyncs the len3 stream (all later packets rejected), a lost MeshSub/Disconnect leaves
+  a half-dead seat. Queue now 256 in PSRAM (`xQueueCreateWithCaps`), `post` waits up to 2 s
+  (back-pressure: the write is answered late), counters lost/corrupt/queue in the log, relay
+  up/down counts in the relay line. Release v0.1.1-beta26.

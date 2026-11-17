@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/idf_additions.h>
 #include <freertos/queue.h>
 #include <freertos/stream_buffer.h>
 #include <freertos/task.h>
@@ -59,13 +60,21 @@ volatile int g_conn_count = 0;
 volatile uint32_t g_connects = 0, g_disconnects = 0, g_hellos = 0;
 volatile int g_last_reason = 0;
 
+volatile uint32_t g_lost = 0;
+uint32_t g_corrupt = 0;  // phones dropped for a stream that made no sense  // events that could not be queued (for the log)
+
+// Never drop silently: a lost write shifts the phone's byte stream (every
+// packet after it is garbage until the link is dropped), and a lost
+// subscribe or disconnect leaves a connection half dead. When the queue is
+// full this waits (in NimBLE's task: the phone's write is answered late, so
+// it slows down) for the main loop to catch up.
 void post(Ev ev, uint16_t conn, uint16_t n = 0, const uint8_t* d = nullptr) {
   Msg m;
   m.ev = ev;
   m.conn = conn;
   m.n = n;
   if (d && n) memcpy(m.d, d, n > kMaxWrite ? kMaxWrite : n);
-  xQueueSend(g_q, &m, 0);  // full: dropped (a write is lost; the stream resyncs or the phone reconnects)
+  if (xQueueSend(g_q, &m, pdMS_TO_TICKS(2000)) != pdTRUE) g_lost = g_lost + 1;
 }
 
 class Server : public NimBLEServerCallbacks {
@@ -315,6 +324,7 @@ void handle(mesh::node::Node& node, const Msg& m, mesh::route::Millis now) {
       const bool ok = g_peers[c->seat].rx(node, port, m.d, m.n, now);
       if (ok && !had_hello && g_peers[c->seat].up()) g_hellos = g_hellos + 1;
       if (!ok) {
+        g_corrupt++;
         free_seat(node, *c);
         if (c->client) g_client_kill = true;  // the central task closes it
         else drop_conn(m.conn);               // not a mesh phone, or a corrupt stream: it reconnects
@@ -339,7 +349,10 @@ void pump(NimBLECharacteristic* chr, uint16_t h, size_t chunk, Pending& p, Next 
 }  // namespace
 
 bool begin(const char* name, const uint8_t id[6]) {
-  g_q = xQueueCreate(32, sizeof(Msg));
+  // Room for bursts (a phone that passes on its relay traffic writes several
+  // packets a second while the main loop draws the screen): PSRAM.
+  g_q = xQueueCreateWithCaps(256, sizeof(Msg), MALLOC_CAP_SPIRAM);
+  if (!g_q) g_q = xQueueCreate(32, sizeof(Msg));
   g_cand = xQueueCreate(4, sizeof(ble_addr_t));
   g_out = xStreamBufferCreate(2048, 1);
   if (!g_q || !g_cand || !g_out) return false;
@@ -426,8 +439,9 @@ void status(char* out, size_t cap) {
            (unsigned long)g_hellos, (unsigned long)g_disconnects, r, why);
   // Packets on the Bluetooth mesh since boot (in: from phones to the node).
   if (k > 0 && size_t(k) < cap)
-    snprintf(out + k, cap - size_t(k), "; packets in %lu (too big for LoRa, skipped %lu), out %lu", (unsigned long)pin,
-             (unsigned long)pskip, (unsigned long)pout);
+    snprintf(out + k, cap - size_t(k), "; packets in %lu (too big for LoRa, skipped %lu), out %lu; queue %u waiting, lost %lu, corrupt streams %lu",
+             (unsigned long)pin, (unsigned long)pskip, (unsigned long)pout, unsigned(uxQueueMessagesWaiting(g_q)),
+             (unsigned long)g_lost, (unsigned long)g_corrupt);
 }
 
 int mesh_peers() {
