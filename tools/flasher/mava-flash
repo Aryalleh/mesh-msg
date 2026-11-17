@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# Mava board flasher for Linux (docs/flashing.md).
+#
+#   ./mava-flash board            firmware + web client (keeps identity and settings)
+#   ./mava-flash board --erase    erase everything first (new identity, new device password;
+#                                 needed once on boards flashed before 0.1.1-beta7)
+#   ./mava-flash firmware         firmware only
+#   ./mava-flash web              web client file system only (erases stored settings too)
+#   ./mava-flash keyboard matrix|bb9900|bb9900tp
+#                                 keyboard module (Raspberry Pi Pico): hold BOOTSEL, plug in
+#   ./mava-flash log              show the board's USB log (device password, BLE passkey)
+#   ./mava-flash info             chip, flash size, MAC
+#
+# Options: --port /dev/ttyACM0   --dry-run (print the commands)   --baud 921600
+#
+# Everything needed is in this folder: images/ (built by the release), tools/esptool
+# (Espressif's standalone esptool for x86-64; on other machines `pip install esptool`).
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+IMG="$HERE/images"
+PORT=""
+BAUD=921600
+DRY=0
+ERASE=0
+VIOLET=$'\e[38;5;141m'; CYAN=$'\e[38;5;51m'; RED=$'\e[38;5;204m'; DIM=$'\e[2m'; OFF=$'\e[0m'
+[ -t 1 ] || { VIOLET=""; CYAN=""; RED=""; DIM=""; OFF=""; }
+
+say()  { printf '%s▸%s %s\n' "$VIOLET" "$OFF" "$*"; }
+ok()   { printf '%s✓%s %s\n' "$CYAN" "$OFF" "$*"; }
+die()  { printf '%s✗ %s%s\n' "$RED" "$*" "$OFF" >&2; exit 1; }
+run()  { printf '%s$ %s%s\n' "$DIM" "$*" "$OFF"; [ "$DRY" = 1 ] || "$@"; }
+
+usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+
+esptool() {
+  if [ -x "$HERE/tools/esptool" ] && "$HERE/tools/esptool" version >/dev/null 2>&1; then
+    "$HERE/tools/esptool" "$@"
+  elif command -v esptool.py >/dev/null; then
+    esptool.py "$@"
+  elif python3 -c 'import esptool' 2>/dev/null; then
+    python3 -m esptool "$@"
+  else
+    die "no esptool: the bundled one is for x86-64 Linux; install one with: pip install esptool"
+  fi
+}
+
+find_port() {
+  [ -n "$PORT" ] && return
+  local p
+  # ESP32-S3 native USB: vendor 303a (Espressif)
+  for p in /dev/ttyACM* /dev/ttyUSB*; do
+    [ -e "$p" ] || continue
+    if udevadm info -q property -n "$p" 2>/dev/null | grep -qi '^ID_VENDOR_ID=303a'; then PORT="$p"; break; fi
+  done
+  if [ -z "$PORT" ]; then
+    for p in /dev/ttyACM* /dev/ttyUSB*; do [ -e "$p" ] && { PORT="$p"; break; }; done
+  fi
+  [ -n "$PORT" ] || die "no board found on USB. Plug it in (a data cable, not a charge-only one), or pass --port."
+  if [ ! -w "$PORT" ] && [ "$DRY" = 0 ]; then
+    die "no permission on $PORT. Run: sudo usermod -aG dialout $USER   then log out and in (or use sudo once)."
+  fi
+  ok "board on $PORT"
+}
+
+need() { [ -f "$IMG/$1" ] || die "missing images/$1 — use a complete release bundle"; }
+
+esp() { esptool --chip esp32s3 --port "$PORT" --baud "$BAUD" --before default_reset --after hard_reset "$@"; }
+
+flash_args() { echo "-z --flash_mode dio --flash_freq 80m --flash_size 16MB"; }
+
+cmd_board() {
+  for f in bootloader.bin partitions.bin boot_app0.bin firmware.bin littlefs.bin; do need "$f"; done
+  find_port
+  if [ "$ERASE" = 1 ]; then
+    say "erasing the whole flash (identity, settings, stored messages)"
+    run esp erase_flash
+  fi
+  say "writing firmware + web client"
+  # shellcheck disable=SC2046
+  run esp write_flash $(flash_args) \
+    0x0 "$IMG/bootloader.bin" 0x8000 "$IMG/partitions.bin" 0xe000 "$IMG/boot_app0.bin" \
+    0x10000 "$IMG/firmware.bin" 0x810000 "$IMG/littlefs.bin"
+  ok "done. Watch it start: $0 log"
+}
+
+cmd_firmware() {
+  for f in bootloader.bin partitions.bin boot_app0.bin firmware.bin; do need "$f"; done
+  find_port
+  # shellcheck disable=SC2046
+  run esp write_flash $(flash_args) \
+    0x0 "$IMG/bootloader.bin" 0x8000 "$IMG/partitions.bin" 0xe000 "$IMG/boot_app0.bin" 0x10000 "$IMG/firmware.bin"
+  ok "firmware written"
+}
+
+cmd_web() {
+  need littlefs.bin
+  find_port
+  say "the file system also holds settings, identity and stored packets: they are replaced"
+  # shellcheck disable=SC2046
+  run esp write_flash $(flash_args) 0x810000 "$IMG/littlefs.bin"
+  ok "web client written"
+}
+
+cmd_keyboard() {
+  local kind="${1:-}"
+  case "$kind" in matrix | bb9900 | bb9900tp) ;; *) die "which keyboard? matrix | bb9900 | bb9900tp" ;; esac
+  need "keyboard-$kind.uf2"
+  say "hold BOOTSEL on the Pico while plugging it in; waiting for the RPI-RP2 drive…"
+  local mnt="" i
+  for i in $(seq 60); do
+    mnt="$(findmnt -rn -o TARGET -S LABEL=RPI-RP2 2>/dev/null | head -1 || true)"
+    [ -z "$mnt" ] && for d in /media/"$USER"/RPI-RP2 /run/media/"$USER"/RPI-RP2 /media/RPI-RP2; do [ -d "$d" ] && mnt="$d"; done
+    [ -n "$mnt" ] && break
+    [ "$DRY" = 1 ] && { mnt="/media/$USER/RPI-RP2"; break; }
+    sleep 1
+  done
+  [ -n "$mnt" ] || die "no RPI-RP2 drive. If it shows up but is not mounted, open it in the file manager once."
+  run cp "$IMG/keyboard-$kind.uf2" "$mnt/"
+  run sync
+  ok "keyboard module flashed ($kind); it restarts by itself"
+}
+
+cmd_log() {
+  find_port
+  say "board log on $PORT (Ctrl+C to stop). Until a host app attaches it prints the device password and BLE passkey."
+  run stty -F "$PORT" 115200 raw -echo
+  [ "$DRY" = 1 ] || exec cat "$PORT"
+}
+
+cmd_info() { find_port; run esp flash_id; }
+
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --port) PORT="$2"; shift 2 ;;
+    --baud) BAUD="$2"; shift 2 ;;
+    --dry-run) DRY=1; shift ;;
+    --erase) ERASE=1; shift ;;
+    -h | --help) usage 0 ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+set -- "${args[@]:-}"
+printf '%sMAVA%s board flasher %s\n' "$VIOLET" "$OFF" "$(cat "$HERE/VERSION" 2>/dev/null || echo dev)"
+case "${1:-}" in
+  board) cmd_board ;;
+  firmware) cmd_firmware ;;
+  web) cmd_web ;;
+  keyboard) cmd_keyboard "${2:-}" ;;
+  log) cmd_log ;;
+  info) cmd_info ;;
+  *) usage 1 ;;
+esac

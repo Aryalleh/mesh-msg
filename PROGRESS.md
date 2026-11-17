@@ -1429,3 +1429,16 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - `scripts/test-web.sh` fixed: `go run` left the dev server running between runs (stale
   port); it now builds and runs a binary. PASS.
 
+### 2026-11-17 — Test release v0.1.1-beta7: Linux flasher for the board
+
+- `tools/flasher/mava-flash` (board / firmware / web / keyboard / log / info, --erase,
+  --dry-run, auto-detects the Espressif USB port, dialout hint) and
+  `scripts/build-flasher.sh` → `mava-board-flasher-<ver>-linux.tar.gz`: bootloader,
+  partitions, boot_app0, firmware, LittleFS (web client), three keyboard-module UF2s,
+  Espressif's standalone esptool 4.8.1 (x86-64), SHA256SUMS. docs/flashing.md.
+  Checked here: bundle builds, dry run, esptool image_info, merge_bin of all images into
+  16 MB (no overlap), partition table decoded. Not flashed (no board here).
+- `android.yml`: new `board` job; the release needs it. Release notes v0.1.1-beta7 en/fa.
+- Tag `v0.1.1-beta7` on main (CI publishes Android APKs, meshd/mesh, relay, board flasher,
+  signed release.json).
+

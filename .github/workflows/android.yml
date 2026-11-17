@@ -136,9 +136,38 @@ jobs:
           name: desktop
           path: dist/
 
+  # The Mava board: ESP32-S3 firmware + web client file system + keyboard
+  # module images + Espressif's standalone esptool, as one Linux flasher
+  # bundle (docs/flashing.md).
+  board:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-board-${{ hashFiles('firmware/platformio.ini', 'firmware/keyboard/platformio.ini') }}
+
+      - name: Board flasher bundle
+        run: |
+          pip install platformio
+          VERSION='${{ needs.version.outputs.name }}' scripts/build-flasher.sh
+          mkdir -p out && mv dist/*.tar.gz out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: board
+          path: out/
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [version, android, desktop]
+    needs: [version, android, desktop, board]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -189,6 +218,9 @@ jobs:
           update over earlier builds (same signing key, data is kept).
           **Desktop**: `meshmsg-desktop-…-linux-amd64.tar.gz` (or arm64) holds `meshd` + `mesh`,
           see the README inside. Later updates: `mesh update`.
+          **Mava board (Linux flasher)**: `mava-board-flasher-…-linux.tar.gz` holds the ESP32-S3
+          firmware, the web client for iPhones and the keyboard-module images, with esptool.
+          `./mava-flash board --erase` the first time, then `./mava-flash board`; see README.md inside.
           **Relay server**: `meshmsg-relay-…-linux-amd64.tar.gz`. Run `sudo sh install.sh` inside
           (it asks for your Mava account id for the admin panel at `/admin`). Relays serve the
           signed release manifest at `/v1/release`.

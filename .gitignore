@@ -39,3 +39,6 @@ android/app/libs/
 
 # Browser client build output (scripts/build-web.sh)
 firmware/data/web/
+
+# Release bundles built locally (scripts/build-flasher.sh)
+dist/
