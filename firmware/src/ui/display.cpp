@@ -28,6 +28,7 @@ constexpr int kBufLines = 40;
 
 SPIClass g_spi(HSPI);
 lv_display_t* g_disp = nullptr;
+const char* g_error = "";
 lv_indev_t* g_touch = nullptr;
 
 void cs(int pin, bool on) { digitalWrite(pin, on ? LOW : HIGH); }
@@ -106,12 +107,24 @@ bool begin() {
 #endif
   g_spi.begin(LCD_SCK, LCD_MISO, LCD_MOSI, -1);
   g_disp = lv_ili9341_create(kWidth, kHeight, LV_LCD_FLAG_BGR, send_cmd, send_color);
-  if (!g_disp) return false;
+  if (!g_disp) {
+    g_error = "LVGL display not created";
+    return false;
+  }
   lv_display_set_rotation(g_disp, LV_DISPLAY_ROTATION_0);
   size_t bytes = size_t(kWidth) * kBufLines * 2;
-  void* a = heap_caps_malloc(bytes, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-  void* b = heap_caps_malloc(bytes, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-  if (!a || !b) return false;
+  // The panel is fed by the CPU (SPI writeBytes), so any memory works: fast
+  // internal RAM first, PSRAM when Wi-Fi, BLE and TLS have taken that.
+  auto alloc = [](size_t n) {
+    void* p = heap_caps_malloc(n, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    return p ? p : heap_caps_malloc(n, MALLOC_CAP_SPIRAM);
+  };
+  void* a = alloc(bytes);
+  void* b = alloc(bytes);
+  if (!a || !b) {
+    g_error = "no memory for the draw buffers";
+    return false;
+  }
   lv_display_set_buffers(g_disp, a, b, bytes, LV_DISPLAY_RENDER_MODE_PARTIAL);
 #ifdef TOUCH_CS
   pinMode(TOUCH_CS, OUTPUT);
@@ -130,6 +143,7 @@ bool begin() {
 }
 
 lv_indev_t* touch() { return g_touch; }
+const char* error() { return g_error; }
 
 void backlight(uint8_t level) {
 #ifdef LCD_BL
@@ -142,6 +156,7 @@ void backlight(uint8_t level) {
 #else  // no screen in this build
 
 bool begin() { return false; }
+const char* error() { return "this build has no screen"; }
 lv_indev_t* touch() { return nullptr; }
 void backlight(uint8_t) {}
 

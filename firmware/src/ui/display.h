@@ -14,5 +14,6 @@ bool begin();
 // Pointer input device for LVGL (null without a touch panel).
 lv_indev_t* touch();
 void backlight(uint8_t level);  // 0 = off
+const char* error();            // why begin() failed ("" if it didn't)
 
 }  // namespace display

@@ -1556,3 +1556,19 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - boardlink `BoardLink.diagnosis()`: a missing ACK now reports nothing / log text only /
   other frames (owner saw "did not answer" on beta10). Test added.
 - Release v0.1.1-beta12. Not tested on hardware.
+
+### 2026-11-17 — First real board log (owner): relay unreachable, screen none
+
+- Owner's board (no SX1262, no screen, no keyboard module) boots, joins Wi-Fi
+  (192.168.0.80), BLE ok; log said `relay unreachable`, `screen: none`, and Board Wi-Fi
+  commands: one ok then "did not answer".
+- Relay: `probe()` reports the reason (DNS / HTTPClient error + TLS lastError / HTTP code);
+  for the default relay it falls back to `http://87.106.5.192` (same server) and says
+  "online (by IP address)"; 3 failed gateway calls → probe again. Web client default relays
+  now include the IP too. (eu-1 also still lacks the beta7 CORS headers: owner to update it.)
+- Screen: draw buffers no longer need DMA-capable internal RAM (CPU-fed SPI): internal, else
+  PSRAM. Boot log prints free internal / PSRAM (and whether PSRAM was found) and
+  `display::error()`.
+- USB host port detaches after 90 s without host bytes (not while the screen mirror runs),
+  so the text log comes back after one-shot commands.
+- Release v0.1.1-beta13.

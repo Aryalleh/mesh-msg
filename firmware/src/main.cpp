@@ -13,6 +13,7 @@
 // human-readable logs (what is heard, sent, the device password); once a
 // host attaches the port carries only the COBS host-link stream.
 #include <Arduino.h>
+#include <esp_heap_caps.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
@@ -26,6 +27,7 @@
 #include "node.h"
 #include "radio.h"
 #include "kbmodule.h"
+#include "ui/display.h"
 #include "ui/messenger.h"
 #include "ui/remote.h"
 #include "ui/ui.h"
@@ -294,14 +296,18 @@ void setup() {
   }
 #endif
   xSemaphoreGive(g_lock);  // the screen reads the node status under the lock
-  logf("boot: screen");
+  logf("boot: screen; memory: internal %u kB free, PSRAM %u kB free (%s)",
+       unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024), unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+       psramFound() ? "found" : "NOT FOUND: an N16R8 module is needed");
   bool mirror = remote::begin();
   g_ui = ui::begin(ui_status, ui::stub_messenger());
-  logf("screen: %s; screen on a phone over USB: %s", g_ui ? "ok" : "none", g_ui && mirror ? "yes" : "no");
+  logf("screen: %s%s%s; screen on a phone over USB: %s", g_ui ? "ok" : "none", g_ui ? "" : " — ", g_ui ? "" : display::error(),
+       g_ui && mirror ? "yes" : mirror ? "no" : "no (no PSRAM for the frame copy)");
   logf("ready; attach meshd ([lora] port = this serial port), pair a phone, or watch the air");
 }
 
 constexpr Millis kHelloEvery = 10000;
+constexpr Millis kUsbQuietMs = 90000;
 
 void loop() {
   mesh::node::Node& node = *g_node;
@@ -356,12 +362,21 @@ void loop() {
     node.host_detach(kUsbPort);
     logf("USB host detached");
   }
+  static Millis usb_rx_at = 0;
   int avail = Serial.available();
   if (avail > 0) {
     size_t n = Serial.readBytes(reinterpret_cast<char*>(buf), size_t(avail) < sizeof buf ? size_t(avail) : sizeof buf);
     bool was = node.host_attached(kUsbPort);
     node.host_rx(kUsbPort, buf, n, now);
+    usb_rx_at = now;
     if (!was && node.host_attached(kUsbPort)) flash_led();
+  }
+  // A host that sent one command and left (a flasher's Wi-Fi button): after
+  // 90 s of silence the port goes back to the text log. meshd and the apps
+  // ask for status every 30 s, so they stay attached.
+  if (node.host_attached(kUsbPort) && now - usb_rx_at > kUsbQuietMs && !remote::active()) {
+    node.host_detach(kUsbPort);
+    logf("USB host quiet for 90 s: back to the text log");
   }
   if (node.host_pending(kUsbPort) > 0) {
     int room = Serial.availableForWrite();

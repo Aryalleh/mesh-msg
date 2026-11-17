@@ -5,7 +5,9 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const DEFAULT_RELAYS = "https://eu-1.mfadem.ir";
+// eu-1 by name, and by its IP address for networks where the name is blocked
+// (the board serves this page over http, so an http relay is allowed).
+const DEFAULT_RELAYS = "https://eu-1.mfadem.ir,http://87.106.5.192";
 const state = { chat: null, links: {}, screen: "", shown: 0 };
 
 const icon = (name, cls = "") => `<svg class="i ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;

@@ -450,6 +450,23 @@ void redirect_portal() {
 String g_cursor_saved;
 int64_t g_cursor = 0;
 int g_pow_bits = -1;
+// The relay address in use: the configured one, or for the default relay its
+// IP address when the name doesn't work (blocked or filtered DNS, TLS).
+constexpr const char* kDefaultRelay = "https://eu-1.mfadem.ir";
+constexpr const char* kDefaultRelayIp = "http://87.106.5.192";
+String g_base;
+int g_fails = 0;  // gateway calls failed in a row: look for the relay again after a few
+// Why the relay is not reachable, for the log and the panel (two buffers, so a
+// reader never sees one half-written).
+char g_detail[2][120];
+int g_detail_i = 0;
+
+void set_detail(const char* state, const String& why) {
+  int n = g_detail_i ^ 1;
+  snprintf(g_detail[n], sizeof g_detail[n], "%s (%s)", state, why.c_str());
+  g_detail_i = n;
+  g_relay_state = g_detail[n];
+}
 uint32_t g_cursor_saved_at = 0;
 
 // Parses the relay's frame stream (len u32 BE || packet) as it arrives and
@@ -523,14 +540,35 @@ bool begin_http(HTTPClient& http, WiFiClientSecure& tls, WiFiClient& plain, cons
   return http.begin(plain, url);
 }
 
-bool fetch_info() {
+// Asks one relay address for /v1/info; on failure why holds the reason.
+bool probe(const String& base, String& why) {
+  String host = base.substring(base.indexOf("//") + 2);
+  int cut = host.indexOf('/');
+  if (cut >= 0) host = host.substring(0, cut);
+  cut = host.indexOf(':');
+  if (cut >= 0) host = host.substring(0, cut);
+  IPAddress ip;
+  if (!WiFi.hostByName(host.c_str(), ip)) {
+    why = host + ": name lookup failed";
+    return false;
+  }
   HTTPClient http;
   WiFiClientSecure tls;
   WiFiClient plain;
-  if (!begin_http(http, tls, plain, String(g_s->relay_url) + "/v1/info")) return false;
+  if (!begin_http(http, tls, plain, base + "/v1/info")) {
+    why = base + ": bad address";
+    return false;
+  }
   http.setTimeout(15000);
   int code = http.GET();
   if (code != 200) {
+    if (code < 0) {
+      char err[80] = {};
+      if (base.startsWith("https://")) tls.lastError(err, sizeof err);
+      why = base + ": " + HTTPClient::errorToString(code) + (err[0] ? String(", TLS: ") + err : String());
+    } else {
+      why = base + ": HTTP " + String(code);
+    }
     http.end();
     return false;
   }
@@ -539,6 +577,22 @@ bool fetch_info() {
   int i = b.indexOf("\"pow_bits\":");
   g_pow_bits = i < 0 ? 0 : b.substring(i + 11).toInt();
   return true;
+}
+
+// Finds a relay address that answers: the configured one, then (for the
+// default relay) its IP address. Sets g_base.
+bool fetch_info() {
+  String first = String(g_s->relay_url), why1, why2;
+  if (probe(first, why1)) {
+    g_base = first;
+    return true;
+  }
+  if (first == kDefaultRelay && probe(kDefaultRelayIp, why2)) {
+    g_base = kDefaultRelayIp;
+    return true;
+  }
+  set_detail("unreachable", why2.length() ? why1 + "; " + why2 : why1);
+  return false;
 }
 
 void load_cursor() {
@@ -580,7 +634,7 @@ bool gateway_once(uint8_t* body, size_t cap) {
   HTTPClient http;
   WiFiClientSecure tls;
   WiFiClient plain;
-  if (!begin_http(http, tls, plain, String(g_s->relay_url) + q)) {
+  if (!begin_http(http, tls, plain, g_base + q)) {
     give_back();
     return false;
   }
@@ -598,6 +652,7 @@ bool gateway_once(uint8_t* body, size_t cap) {
     http.end();
     give_back();
     if (code == 402) g_pow_bits = -1;  // the relay raised its proof of work: ask again
+    set_detail("error", g_base + ": " + (code < 0 ? HTTPClient::errorToString(code) : "HTTP " + String(code)));
     return false;
   }
   g_relay_up = g_relay_up + uint32_t(k);
@@ -629,18 +684,18 @@ void relay_task(void*) {
       continue;
     }
     if (g_pow_bits < 0 && !fetch_info()) {
-      g_relay_state = "unreachable";
       g_relay_fail = g_relay_fail + 1;
       vTaskDelay(pdMS_TO_TICKS(backoff));
       backoff = backoff < 60000 ? backoff * 2 : 60000;
       continue;
     }
     if (gateway_once(body, cap)) {
-      g_relay_state = "online";
+      g_relay_state = g_base == String(g_s->relay_url) ? "online" : "online (by IP address)";
       g_relay_ok = g_relay_ok + 1;
+      g_fails = 0;
       backoff = 2000;
     } else {
-      g_relay_state = "error";
+      if (++g_fails >= 3) g_pow_bits = -1;  // look for the relay again (maybe by IP)
       g_relay_fail = g_relay_fail + 1;
       vTaskDelay(pdMS_TO_TICKS(backoff));
       backoff = backoff < 60000 ? backoff * 2 : 60000;
