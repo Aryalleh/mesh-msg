@@ -1686,3 +1686,6 @@ links. Chose: quick items in beta3; calls follow in later betas.
   connects (reflection; refused on Android 13+), `BleLoRa` rescans after 2 failures and
   stores a moved address; mesh scan BALANCED unless battery saver.
 - Release v0.1.1-beta20.
+- `all_layers` test now covers the handheld's own messenger (`kLocalPort`): it gets every
+  packet from Bluetooth, LoRa and the relay, and its own message goes out on both Bluetooth
+  peers, LoRa and the relay (the board is a gateway like a phone or meshd). Test only.

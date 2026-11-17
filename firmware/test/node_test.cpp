@@ -677,6 +677,16 @@ void all_layers() {
   mesh::blemesh::Peer a, b;
   uint8_t hello[] = {mesh::blemesh::kHelloMagic, 1, 2, 3, 4};
   CHECK(a.rx(n, pa, hello, sizeof hello, 1000) && b.rx(n, pb, hello, sizeof hello, 1000));
+  // The handheld's own messenger (its display), as ui/client_messenger.cpp attaches it.
+  Host local;
+  local.port = mesh::node::Node::kLocalPort;
+  local.cmd(n, host::kOpHello, 0, {}, 1000);
+  auto local_has = [&](const Bytes& d) {
+    local.drain(n, 64);
+    bool hit = false;
+    for (auto& p : local.packets()) hit |= p == d;
+    return hit;
+  };
   Air air;
   air.now = 1000;
   std::vector<mesh::node::Node*> both = {&n, far.node.get()};
@@ -698,6 +708,7 @@ void all_layers() {
   CHECK(k == 1 && Bytes(body + 4, body + bn) == d1);
   auto got = mesh_split(mesh_drain(b, n, pb));
   CHECK(got.size() == 1 && got[0] == d1);
+  CHECK(local_has(d1));
 
   // LoRa → both phones + relay.
   Bytes d2 = data_packet(0x42);
@@ -707,11 +718,13 @@ void all_layers() {
   CHECK(mesh_split(mesh_drain(b, n, pb)).size() == 1);
   bn = n.uplink_take(body, sizeof body, seqs, 8, &k);
   CHECK(k == 1 && Bytes(body + 4, body + bn) == d2);
+  CHECK(local_has(d2));
 
   // Relay → both phones + LoRa.
   Bytes d3 = data_packet(0x43);
   CHECK(n.uplink_rx(d3.data(), d3.size(), air.now));
   CHECK(mesh_split(mesh_drain(a, n, pa)).size() == 1 && mesh_split(mesh_drain(b, n, pb)).size() == 1);
+  CHECK(local_has(d3));
   air.run(both, air.now + 20000);
   far.host.drain(*far.node);
   on_air = false;  // the router counts the hop into LoRa: same packet ID, hop count + 1
@@ -719,6 +732,20 @@ void all_layers() {
   CHECK(mesh::decode(d3.data(), d3.size(), want) == mesh::Err::Ok);
   for (auto& p : far.host.packets())
     on_air |= mesh::decode(p.data(), p.size(), got3) == mesh::Err::Ok && std::memcmp(got3.id, want.id, 8) == 0;
+  CHECK(on_air);
+
+  // The handheld's own message → both phones + LoRa + relay: it is a gateway
+  // like any phone or meshd, not only a modem.
+  Bytes d4 = data_packet(0x44);
+  local.send(n, host::kKindPacket, d4, air.now);
+  auto ga = mesh_split(mesh_drain(a, n, pa)), gb = mesh_split(mesh_drain(b, n, pb));
+  CHECK(ga.size() == 1 && ga[0] == d4 && gb.size() == 1 && gb[0] == d4);
+  bn = n.uplink_take(body, sizeof body, seqs, 8, &k);
+  CHECK(k == 1 && Bytes(body + 4, body + bn) == d4);
+  air.run(both, air.now + 20000);
+  far.host.drain(*far.node);
+  on_air = false;
+  for (auto& p : far.host.packets()) on_air |= p == d4;
   CHECK(on_air);
 }
 
