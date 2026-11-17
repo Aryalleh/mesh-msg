@@ -1749,3 +1749,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   a half-dead seat. Queue now 256 in PSRAM (`xQueueCreateWithCaps`), `post` waits up to 2 s
   (back-pressure: the write is answered late), counters lost/corrupt/queue in the log, relay
   up/down counts in the relay line. Release v0.1.1-beta26.
+- Released **v0.1.1-beta26** (35a6194).
