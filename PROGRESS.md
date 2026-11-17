@@ -1572,3 +1572,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - USB host port detaches after 90 s without host bytes (not while the screen mirror runs),
   so the text log comes back after one-shot commands.
 - Release v0.1.1-beta13.
+- Released **v0.1.1-beta12** (run #101, 7854748) and **v0.1.1-beta13** (run #103, a638ba4), all assets present.
