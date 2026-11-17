@@ -1689,3 +1689,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - `all_layers` test now covers the handheld's own messenger (`kLocalPort`): it gets every
   packet from Bluetooth, LoRa and the relay, and its own message goes out on both Bluetooth
   peers, LoRa and the relay (the board is a gateway like a phone or meshd). Test only.
+- Released **v0.1.1-beta20** (run #119, face4e3).
