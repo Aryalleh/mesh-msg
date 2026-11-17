@@ -1690,3 +1690,8 @@ links. Chose: quick items in beta3; calls follow in later betas.
   packet from Bluetooth, LoRa and the relay, and its own message goes out on both Bluetooth
   peers, LoRa and the relay (the board is a gateway like a phone or meshd). Test only.
 - Released **v0.1.1-beta20** (run #119, face4e3).
+- Board web page 404: `Platform::wipe` → `LittleFS.format()` erased `/web` (the browser client,
+  installed only by the flasher's "Install everything"); `/app/` then fell through to 404.
+  `board::storage_format` now removes everything except `/web`; missing client → a 404 page
+  that says how to fix it (root and `/app…`), `/app` → `/app/`, other unknown paths on the home
+  Wi-Fi → `/app/`; boot log says "browser app installed / MISSING". Release v0.1.1-beta21.

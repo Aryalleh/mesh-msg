@@ -249,7 +249,9 @@ void setup() {
   while (!Serial && board::now_ms() - t0 < 1500) delay(10);  // a monitor just opened?
 
   bool fs = board::storage_begin();
-  logf("Mava board %s, firmware v%u, flash %s", BOARD_NAME, mesh::node::kFirmwareVersion, fs ? "ok" : "FAILED");
+  logf("Mava board %s, firmware v%u, flash %s, browser app %s", BOARD_NAME, mesh::node::kFirmwareVersion,
+       fs ? "ok" : "FAILED",
+       board::storage_has("/web/index.htm.gz") ? "installed" : "MISSING (flash with \"Install everything\")");
 
   uint8_t seed[mesh::kSeedSize];
   load_identity(seed);

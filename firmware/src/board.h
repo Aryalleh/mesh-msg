@@ -28,11 +28,13 @@ bool setup_switch_on();
 void reboot();
 
 // Persistent files (LittleFS). read returns bytes read (0 = missing / error);
-// write replaces the file; format erases everything.
+// write replaces the file; format erases everything but the browser client
+// (/web), which only the flasher installs.
 bool storage_begin();
 size_t storage_read(const char* path, void* buf, size_t cap);
 bool storage_write(const char* path, const void* buf, size_t n);
 bool storage_remove(const char* path);
 bool storage_format();
+bool storage_has(const char* path);
 
 }  // namespace board

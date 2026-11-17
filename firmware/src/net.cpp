@@ -280,8 +280,12 @@ void page_panel(const char* msg) {
   send_page(b);
 }
 
+bool web_client_installed();
+void page_no_client();
+
 void handle_root() {
   if (g_mode != Mode::Setup) {  // on the home Wi-Fi the board serves the web app
+    if (!web_client_installed()) return page_no_client();
     g_web.sendHeader("Location", "/app/");
     g_web.send(302);
     return;
@@ -329,12 +333,37 @@ void handle_link() {
   g_web.send(200, "text/plain", text);
 }
 
+bool web_client_installed() { return LittleFS.exists("/web/index.htm.gz") || LittleFS.exists("/web/index.htm"); }
+
+// The browser client is missing from the board's file system (a board flashed
+// with "Update firmware only" that never had "Install everything", or wiped by
+// firmware before beta21): say so instead of a bare 404.
+void page_no_client() {
+  g_web.sendHeader("Cache-Control", "no-store");
+  g_web.send(404, "text/html; charset=utf-8",
+             "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'>"
+             "<title>Mava</title><body style='font-family:sans-serif;max-width:32em;margin:2em auto;padding:0 1em'>"
+             "<h2>Mava</h2><p>The browser app is not installed on this board.</p>"
+             "<p>Flash it with Mava Flasher and choose <b>Install everything</b>.</p>"
+             "<p dir=rtl>برنامهٔ مرورگر روی این برد نصب نیست. برد را با فلشر Mava و گزینهٔ "
+             "<b>نصب همه‌چیز</b> فلش کنید.</p>");
+}
+
 void not_found() {
   if (g_mode == Mode::Setup) {
     g_web.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/");
     g_web.send(302);
-  } else {
+  } else if (g_web.uri() == "/app" || g_web.uri().startsWith("/app/")) {
+    if (!web_client_installed()) return page_no_client();
+    if (g_web.uri() == "/app") {
+      g_web.sendHeader("Location", "/app/");
+      return g_web.send(302);
+    }
     g_web.send(404, "text/plain", "not found");
+  } else {
+    // Any other address on the home Wi-Fi: the web app.
+    g_web.sendHeader("Location", "/app/");
+    g_web.send(302);
   }
 }
 

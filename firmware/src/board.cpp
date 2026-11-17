@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <FS.h>
 #include <LittleFS.h>
+
+#include <vector>
 #include <esp_random.h>
 #include <esp_system.h>
 
@@ -132,6 +134,40 @@ bool storage_write(const char* path, const void* buf, size_t n) {
 
 bool storage_remove(const char* path) { return LittleFS.remove(path); }
 
-bool storage_format() { return LittleFS.format(); }
+namespace {
+// The entries of a directory (full paths), read before anything is removed.
+std::vector<String> list_dir(const String& path) {
+  std::vector<String> out;
+  File d = LittleFS.open(path);
+  if (!d || !d.isDirectory()) return out;
+  for (String c = d.getNextFileName(); c.length(); c = d.getNextFileName()) out.push_back(c);
+  d.close();
+  return out;
+}
+
+// Removes path (a file, or a directory with everything in it).
+bool remove_tree(const String& path) {
+  File f = LittleFS.open(path);
+  if (!f) return false;
+  const bool dir = f.isDirectory();
+  f.close();
+  if (!dir) return LittleFS.remove(path);
+  bool ok = true;
+  for (const String& c : list_dir(path)) ok &= remove_tree(c);
+  return LittleFS.rmdir(path) && ok;
+}
+}  // namespace
+
+bool storage_format() {
+  // Everything but the browser client (/web): it comes only with the flasher's
+  // "Install everything", and the board's web page needs it (404 without).
+  if (!LittleFS.exists("/web")) return LittleFS.format();
+  bool ok = true;
+  for (const String& c : list_dir("/"))
+    if (c != "/web") ok &= remove_tree(c);
+  return ok;
+}
+
+bool storage_has(const char* path) { return LittleFS.exists(path); }
 
 }  // namespace board
