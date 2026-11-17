@@ -1461,3 +1461,12 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (Android, Linux desktop + relay, board flasher) and the release step creates the tag on
   that commit and publishes. Tag pushes still work as before. Validated: tag format, main only.
 
+
+### 2026-11-17 — v0.1.1-beta7 released
+
+- Released through Actions run #87 (workflow_dispatch, `release_tag=v0.1.1-beta7`, commit
+  d5580f6, Android versionCode 187): https://github.com/Aryalleh/mesh-msg/releases/tag/v0.1.1-beta7
+  (pre-release). Assets: APKs (arm64-v8a, armeabi-v7a, x86_64, universal),
+  meshmsg-desktop linux amd64/arm64, meshmsg-relay linux amd64/arm64,
+  mava-board-flasher linux, signed release.json, SHA256SUMS. The tag was created by the release step.
+- Nothing from this release has been tested on hardware yet (see Next step).
