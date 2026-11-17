@@ -177,7 +177,12 @@ void feed(mesh::node::Node& node, const uint8_t* payload, size_t n, uint8_t kind
 
 std::string client_state() {
   if (!g_client) return "off";
-  return g_unix ? "on, announced as " + g_client->name() : "on, waiting for the clock (NTP or relay)";
+  const auto& s = g_client->stats();
+  char n[160];
+  snprintf(n, sizeof n, "; messages for it %lu (opened %lu, unreadable %lu), sent %lu, delivered %lu, contacts %u",
+           (unsigned long)s.data_in, (unsigned long)s.opened, (unsigned long)s.unreadable, (unsigned long)s.sent,
+           (unsigned long)s.receipts_in, unsigned(g_client->contacts().size()));
+  return (g_unix ? "on, announced as " + g_client->name() : std::string("on, waiting for the clock (NTP or relay)")) + n;
 }
 
 Messenger* client_begin(const char* name) {

@@ -3,7 +3,7 @@
     <string name="app_name">فلشر Mava</string>
     <string name="title">فلشر برد</string>
     <string name="images_version">فرم‌ور %1$s</string>
-    <string name="no_images">این نسخه فرم‌ور ندارد. APK فلشر را از صفحهٔ انتشار دانلود کنید.</string>
+    <string name="no_images">هنوز فرم‌وری نیست: به اینترنت وصل شوید و «بررسی فرم‌ور تازه‌تر در گیت‌هاب» را بزنید.</string>
     <string name="no_usb_host">این گوشی از USB میزبان (OTG) پشتیبانی نمی‌کند.</string>
     <string name="no_board">بردی روی USB نیست. برد را با تبدیل USB-OTG و کابل دیتا وصل کنید (کابل فقط‌شارژ چیزی نشان نمی‌دهد).</string>
     <string name="board_found">برد: %1$s</string>
@@ -42,4 +42,11 @@
     <string name="ack_bad_args">برد این تنظیمات را نپذیرفت.</string>
     <string name="help_title">اگر وصل نشد</string>
     <string name="help_text">• دکمهٔ BOOT را نگه دارید، RESET را بزنید و رها کنید، بعد BOOT را رها کنید و دوباره امتحان کنید.\n• روی بردهای توسعه با دو سوکت USB، از سوکتی که USB نوشته شده استفاده کنید.\n• فرم‌ور Mava به ESP32-S3 با ۱۶ مگابایت فلش و ۸ مگابایت PSRAM نیاز دارد (N16R8).\n• ماژول کیبورد (Raspberry Pi Pico) با فلشر لینوکس از کامپیوتر فلش می‌شود.</string>
+    <string name="fw_title">فرم‌ور</string>
+    <string name="fw_from_github">%1$s، دریافت‌شده از گیت‌هاب (انتشار امضاشده)</string>
+    <string name="fw_from_apk">%1$s، همراه همین برنامه</string>
+    <string name="fw_check">بررسی فرم‌ور تازه‌تر در گیت‌هاب</string>
+    <string name="fw_newest">%1$s تازه‌ترین فرم‌ور است.</string>
+    <string name="fw_downloaded">فرم‌ور %1$s دریافت شد (امضا و SHA-256 بررسی شد). با دکمه‌های پایین آن را فلش کنید.</string>
+    <string name="fw_failed">بررسی گیت‌هاب نشد: %1$s. همین فرم‌ور نشان‌داده‌شده به کار می‌رود.</string>
 </resources>

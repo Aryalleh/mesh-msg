@@ -11,6 +11,17 @@ or download `meshmsg-relay-<version>-linux-<arch>.tar.gz` from the releases and 
 and **your Mava account id** (Mava → Me, or `mesh id`). Running it again updates the binary
 and keeps the config.
 
+## Automatic updates
+
+The installer turns on `meshmsg-relay-update.timer`: every 6 hours (and 10 minutes after
+boot) it runs `meshmsg-relay -self-update` as root. That takes the newest `release.json`
+from GitHub, installs nothing unless it verifies against the project's release key, checks
+the relay tarball for this CPU against the SHA-256 in it, swaps the binary and restarts
+`meshmsg-relay`. Config and data stay. Run it now: `sudo systemctl start meshmsg-relay-update`
+(log: `journalctl -u meshmsg-relay-update`). Off: `sudo systemctl disable --now
+meshmsg-relay-update.timer`, or install with `MAVA_AUTO_UPDATE=n`. A relay installed before
+this needs the installer once more to get the timer.
+
 ## Ports (same on every relay)
 
 | Port | Protocol | Use |

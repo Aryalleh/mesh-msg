@@ -1,0 +1,11 @@
+[Unit]
+Description=mesh-msg relay: install the newest signed release from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Root: replaces /usr/local/bin/meshmsg-relay and restarts meshmsg-relay.
+# Only a release.json signed with the project's release key is accepted, and
+# the download must match the SHA-256 in it.
+ExecStart=/usr/local/bin/meshmsg-relay -self-update

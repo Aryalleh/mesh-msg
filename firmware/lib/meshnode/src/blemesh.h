@@ -29,6 +29,11 @@ class Peer {
  public:
   void reset();
   bool up() const { return hello_; }
+  // Since boot, for the board log: packets taken from the phone (to the node),
+  // too large for LoRa and skipped, and packets sent to the phone.
+  uint32_t packets_in() const { return in_n_; }
+  uint32_t packets_skipped() const { return skipped_n_; }
+  uint32_t packets_out() const { return out_n_; }
   // This side connected (GATT client) and sent the hello itself: the stream
   // starts at once.
   void start(node::Node& node, size_t port, route::Millis now);
@@ -55,6 +60,7 @@ class Peer {
   host::Decoder dec_;
   uint8_t q_[1024] = {};
   size_t q_off_ = 0, q_len_ = 0;
+  uint32_t in_n_ = 0, skipped_n_ = 0, out_n_ = 0;
 };
 
 }  // namespace blemesh

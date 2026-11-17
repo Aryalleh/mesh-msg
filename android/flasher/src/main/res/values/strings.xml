@@ -3,7 +3,7 @@
     <string name="app_name">Mava Flasher</string>
     <string name="title">Board flasher</string>
     <string name="images_version">Firmware %1$s</string>
-    <string name="no_images">This copy carries no firmware. Download the flasher APK from the release page.</string>
+    <string name="no_images">No firmware yet: connect to the internet and tap "Check GitHub for newer firmware".</string>
     <string name="no_usb_host">This phone has no USB host (OTG) support.</string>
     <string name="no_board">No board on USB. Connect the board with a USB-OTG adapter and a data cable (a charge-only cable shows nothing).</string>
     <string name="board_found">Board: %1$s</string>
@@ -42,4 +42,11 @@
     <string name="ack_bad_args">The board rejected these settings.</string>
     <string name="help_title">If it doesn\'t connect</string>
     <string name="help_text">• Hold BOOT, press and release RESET, release BOOT, then try again.\n• On a dev board with two USB sockets, use the one marked USB.\n• The Mava firmware needs an ESP32-S3 with 16 MB flash and 8 MB PSRAM (N16R8).\n• The keyboard module (Raspberry Pi Pico) is flashed from a computer, with the Linux flasher.</string>
+    <string name="fw_title">Firmware</string>
+    <string name="fw_from_github">%1$s, downloaded from GitHub (signed release)</string>
+    <string name="fw_from_apk">%1$s, built into this app</string>
+    <string name="fw_check">Check GitHub for newer firmware</string>
+    <string name="fw_newest">%1$s is the newest firmware.</string>
+    <string name="fw_downloaded">Downloaded firmware %1$s (signature and SHA-256 checked). Flash it with the buttons below.</string>
+    <string name="fw_failed">Could not check GitHub: %1$s. The firmware shown is used.</string>
 </resources>

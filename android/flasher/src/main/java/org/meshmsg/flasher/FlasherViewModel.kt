@@ -24,6 +24,8 @@ import kotlinx.coroutines.launch
 import org.meshmsg.boardlink.BoardLink
 import org.meshmsg.boardlink.HostLink
 import org.meshmsg.boardlink.UsbSerial
+import org.meshmsg.flasher.update.RemoteFirmware
+import org.meshmsg.flasher.update.Versions
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -31,6 +33,10 @@ import java.util.concurrent.TimeUnit
 data class UiState(
     val usbHost: Boolean = true,
     val imagesVersion: String? = null,
+    val imagesFrom: String = "", // "github" (downloaded) or "apk" (bundled)
+    val fwChecking: Boolean = false,
+    val fwProgress: Float = 0f,
+    val fwMessage: Pair<Boolean, String>? = null, // ok?, text
     val device: String? = null,
     val permitted: Boolean = false,
     val busy: Boolean = false,
@@ -54,7 +60,8 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
     private val usb = ctx.getSystemService(UsbManager::class.java)
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state
-    private val images: List<BoardImage>? = loadImages()
+    @Volatile private var images: List<BoardImage>? = loadImages()
+    private val remote = RemoteFirmware(java.io.File(ctx.filesDir, "board"))
     @Volatile private var permissionLatch = CountDownLatch(1)
     private var monitor: Job? = null
 
@@ -70,8 +77,11 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
             it.copy(
                 usbHost = ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST),
                 imagesVersion = if (images.isNullOrEmpty()) null else readAsset("VERSION")?.toString(Charsets.UTF_8)?.trim() ?: "?",
+                imagesFrom = "apk",
             )
         }
+        useDownloaded()
+        checkFirmware()
         val filter = IntentFilter().apply {
             addAction(ACTION_PERMISSION)
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
@@ -98,6 +108,56 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
         val manifest = readAsset("images.txt") ?: return null
         return BoardImages.parse(manifest.toString(Charsets.UTF_8)) { name ->
             readAsset(name) ?: throw IOException("missing $name in this APK")
+        }
+    }
+
+    /** A firmware downloaded earlier and newer than the APK's: use it (works offline). */
+    private fun useDownloaded() {
+        val dir = java.io.File(ctx.filesDir, "board")
+        val newest = dir.listFiles()?.filter { java.io.File(it, "images.txt").isFile }
+            ?.maxWithOrNull { a, b -> Versions.compare(a.name, b.name) } ?: return
+        val cur = _state.value.imagesVersion
+        if (cur != null && Versions.compare(newest.name, cur) <= 0) return
+        loadFrom(newest)?.let { list ->
+            images = list
+            _state.update { it.copy(imagesVersion = newest.name, imagesFrom = "github") }
+        }
+    }
+
+    private fun loadFrom(dir: java.io.File): List<BoardImage>? = runCatching {
+        BoardImages.parse(java.io.File(dir, "images.txt").readText()) { name ->
+            val f = java.io.File(dir, name)
+            if (!f.isFile) throw IOException("missing $name")
+            f.readBytes()
+        }
+    }.getOrNull()
+
+    /**
+     * Looks for a newer firmware on GitHub (signed release only) and downloads
+     * it: a new firmware needs no new flasher APK.
+     */
+    fun checkFirmware() {
+        if (_state.value.fwChecking) return
+        _state.update { it.copy(fwChecking = true, fwProgress = 0f, fwMessage = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val r = remote.latest()
+                val cur = _state.value.imagesVersion
+                if (cur != null && Versions.compare(r.version, cur) <= 0) {
+                    _state.update { it.copy(fwMessage = true to ctx.getString(R.string.fw_newest, cur)) }
+                    return@launch
+                }
+                val dir = remote.fetch(r) { p -> _state.update { it.copy(fwProgress = p) } }
+                val list = loadFrom(dir) ?: throw IOException("downloaded firmware is incomplete")
+                if (!_state.value.busy) images = list
+                _state.update {
+                    it.copy(imagesVersion = r.version, imagesFrom = "github", fwMessage = true to ctx.getString(R.string.fw_downloaded, r.version))
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(fwMessage = false to ctx.getString(R.string.fw_failed, e.message ?: e.toString())) }
+            } finally {
+                _state.update { it.copy(fwChecking = false) }
+            }
         }
     }
 

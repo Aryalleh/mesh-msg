@@ -146,7 +146,7 @@ jobs:
             r=meshmsg-relay-$ver-linux-$arch
             mkdir -p "$r"
             CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$ver" -o "$r/meshmsg-relay" ./server/cmd/relay
-            cp server/deploy/install.sh server/deploy/meshmsg-relay.service server/deploy/relay.example.json server/deploy/README.md "$r/"
+            cp server/deploy/install.sh server/deploy/meshmsg-relay.service server/deploy/meshmsg-relay-update.service server/deploy/meshmsg-relay-update.timer server/deploy/relay.example.json server/deploy/README.md "$r/"
             tar czf "dist/$r.tar.gz" "$r"
           done
           ls -la dist
@@ -275,8 +275,16 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Drop build-only files
-        run: rm -f dist/board-images.tar
+      # The board images as one zip: Mava Flasher (Android) downloads the
+      # newest one itself (checked against the SHA-256 in the signed
+      # release.json), so a new firmware needs no new flasher APK.
+      - name: Board images for the flasher's download
+        run: |
+          ver='${{ needs.version.outputs.name }}'
+          mkdir -p bi && tar -xf dist/board-images.tar -C bi
+          (cd bi/board-images && zip -q -X "$GITHUB_WORKSPACE/dist/mava-board-images-$ver.zip" images.txt VERSION *.bin)
+          rm -f dist/board-images.tar
+          unzip -l "dist/mava-board-images-$ver.zip"
 
       # Update check (roadmap B7, decisions D20): every release carries a
       # release.json signed with the release key (secret RELEASE_SIGNING_KEY,

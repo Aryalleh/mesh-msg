@@ -1705,3 +1705,21 @@ links. Chose: quick items in beta3; calls follow in later betas.
   Ed25519 inside the WebServer handler. Checked with Playwright against a fake board.
   Release v0.1.1-beta22.
 - Released **v0.1.1-beta22** (run #124, f5da158).
+- Owner's board log (beta22): BLE works (`links 1, hellos 1`, random static address), but no
+  message crosses; relay "connection refused" on https://eu-1.mfadem.ir (the sandbox proxy
+  blocks that host, so it could not be checked from here). Added: `blemesh::Peer` counters
+  (packets in / skipped too-big / out), `mc::Client::stats()` (data for us, opened,
+  unreadable, sent, receipts); log line buffer 160 → 512 and the 10 s status split into
+  Wi-Fi/radio, relay, account, Bluetooth lines (it was truncated).
+- Relay self-update: `meshmsg-relay -self-update` (server/cmd/relay/selfupdate.go): newest
+  signed release.json from GitHub (`update.FetchGitHub`, release key), tarball for GOARCH
+  checked against its SHA-256, new binary must print the manifest version, atomic rename,
+  `systemctl restart`. Root oneshot `meshmsg-relay-update.service` + 6 h timer, installed and
+  enabled by install.sh (`MAVA_AUTO_UPDATE=n` off), shipped in the relay tarball. Test with a
+  fake GitHub: tampered tarball and foreign key refused.
+- Android flasher fetches firmware from GitHub: releases now publish
+  `mava-board-images-<ver>.zip` (in the signed manifest). `RemoteFirmware` verifies
+  release.json with a pure-Kotlin Ed25519 (RFC 8032; API 26 has none), downloads + SHA-256,
+  unzips to filesDir/board/<ver>; the newest of APK-bundled/downloaded is used; INTERNET
+  permission; auto check at start + button. Tests: RFC vectors, the real beta22 release.json.
+- Release v0.1.1-beta23.

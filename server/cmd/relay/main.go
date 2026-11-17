@@ -111,9 +111,30 @@ func main() {
 	cfgPath := flag.String("config", "relay.json", "config file")
 	genToken := flag.Bool("gen-token", false, "print a random sync token and exit")
 	showVersion := flag.Bool("version", false, "print the version and exit")
+	selfUpd := flag.Bool("self-update", false, "install the newest signed release from GitHub, restart the service and exit")
+	service := flag.String("service", "meshmsg-relay", "systemd service -self-update restarts (\"\" = none)")
 	flag.Parse()
 	if *showVersion {
 		fmt.Println(version)
+		return
+	}
+	if *selfUpd {
+		exe, err := os.Executable()
+		if err == nil {
+			exe, err = filepath.EvalSymlinks(exe)
+		}
+		if err != nil {
+			log.Fatalf("self-update: %v", err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		msg, err := selfUpdate(ctx, version, exe, *service, true)
+		if msg != "" {
+			fmt.Println("self-update:", msg)
+		}
+		if err != nil {
+			log.Fatalf("self-update: %v", err)
+		}
 		return
 	}
 	if *genToken {

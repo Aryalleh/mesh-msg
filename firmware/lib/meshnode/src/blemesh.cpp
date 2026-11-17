@@ -53,7 +53,12 @@ bool Peer::rx(node::Node& node, size_t port, const uint8_t* b, size_t n, route::
     }
     if (!skip_) in_[got_] = b[i];
     if (++got_ == need_) {
-      if (!skip_) packet(node, port, now);
+      if (!skip_) {
+        packet(node, port, now);
+        in_n_++;
+      } else {
+        skipped_n_++;
+      }
       hdr_n_ = 0;
     }
   }
@@ -84,6 +89,7 @@ size_t Peer::tx(node::Node& node, size_t port, uint8_t* out, size_t cap) {
       w[2] = uint8_t(len);
       std::memcpy(w + kFrameHeader, dec_.payload(), len);
       q_len_ += kFrameHeader + len;
+      out_n_++;
     }
   }
   size_t k = q_len_ < cap ? q_len_ : cap;

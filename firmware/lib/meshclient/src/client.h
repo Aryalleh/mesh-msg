@@ -78,6 +78,13 @@ class Client {
   const std::vector<Contact>& contacts() const { return contacts_; }
   const std::vector<Message>& messages(size_t contact) const;
   int find(const std::string& id) const;
+  // Since start, for the board log: DATA packets (or fragments) addressed to
+  // us, messages opened, messages we could not open (not for this key, or
+  // from someone we can't read yet), and messages sent.
+  struct Stats {
+    uint32_t data_in = 0, opened = 0, unreadable = 0, sent = 0, receipts_in = 0;
+  };
+  const Stats& stats() const { return stats_; }
   // Grows with every change the UI shows (new message, receipt, contact).
   uint32_t revision() const { return rev_; }
 
@@ -114,6 +121,7 @@ class Client {
   size_t seen_n_ = 0;
   uint32_t last_announce_ = 0;
   uint32_t rev_ = 1;
+  Stats stats_;
 };
 
 std::string base64url(const uint8_t* b, size_t n);

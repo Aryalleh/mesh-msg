@@ -413,11 +413,21 @@ void status(char* out, size_t cap) {
                     : hci == 0x08 ? " (out of range)"
                     : hci == 0x3E ? " (connection failed)"
                                   : "";
-  snprintf(out, cap, "%s %s, advertising %s, links %d, connects %lu, hellos %lu, drops %lu, last drop 0x%x%s",
+  uint32_t pin = 0, pskip = 0, pout = 0;
+  for (const auto& p : g_peers) {
+    pin += p.packets_in();
+    pskip += p.packets_skipped();
+    pout += p.packets_out();
+  }
+  int k = snprintf(out, cap, "%s %s, advertising %s, links %d, connects %lu, hellos %lu, drops %lu, last drop 0x%x%s",
            NimBLEDevice::getAddress().toString().c_str(),
            NimBLEDevice::getAddress().getType() == BLE_ADDR_RANDOM ? "random" : "public",
            a && a->isAdvertising() ? "on" : "OFF", int(g_conn_count), (unsigned long)g_connects,
            (unsigned long)g_hellos, (unsigned long)g_disconnects, r, why);
+  // Packets on the Bluetooth mesh since boot (in: from phones to the node).
+  if (k > 0 && size_t(k) < cap)
+    snprintf(out + k, cap - size_t(k), "; packets in %lu (too big for LoRa, skipped %lu), out %lu", (unsigned long)pin,
+             (unsigned long)pskip, (unsigned long)pout);
 }
 
 int mesh_peers() {

@@ -61,6 +61,9 @@ trap 'rm -rf "$TMP"' EXIT
 if [ -x "$HERE/meshmsg-relay" ]; then
 	cp "$HERE/meshmsg-relay" "$TMP/meshmsg-relay"
 	[ -f "$HERE/meshmsg-relay.service" ] && cp "$HERE/meshmsg-relay.service" "$TMP/"
+	for u in meshmsg-relay-update.service meshmsg-relay-update.timer; do
+		[ -f "$HERE/$u" ] && cp "$HERE/$u" "$TMP/"
+	done
 else
 	command -v curl >/dev/null || die "needs curl"
 	say "Looking up the newest release…"
@@ -81,6 +84,9 @@ else
 	[ -n "$d" ] || die "archive has no meshmsg-relay"
 	cp "$d" "$TMP/meshmsg-relay"
 	[ -f "$(dirname "$d")/meshmsg-relay.service" ] && cp "$(dirname "$d")/meshmsg-relay.service" "$TMP/"
+	for u in meshmsg-relay-update.service meshmsg-relay-update.timer; do
+		[ -f "$(dirname "$d")/$u" ] && cp "$(dirname "$d")/$u" "$TMP/"
+	done
 fi
 chmod 755 "$TMP/meshmsg-relay"
 NEWVER=$("$TMP/meshmsg-relay" -version 2>/dev/null || echo "?")
@@ -158,6 +164,22 @@ fi
 systemctl start meshmsg-relay
 sleep 2
 systemctl is-active --quiet meshmsg-relay || { journalctl -u meshmsg-relay -n 20 --no-pager; die "the relay did not start"; }
+
+# Automatic updates: a timer runs "meshmsg-relay -self-update" every 6 hours
+# (signed releases from GitHub only). MAVA_AUTO_UPDATE=n turns it off.
+if [ "${MAVA_AUTO_UPDATE:-y}" != n ]; then
+	for u in meshmsg-relay-update.service meshmsg-relay-update.timer; do
+		if [ -f "$TMP/$u" ]; then
+			cp "$TMP/$u" "/etc/systemd/system/$u"
+		else
+			curl -fsSL "https://raw.githubusercontent.com/$REPO/main/server/deploy/$u" -o "/etc/systemd/system/$u" || true
+		fi
+	done
+	if [ -f /etc/systemd/system/meshmsg-relay-update.timer ]; then
+		systemctl daemon-reload
+		systemctl enable --now meshmsg-relay-update.timer >/dev/null 2>&1 && say "Automatic updates on (every 6 h, signed releases only)."
+	fi
+fi
 
 # Firewall: open the Mava relay ports if ufw or firewalld is active. It only
 # adds rules; it never turns a firewall on (that could lock out SSH).

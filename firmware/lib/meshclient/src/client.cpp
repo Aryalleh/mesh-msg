@@ -281,6 +281,7 @@ bool Client::send_text(size_t ci, const std::string& text, uint32_t now, std::st
   c.last = now;
   add_message(ci, m);
   save_contacts();
+  stats_.sent++;
   return true;
 }
 
@@ -321,6 +322,7 @@ void Client::on_packet(const uint8_t* raw, size_t n, uint32_t now) {
           uint8_t a2[8];
           if (verify_receipt(p, contacts_[ci].pub, a2) != AnnounceErr::Ok) return;
           m.delivered = true;
+          stats_.receipts_in++;
           rev_++;
           save_messages(ci);
           return;
@@ -330,6 +332,7 @@ void Client::on_packet(const uint8_t* raw, size_t n, uint32_t now) {
     }
     case Type::Data: {
       if (std::memcmp(p.dest, dest_, 16) != 0) return;
+      stats_.data_in++;
       if (!p.fragmented()) return on_data(p, now);
       // Collect fragments until the set is complete.
       for (size_t i = 0; i < partial_.size();)
@@ -376,7 +379,11 @@ void Client::on_data(const Packet& p, uint32_t now) {
     for (auto& c : contacts_) pubs.push_back(c.pub);
     std::vector<uint8_t> plain(p.body_len);
     e2e::Opened o;
-    if (!e2e::open(id_, pubs.data(), pubs.size(), p.id, p.body, p.body_len, plain.data(), plain.size(), o)) return;
+    if (!e2e::open(id_, pubs.data(), pubs.size(), p.id, p.body, p.body_len, plain.data(), plain.size(), o)) {
+      stats_.unreadable++;
+      return;
+    }
+    stats_.opened++;
     int ci = o.contact >= 0 ? o.contact : upsert(o.from, now);
     if (ci < 0) return;
     Contact& c = contacts_[size_t(ci)];

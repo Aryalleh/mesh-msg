@@ -52,7 +52,7 @@ net::Settings g_net;
 SemaphoreHandle_t g_lock = nullptr;
 bool g_radio_ok = false;
 Millis g_led_off = 0;
-char g_line[160];
+char g_line[512];
 
 void slot_path(char* out, size_t cap, size_t slot) { snprintf(out, cap, "/s%02u", unsigned(slot)); }
 
@@ -294,7 +294,7 @@ void setup() {
   bool ble_ok = ble::begin(name, pk.ed);
   node.set_port_trusted(ble::kPort, false);  // no pairing over Bluetooth: packets and status only
   {
-    char bt[200];
+    char bt[320];
     ble::status(bt, sizeof bt);
     logf("BLE %s as %s (no pairing; phones' mesh + host link): %s", ble_ok ? "ok" : "FAILED", name, bt);
   }
@@ -445,11 +445,11 @@ void loop() {
                        : net::wifi_up()                ? "joined"
                        : g_net.wifi_ssid[0]            ? "joining"
                                                        : "off";
-    logf("hotspot %s, device password: %s; Bluetooth phones %d; Wi-Fi %s %s; relay %s; account %s; radio %s",
-         net::ap_name(), g_net.password, ble::mesh_peers(), wifi, net::web_url(), net::relay_state(),
-         ui::client_state().c_str(),
-         g_radio_ok ? "ok" : "NOT FOUND");
-    char bt[200];
+    logf("hotspot %s, device password: %s; Wi-Fi %s %s; radio %s", net::ap_name(), g_net.password, wifi,
+         net::web_url(), g_radio_ok ? "ok" : "NOT FOUND");
+    logf("relay %s", net::relay_state());
+    logf("account %s", ui::client_state().c_str());
+    char bt[320];
     ble::status(bt, sizeof bt);
     logf("Bluetooth %s", bt);
   }

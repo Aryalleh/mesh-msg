@@ -3,6 +3,8 @@
 
     <!-- USB-OTG: the phone is the USB host, the board the device. -->
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <!-- The newest firmware from GitHub releases (signed release.json). -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="false"

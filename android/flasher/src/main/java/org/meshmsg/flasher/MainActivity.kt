@@ -139,9 +139,27 @@ private fun FlasherScreen(s: UiState, vm: FlasherViewModel) {
                 }
             }
 
-            if (s.imagesVersion == null) {
-                Panel { Text(stringResource(R.string.no_images), color = Err) }
-            } else {
+            Panel {
+                Text(stringResource(R.string.fw_title), color = PrimaryHi, fontWeight = FontWeight.Bold)
+                Text(
+                    s.imagesVersion?.let {
+                        stringResource(if (s.imagesFrom == "github") R.string.fw_from_github else R.string.fw_from_apk, it)
+                    } ?: stringResource(R.string.no_images),
+                    color = if (s.imagesVersion == null) Err else Fg, fontSize = 14.sp,
+                )
+                if (s.fwChecking) {
+                    LinearProgressIndicator(
+                        progress = { s.fwProgress }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = S2,
+                    )
+                }
+                s.fwMessage?.let { (ok, text) -> Text(text, color = if (ok) Ok else Err, fontSize = 13.sp) }
+                OutlinedButton(
+                    onClick = vm::checkFirmware, enabled = !s.fwChecking && !s.busy, shape = Chamfer,
+                    border = BorderStroke(1.dp, Border),
+                ) { Text(stringResource(R.string.fw_check), color = if (!s.fwChecking && !s.busy) Fg else Muted) }
+            }
+
+            if (s.imagesVersion != null) {
                 val enabled = s.device != null && !s.busy && !s.monitoring
                 Panel {
                     Button(
