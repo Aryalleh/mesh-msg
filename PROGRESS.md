@@ -1732,3 +1732,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   until an attempt ended; TLS handshake waits 120 s by default. Now `set_detail("connecting")`
   before probes, HTTP connect timeout 8 s, TLS handshake 20 s, and an "off" state that names
   the reason. Release v0.1.1-beta24.
+- Released **v0.1.1-beta24** (2cdf160).
