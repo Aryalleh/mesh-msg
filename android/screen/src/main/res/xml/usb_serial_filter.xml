@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ESP32-S3 USB (Espressif 303a), CP210x (Silicon Labs 10c4), CH340/CH343 (WCH 1a86). -->
+<resources>
+    <usb-device vendor-id="12346" />
+    <usb-device vendor-id="4292" />
+    <usb-device vendor-id="6790" />
+</resources>

@@ -27,6 +27,7 @@
 #include "radio.h"
 #include "kbmodule.h"
 #include "ui/messenger.h"
+#include "ui/remote.h"
 #include "ui/ui.h"
 #include <Wire.h>
 
@@ -115,6 +116,9 @@ struct Board : mesh::node::Platform {
   uint8_t hotspot(bool on) override {
     logf("host: hotspot %s", on ? "on" : "back to normal");
     return net::hotspot(on);
+  }
+  uint8_t board_command(size_t port, uint8_t op, const uint8_t* a, size_t n) override {
+    return remote::command(*g_node, port, op, a, n);
   }
 };
 
@@ -291,8 +295,9 @@ void setup() {
 #endif
   xSemaphoreGive(g_lock);  // the screen reads the node status under the lock
   logf("boot: screen");
+  bool mirror = remote::begin();
   g_ui = ui::begin(ui_status, ui::stub_messenger());
-  logf("screen: %s", g_ui ? "ok" : "none");
+  logf("screen: %s; screen on a phone over USB: %s", g_ui ? "ok" : "none", g_ui && mirror ? "yes" : "no");
   logf("ready; attach meshd ([lora] port = this serial port), pair a phone, or watch the air");
 }
 
@@ -374,6 +379,9 @@ void loop() {
 
   // ---- Wi-Fi: setup switch, hotspot panel, NTP ----
   net::loop(now);
+
+  // ---- the screen on a phone / PC (SCREEN command) ----
+  remote::pump(node);
 
   // ---- timer ----
   if (now - last_tick >= kTickEvery) {

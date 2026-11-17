@@ -25,6 +25,14 @@ StatusFn g_status_fn = nullptr;
 Messenger* g_msg = nullptr;
 Status g_status;
 bool g_ready = false;
+// Touches from a phone or PC showing the screen (remote.h), in order.
+struct RemoteTouch {
+  int16_t x, y;
+  bool pressed;
+};
+std::deque<RemoteTouch> g_remote;
+RemoteTouch g_remote_last = {0, 0, false};
+lv_indev_t* g_remote_indev = nullptr;
 
 lv_font_t g_font;  // Vazirmatn (Persian + Latin), falling back to Montserrat for symbols
 lv_group_t* g_group = nullptr;
@@ -436,6 +444,17 @@ void keypad_cb(lv_indev_t*, lv_indev_data_t* d) {
   d->continue_reading = !g_keys.empty();
 }
 
+void remote_cb(lv_indev_t*, lv_indev_data_t* d) {
+  if (!g_remote.empty()) {
+    g_remote_last = g_remote.front();
+    g_remote.pop_front();
+  }
+  d->point.x = g_remote_last.x;
+  d->point.y = g_remote_last.y;
+  d->state = g_remote_last.pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+  d->continue_reading = !g_remote.empty();
+}
+
 void encoder_cb(lv_indev_t*, lv_indev_data_t* d) {
   d->enc_diff = int16_t(g_enc_diff);
   g_enc_diff = 0;
@@ -539,10 +558,29 @@ bool begin(StatusFn status, Messenger& messenger) {
     lv_indev_set_read_cb(g_encoder, encoder_cb);
     lv_indev_set_group(g_encoder, g_group);
   }
+  g_remote_indev = lv_indev_create();
+  lv_indev_set_type(g_remote_indev, LV_INDEV_TYPE_POINTER);
+  lv_indev_set_read_cb(g_remote_indev, remote_cb);
   if (g_status_fn) g_status = g_status_fn();
   show(Screen::Home);
   display::backlight(g_brightness);
   g_ready = true;
+  return true;
+}
+
+bool ready() { return g_ready; }
+
+void remote_touch(int x, int y, bool pressed) {
+  if (!g_ready) return;
+  wake();
+  if (g_remote.size() >= 32) g_remote.pop_front();  // a stalled UI keeps the latest
+  g_remote.push_back({int16_t(x), int16_t(y), pressed});
+}
+
+bool remote_key(uint8_t action, uint32_t cp) {
+  if (!g_ready || action == uint8_t(k::Action::None) || action > uint8_t(k::Action::LanguageChanged)) return false;
+  if (action == uint8_t(k::Action::Text) && (cp < 0x20 || cp > 0x10FFFF)) return false;
+  on_output(k::Output{k::Action(action), char32_t(cp)});
   return true;
 }
 

@@ -21,7 +21,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.meshmsg.flasher.usb.UsbSerial
+import org.meshmsg.boardlink.BoardLink
+import org.meshmsg.boardlink.HostLink
+import org.meshmsg.boardlink.UsbSerial
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit

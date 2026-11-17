@@ -1,6 +1,5 @@
-package org.meshmsg.flasher
+package org.meshmsg.boardlink
 
-import org.meshmsg.flasher.esp.SerialLink
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 

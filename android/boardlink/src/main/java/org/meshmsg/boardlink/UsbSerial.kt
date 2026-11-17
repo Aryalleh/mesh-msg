@@ -1,4 +1,4 @@
-package org.meshmsg.flasher.usb
+package org.meshmsg.boardlink
 
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
@@ -6,7 +6,6 @@ import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
-import org.meshmsg.flasher.esp.SerialLink
 import java.io.Closeable
 import java.io.IOException
 

@@ -18,3 +18,5 @@ dependencyResolutionManagement {
 rootProject.name = "mesh-msg"
 include(":app")
 include(":flasher")
+include(":boardlink")
+include(":screen")

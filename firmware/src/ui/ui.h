@@ -39,5 +39,11 @@ bool begin(StatusFn status, Messenger& messenger);
 // Keyboard module, touch, LVGL timers. Call often from the main loop,
 // without holding the node lock.
 void loop(uint32_t now_ms);
+bool ready();
+
+// Input from a phone or PC showing the screen (remote.h): a touch at screen
+// coordinates, or a key (keys::Action, code point for Text). False: unknown action.
+void remote_touch(int x, int y, bool pressed);
+bool remote_key(uint8_t action, uint32_t cp);
 
 }  // namespace ui

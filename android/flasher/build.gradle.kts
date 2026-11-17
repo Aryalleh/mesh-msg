@@ -62,6 +62,7 @@ android {
 tasks.named("preBuild") { dependsOn(copyBoardImages) }
 
 dependencies {
+    implementation(project(":boardlink"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

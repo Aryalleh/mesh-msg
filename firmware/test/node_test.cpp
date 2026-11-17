@@ -40,6 +40,12 @@ struct FakeBoard : mesh::node::Platform {
     wifi_sets++;
     return host::kAckOk;
   }
+  std::vector<std::pair<uint8_t, Bytes>> board_cmds;
+  uint8_t board_command(size_t, uint8_t op, const uint8_t* a, size_t n) override {
+    if (op != host::kOpScreen && op != host::kOpInput) return host::kAckUnknownOp;
+    board_cmds.emplace_back(op, Bytes(a, a + n));
+    return host::kAckOk;
+  }
   uint8_t hotspot(bool on) override {
     if (!has_wifi) return Platform::hotspot(on);
     hotspot_on = on;
@@ -607,6 +613,22 @@ void wifi_commands() {
   host::WifiConfig e;
   uint8_t forget[] = {host::kWifiTagSsid, 0};
   CHECK(e.parse(forget, sizeof forget) && e.has_ssid && e.ssid[0] == 0);
+
+  // SCREEN / INPUT go to the board; board events reach the host.
+  usb.cmd(n, host::kOpScreen, 20, {1}, 1000);
+  usb.cmd(n, host::kOpInput, 21, {0, 0, 10, 0, 20, 1}, 1000);
+  usb.drain(n);
+  acks = usb.events(host::kEvAck);
+  CHECK(acks.size() == 2 && acks[0][3] == host::kAckOk && acks[1][3] == host::kAckOk);
+  CHECK(r.board.board_cmds.size() == 2 && r.board.board_cmds[0].first == host::kOpScreen);
+  uint8_t tile[] = {1, 2, 3};
+  CHECK(n.host_room(0) == mesh::node::kHostOut);
+  CHECK(n.host_event(0, host::kEvScreen, tile, sizeof tile));
+  CHECK(n.host_room(0) < mesh::node::kHostOut);
+  CHECK(!n.host_event(1, host::kEvScreen, tile, sizeof tile));  // BLE not attached
+  usb.drain(n);
+  auto scr = usb.events(host::kEvScreen);
+  CHECK(scr.size() == 1 && scr[0] == Bytes({host::kEvScreen, 0, 1, 2, 3}));
 
   // A node without Wi-Fi says so.
   r.board.has_wifi = false;

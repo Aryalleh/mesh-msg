@@ -1,11 +1,10 @@
-package org.meshmsg.flasher
+package org.meshmsg.boardlink
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
-import org.meshmsg.flasher.esp.SerialLink
 import java.io.File
 
 class HostLinkTest {

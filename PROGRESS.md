@@ -1516,3 +1516,21 @@ links. Chose: quick items in beta3; calls follow in later betas.
   WPA2 minimum is 8) instead of a random one; a password set in the panel is kept, a full
   erase / Install everything restores the default. Docs (board, flashing, web-access, mava-flash)
   updated. Release v0.1.1-beta10 (beta9 was cut just before, from 1c8e600).
+- Released **v0.1.1-beta9** (run #91, 1c8e600) and **v0.1.1-beta10** (run #93, ae98200), both green.
+
+### 2026-11-17 — Mava Screen: the handheld's screen on a phone over USB
+
+- Firmware: `lib/meshui/src/mirror.*` (host-tested): 240×320 RGB565 copy in PSRAM, 16×8
+  dirty tiles, RLE or raw per tile, info/tile/input wire formats. The display driver's
+  CASET/PASET/RAMWR are tapped (`src/ui/display.cpp`) into `remote::blit`;
+  `src/ui/remote.*` handles `SCREEN` 0x0B / `INPUT` 0x0C through the new
+  `Platform::board_command` (Node's unknown ops, trusted ports only) and `remote::pump`
+  sends tiles with `Node::host_event` while `host_room` allows. UI: a remote pointer indev
+  and `ui::remote_key` (keys::Action → `on_output`). Event `SCREEN` 0x86.
+- Android: new library `:boardlink` (UsbSerial, SerialLink, HostLink, BoardLink — moved out
+  of the flasher) and app `:screen` (`org.meshmsg.screen`, "Mava Screen"): auto-connects when
+  the board is plugged in and allowed, draws the frame sharp at ≤30 fps, touch (press /
+  30 ms moves / release), the handheld keys, typing via the phone keyboard. Tests: mirror
+  round trip + wire bytes (C++), the same bytes decoded in Kotlin. CI builds it in the
+  `flasher-android` job → release asset `mava-screen-<ver>-android.apk`. docs/screen.md.
+- Release v0.1.1-beta11. Not tested on hardware.

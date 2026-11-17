@@ -64,6 +64,12 @@ class Platform {
     (void)on;
     return host::kAckUnknownOp;
   }
+  // Commands the node doesn't know itself (SCREEN, INPUT…), from trusted
+  // ports only; the board answers with a host::kAck* status.
+  virtual uint8_t board_command(size_t port, uint8_t op, const uint8_t* args, size_t n) {
+    (void)port, (void)op, (void)args, (void)n;
+    return host::kAckUnknownOp;
+  }
 
  protected:
   ~Platform() = default;
@@ -110,6 +116,11 @@ class Node {
   size_t host_tx(size_t port, uint8_t* out, size_t cap);
   size_t host_pending(size_t port) const { return port < kHostPorts ? ports_[port].out_len : 0; }
   size_t hosts_pending() const;
+  // Board events (the screen mirror): queued if the port is attached and its
+  // output buffer has room for them; false otherwise (nothing is queued).
+  bool host_event(size_t port, uint8_t ev, const uint8_t* data, size_t n);
+  // Free bytes in a port's output buffer.
+  size_t host_room(size_t port) const { return port < kHostPorts ? kHostOut - ports_[port].out_len : 0; }
   // Single-host form (port 0), as used by the simulator and older tests.
   void host_attach(Millis now) { host_attach(0, now); }
   void host_detach() { host_detach(0); }

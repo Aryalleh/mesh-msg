@@ -449,8 +449,17 @@ void Node::command(size_t port, const uint8_t* p, size_t n, Millis now) {
       ack(port, op, req, platform_.hotspot(a[0] == 1));
       return;
     default:
-      ack(port, op, req, host::kAckUnknownOp);
+      ack(port, op, req, platform_.board_command(port, op, a, an));
   }
+}
+
+bool Node::host_event(size_t port, uint8_t ev, const uint8_t* data, size_t n) {
+  if (port >= kHostPorts || !ports_[port].attached || n > host::kMaxPayload - 2) return false;
+  uint8_t p[host::kMaxPayload];
+  p[0] = ev;
+  p[1] = 0;
+  if (n) std::memcpy(p + 2, data, n);
+  return emit(port, host::kKindEvent, p, 2 + n);
 }
 
 bool Node::apply_config(const host::NodeConfig& c, Millis now) {

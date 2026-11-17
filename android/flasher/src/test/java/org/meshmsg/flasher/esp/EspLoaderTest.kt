@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import org.meshmsg.boardlink.SerialLink
 import org.meshmsg.flasher.BoardImage
 import org.meshmsg.flasher.BoardImages
 import org.meshmsg.flasher.Flasher
@@ -128,6 +129,6 @@ class EspLoaderTest {
         assertEquals(0xEF, EspLoader.checksum(ByteArray(0)))
         assertEquals(0xEF xor 0x01 xor 0x02, EspLoader.checksum(byteArrayOf(1, 2)))
         // 1532620800 / 115200 = 13304 → 0x10000 - 13304 = 0xcc08; divisor 3 | 0x80.
-        assertEquals(Pair(0xCC83, 0x08), org.meshmsg.flasher.usb.UsbSerial.ch34xBaud(115200))
+        assertEquals(Pair(0xCC83, 0x08), org.meshmsg.boardlink.UsbSerial.ch34xBaud(115200))
     }
 }

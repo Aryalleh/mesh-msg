@@ -2,7 +2,7 @@ package org.meshmsg.flasher
 
 import org.meshmsg.flasher.esp.EspException
 import org.meshmsg.flasher.esp.EspLoader
-import org.meshmsg.flasher.esp.SerialLink
+import org.meshmsg.boardlink.SerialLink
 import java.io.Closeable
 import java.io.IOException
 

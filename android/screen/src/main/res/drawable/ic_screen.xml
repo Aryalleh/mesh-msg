@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A handheld screen on a phone, Mava violet on near-black. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#0B0A14" android:pathData="M8,0h32a8,8 0 0 1 8,8v32a8,8 0 0 1 -8,8h-32a8,8 0 0 1 -8,-8v-32a8,8 0 0 1 8,-8z" />
+    <path android:strokeColor="#7C3AED" android:strokeWidth="2.5" android:fillColor="#15122A"
+        android:pathData="M15,7h18l2,2v30l-2,2h-18l-2,-2v-30z" />
+    <path android:fillColor="#1E1A3A" android:pathData="M17,11h14v18h-14z" />
+    <path android:fillColor="#D946EF" android:pathData="M19,14h10v2h-10zM19,18h7v2h-7z" />
+    <path android:fillColor="#22D3EE" android:pathData="M19,22h9v2h-9z" />
+    <path android:fillColor="#A78BFA" android:pathData="M18,32h3v3h-3zM22.5,32h3v3h-3zM27,32h3v3h-3z" />
+</vector>

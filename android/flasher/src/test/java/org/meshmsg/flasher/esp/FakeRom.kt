@@ -1,5 +1,6 @@
 package org.meshmsg.flasher.esp
 
+import org.meshmsg.boardlink.SerialLink
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
