@@ -1740,3 +1740,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   other core. `FlashPersist` is now write-behind (PSRAM copy per slot, ≤1 slot per 250 ms).
   `mc::Client` logs its id and the last 4 destinations of DATA heard for other accounts
   (to show a phone writing to an old account). Release v0.1.1-beta25.
+- Released **v0.1.1-beta25** (2adce5a).
