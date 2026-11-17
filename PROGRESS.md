@@ -1614,3 +1614,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - iPhone already connects to anything advertising the mesh with manufacturer data, so
   iPhone ↔ board works with beta14.
 - Release v0.1.1-beta15. Not tested on hardware.
+- Released **v0.1.1-beta14** (run #106, b4fd9cb) and **v0.1.1-beta15** (run #108, 2afd8e3), all 13 assets each.
