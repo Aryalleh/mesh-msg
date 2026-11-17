@@ -1454,3 +1454,10 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Tag v0.1.1-beta7 could not be pushed from the cloud session (git proxy cuts tag pushes;
   branch pushes work): the owner pushes it (`git push origin v0.1.1-beta7`).
 
+### 2026-11-17 — Releases from a manual Actions run
+
+- Tag pushes are cut off from cloud sessions, so `android.yml`'s workflow_dispatch takes
+  `release_tag`: a run started by hand on main with e.g. `v0.1.1-beta7` builds everything
+  (Android, Linux desktop + relay, board flasher) and the release step creates the tag on
+  that commit and publishes. Tag pushes still work as before. Validated: tag format, main only.
+

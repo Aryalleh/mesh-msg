@@ -1,6 +1,9 @@
 # Builds the apps on every push to main and on tags. A tag v* publishes a
-# GitHub release (prerelease for -alpha/-beta/-rc) with the Android APKs and
-# the Linux desktop binaries, all stamped with the tag's version.
+# GitHub release (prerelease for -alpha/-beta/-rc) with the Android APKs, the
+# Linux desktop binaries, the relay and the Mava board's Linux flasher, all
+# stamped with the tag's version. A manual run (workflow_dispatch) with
+# release_tag does the same without pushing a tag first: the release step
+# creates the tag on the commit it built.
 #
 # Versions: name = tag without "v" (e.g. 0.1.0-alpha4), or 0.0.0-dev+<sha> on
 # main. Android versionCode = this workflow's run number, which only grows, so
@@ -14,6 +17,11 @@ on:
     tags: ["v*"]
     paths-ignore: ["**.md"]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a release with this new tag (e.g. v0.1.1-beta7); empty = build only"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -24,13 +32,24 @@ jobs:
     outputs:
       name: ${{ steps.v.outputs.name }}
       code: ${{ steps.v.outputs.code }}
+      tag: ${{ steps.v.outputs.tag }}
     steps:
       - id: v
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then name=${GITHUB_REF_NAME#v}; else name=0.0.0-dev+${GITHUB_SHA::7}; fi
+          tag=""
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then tag=$GITHUB_REF_NAME; fi
+          if [[ -n "$RELEASE_TAG" ]]; then
+            [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+[0-9]*)?$ ]] || { echo "::error::release_tag must look like v1.2.3 or v1.2.3-beta4"; exit 1; }
+            [[ "$GITHUB_REF" == refs/heads/main ]] || { echo "::error::releases are cut from main only"; exit 1; }
+            tag=$RELEASE_TAG
+          fi
+          if [[ -n "$tag" ]]; then name=${tag#v}; else name=0.0.0-dev+${GITHUB_SHA::7}; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "code=$((GITHUB_RUN_NUMBER + 100))" >> "$GITHUB_OUTPUT"
-          echo "version $name, code $((GITHUB_RUN_NUMBER + 100))"
+          echo "version $name, code $((GITHUB_RUN_NUMBER + 100)), release tag '${tag}'"
 
   android:
     needs: version
@@ -166,7 +185,7 @@ jobs:
           path: out/
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: needs.version.outputs.tag != ''
     needs: [version, android, desktop, board]
     runs-on: ubuntu-24.04
     steps:
@@ -189,7 +208,7 @@ jobs:
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
         run: |
-          tag='${{ github.ref_name }}'
+          tag='${{ needs.version.outputs.tag }}'
           ver='${{ needs.version.outputs.name }}'
           for l in en fa; do
             [ -s "docs/release-notes/$tag.$l.md" ] || { echo "::error::docs/release-notes/$tag.$l.md is missing"; exit 1; }
@@ -234,8 +253,12 @@ jobs:
       - name: Checksums
         run: cd dist && sha256sum * > SHA256SUMS && ls -la
 
+      # Creates the tag on the built commit when the run was started by hand.
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ needs.version.outputs.tag }}
           files: dist/*
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(needs.version.outputs.tag, '-') }}
           body_path: body.md
