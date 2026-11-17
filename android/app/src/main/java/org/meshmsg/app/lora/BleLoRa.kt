@@ -228,7 +228,9 @@ class BleLoRa(private val context: Context, private var address: String?) : Stre
     }
 
     companion object {
-        const val LINK_NAME = "ble"
+        // Not "ble": that is the phones' Bluetooth mesh (BleProto.LINK_NAME). Two
+        // links of one name replaced each other in the router (beta12–beta18 bug).
+        const val LINK_NAME = "lora-ble"
         // firmware/src/ble.cpp: "mesh" "lr" in the first bytes, Bluetooth base UUID tail.
         val SERVICE: UUID = UUID.fromString("6d657368-6c72-0000-8000-00805f9b34fb")
         val RX: UUID = UUID.fromString("6d657368-6c72-0001-8000-00805f9b34fb")

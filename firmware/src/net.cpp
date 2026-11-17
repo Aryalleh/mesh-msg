@@ -12,6 +12,7 @@
 #include <LittleFS.h>
 #include <mbedtls/base64.h>
 #include <mbedtls/sha256.h>
+#include <sys/time.h>
 #include <time.h>
 
 #include <cstring>
@@ -599,6 +600,37 @@ uint64_t solve_pow(const uint8_t* body, size_t n, int bits) {
   }
 }
 
+// "Tue, 17 Nov 2026 11:40:00 GMT" → Unix seconds (0 if not that form).
+uint32_t http_date(const String& d) {
+  static const char* kMon = "JanFebMarAprMayJunJulAugSepOctNovDec";
+  int day, year, h, m, s;
+  char mon[4] = {};
+  if (sscanf(d.c_str(), "%*3s, %d %3s %d %d:%d:%d", &day, mon, &year, &h, &m, &s) != 6) return 0;
+  const char* p = strstr(kMon, mon);
+  if (!p || year < 2024) return 0;
+  int mo = int(p - kMon) / 3 + 1;
+  // Days from 1970-01-01 (civil calendar).
+  int y = year - (mo <= 2);
+  int era = y / 400, yoe = y - era * 400;
+  int doy = (153 * (mo + (mo > 2 ? -3 : 9)) + 2) / 5 + day - 1;
+  int doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  long days = long(era) * 146097 + doe - 719468;
+  return uint32_t(days * 86400L + h * 3600L + m * 60L + s);
+}
+
+// Without NTP (filtered on some networks) the relay's clock is good enough
+// for announces: the board's account can then announce and be reached.
+void clock_from(const String& date) {
+  if (g_time_given || !date.length()) return;
+  uint32_t t = http_date(date);
+  if (!t) return;
+  struct timeval tv = {time_t(t), 0};
+  settimeofday(&tv, nullptr);
+  Lock l;
+  g_node->set_time(t, board::now_ms());
+  g_time_given = true;
+}
+
 bool begin_http(HTTPClient& http, WiFiClientSecure& tls, WiFiClient& plain, const String& url) {
   if (url.startsWith("https://")) {
     tls.setCACert(kRootCAs);
@@ -627,7 +659,10 @@ bool probe(const String& base, String& why) {
     return false;
   }
   http.setTimeout(15000);
+  const char* keep[] = {"Date"};
+  http.collectHeaders(keep, 1);
   int code = http.GET();
+  if (code > 0) clock_from(http.header("Date"));
   if (code != 200) {
     if (code < 0) {
       char err[80] = {};
@@ -706,8 +741,8 @@ bool gateway_once(uint8_t* body, size_t cap) {
     return false;
   }
   http.setTimeout(uint16_t((kPollWait + 20) * 1000));
-  const char* keep[] = {"X-Cursor"};
-  http.collectHeaders(keep, 1);
+  const char* keep[] = {"X-Cursor", "Date"};
+  http.collectHeaders(keep, 2);
   http.addHeader("Content-Type", "application/x-meshmsg-frames");
   char origin[24];
   snprintf(origin, sizeof origin, "mava-%02x%02x%02x%02x", g_node->pub().ed[0], g_node->pub().ed[1],
@@ -725,6 +760,7 @@ bool gateway_once(uint8_t* body, size_t cap) {
   g_relay_up = g_relay_up + uint32_t(k);
   FrameSink sink;
   http.writeToStream(&sink);
+  clock_from(http.header("Date"));
   String cur = http.header("X-Cursor");
   http.end();
   if (cur.length()) {

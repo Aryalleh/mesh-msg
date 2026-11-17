@@ -68,6 +68,8 @@
     <string name="nearby_off_body">بلوتوث را روشن کنید و اجازه بدهید تا با گوشی‌های اطراف شبکه بسازید.</string>
     <string name="relay_none_body">رله‌ای تنظیم نشده. اگر هر نوع اینترنتی دارید (شبکه‌ی داخلی، VPN، استارلینک) در تنظیمات اضافه کنید.</string>
     <string name="lora_none_body">نود LoRa وصل نیست. برد Mava نزدیک خودش به شبکهٔ بلوتوثی می‌پیوندد؛ یا با کابل USB یا دکمهٔ زیر وصلش کنید.</string>
+    <string name="nearby_bt_off">بلوتوث خاموش است، پس گوشی‌ها و بردهای Mava نزدیک در دسترس نیستند. روشنش کنید.</string>
+    <string name="bluetooth_settings">تنظیمات بلوتوث</string>
     <string name="connect_ble_node">اتصال برد با بلوتوث</string>
     <string name="ble_searching">در حال جست‌وجوی برد Mava در نزدیکی…</string>
     <string name="ble_no_board">برد Mava در نزدیکی پیدا نشد. روشن و نزدیک است؟</string>

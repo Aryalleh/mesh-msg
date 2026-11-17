@@ -435,8 +435,9 @@ void loop() {
                        : net::wifi_up()                ? "joined"
                        : g_net.wifi_ssid[0]            ? "joining"
                                                        : "off";
-    logf("hotspot %s, device password: %s; Bluetooth phones %d; Wi-Fi %s %s; relay %s; radio %s", net::ap_name(),
-         g_net.password, ble::mesh_peers(), wifi, net::web_url(), net::relay_state(),
+    logf("hotspot %s, device password: %s; Bluetooth phones %d; Wi-Fi %s %s; relay %s; account %s; radio %s",
+         net::ap_name(), g_net.password, ble::mesh_peers(), wifi, net::web_url(), net::relay_state(),
+         ui::client_state().c_str(),
          g_radio_ok ? "ok" : "NOT FOUND");
   }
   if (g_led_off && now >= g_led_off) {

@@ -1661,3 +1661,17 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Calls (owner also asked): not built; see the plan in the reply / docs/calls.md.
 - Release v0.1.1-beta18.
 - Released **v0.1.1-beta17** (run #113, e3b0409) and **v0.1.1-beta18** (run #115, 9ef0519).
+
+### 2026-11-17 — Bugs from the owner's first phone↔board tests
+
+- Android "Allow Bluetooth" card although allowed + mesh dead: `BleLoRa.LINK_NAME` was "ble",
+  the same as the phones' mesh transport; the router keys links by name, so attaching the
+  board replaced the mesh link, and Models classified "ble" as LoRa (no Nearby path → the
+  allow card). Renamed "lora-ble"; the core now refuses colliding names
+  (`TestLinkNamesDontCollide`); the card distinguishes "not allowed" from "Bluetooth off".
+- Phone → relay → board account: nothing arrived. The node serves (asks the relay for) only
+  destinations heard announced; the account announces only with a clock; NTP may be filtered.
+  Now `client_pump` serves the account's destination itself (`Node::serve` public), and the
+  relay worker sets the clock from the relay's HTTP `Date` header when NTP hasn't
+  (`http_date`, checked against Python's parser). Log shows the account state.
+- Release v0.1.1-beta19.

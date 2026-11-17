@@ -175,6 +175,11 @@ void feed(mesh::node::Node& node, const uint8_t* payload, size_t n, uint8_t kind
 
 }  // namespace
 
+std::string client_state() {
+  if (!g_client) return "off";
+  return g_unix ? "on, announced as " + g_client->name() : "on, waiting for the clock (NTP or relay)";
+}
+
 Messenger* client_begin(const char* name) {
   uint8_t seed[mesh::kSeedSize];
   if (board::storage_read("/cl-seed", seed, sizeof seed) != sizeof seed) {
@@ -191,6 +196,15 @@ Messenger* client_begin(const char* name) {
 void client_pump(mesh::node::Node& node, mesh::route::Millis now) {
   if (!g_client) return;
   g_unix = node.unix_time(now);
+  // Ask the relay for our own account's messages, announce or not (the
+  // node otherwise serves only destinations it heard announced).
+  static mesh::route::Millis served_at = 0;
+  if (!served_at || now - served_at > 10000) {
+    served_at = now | 1;
+    uint8_t dest[16];
+    g_client->pub().hash(dest);
+    node.serve(dest);
+  }
   if (!g_attached || !node.host_attached(kPort)) {
     uint8_t hello[2] = {mesh::host::kOpHello, 0};  // attach; the stored backlog streams to us
     feed(node, hello, sizeof hello, mesh::host::kKindCommand, now);

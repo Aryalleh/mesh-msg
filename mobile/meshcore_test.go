@@ -5,6 +5,7 @@ import (
 	"context"
 	crand "crypto/rand"
 	"encoding/json"
+	"errors"
 	"math/rand"
 	"net/http/httptest"
 	"os"
@@ -531,3 +532,26 @@ func TestPhotoOverBLE(t *testing.T) {
 		t.Fatalf("known relays %s", s)
 	}
 }
+
+// A LoRa node and a transport can't share a name: the router keys links by
+// name, and the second replaced the first (the Android app's Bluetooth mesh
+// stopped once the board was attached as "ble").
+func TestLinkNamesDontCollide(t *testing.T) {
+	c, _ := phone(t, "")
+	if err := c.AddTransport("ble", 180, transportFunc(func(string, []byte) {})); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AttachLoRa("ble", failOpener{}); err == nil {
+		t.Fatal("LoRa node attached under the transport's name")
+	}
+	if err := c.AttachLoRa("lora-ble", failOpener{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AddTransport("lora-ble", 180, transportFunc(func(string, []byte) {})); err == nil {
+		t.Fatal("transport added under a LoRa node's name")
+	}
+}
+
+type failOpener struct{}
+
+func (failOpener) Open() (Stream, error) { return nil, errors.New("no node") }

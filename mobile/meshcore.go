@@ -521,6 +521,9 @@ func (c *Core) AddTransport(name string, chunk int, t Transport) error {
 	if _, dup := c.links[name]; dup {
 		return fmt.Errorf("meshcore: transport %q already added", name)
 	}
+	if _, dup := c.loras[name]; dup { // one router link per name
+		return fmt.Errorf("meshcore: %q is a LoRa node's name", name)
+	}
 	l := &chunkLink{name: name, chunk: chunk, t: t, rx: map[string][]byte{}}
 	c.links[name] = l
 	c.n.Router().AddLink(l)
@@ -688,6 +691,10 @@ func (c *Core) AttachLoRa(name string, opener StreamOpener) error {
 	if _, dup := c.loras[name]; dup {
 		c.mu.Unlock()
 		return fmt.Errorf("meshcore: LoRa node %q already attached", name)
+	}
+	if _, dup := c.links[name]; dup { // e.g. "ble", the phones' mesh: the router would mix them up
+		c.mu.Unlock()
+		return fmt.Errorf("meshcore: %q is a transport's name", name)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	c.loras[name] = cancel

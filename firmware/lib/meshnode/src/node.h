@@ -148,6 +148,9 @@ class Node {
   // served copies the destinations announced near us (air or hosts), for the
   // relay's gateway fetch; returns how many.
   size_t served(uint8_t (*out)[16], size_t max) const;
+  // Fetch for this destination from the relay too (the board's own
+  // messenger account, before or without an announce).
+  void serve(const uint8_t dest[16]);
 
   void tick(Millis now);
   // A reboot (or wipe) was requested; the board reboots once host output drained.
@@ -201,7 +204,6 @@ class Node {
   // destinations, stores it for every sink but `have`.
   void ingest(const Packet& p, const uint8_t* raw, size_t n, store::Origin origin, uint8_t have, bool purge,
               Millis now);
-  void serve(const uint8_t dest[16]);
   void announce(Millis now);
   void heard(uint8_t sender, Millis now);
   uint32_t rand32();

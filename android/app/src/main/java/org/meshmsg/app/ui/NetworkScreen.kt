@@ -61,10 +61,17 @@ fun NetworkScreen(
             val relays = status.paths.filter { it.kind == PathInfo.Kind.Relay }
 
             // Nearby phones
-            if (!bluetoothAllowed || nearby.isEmpty()) {
+            if (!bluetoothAllowed) {
                 PathCard(MeshIcons.Bluetooth, stringResource(R.string.path_nearby), PathState.Off, stringResource(R.string.nearby_off_body)) {
                     FilledTonalButton(onClick = onAllowBluetooth, modifier = Modifier.heightIn(min = 48.dp)) {
                         Text(stringResource(R.string.allow_bluetooth))
+                    }
+                }
+            } else if (nearby.isEmpty()) {
+                // Allowed, but the mesh is not running: Bluetooth is off (or missing).
+                PathCard(MeshIcons.Bluetooth, stringResource(R.string.path_nearby), PathState.Off, stringResource(R.string.nearby_bt_off)) {
+                    FilledTonalButton(onClick = onAllowBluetooth, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(stringResource(R.string.bluetooth_settings))
                     }
                 }
             } else {
