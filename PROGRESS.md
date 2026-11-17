@@ -1733,3 +1733,10 @@ links. Chose: quick items in beta3; calls follow in later betas.
   before probes, HTTP connect timeout 8 s, TLS handshake 20 s, and an "off" state that names
   the reason. Release v0.1.1-beta24.
 - Released **v0.1.1-beta24** (2cdf160).
+- Owner's beta24 log: relay "online (by IP address)" (the domain is blocked on that network,
+  the IP works), BLE link up, account still 0 messages, and a task watchdog reset (IDLE0
+  starved, ipc0 running on CPU0 while loopTask ran on CPU1): every store change was a LittleFS
+  write (FlashPersist), ~12 packets/s from the phone's relay traffic → flash ops stall the
+  other core. `FlashPersist` is now write-behind (PSRAM copy per slot, ≤1 slot per 250 ms).
+  `mc::Client` logs its id and the last 4 destinations of DATA heard for other accounts
+  (to show a phone writing to an old account). Release v0.1.1-beta25.

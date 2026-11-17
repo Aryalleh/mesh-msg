@@ -85,6 +85,15 @@ class Client {
     uint32_t data_in = 0, opened = 0, unreadable = 0, sent = 0, receipts_in = 0;
   };
   const Stats& stats() const { return stats_; }
+  // Messages heard for other accounts, newest first (16 hex digits of the
+  // destination, as Contact::id), with how many: shows a phone that writes
+  // to an old account of this board.
+  struct OtherDest {
+    uint8_t dest[8];
+    uint32_t n;
+  };
+  const std::vector<OtherDest>& other_dests() const { return others_; }
+  std::string id() const;  // this account, 16 hex digits
   // Grows with every change the UI shows (new message, receipt, contact).
   uint32_t revision() const { return rev_; }
 
@@ -122,6 +131,7 @@ class Client {
   uint32_t last_announce_ = 0;
   uint32_t rev_ = 1;
   Stats stats_;
+  std::vector<OtherDest> others_;
 };
 
 std::string base64url(const uint8_t* b, size_t n);

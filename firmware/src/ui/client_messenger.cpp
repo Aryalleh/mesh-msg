@@ -182,7 +182,15 @@ std::string client_state() {
   snprintf(n, sizeof n, "; messages for it %lu (opened %lu, unreadable %lu), sent %lu, delivered %lu, contacts %u",
            (unsigned long)s.data_in, (unsigned long)s.opened, (unsigned long)s.unreadable, (unsigned long)s.sent,
            (unsigned long)s.receipts_in, unsigned(g_client->contacts().size()));
-  return (g_unix ? "on, announced as " + g_client->name() : std::string("on, waiting for the clock (NTP or relay)")) + n;
+  std::string others;
+  for (const auto& d : g_client->other_dests()) {
+    char x[40];
+    snprintf(x, sizeof x, "%s%02x%02x%02x%02x%02x%02x%02x%02x (%lu)", others.empty() ? "" : ", ", d.dest[0], d.dest[1],
+             d.dest[2], d.dest[3], d.dest[4], d.dest[5], d.dest[6], d.dest[7], (unsigned long)d.n);
+    others += x;
+  }
+  return (g_unix ? "on, announced as " + g_client->name() : std::string("on, waiting for the clock (NTP or relay)")) +
+         ", id " + g_client->id() + n + (others.empty() ? "" : "; messages heard for other accounts: " + others);
 }
 
 Messenger* client_begin(const char* name) {

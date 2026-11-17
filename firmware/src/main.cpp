@@ -82,16 +82,50 @@ mesh::meshtastic::Channel channel_of(const net::Settings& s) {
 
 // ---- flash backends ----
 
+// Write-behind: the store changes a slot for every packet, and a phone that
+// is a gateway hands the board ten or more packets a second over Bluetooth.
+// Writing each at once kept the flash busy, which stalls the other CPU core
+// (Wi-Fi, Bluetooth) until the task watchdog reset the board. Changes are
+// noted here and flush() writes at most one slot per kFlushEveryMs; a slot
+// changed again before then is written once. A power cut loses only the
+// last few packets, which the phones still hold.
 struct FlashPersist : mesh::store::Persist {
+  static constexpr Millis kFlushEveryMs = 250;
+  enum : uint8_t { kClean = 0, kSave, kErase };
+  mesh::store::Record* recs = nullptr;  // PSRAM: one copy per slot
+  uint8_t state[mesh::store::kSlots] = {};
+  size_t next = 0;
+  Millis last = 0;
+
+  void begin() {
+    recs = static_cast<mesh::store::Record*>(
+        heap_caps_malloc(sizeof(mesh::store::Record) * mesh::store::kSlots, MALLOC_CAP_SPIRAM));
+  }
   void save(size_t slot, const mesh::store::Record& r) override {
+    if (!recs) return write_now(slot, r);
+    recs[slot] = r;
+    state[slot] = kSave;
+  }
+  void erase(size_t slot) override { state[slot] = kErase; }
+  static void write_now(size_t slot, const mesh::store::Record& r) {
     char p[16];
     slot_path(p, sizeof p, slot);
     board::storage_write(p, &r, sizeof r);
   }
-  void erase(size_t slot) override {
-    char p[16];
-    slot_path(p, sizeof p, slot);
-    board::storage_remove(p);
+  void flush(Millis now) {
+    if (now - last < kFlushEveryMs) return;
+    last = now;
+    for (size_t i = 0; i < mesh::store::kSlots; i++) {
+      size_t s = (next + i) % mesh::store::kSlots;
+      if (state[s] == kClean) continue;
+      char p[16];
+      slot_path(p, sizeof p, s);
+      if (state[s] == kSave) board::storage_write(p, &recs[s], sizeof recs[s]);
+      else board::storage_remove(p);
+      state[s] = kClean;
+      next = (s + 1) % mesh::store::kSlots;
+      return;
+    }
   }
 };
 
@@ -264,6 +298,7 @@ void setup() {
   // some, leaving internal RAM to Wi-Fi, Bluetooth and the relay's TLS.
   void* mem = heap_caps_malloc(sizeof(mesh::node::Node), MALLOC_CAP_SPIRAM);
   if (!mem) mem = heap_caps_malloc(sizeof(mesh::node::Node), MALLOC_CAP_8BIT);
+  g_persist.begin();
   mesh::node::Node& node = *new (mem) mesh::node::Node(cfg, seed, g_board, &g_persist, board::random32(),
                                                       &mesh::mac::kMeshtasticLongFast);
   memset(seed, 0, sizeof seed);
@@ -346,6 +381,7 @@ void loop() {
   static Millis last_tick = 0;
   Millis now = board::now_ms();
   xSemaphoreTake(g_lock, portMAX_DELAY);
+  g_persist.flush(now);
 
   // ---- radio (Meshtastic backbone) ----
   if (g_radio_ok) {

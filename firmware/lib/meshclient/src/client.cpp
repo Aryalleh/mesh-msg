@@ -103,6 +103,8 @@ std::string Contact::id() const {
   return hex(h, 8);
 }
 
+std::string Client::id() const { return hex(dest_, 8); }
+
 std::string Contact::label() const { return name.empty() ? "…" + id().substr(0, 8) : name; }
 
 Client::Client(const uint8_t seed[kSeedSize], Storage& storage, std::function<void(uint8_t*, size_t)> random)
@@ -331,7 +333,24 @@ void Client::on_packet(const uint8_t* raw, size_t n, uint32_t now) {
       return;
     }
     case Type::Data: {
-      if (std::memcmp(p.dest, dest_, 16) != 0) return;
+      if (std::memcmp(p.dest, dest_, 16) != 0) {
+        // Count it under its destination (first fragment only).
+        if (p.fragmented() && p.frag_index != 0) return;
+        for (size_t i = 0; i < others_.size(); i++)
+          if (std::memcmp(others_[i].dest, p.dest, 8) == 0) {
+            OtherDest d = others_[i];
+            d.n++;
+            others_.erase(others_.begin() + long(i));
+            others_.insert(others_.begin(), d);
+            return;
+          }
+        OtherDest d{};
+        std::memcpy(d.dest, p.dest, 8);
+        d.n = 1;
+        others_.insert(others_.begin(), d);
+        if (others_.size() > 4) others_.pop_back();
+        return;
+      }
       stats_.data_in++;
       if (!p.fragmented()) return on_data(p, now);
       // Collect fragments until the set is complete.
