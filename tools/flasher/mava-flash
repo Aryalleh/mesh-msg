@@ -2,7 +2,7 @@
 # Mava board flasher for Linux (docs/flashing.md).
 #
 #   ./mava-flash board            firmware + web client (keeps identity and settings)
-#   ./mava-flash board --erase    erase everything first (new identity, new device password;
+#   ./mava-flash board --erase    erase everything first (new identity, device password 12345678;
 #                                 needed once on boards flashed before 0.1.1-beta7)
 #   ./mava-flash firmware         firmware only
 #   ./mava-flash web              web client file system only (erases stored settings too)

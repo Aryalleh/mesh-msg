@@ -60,7 +60,7 @@ pio run -t uploadfs                   # the file system with the web client
 
 The new partition table (`firmware/partitions_16mb.csv`) replaces the default one, so a
 board flashed before needs a full erase once (`pio run -t erase`): it gets a new identity
-and device password.
+and the device password goes back to `12345678`.
 
 ## Tests
 

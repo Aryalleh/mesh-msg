@@ -650,12 +650,10 @@ bool load(Settings& s) {
 bool save(const Settings& s) { return board::storage_write(kSettingsFile, &s, sizeof s); }
 
 void init_secrets(Settings& s) {
-  // No look-alike characters: it is read off a label or a log.
-  static const char kAlphabet[] = "abcdefghjkmnpqrstuvwxyz23456789";
-  if (strlen(s.password) < 8) {
-    for (int i = 0; i < 10; i++) s.password[i] = kAlphabet[board::random32() % (sizeof kAlphabet - 1)];
-    s.password[10] = 0;
-  }
+  // Every board starts with the same device password (owner's choice): set a
+  // new one in the setup panel, which is kept from then on. A full erase or
+  // "Install everything" brings back the default.
+  if (strlen(s.password) < 8) copy(s.password, sizeof s.password, kDefaultPassword);
   if (s.ble_passkey < 100000 || s.ble_passkey > 999999) s.ble_passkey = 100000 + board::random32() % 900000;
 }
 

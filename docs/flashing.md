@@ -18,7 +18,7 @@ cd mava-board-flasher-*-linux
 | Command | What it writes |
 |---|---|
 | `./mava-flash board` | firmware and the web client (file system) |
-| `./mava-flash board --erase` | erases everything first: **new identity and device password**. Needed once on boards flashed before 0.1.1-beta7 (new partition table). |
+| `./mava-flash board --erase` | erases everything first: **new identity, device password back to `12345678`**. Needed once on boards flashed before 0.1.1-beta7 (new partition table). |
 | `./mava-flash firmware` | firmware only (keeps identity, settings, stored messages) |
 | `./mava-flash web` | web client file system only — it also holds identity and settings, so they are replaced |
 | `./mava-flash keyboard matrix` / `bb9900` / `bb9900tp` | the keyboard module (Raspberry Pi Pico) of version A / B / C: hold **BOOTSEL** while plugging the Pico in |
@@ -66,7 +66,7 @@ writes it from the phone, no computer needed:
    to open *Mava Flasher*: yes (tick "always" to skip the question next time). Or open the
    app and tap **Allow USB access**.
 3. **Install everything** the first time: firmware and web client; the board gets a new
-   identity and device password and its settings start over (same as
+   identity, the device password goes back to `12345678` and its settings start over (same as
    `./mava-flash board --erase`). **Update firmware only** later: identity, settings and
    stored messages stay (`./mava-flash firmware`).
 4. **Board log** restarts the board and shows what it prints; the hotspot name and device

@@ -1509,3 +1509,10 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (Kotlin host link framing, checked against spec vectors). Tests on all three sides.
 - Next: the owner flashes beta9 ("Update firmware only" or `./mava-flash firmware`) and
   sends the board log; unknown module (N16R8 needed) and the cable/socket remain suspects.
+
+### 2026-11-17 — Fixed default device password
+
+- Owner's choice: every board starts with device password `12345678` (`net::kDefaultPassword`,
+  WPA2 minimum is 8) instead of a random one; a password set in the panel is kept, a full
+  erase / Install everything restores the default. Docs (board, flashing, web-access, mava-flash)
+  updated. Release v0.1.1-beta10 (beta9 was cut just before, from 1c8e600).

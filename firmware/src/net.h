@@ -22,14 +22,15 @@
 namespace net {
 
 constexpr uint32_t kSettingsMagic = 0x4d564e31;  // "MVN1"
+constexpr const char* kDefaultPassword = "12345678";  // WPA2 needs 8 or more
 
 struct Settings {
   uint32_t magic = kSettingsMagic;
   char wifi_ssid[33] = {};
   char wifi_pass[65] = {};
   char relay_url[96] = "https://eu-1.mfadem.ir";
-  // Device password: hotspot (WPA2) and setup panel. Generated at first boot,
-  // printed on the USB log (and on the board's label at assembly).
+  // Device password: hotspot (WPA2) and setup panel. kDefaultPassword until
+  // changed in the panel; printed on the USB log.
   char password[17] = {};
   uint32_t ble_passkey = 0;  // 6 digits, BLE pairing
   // Meshtastic channel (meshtastic::Channel): name + PSK (1 byte = short index).

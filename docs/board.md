@@ -43,9 +43,11 @@ The pins are build flags in `firmware/platformio.ini`. The board definition is
 
 ## 2. Setup: hotspot, captive portal, switch
 
-1. **First boot** generates the node identity, a **device password** (10 characters, no
-   look-alike letters) and a 6-digit **BLE passkey**, and prints both on the USB log
-   (`pio device monitor`). Put them on the board's label at assembly. The log repeats the
+1. **First boot** generates the node identity and a 6-digit **BLE passkey**. The **device
+   password** (hotspot and panel) is **`12345678`** on every board until you set your own in
+   the panel (kept from then on; a full erase or *Install everything* brings back the
+   default). Both are printed on the USB log (`pio device monitor`). Change it: anyone who
+   knows the default can open the panel while the hotspot is on. The log repeats the
    hotspot name, device password and BLE passkey every 10 s until a host attaches, and
    each boot step is logged (`boot: Wi-Fi`, `boot: radio`, …) so a step that hangs shows.
 2. **Setup mode: switch ON, no Wi-Fi saved yet, or a host asked for it.** A new board (or
