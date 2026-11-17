@@ -13,13 +13,9 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Build
 import android.os.ParcelUuid
-import androidx.core.content.ContextCompat
 import org.meshmsg.meshcore.Core
 import org.meshmsg.meshcore.Stream
 import org.meshmsg.meshcore.StreamOpener
@@ -33,9 +29,10 @@ import java.util.concurrent.TimeUnit
 /**
  * The Mava board over Bluetooth LE (docs/board.md §4): the board's host-link
  * GATT service, the same COBS byte stream as USB (UsbLoRa) on the board's
- * host port 1. The phone writes to RX and gets TX notifications. RX needs an
- * encrypted, authenticated link: the first time, Android asks for the board's
- * 6-digit BLE passkey (printed on the board's log, shown on the handheld).
+ * host port 1. The phone writes to RX and gets TX notifications. No pairing
+ * (from 0.1.1-beta14): over Bluetooth the board takes packets and status
+ * requests only. The board also joins the phones' own Bluetooth mesh
+ * (BleMesh), which needs no button at all; this link adds the node's status.
  *
  * The core calls [open] again after every failure, so a board that goes out
  * of range or restarts is picked up again by itself.
@@ -121,41 +118,10 @@ class BleLoRa(private val context: Context, private var address: String?) : Stre
             val svc = g.getService(SERVICE) ?: throw IOException("not a Mava board (no host-link service)")
             rx = svc.getCharacteristic(RX) ?: throw IOException("board has no RX characteristic")
             val tx = svc.getCharacteristic(TX) ?: throw IOException("board has no TX characteristic")
-            // RX needs an authenticated link: pair first (Android asks for the passkey).
-            if (device.bondState != BluetoothDevice.BOND_BONDED) bond()
             if (!g.setCharacteristicNotification(tx, true)) throw IOException("cannot subscribe to the board")
             val cccd = tx.getDescriptor(CCCD) ?: throw IOException("board has no CCCD")
             writeDescriptor(g, cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
             await("subscribe", 10)
-        }
-
-        private fun bond() {
-            val done = CountDownLatch(1)
-            val r = object : BroadcastReceiver() {
-                override fun onReceive(c: Context, i: Intent) {
-                    val d: BluetoothDevice? = if (Build.VERSION.SDK_INT >= 33) {
-                        i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                    } else {
-                        @Suppress("DEPRECATION") i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    }
-                    if (d?.address != device.address) return
-                    val s = i.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE)
-                    if (s == BluetoothDevice.BOND_BONDED || s == BluetoothDevice.BOND_NONE) done.countDown()
-                }
-            }
-            ContextCompat.registerReceiver(
-                context, r, IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED), ContextCompat.RECEIVER_EXPORTED,
-            )
-            try {
-                if (!device.createBond() && device.bondState != BluetoothDevice.BOND_BONDING) {
-                    throw IOException("pairing with the board did not start")
-                }
-                // The user types the passkey from the board's log or screen.
-                done.await(90, TimeUnit.SECONDS)
-            } finally {
-                runCatching { context.unregisterReceiver(r) }
-            }
-            if (device.bondState != BluetoothDevice.BOND_BONDED) throw IOException("not paired: enter the board's 6-digit Bluetooth passkey")
         }
 
         private fun await(what: String, seconds: Long) {

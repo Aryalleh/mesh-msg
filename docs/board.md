@@ -107,19 +107,25 @@ Code: `firmware/lib/meshtastic` (pure C++, host-tested in `firmware/test/meshtas
 
 ## 4. Bluetooth
 
-GATT service `6d657368-6c72-0000-8000-00805f9b34fb` (docs/firmware.md §6): the host-link
-byte stream, exactly as over USB, so the apps drive the board the way meshd does. Writing
-requires a bonded, authenticated link (6-digit passkey), so nobody in radio range can send
-commands such as `WIPE`. One phone at a time; notifications are sized to the negotiated MTU.
-The iPhone app already speaks this service (`ios/Mava/LoRaBle.swift`); the Android app does
-from 0.1.1-beta12 (`android/app/.../lora/BleLoRa.kt`): **Network → Connect board over
-Bluetooth** scans ~12 s for the service, picks the nearest board, remembers it, and the core
-keeps it connected (reopened after range loss or a board restart). The first connection
-pairs: Android asks for the board's passkey (board log / handheld screen). USB and Bluetooth
-can both be attached; the core deduplicates.
+No pairing (owner's choice, 0.1.1-beta14): phones connect directly. Up to 3 phones at once
+(NimBLE's connection limit). Two GATT services:
 
-This is not the phone-to-phone "nearby" mesh (service `6d657368-6d73-6700-…`): that one only
-finds other phones running Mava.
+- **The phones' own Bluetooth mesh** (`6d657368-6d73-6700-…`, android `BleProto.kt`): the board
+  advertises it exactly as a phone does (service UUID + manufacturer data 0xFFFF with a
+  session ID). Its session ID is 0, the lowest, so every phone connects to it as GATT client
+  and nothing has to be tapped: Mava phones nearby use the board like another phone. After
+  the phone's hello (0x4D + 4 bytes) both directions carry `len(3) || packet`
+  (`lib/meshnode/src/blemesh.*`, host-tested). Each phone is a host port of the node
+  (ports 3–5, packets only): what it sends goes out on LoRa and to the other phones, USB,
+  the browser and the relay, and what the node holds streams back. Packets larger than
+  LoRa's 233 bytes (photos, voice) are skipped by the board.
+- **Host link** (`6d657368-6c72-0000-…`): the apps' "LoRa node" stream, exactly as over USB,
+  host port 1 (Android: Network → *Connect board over Bluetooth*, `BleLoRa.kt`; iPhone:
+  `ios/Mava/LoRaBle.swift`). Without pairing, this port is **untrusted**: packets and status
+  only; settings, Wi-Fi, reboot and wipe are refused and stay on USB and the setup panel.
+
+The advert holds the mesh service and session ID (29 of 31 bytes); the host-link service and
+the name `Mava-XXXX` are in the scan response.
 
 ## 5. Internet: the relay worker
 

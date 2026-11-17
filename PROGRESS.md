@@ -1573,3 +1573,18 @@ links. Chose: quick items in beta3; calls follow in later betas.
   so the text log comes back after one-shot commands.
 - Release v0.1.1-beta13.
 - Released **v0.1.1-beta12** (run #101, 7854748) and **v0.1.1-beta13** (run #103, a638ba4), all assets present.
+
+### 2026-11-17 — Board in the phones' Bluetooth mesh, no pairing
+
+- Owner: remove the pairing code; BLE must join the mesh like phone↔phone and phone↔node.
+- Firmware `ble.cpp` rewritten: no security; two services — the phones' mesh service
+  (BleProto: advert = mesh UUID + manufacturer 0xFFFF + session 00000000, so every phone
+  connects to the board) and the host link (scan response with the name). Up to 3
+  connections, NimBLE events queued to the main loop; mesh phones get seats = node host
+  ports 3–5 (`kHostPorts` 6, store sinks Host3–5, untrusted) via `lib/meshnode/blemesh.*`
+  (hello → RESYNC + HELLO; len3 frames ↔ host-link packet frames; media > 233 B skipped;
+  host test `ble_mesh_peers`). Host-link port 1 untrusted over BLE (no pairing). Logs/UI/panel
+  no longer show a passkey.
+- Node allocated in PSRAM (static RAM 164 kB → 83 kB).
+- App: BleLoRa no longer bonds; strings updated. Lint + 86 tests green.
+- Release v0.1.1-beta14.

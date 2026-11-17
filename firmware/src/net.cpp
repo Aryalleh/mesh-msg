@@ -235,7 +235,6 @@ void page_panel(const char* msg) {
   b += row("USB / BLE", String(g_node->host_attached(0) ? "وصل" : "—") + " / " +
                             (g_node->host_attached(1) ? "وصل" : "—"));
   b += row("رله", String((const char*)g_relay_state) + " ↑" + String(g_relay_up) + " ↓" + String(g_relay_in));
-  b += row("رمز جفت‌شدن BLE", String(g_s->ble_passkey));
   b += row("فریم‌ور", String("v") + String(MESH_FIRMWARE_VERSION));
   b += "</table></fieldset>";
 

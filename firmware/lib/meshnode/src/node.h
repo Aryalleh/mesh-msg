@@ -41,7 +41,9 @@ constexpr size_t kHostOut = 4096;               // host output buffer (bytes)
 constexpr size_t kNeighbours = 32;
 constexpr Millis kNeighbourTTL = 3600ull * 1000;
 constexpr size_t kInflight = 32;  // packets in the host output buffer
-constexpr size_t kHostPorts = 3;  // 0 = USB, 1 = BLE, 2 = web browser (docs/web-access.md)
+// 0 = USB, 1 = BLE host link, 2 = web browser (docs/web-access.md),
+// 3–5 = phones in the Bluetooth mesh (packets only, untrusted).
+constexpr size_t kHostPorts = 6;
 constexpr size_t kServed = 32;    // identities announced near us (gateway serve list)
 
 // What the board provides.
@@ -90,6 +92,8 @@ class Node {
   Node(const host::NodeConfig& cfg, const uint8_t seed[kSeedSize], Platform& platform,
        store::Persist* persist, uint32_t random, const mac::Preset* modulation = nullptr);
   static constexpr size_t kWebPort = 2;
+  static constexpr size_t kMeshPort0 = 3;  // first of the Bluetooth mesh peers' ports
+  static constexpr size_t kMeshPorts = 3;
 
   // ---- radio ----
   void radio_rx(const uint8_t* frame, size_t n, int snr_db, Millis now);

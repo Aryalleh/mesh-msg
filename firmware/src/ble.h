@@ -1,13 +1,13 @@
-// Phone link over BLE (docs/firmware.md §6, docs/board.md §4): the host-link
-// byte stream on a GATT service, host port 1 of node::Node. The same stream
-// as USB, so the phone apps speak to the board exactly as meshd does over USB.
+// Bluetooth (docs/board.md §4), no pairing (owner's choice), up to 3 phones:
 //
-//   Service  6d657368-6c72-0000-8000-00805f9b34fb
-//     RX     6d657368-6c72-0001-8000-00805f9b34fb  write (encrypted, MITM)   phone → node
-//     TX     6d657368-6c72-0002-8000-00805f9b34fb  notify                    node → phone
-//
-// Writing needs a bonded link (6-digit passkey, shown in the setup panel and
-// on the USB log), so nobody in radio range can send commands such as WIPE.
+//   Phones' mesh  6d657368-6d73-6700-…  (RX 6701 write, TX 6702 notify)
+//     The board is a peer in the phones' own Bluetooth mesh (BleProto.kt,
+//     lib/meshnode blemesh.h): phones find and use it like another phone.
+//     Host ports 3–5, packets only.
+//   Host link     6d657368-6c72-0000-…  (RX 0001 write, TX 0002 notify)
+//     The apps' "LoRa node" stream, as over USB, host port 1. Untrusted over
+//     Bluetooth (no pairing): packets and status; settings, Wi-Fi, reboot and
+//     wipe only over USB or the setup panel.
 #pragma once
 
 #include <cstddef>
@@ -17,11 +17,12 @@
 
 namespace ble {
 
-bool begin(const char* name, uint32_t passkey);
+bool begin(const char* name);
 // Moves bytes between the BLE link and node host port 1. Call from the main
 // loop with the node lock held.
 void loop(mesh::node::Node& node, mesh::route::Millis now);
 bool connected();
+int mesh_peers();  // phones in the Bluetooth mesh right now
 
 constexpr size_t kPort = 1;
 

@@ -59,6 +59,7 @@ Node::Node(const host::NodeConfig& cfg, const uint8_t seed[kSeedSize], Platform&
       mac_(mac_config(cfg_, random, modulation)),
       store_(persist) {
   ports_[kWebPort].trusted = false;
+  for (size_t i = 0; i < kMeshPorts; i++) ports_[kMeshPort0 + i].trusted = false;
 }
 
 uint32_t Node::rand32() {
@@ -160,7 +161,8 @@ void Node::radio_tx_done(Millis now) {
 // ---- host ----
 
 uint8_t Node::sink_of(size_t port) {
-  static constexpr uint8_t kSinks[kHostPorts] = {store::kSinkPhone, store::kSinkHost1, store::kSinkHost2};
+  static constexpr uint8_t kSinks[kHostPorts] = {store::kSinkPhone, store::kSinkHost1, store::kSinkHost2,
+                                                 store::kSinkHost3, store::kSinkHost4, store::kSinkHost5};
   return kSinks[port];
 }
 

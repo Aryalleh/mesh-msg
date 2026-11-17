@@ -72,11 +72,11 @@
     <string name="path_state_off">Off</string>
     <string name="nearby_off_body">Turn on Bluetooth and allow the permission to mesh with phones around you.</string>
     <string name="relay_none_body">No relay set. Add one in Settings if you have any internet (domestic network, VPN, Starlink).</string>
-    <string name="lora_none_body">No LoRa node. Connect a Mava board with a USB cable or over Bluetooth to reach people kilometres away.</string>
+    <string name="lora_none_body">No LoRa node. A Mava board nearby joins the Bluetooth mesh by itself; or connect one with a USB cable or the button below.</string>
     <string name="connect_ble_node">Connect board over Bluetooth</string>
     <string name="ble_searching">Looking for a Mava board nearby…</string>
     <string name="ble_no_board">No Mava board found nearby. Is it on and close by?</string>
-    <string name="ble_board_found">Board found. When Android asks, enter the board\'s 6-digit Bluetooth passkey (in its log or on its screen).</string>
+    <string name="ble_board_found">Board found: connecting (no pairing needed). Phones nearby also reach the board by themselves through the Bluetooth mesh.</string>
     <plurals name="nearby_phones">
         <item quantity="one">%1$d phone connected</item>
         <item quantity="other">%1$d phones connected</item>

@@ -34,6 +34,9 @@ enum Sink : uint8_t {
   kSinkUplink = 1 << 1,  // internet relay
   kSinkHost1 = 1 << 2,   // host port 1 (BLE)
   kSinkHost2 = 1 << 3,   // host port 2 (web browser on the LAN)
+  kSinkHost3 = 1 << 4,   // host ports 3–5: phones in the Bluetooth mesh (docs/board.md §4)
+  kSinkHost4 = 1 << 5,
+  kSinkHost5 = 1 << 6,
 };
 
 enum class Origin : uint8_t { Air = 0, Phone = 1, Uplink = 2, Local = 3 };

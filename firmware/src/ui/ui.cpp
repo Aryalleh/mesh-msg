@@ -292,7 +292,7 @@ std::string network_text() {
 
 std::string settings_text() {
   const Status& s = g_status;
-  return "رمز دستگاه (هات‌اسپات و پنل): " + s.password + "\nرمز جفت‌شدن بلوتوث: " + std::to_string(s.passkey) +
+  return "رمز دستگاه (هات‌اسپات و پنل): " + s.password + "\nبلوتوث: بدون رمز جفت‌شدن" +
          "\n\nتنظیم وای‌فای و رله: کلید setup را روشن کنید و به هات‌اسپات وصل شوید.\nزبان: Alt + Shift\nنور: Vol+ / Vol-";
 }
 

@@ -14,11 +14,13 @@
 // host attaches the port carries only the COBS host-link stream.
 #include <Arduino.h>
 #include <esp_heap_caps.h>
+#include <esp_memory_utils.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
 #include <cstdarg>
 #include <cstdio>
+#include <new>
 
 #include "ble.h"
 #include "board.h"
@@ -247,9 +249,16 @@ void setup() {
   uint8_t seed[mesh::kSeedSize];
   load_identity(seed);
   mesh::host::NodeConfig cfg = load_config();
-  static mesh::node::Node node(cfg, seed, g_board, &g_persist, board::random32(), &mesh::mac::kMeshtasticLongFast);
+  // The node (store, host buffers: tens of kB) lives in PSRAM when there is
+  // some, leaving internal RAM to Wi-Fi, Bluetooth and the relay's TLS.
+  void* mem = heap_caps_malloc(sizeof(mesh::node::Node), MALLOC_CAP_SPIRAM);
+  if (!mem) mem = heap_caps_malloc(sizeof(mesh::node::Node), MALLOC_CAP_8BIT);
+  mesh::node::Node& node = *new (mem) mesh::node::Node(cfg, seed, g_board, &g_persist, board::random32(),
+                                                      &mesh::mac::kMeshtasticLongFast);
   memset(seed, 0, sizeof seed);
   g_node = &node;
+  logf("node: %u kB in %s", unsigned(sizeof(mesh::node::Node) / 1024),
+       esp_ptr_external_ram(mem) ? "PSRAM" : "internal RAM");
   g_lock = xSemaphoreCreateMutex();
 
   if (!net::load(g_net)) g_net = net::Settings();
@@ -271,8 +280,9 @@ void setup() {
        board::setup_switch_on() ? "ON" : "off", net::mode() == net::Mode::Setup ? "hotspot ON" : "joining saved Wi-Fi",
        name, g_net.password);
   logf("boot: BLE");
-  bool ble_ok = ble::begin(name, g_net.ble_passkey);
-  logf("BLE %s as %s (passkey %06lu)", ble_ok ? "ok" : "FAILED", name, (unsigned long)g_net.ble_passkey);
+  bool ble_ok = ble::begin(name);
+  node.set_port_trusted(ble::kPort, false);  // no pairing over Bluetooth: packets and status only
+  logf("BLE %s as %s (no pairing; phones' mesh + host link)", ble_ok ? "ok" : "FAILED", name);
 
   logf("boot: radio");
   g_mt.begin(mesh::meshtastic::Backend::node_id_for(node.pub().x), board::random32(), channel_of(g_net));
@@ -412,8 +422,8 @@ void loop() {
                        : net::wifi_up()                ? "joined"
                        : g_net.wifi_ssid[0]            ? "joining"
                                                        : "off";
-    logf("hotspot %s, device password: %s; BLE passkey %06lu; Wi-Fi %s %s; relay %s; radio %s", net::ap_name(),
-         g_net.password, (unsigned long)g_net.ble_passkey, wifi, net::web_url(), net::relay_state(),
+    logf("hotspot %s, device password: %s; Bluetooth phones %d; Wi-Fi %s %s; relay %s; radio %s", net::ap_name(),
+         g_net.password, ble::mesh_peers(), wifi, net::web_url(), net::relay_state(),
          g_radio_ok ? "ok" : "NOT FOUND");
   }
   if (g_led_off && now >= g_led_off) {

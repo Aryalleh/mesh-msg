@@ -8,6 +8,7 @@
 #include "announce.h"
 #include "check.h"
 #include "hostlink.h"
+#include "blemesh.h"
 #include "node.h"
 
 using check::Bytes;
@@ -580,6 +581,79 @@ void two_hosts_and_uplink() {
   CHECK(ble.packets().size() >= 4 && usb.packets().empty());
 }
 
+// Phones in the Bluetooth mesh: hello, then len3 || packet both ways, cut
+// into MTU-sized pieces; a second phone gets what the first sent.
+Bytes mesh_frames(const std::vector<Bytes>& pkts) {
+  Bytes out;
+  for (auto& p : pkts) {
+    out.push_back(uint8_t(p.size() >> 16));
+    out.push_back(uint8_t(p.size() >> 8));
+    out.push_back(uint8_t(p.size()));
+    out.insert(out.end(), p.begin(), p.end());
+  }
+  return out;
+}
+
+std::vector<Bytes> mesh_split(const Bytes& stream) {
+  std::vector<Bytes> out;
+  size_t i = 0;
+  while (i + 3 <= stream.size()) {
+    size_t n = size_t(stream[i]) << 16 | size_t(stream[i + 1]) << 8 | stream[i + 2];
+    out.emplace_back(stream.begin() + long(i + 3), stream.begin() + long(i + 3 + n));
+    i += 3 + n;
+  }
+  CHECK(i == stream.size());
+  return out;
+}
+
+Bytes mesh_drain(mesh::blemesh::Peer& p, mesh::node::Node& n, size_t port) {
+  Bytes got;
+  uint8_t buf[20];  // a 23-byte MTU
+  while (size_t k = p.tx(n, port, buf, sizeof buf)) got.insert(got.end(), buf, buf + k);
+  return got;
+}
+
+void ble_mesh_peers() {
+  Rig r(32);
+  auto& n = *r.node;
+  const size_t pa = mesh::node::Node::kMeshPort0, pb = pa + 1;
+  mesh::blemesh::Peer a, b;
+  Bytes junk = {1, 2, 3};
+  CHECK(!a.rx(n, pa, junk.data(), junk.size(), 1000));  // not a hello
+  uint8_t hello[] = {mesh::blemesh::kHelloMagic, 9, 9, 9, 9};
+  CHECK(a.rx(n, pa, hello, sizeof hello, 1000) && a.up() && n.host_attached(pa));
+  CHECK(b.rx(n, pb, hello, sizeof hello, 1000));
+
+  // Phone A sends two packets in 7-byte pieces, plus a media frame too big for LoRa.
+  Bytes d1 = data_packet(0x31), d2 = data_packet(0x32);
+  Bytes big(3000, 0x55);
+  Bytes stream = mesh_frames({d1, big, d2});
+  for (size_t i = 0; i < stream.size(); i += 7) {
+    size_t k = std::min<size_t>(7, stream.size() - i);
+    CHECK(a.rx(n, pa, stream.data() + i, k, 1000));
+  }
+  // Phone B gets both LoRa-sized packets (not the media frame), A gets nothing back.
+  auto got = mesh_split(mesh_drain(b, n, pb));
+  CHECK(got.size() == 2 && got[0] == d1 && got[1] == d2);
+  CHECK(mesh_drain(a, n, pa).empty());
+  // And a USB host sees them too; its own packet reaches both phones.
+  Host usb;
+  usb.cmd(n, host::kOpHello, 1, {}, 1000);
+  usb.drain(n);
+  auto up = usb.packets();
+  CHECK(up.size() == 2);
+  Bytes d3 = data_packet(0x33);
+  usb.send(n, host::kKindPacket, d3, 1000);
+  got = mesh_split(mesh_drain(a, n, pa));
+  CHECK(got.size() == 1 && got[0] == d3);
+  CHECK(mesh_split(mesh_drain(b, n, pb)).size() == 1);
+
+  // Untrusted: no WIPE through a mesh seat. A zero length frame is corrupt.
+  uint8_t zero[] = {0, 0, 0};
+  CHECK(!a.rx(n, pa, zero, sizeof zero, 1000));
+  CHECK(r.board.wipes == 0);
+}
+
 // SET_WIFI / HOTSPOT from a trusted host reach the board; bad arguments and
 // boards without Wi-Fi are answered with an ack status.
 void wifi_commands() {
@@ -671,6 +745,7 @@ void web_port_untrusted() {
 void run_node() {
   web_port_untrusted();
   wifi_commands();
+  ble_mesh_peers();
   two_hosts_and_uplink();
   commands();
   announces();
