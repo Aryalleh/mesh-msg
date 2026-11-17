@@ -1675,3 +1675,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   relay worker sets the clock from the relay's HTTP `Date` header when NTP hasn't
   (`http_date`, checked against Python's parser). Log shows the account state.
 - Release v0.1.1-beta19.
+- Released **v0.1.1-beta19** (run #117, 111512f).
