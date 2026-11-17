@@ -42,8 +42,9 @@ constexpr size_t kNeighbours = 32;
 constexpr Millis kNeighbourTTL = 3600ull * 1000;
 constexpr size_t kInflight = 32;  // packets in the host output buffer
 // 0 = USB, 1 = BLE host link, 2 = web browser (docs/web-access.md),
-// 3–5 = phones in the Bluetooth mesh (packets only, untrusted).
-constexpr size_t kHostPorts = 6;
+// 3–5 = phones in the Bluetooth mesh (packets only, untrusted),
+// 6 = the handheld's own messaging client (lib/meshclient).
+constexpr size_t kHostPorts = 7;
 constexpr size_t kServed = 32;    // identities announced near us (gateway serve list)
 
 // What the board provides.
@@ -94,6 +95,7 @@ class Node {
   static constexpr size_t kWebPort = 2;
   static constexpr size_t kMeshPort0 = 3;  // first of the Bluetooth mesh peers' ports
   static constexpr size_t kMeshPorts = 3;
+  static constexpr size_t kLocalPort = 6;
 
   // ---- radio ----
   void radio_rx(const uint8_t* frame, size_t n, int snr_db, Millis now);

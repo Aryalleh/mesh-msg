@@ -14,6 +14,7 @@ void run_keys();
 void run_kbproto();
 void run_osk();
 void run_mirror();
+void run_client();
 
 int main(int argc, char** argv) {
   const char* vectors = argc > 1 ? argv[1] : "../spec/test-vectors/vectors.json";
@@ -29,6 +30,7 @@ int main(int argc, char** argv) {
   run_kbproto();
   run_osk();
   run_mirror();
+  run_client();
   if (check::failures() != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", check::failures());
     return 1;

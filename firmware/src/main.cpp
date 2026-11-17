@@ -29,6 +29,7 @@
 #include "node.h"
 #include "radio.h"
 #include "kbmodule.h"
+#include "ui/client_messenger.h"
 #include "ui/display.h"
 #include "ui/messenger.h"
 #include "ui/remote.h"
@@ -191,6 +192,7 @@ void input_loop(Millis now) {
 }
 
 bool g_ui = false;
+bool g_client_on = false;
 
 // What the screen shows, copied under the node lock (ui::Status).
 ui::Status ui_status() {
@@ -310,7 +312,12 @@ void setup() {
        unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024), unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
        psramFound() ? "found" : "NOT FOUND: an N16R8 module is needed");
   bool mirror = remote::begin();
-  g_ui = ui::begin(ui_status, ui::stub_messenger());
+  // The handheld's own messenger (lib/meshclient): its user identity and
+  // conversations on flash, on host port 6 of the node.
+  ui::Messenger* client = ui::client_begin(name);
+  g_ui = ui::begin(ui_status, client ? *client : ui::stub_messenger());
+  g_client_on = g_ui && client;
+  logf("messenger: %s", g_client_on ? "on (handheld identity)" : "off");
   logf("screen: %s%s%s; screen on a phone over USB: %s", g_ui ? "ok" : "none", g_ui ? "" : " — ", g_ui ? "" : display::error(),
        g_ui && mirror ? "yes" : mirror ? "no" : "no (no PSRAM for the frame copy)");
   logf("ready; attach meshd ([lora] port = this serial port), pair a phone, or watch the air");
@@ -407,6 +414,7 @@ void loop() {
 
   // ---- the screen on a phone / PC (SCREEN command) ----
   remote::pump(node);
+  if (g_client_on) ui::client_pump(node, now);
 
   // ---- timer ----
   if (now - last_tick >= kTickEvery) {

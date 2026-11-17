@@ -37,6 +37,7 @@ enum Sink : uint8_t {
   kSinkHost3 = 1 << 4,   // host ports 3–5: phones in the Bluetooth mesh (docs/board.md §4)
   kSinkHost4 = 1 << 5,
   kSinkHost5 = 1 << 6,
+  kSinkLocal = 1 << 7,   // host port 6: the handheld's own messaging client
 };
 
 enum class Origin : uint8_t { Air = 0, Phone = 1, Uplink = 2, Local = 3 };

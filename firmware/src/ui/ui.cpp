@@ -44,7 +44,7 @@ bool g_enc_pressed = false;
 uint8_t g_brightness = 200;
 bool g_asleep = false;
 
-enum class Screen : uint8_t { Home, Chats, Chat, Network, Web, Settings };
+enum class Screen : uint8_t { Home, Chats, Chat, Network, Web, Settings, MyContact };
 Screen g_screen = Screen::Home;
 std::string g_chat;  // contact id of the open chat
 
@@ -300,7 +300,7 @@ void refresh_messages() {
   if (!g_messages) return;
   lv_obj_clean(g_messages);
   for (const Message& m : g_msg->messages(g_chat)) {
-    lv_obj_t* l = label(g_messages, m.text);
+    lv_obj_t* l = label(g_messages, m.mine && m.delivered ? m.text + "  " LV_SYMBOL_OK : m.text);
     lv_obj_set_style_bg_opa(l, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(l, m.mine ? col::mine() : col::surface2(), 0);
     lv_obj_set_style_border_color(l, m.mine ? col::primary_hi() : col::border(), 0);
@@ -352,6 +352,11 @@ void show(Screen s) {
       if (!g_msg->connected())
         label(g_body, "پیام‌رسان روی این دستگاه هنوز فعال نیست؛ فعلاً یادداشت‌ها محلی‌اند.\n"
                       "Messaging client not on the handheld yet: notes stay local.");
+      else
+        button(g_body, LV_SYMBOL_IMAGE "  مخاطب من / My contact", [](lv_event_t*) { show(Screen::MyContact); });
+      if (g_msg->connected() && g_msg->contacts().empty())
+        label(g_body, "هنوز کسی نیست. با برنامهٔ Mava کد «مخاطب من» را اسکن کنید و پیام بدهید؛ "
+                      "کسانی هم که نزدیک‌اند خودشان اینجا می‌آیند.");
       ids.clear();
       for (const Contact& c : g_msg->contacts()) ids.push_back(c.id);
       size_t i = 0;
@@ -409,6 +414,19 @@ void show(Screen s) {
       }
       break;
     }
+    case Screen::MyContact: {
+      title("مخاطب من / My contact");
+      lv_obj_set_flex_align(g_body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      std::string link = g_msg->my_link();
+      label(g_body, g_msg->my_name());
+      lv_obj_t* qr = lv_qrcode_create(g_body);
+      lv_qrcode_set_size(qr, 190);
+      lv_qrcode_update(qr, link.data(), uint32_t(link.size()));
+      lv_obj_set_style_border_color(qr, lv_color_white(), 0);
+      lv_obj_set_style_border_width(qr, 4, 0);
+      label(g_body, "در برنامهٔ Mava: افزودن مخاطب ← اسکن کد");
+      break;
+    }
     case Screen::Settings:
       title("تنظیمات / Settings");
       g_info = label(g_body, settings_text());
@@ -419,6 +437,7 @@ void show(Screen s) {
 void back() {
   switch (g_screen) {
     case Screen::Chat: show(Screen::Chats); break;
+    case Screen::MyContact: show(Screen::Chats); break;
     case Screen::Home: break;
     default: show(Screen::Home); break;
   }
@@ -586,6 +605,14 @@ bool remote_key(uint8_t action, uint32_t cp) {
 
 void loop(uint32_t now_ms) {
   if (!g_ready) return;
+  // New messages, receipts or people: redraw what shows them.
+  static uint32_t seen_rev = 0;
+  uint32_t rev = g_msg->revision();
+  if (rev != seen_rev) {
+    seen_rev = rev;
+    if (g_screen == Screen::Chat) refresh_messages();
+    else if (g_screen == Screen::Chats) show(Screen::Chats);
+  }
   static uint32_t last_status = 0;
   static int track_y = 0;
   k::Output out[8];

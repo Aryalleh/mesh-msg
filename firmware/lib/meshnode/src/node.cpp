@@ -162,7 +162,8 @@ void Node::radio_tx_done(Millis now) {
 
 uint8_t Node::sink_of(size_t port) {
   static constexpr uint8_t kSinks[kHostPorts] = {store::kSinkPhone, store::kSinkHost1, store::kSinkHost2,
-                                                 store::kSinkHost3, store::kSinkHost4, store::kSinkHost5};
+                                                 store::kSinkHost3, store::kSinkHost4, store::kSinkHost5,
+                                                 store::kSinkLocal};
   return kSinks[port];
 }
 

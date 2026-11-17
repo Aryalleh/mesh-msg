@@ -263,9 +263,21 @@ Input:
 
 The screen sleeps after 60 s without input; any key or touch wakes it.
 
-The handheld has **no messaging client core yet**: the UI talks to a `ui::Messenger`
-interface whose stub keeps local notes, so screens, keyboards and input are complete and
-testable now; a client core (C++ port of `core/`, decisions.md D21) plugs in behind it.
+**The handheld's own messenger** (0.1.1-beta16, `firmware/lib/meshclient`, host-tested): a
+user identity of its own (`/cl-seed` on LittleFS, separate from the node's), contacts and
+conversations on flash (100 messages per chat), and the apps' protocol byte for byte:
+DATA end-to-end encrypted with Noise K / X (`e2e.*`, checked against core/e2e through the
+`e2e` vectors in spec/test-vectors), compact Persian text (`textenc.*`, the `text` vectors),
+fragments up to 16 LoRa frames and reassembly, signed RECEIPTs (the ✓ on sent messages),
+ANNOUNCEs with its nickname every 30 min once the clock is known. It is a host of the node
+on its own port (`Node::kLocalPort`, store sink `kSinkLocal`): it sees every packet the
+node carries and its packets go out on LoRa, the Bluetooth mesh, USB and the relay.
+
+On the screen: *Chats* lists the people it talks to and, below, people heard nearby (their
+announces, "· نزدیک"); *My contact* shows its contact link as a QR code (the apps' *Add
+contact → scan*); a chat refreshes when messages or receipts arrive. The first message to
+someone uses Noise X; once they have written back, Noise K. `ui::stub_messenger()` (local
+notes) remains for the PC simulator.
 
 Screens rendered by the same code on a PC (`make -C firmware uishots`, after `pio run`):
 

@@ -1615,3 +1615,19 @@ links. Chose: quick items in beta3; calls follow in later betas.
   iPhone ↔ board works with beta14.
 - Release v0.1.1-beta15. Not tested on hardware.
 - Released **v0.1.1-beta14** (run #106, b4fd9cb) and **v0.1.1-beta15** (run #108, 2afd8e3), all 13 assets each.
+
+### 2026-11-17 — The handheld's own messenger (lib/meshclient)
+
+- Owner asked to activate messaging on the handheld (it showed the local-notes stub).
+- `firmware/lib/meshclient`: `e2e.*` Noise K/X + IETF ChaCha20-Poly1305 built from
+  Monocypher's ChaCha20/Poly1305 (Monocypher 4's streaming AEAD rekeys: not Noise), HMAC/HKDF
+  on the firmware SHA-256; byte-identical to core/e2e: new `e2e` section in
+  spec/test-vectors (core/e2e `SealWith` fixed ephemeral), plus RFC 8439 §2.8.2. `textenc.*`
+  (the `text` vectors now run in firmware tests). `client.*`: identity, contacts (saved +
+  heard nearby, max 64), 100 messages/chat on Storage, send (X first, K once they wrote),
+  fragments ≤16 + reassembly, receipts both ways (✓), announces every 30 min with the
+  nickname, contact link / meshmsg: URI parse + base64url. Host test `run_client`.
+- Board: node host port 6 `kLocalPort` (sink `kSinkLocal`, bit 7); `src/ui/client_messenger.*`
+  (LittleFS `/cl-*`, user seed `/cl-seed`, HELLO-attached host port, packets both ways);
+  UI: Chats → My contact (QR of the link), nearby people, ✓, live refresh on revision.
+- Release v0.1.1-beta16. Not tested on hardware (phone ↔ handheld end to end untested).
