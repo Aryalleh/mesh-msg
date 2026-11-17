@@ -17,6 +17,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <string>
+
 #include "node.h"
 
 namespace net {
@@ -59,6 +61,21 @@ void init_secrets(Settings& s);
 bool begin(Settings& s, mesh::node::Node& node, void* node_lock, const Hooks& hooks);
 // Switch, hotspot, portal and web panel. Main loop, node lock held.
 void loop(mesh::route::Millis now);
+
+// The handheld's messenger as one account shared with the browser app
+// (docs/web-access.md): the iPhone shows the board's own chats and sends as
+// the board, after logging in with the device password. JSON in and out.
+struct Account {
+  virtual ~Account() = default;
+  virtual std::string me() = 0;                              // {"name","link","hash"}
+  virtual std::string chats() = 0;                           // [{"hash","name","saved","last"}]
+  virtual std::string messages(const std::string& hash) = 0;  // [{"mine","text","time","status"}]
+  virtual bool send(const std::string& hash, const std::string& text) = 0;
+  virtual std::string add(const std::string& link, const std::string& name) = 0;  // {"hash","name"} or ""
+  virtual bool set_name(const std::string& name) = 0;
+  virtual uint32_t revision() = 0;
+};
+void set_account(Account* a);
 
 // From a trusted host (USB, BLE: SET_WIFI / HOTSPOT); host::kAck* status.
 // Main loop, node lock held.

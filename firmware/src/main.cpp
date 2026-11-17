@@ -319,8 +319,9 @@ void setup() {
   // conversations on flash, on host port 6 of the node.
   ui::Messenger* client = ui::client_begin(name);
   g_ui = ui::begin(ui_status, client ? *client : ui::stub_messenger());
-  g_client_on = g_ui && client;
-  logf("messenger: %s", g_client_on ? "on (handheld identity)" : "off");
+  // With or without a screen: a bare board is the account for the browser app.
+  g_client_on = client != nullptr;
+  logf("messenger: %s", g_client_on ? (g_ui ? "on (screen and browser)" : "on (browser: http://<board>/app/)") : "off");
   logf("screen: %s%s%s; screen on a phone over USB: %s", g_ui ? "ok" : "none", g_ui ? "" : " — ", g_ui ? "" : display::error(),
        g_ui && mirror ? "yes" : mirror ? "no" : "no (no PSRAM for the frame copy)");
   logf("ready; attach meshd ([lora] port = this serial port), pair a phone, or watch the air");

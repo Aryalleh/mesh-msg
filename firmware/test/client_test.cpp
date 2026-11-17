@@ -57,6 +57,9 @@ void two_clients() {
   int bi = a.add_contact(link, T);
   CHECK(bi == 0 && a.contacts()[0].name == "Sara" && a.contacts()[0].saved);
   CHECK(a.add_contact("not a link", T) == -1 && a.add_contact(a.link(), T) == -1);
+  uint32_t r0 = a.revision();
+  CHECK(a.rename(0, "Sara J") && a.contacts()[0].name == "Sara J" && a.revision() > r0);
+  CHECK(a.rename(0, "Sara") && !a.rename(9, "x"));
 
   // First message: Noise X (B doesn't know A); B learns A and answers with Noise K.
   CHECK(a.send_text(0, "سلام سارا", T));

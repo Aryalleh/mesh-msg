@@ -66,6 +66,8 @@ class Client {
   bool send_text(size_t contact, const std::string& text, uint32_t now, std::string* err = nullptr);
   // Adds a contact from a link / meshmsg: URI; returns its index or -1.
   int add_contact(const std::string& link, uint32_t now);
+  // Names a contact (keeps them as a saved contact).
+  bool rename(size_t contact, const std::string& name);
   // Announces us (at most every kAnnounceEvery, and only once the time is known).
   void tick(uint32_t now);
   void announce_now() { last_announce_ = 0; }

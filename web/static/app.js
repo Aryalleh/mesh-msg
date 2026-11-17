@@ -8,7 +8,121 @@ const $ = (id) => document.getElementById(id);
 // eu-1 by name, and by its IP address for networks where the name is blocked
 // (the board serves this page over http, so an http relay is allowed).
 const DEFAULT_RELAYS = "https://eu-1.mfadem.ir,http://87.106.5.192";
-const state = { chat: null, links: {}, screen: "", shown: 0 };
+const state = { chat: null, links: {}, screen: "", shown: 0, board: false };
+
+// ---- the board's account (one account on the device) ----
+// On a Mava board with its own messenger, this page shows the board's chats
+// and sends as the board (same identity as the handheld screen and its QR
+// code), after the device password. Same interface as the in-browser client
+// (window.mava from main.wasm), so the screens below serve both.
+class BoardAccount {
+  constructor() {
+    this.me = {};
+    this.list = [];
+    this.msgs = {};
+    this.rev = -1;
+    this.cb = () => {};
+  }
+  async api(path, body) {
+    const r = await fetch("/api/acct/" + path, body ? { method: "POST", body: new URLSearchParams(body) } : {});
+    if (r.status === 401) throw new Error("login");
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+    return j;
+  }
+  async refresh() {
+    this.me = await this.api("me");
+    this.list = await this.api("chats");
+    if (state.chat) await this.load(state.chat);
+  }
+  async load(hash) {
+    this.msgs[hash] = await this.api("messages?h=" + encodeURIComponent(hash));
+  }
+  contacts() {
+    // People we talk to first, newest first; people heard nearby after.
+    const l = [...this.list].sort((a, b) => (a.saved !== b.saved ? (a.saved ? -1 : 1) : b.last - a.last));
+    return JSON.stringify(l.map((c) => ({ hash: c.hash, name: c.saved ? c.name : c.name + " · نزدیک" })));
+  }
+  messages(hash) {
+    if (this.msgs[hash]) return JSON.stringify(this.msgs[hash]);
+    const c = this.list.find((x) => x.hash === hash);
+    return JSON.stringify(c && c.preview ? [c.preview] : []);
+  }
+  link() { return this.me.link || ""; }
+  hash() { return this.me.hash || ""; }
+  name() { return this.me.name || ""; }
+  async addContact(uri, name) {
+    const c = await this.api("add", { link: uri, name });
+    await this.refresh();
+    return JSON.stringify(c);
+  }
+  async send(hash, text) {
+    await this.api("send", { h: hash, text });
+    await this.load(hash);
+  }
+  async setName(name) { this.me = await this.api("name", { name }); }
+  onEvent(cb) { this.cb = cb; }
+  async start() {
+    for (;;) {
+      try {
+        const { rev } = await this.api("rev");
+        if (!state.links.board) {
+          state.links.board = true;
+          renderStatus();
+        }
+        if (rev !== this.rev) {
+          this.rev = rev;
+          await this.refresh();
+          this.cb(JSON.stringify({ kind: "update" }));
+        }
+      } catch (e) {
+        if (e.message === "login") return showLogin();
+        if (state.links.board) {
+          state.links.board = false;
+          renderStatus();
+        }
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+}
+
+function showLogin(wrong) {
+  state.screen = "login";
+  header("", false, true, false);
+  $("composer").classList.add("hidden");
+  $("main").innerHTML = `
+    <div class="card">
+      <h2>${icon("lock")} حساب این دستگاه</h2>
+      <p class="muted">این برد پیام‌رسان خودش را دارد: همان حسابی که روی صفحهٔ دستگاه و کد QR «مخاطب من» است. با رمز دستگاه وارد شوید تا از همین گوشی با همان حساب پیام بدهید.</p>
+      <label for="pw">رمز دستگاه</label>
+      <input id="pw" type="password" class="ltr" dir="ltr" autocomplete="current-password">
+      ${wrong ? `<p class="muted" role="alert">${esc(wrong)}</p>` : ""}
+      <div class="row"><button class="btn primary" id="login">${icon("lock")} ورود</button></div>
+    </div>`;
+  const go = async () => {
+    const r = await fetch("/api/acct/login", { method: "POST", body: new URLSearchParams({ password: $("pw").value }) });
+    if (r.ok) return startBoard();
+    showLogin(r.status === 429 ? "چند دقیقه بعد دوباره امتحان کنید." : "رمز اشتباه است.");
+  };
+  $("login").onclick = go;
+  $("pw").addEventListener("keydown", (e) => e.key === "Enter" && go());
+  $("pw").focus();
+}
+
+async function startBoard() {
+  const acct = new BoardAccount();
+  try {
+    await acct.refresh();
+  } catch (e) {
+    return e.message === "login" ? showLogin() : Promise.reject(e);
+  }
+  state.board = true;
+  window.mava = acct;
+  acct.onEvent(onEvent);
+  acct.start();
+  showChats();
+}
 
 const icon = (name, cls = "") => `<svg class="i ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 
@@ -118,9 +232,9 @@ function showChats() {
       <div class="row"><button class="btn ghost" id="share">${icon("share")} اشتراک / کپی</button></div>
     </div>`;
   document.querySelectorAll(".contact").forEach((el) => (el.onclick = () => showChat(el.dataset.h)));
-  $("add").onclick = () => {
+  $("add").onclick = async () => {
     try {
-      const c = JSON.parse(mava.addContact($("uri").value, $("cname").value));
+      const c = JSON.parse(await mava.addContact($("uri").value, $("cname").value));
       showChat(c.hash);
     } catch (e) {
       toast("لینک نامعتبر است — آن را کامل کپی کنید");
@@ -136,8 +250,9 @@ function showChats() {
   };
 }
 
-function showChat(hash) {
+async function showChat(hash) {
   state.chat = hash;
+  if (mava.load) await mava.load(hash).catch(() => {});
   state.screen = "chat";
   const c = JSON.parse(mava.contacts()).find((x) => x.hash === hash);
   header(c ? c.name : hash.slice(0, 8), true);
@@ -178,9 +293,11 @@ function showSettings() {
   $("main").innerHTML = `
     <div class="card">
       <label for="sname">نام شما</label>
-      <input id="sname" dir="auto" value="${esc(setting("mava.name", ""))}">
+      <input id="sname" dir="auto" value="${esc(state.board ? mava.name() : setting("mava.name", ""))}">
+      <div class="${state.board ? "hidden" : ""}">
       <label for="relays">رله‌ها (با ویرگول جدا)</label>
       <input id="relays" class="ltr" dir="ltr" value="${esc(setting("mava.relays", DEFAULT_RELAYS))}" inputmode="url">
+      </div>
       <div class="row"><button class="btn primary" id="ssave">ذخیره</button></div>
     </div>
     <div class="card">
@@ -190,10 +307,17 @@ function showSettings() {
     <div class="card">
       <h2>${icon("lock")} شناسه</h2>
       <p class="ltr">${esc(mava.hash())}</p>
-      <p class="muted">کلیدها در حافظهٔ این مرورگر ذخیره شده‌اند. پاک کردن داده‌های سایت، هویت شما را پاک می‌کند.</p>
+      <p class="muted">${state.board
+        ? "حساب روی خود برد است (همان حساب صفحهٔ دستگاه)؛ این مرورگر فقط آن را نشان می‌دهد. پیام‌ها از LoRa، بلوتوث و رلهٔ برد می‌روند."
+        : "کلیدها در حافظهٔ این مرورگر ذخیره شده‌اند. پاک کردن داده‌های سایت، هویت شما را پاک می‌کند."}</p>
     </div>`;
-  $("ssave").onclick = () => {
+  $("ssave").onclick = async () => {
     const name = $("sname").value.trim();
+    if (state.board) {
+      await mava.setName(name);
+      toast("ذخیره شد");
+      return showChats();
+    }
     save("mava.name", name);
     mava.setName(name);
     const r = $("relays").value.trim();
@@ -207,11 +331,11 @@ function showSettings() {
   };
 }
 
-function send() {
+async function send() {
   const t = $("text").value;
   if (!t.trim() || !state.chat) return;
   try {
-    mava.send(state.chat, t);
+    await mava.send(state.chat, t);
     $("text").value = "";
     renderMessages();
   } catch (e) {
@@ -227,6 +351,11 @@ function onEvent(json) {
     const [name, st] = e.detail.split(": ");
     state.links[name === "board" ? "board" : "relay"] = st === "online";
     renderStatus();
+    return;
+  }
+  if (e.kind === "update") {  // the board's account changed
+    if (state.chat) renderMessages();
+    else if (state.screen === "chats") showChats();
     return;
   }
   if (state.chat && e.contact === state.chat) renderMessages();
@@ -267,6 +396,17 @@ $("text").addEventListener("keydown", (e) => {
     send();
   }
 });
-load().catch((e) => {
+// On a board with its own messenger: its account. Elsewhere (or on a board
+// without one): this browser's own account in WebAssembly.
+async function main() {
+  if (location.pathname.startsWith("/app/")) {
+    const r = await fetch("/api/acct/me").catch(() => null);
+    if (r && r.status === 401) return showLogin();
+    if (r && r.ok) return startBoard();
+  }
+  return load();
+}
+
+main().catch((e) => {
   $("main").innerHTML = `<div class="card">بارگذاری نشد: ${esc(e.message)}<div class="row"><button class="btn ghost" onclick="location.reload()">دوباره</button></div></div>`;
 });

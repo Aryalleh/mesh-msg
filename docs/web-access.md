@@ -11,6 +11,25 @@ iPhone Safari ── Wi-Fi ──► Mava board / handheld  ──LoRa (Meshtast
    └── HTTPS (when the phone has internet) ──► relays directly
 ```
 
+## One account on the device (0.1.1-beta18)
+
+When the board has its own messenger (the handheld's, `lib/meshclient`; every board from
+beta16 has one, with or without a screen), the page does **not** make a second account in the
+browser: it asks for the **device password** and then shows the board's own account: the same
+identity as the handheld screen and its *My contact* QR code, the same chats and history. A
+message sent from the iPhone leaves as the board; one that arrives is on the handheld and in
+the browser. So the board can ride in a backpack while the phone is the screen, and when the
+phone is flat the handheld still has everything.
+
+- API (`src/net.cpp`, JSON, session cookie after `POST /api/acct/login` with the device
+  password, 4 browsers, a new device password logs everyone out): `GET /api/acct/me`,
+  `chats` (with a preview line), `messages?h=`, `rev` (polled every 2 s), `POST send`, `add`,
+  `name`. `404` = no messenger on this board → the page falls back to its own in-browser
+  account (WebAssembly, as before).
+- The board keeps its hotspot `Mava-XXXX` on while it is joined to the home Wi-Fi (AP + STA), so
+  a phone can join the board directly (`http://192.168.4.1/app/`) while the board stays online.
+  Change the default device password: it protects both the hotspot and the account.
+
 ## How it works
 
 - **The client runs in the browser.** `web/lite` is the Mava core's identity, end-to-end

@@ -1646,3 +1646,17 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Relay across layers already held (stores for every sink); host test `all_layers` now proves
   BLE→LoRa+relay+phones, LoRa→phones+relay, relay→phones+LoRa.
 - Release v0.1.1-beta17.
+
+### 2026-11-17 — One account on the device (browser = the board's messenger)
+
+- Owner: the iPhone browser app and the ESP32 messenger must be ONE account (board in a
+  backpack, phone as screen; phone dead → handheld).
+- Firmware: `net::Account` (JSON) implemented by `client_messenger.cpp` over lib/meshclient;
+  `/api/acct/{login,me,chats,messages,rev,send,add,name}` with a device-password session cookie
+  (4 sessions, lockout shared with the panel, cleared on password change). Client `rename()`.
+  Messenger runs with or without a screen. Station mode is AP+STA (board hotspot stays up).
+- Web: `BoardAccount` in app.js with the WASM client's interface; login screen; actions awaited;
+  `main()` picks board account (200/401) or the in-browser one (404). Chromium test against a
+  fake board (login, preview, send ✓, incoming via polling); scripts/test-web.sh PASS.
+- Calls (owner also asked): not built; see the plan in the reply / docs/calls.md.
+- Release v0.1.1-beta18.

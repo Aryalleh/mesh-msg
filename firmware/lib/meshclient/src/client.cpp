@@ -209,6 +209,15 @@ int Client::add_contact(const std::string& link, uint32_t now) {
   return i;
 }
 
+bool Client::rename(size_t i, const std::string& name) {
+  if (i >= contacts_.size()) return false;
+  contacts_[i].name = name.substr(0, 32);
+  contacts_[i].saved = true;
+  rev_++;
+  save_contacts();
+  return true;
+}
+
 void Client::add_message(size_t contact, const Message& m) {
   auto& list = messages_[contact];
   if (list.size() >= kMaxMessages) list.erase(list.begin());

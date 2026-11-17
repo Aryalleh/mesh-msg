@@ -8,6 +8,7 @@
 #include "board.h"
 #include "client.h"
 #include "hostlink.h"
+#include "net.h"
 
 namespace ui {
 namespace {
@@ -79,6 +80,93 @@ class ClientMessenger final : public Messenger {
 
 ClientMessenger g_messenger;
 
+// ---- the same account for the browser app (net::Account, JSON) ----
+
+// At most n bytes, never splitting a UTF-8 character.
+std::string utf8_cut(const std::string& s, size_t n) {
+  if (s.size() <= n) return s;
+  while (n > 0 && (uint8_t(s[n]) & 0xC0) == 0x80) n--;
+  return s.substr(0, n);
+}
+
+std::string js(const std::string& s) {
+  std::string o = "\"";
+  for (unsigned char c : s) {
+    if (c == '"' || c == '\\') {
+      o += '\\';
+      o += char(c);
+    } else if (c < 0x20) {
+      char b[8];
+      snprintf(b, sizeof b, "\\u%04x", c);
+      o += b;
+    } else {
+      o += char(c);
+    }
+  }
+  return o + "\"";
+}
+
+class BrowserAccount final : public net::Account {
+ public:
+  std::string me() override {
+    uint8_t h[16];
+    g_client->pub().hash(h);
+    char hx[33];
+    for (int i = 0; i < 16; i++) snprintf(hx + 2 * i, 3, "%02x", h[i]);
+    return "{\"name\":" + js(g_client->name()) + ",\"link\":" + js(g_client->link()) + ",\"hash\":" + js(hx) + "}";
+  }
+  std::string chats() override {
+    std::string o = "[";
+    const auto& cs = g_client->contacts();
+    for (size_t i = 0; i < cs.size(); i++) {
+      if (i) o += ",";
+      o += "{\"hash\":" + js(cs[i].id()) + ",\"name\":" + js(cs[i].label()) + ",\"saved\":" +
+           (cs[i].saved ? "true" : "false") + ",\"last\":" + std::to_string(uint64_t(cs[i].last) * 1000);
+      const auto& ms = g_client->messages(i);
+      if (!ms.empty()) {  // the chat list's preview line
+        const auto& m = ms.back();
+        o += std::string(",\"preview\":{\"mine\":") + (m.mine ? "true" : "false") + ",\"text\":" +
+             js(utf8_cut(m.text, 120)) + ",\"time\":" + std::to_string(uint64_t(m.time) * 1000) + "}";
+      }
+      o += "}";
+    }
+    return o + "]";
+  }
+  std::string messages(const std::string& hash) override {
+    std::string o = "[";
+    int i = g_client->find(hash);
+    if (i >= 0) {
+      bool first = true;
+      for (const auto& m : g_client->messages(size_t(i))) {
+        if (!first) o += ",";
+        first = false;
+        o += std::string("{\"mine\":") + (m.mine ? "true" : "false") + ",\"text\":" + js(m.text) +
+             ",\"time\":" + std::to_string(uint64_t(m.time) * 1000) + ",\"status\":" +
+             (m.delivered ? "\"delivered\"" : "\"sent\"") + "}";
+      }
+    }
+    return o + "]";
+  }
+  bool send(const std::string& hash, const std::string& text) override {
+    int i = g_client->find(hash);
+    return i >= 0 && g_client->send_text(size_t(i), text, g_unix);
+  }
+  std::string add(const std::string& link, const std::string& name) override {
+    int i = g_client->add_contact(link, g_unix);
+    if (i < 0) return "";
+    if (!name.empty()) g_client->rename(size_t(i), name);
+    const auto& c = g_client->contacts()[size_t(i)];
+    return "{\"hash\":" + js(c.id()) + ",\"name\":" + js(c.label()) + "}";
+  }
+  bool set_name(const std::string& name) override {
+    g_client->set_name(name);
+    return true;
+  }
+  uint32_t revision() override { return g_client->revision(); }
+};
+
+BrowserAccount g_account;
+
 void feed(mesh::node::Node& node, const uint8_t* payload, size_t n, uint8_t kind, mesh::route::Millis now) {
   uint8_t f[mesh::host::kMaxEncoded];
   size_t e = mesh::host::encode(kind, payload, n, f, sizeof f);
@@ -96,6 +184,7 @@ Messenger* client_begin(const char* name) {
   g_client.reset(new mc::Client(seed, g_flash, [](uint8_t* b, size_t n) { board::random_bytes(b, n); }));
   memset(seed, 0, sizeof seed);
   if (g_client->name().empty()) g_client->set_name(name);
+  net::set_account(&g_account);  // the browser app uses this same account
   return &g_messenger;
 }
 

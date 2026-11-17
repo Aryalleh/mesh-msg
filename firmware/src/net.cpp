@@ -133,7 +133,12 @@ void start_station() {
     WiFi.mode(WIFI_OFF);
     return;
   }
-  WiFi.mode(WIFI_STA);
+  // Joined to the home Wi-Fi and, at the same time, the board's own hotspot
+  // (same name and device password): a phone that carries the board in a
+  // backpack joins it directly and uses the board's account (no panel here).
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
+  WiFi.softAP(g_ap_name, g_s->password);
   WiFi.setAutoReconnect(true);
   WiFi.begin(g_s->wifi_ssid, g_s->wifi_pass);
   configTime(0, 0, "pool.ntp.org", "time.google.com");
@@ -150,6 +155,7 @@ void set_mode(Mode m) {
   if (g_mode == Mode::Setup) stop_setup();
   if (g_mode == Mode::Station) {
     g_web.stop();
+    WiFi.softAPdisconnect(true);
     WiFi.disconnect(true);
     g_wifi_up = false;
   }
@@ -350,6 +356,8 @@ void handle_login() {
   g_web.send(303);
 }
 
+void acct_logout_all();
+
 void handle_save() {
   if (!authed()) return page_login(nullptr);
   Settings s = *g_s;
@@ -402,7 +410,10 @@ void handle_save() {
   memcpy(s.psk, ch.psk, sizeof s.psk);
   s.psk_len = ch.psk_len;
   bool pass_changed = np.length() > 0;
-  if (pass_changed) copy(s.password, sizeof s.password, np);
+  if (pass_changed) {
+    copy(s.password, sizeof s.password, np);
+    acct_logout_all();  // browsers log in again with the new password
+  }
   *g_s = s;
   save(s);
   g_node->apply_config(c, board::now_ms());
@@ -437,6 +448,63 @@ void serve_wasm() {
   g_web.sendHeader("Cache-Control", "max-age=600");
   g_web.streamFile(f, "application/wasm");
   f.close();
+}
+
+// ---- the account API for the browser app (one account on the device) ----
+
+Account* g_account = nullptr;
+// Browser sessions logged in with the device password (until reboot).
+constexpr int kSessions = 4;
+char g_sessions[kSessions][33] = {};
+int g_session_next = 0;
+
+bool acct_authed() {
+  String c = g_web.header("Cookie");
+  for (auto& t : g_sessions)
+    if (t[0] && c.indexOf(String("mavaacct=") + t) >= 0) return true;
+  return false;
+}
+
+void acct_logout_all() { memset(g_sessions, 0, sizeof g_sessions); }
+
+void json(int code, const std::string& body) {
+  g_web.sendHeader("Cache-Control", "no-store");
+  g_web.send(code, "application/json; charset=utf-8", body.c_str());
+}
+
+// Common checks: 404 without a messenger on this board (the page then uses
+// its own in-browser account), 401 before login.
+bool acct_ready() {
+  if (!g_account) {
+    json(404, "{\"error\":\"no messenger on this board\"}");
+    return false;
+  }
+  if (!acct_authed()) {
+    json(401, "{\"error\":\"login\"}");
+    return false;
+  }
+  return true;
+}
+
+void acct_login() {
+  if (!g_account) return json(404, "{\"error\":\"no messenger on this board\"}");
+  Millis now = board::now_ms();
+  if (now < g_login_lock_until) return json(429, "{\"error\":\"wait\"}");
+  if (g_web.arg("password") != g_s->password) {
+    if (++g_login_fail >= 5) {
+      g_login_fail = 0;
+      g_login_lock_until = now + 60000;
+    }
+    return json(403, "{\"error\":\"password\"}");
+  }
+  g_login_fail = 0;
+  uint8_t t[16];
+  board::random_bytes(t, sizeof t);
+  char* slot = g_sessions[g_session_next++ % kSessions];
+  copy(slot, 33, hex(t, sizeof t));
+  // A year: the phone stays logged in; a reboot or a new password ends it.
+  g_web.sendHeader("Set-Cookie", String("mavaacct=") + slot + "; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict");
+  json(200, g_account->me());
 }
 
 void redirect_portal() {
@@ -747,6 +815,35 @@ bool begin(Settings& s, mesh::node::Node& node, void* node_lock, const Hooks& ho
   g_web.on("/connecttest.txt", redirect_portal);
   g_web.on("/ncsi.txt", redirect_portal);
   g_web.on("/api/link", HTTP_POST, handle_link);
+  g_web.on("/api/acct/login", HTTP_POST, acct_login);
+  g_web.on("/api/acct/me", HTTP_GET, [] {
+    if (acct_ready()) json(200, g_account->me());
+  });
+  g_web.on("/api/acct/chats", HTTP_GET, [] {
+    if (acct_ready()) json(200, g_account->chats());
+  });
+  g_web.on("/api/acct/messages", HTTP_GET, [] {
+    if (acct_ready()) json(200, g_account->messages(g_web.arg("h").c_str()));
+  });
+  g_web.on("/api/acct/rev", HTTP_GET, [] {
+    if (acct_ready()) json(200, "{\"rev\":" + std::to_string(g_account->revision()) + "}");
+  });
+  g_web.on("/api/acct/send", HTTP_POST, [] {
+    if (!acct_ready()) return;
+    if (g_account->send(g_web.arg("h").c_str(), g_web.arg("text").c_str())) json(200, "{}");
+    else json(400, "{\"error\":\"not sent\"}");
+  });
+  g_web.on("/api/acct/add", HTTP_POST, [] {
+    if (!acct_ready()) return;
+    std::string c = g_account->add(g_web.arg("link").c_str(), g_web.arg("name").c_str());
+    if (c.empty()) json(400, "{\"error\":\"bad link\"}");
+    else json(200, c);
+  });
+  g_web.on("/api/acct/name", HTTP_POST, [] {
+    if (!acct_ready()) return;
+    g_account->set_name(g_web.arg("name").c_str());
+    json(200, g_account->me());
+  });
   g_web.on("/app/main.wasm", HTTP_GET, serve_wasm);
   g_web.serveStatic("/app/", LittleFS, "/web/", "max-age=600");  // index.htm, *.gz
   g_web.onNotFound(not_found);
@@ -807,6 +904,8 @@ uint8_t hotspot(bool on) {
 }
 
 const char* ap_name() { return g_ap_name; }
+
+void set_account(Account* a) { g_account = a; }
 
 Mode mode() { return g_mode; }
 bool wifi_up() { return g_wifi_up; }
