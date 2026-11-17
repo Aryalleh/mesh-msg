@@ -9,7 +9,7 @@
 #include "keys.h"
 
 namespace sim {
-extern uint16_t fb[240 * 320];
+extern uint16_t fb[320 * 240];
 extern std::deque<mesh::keys::Output> keys;
 extern bool module, touched;
 extern int tx, ty;
@@ -72,7 +72,7 @@ void shot(const char* name) {
   run(100);
   std::string path = std::string(name) + ".ppm";
   FILE* f = fopen(path.c_str(), "wb");
-  fprintf(f, "P6\n240 320\n255\n");
+  fprintf(f, "P6\n320 240\n255\n");
   for (uint16_t p : sim::fb) {
     unsigned char rgb[3] = {uint8_t((p >> 11 & 31) * 255 / 31), uint8_t((p >> 5 & 63) * 255 / 63),
                             uint8_t((p & 31) * 255 / 31)};

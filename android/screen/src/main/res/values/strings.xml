@@ -19,5 +19,6 @@
     <string name="key_ok">OK</string>
     <string name="type_hint">Type on the board</string>
     <string name="type_send">Send</string>
+    <string name="phone_keyboard">Type with the phone\'s keyboard (hide the board\'s touch keyboard)</string>
     <string name="help">Touch the picture to tap the handheld\'s screen. The buttons are its keys: call, menu, arrows, OK, back, end. Text you type here goes to the board as key presses, in any language your phone\'s keyboard has. One app at a time can use the board\'s USB: close Mava\'s LoRa-over-USB or the flasher first.</string>
 </resources>

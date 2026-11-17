@@ -40,12 +40,12 @@ void round_trip() {
   srand(7);
   std::vector<uint16_t> noise(size_t(50) * 30);
   for (auto& v : noise) v = uint16_t(rand());
-  m.blit(220, 300, 269, 329, noise.data());
+  m.blit(300, 220, 349, 249, noise.data());
   int tiles = drain(m, phone);
-  CHECK(tiles == 2 * 3);  // x 220..239 → 2 tile columns, y 300..319 → 3 tile rows
+  CHECK(tiles == 2 * 3);  // x 300..319 → 2 tile columns, y 220..239 → 3 tile rows
   CHECK(phone == fb);
-  CHECK(fb[size_t(300) * mm::kWidth + 220] == noise[0]);
-  CHECK(fb[size_t(319) * mm::kWidth + 239] == noise[size_t(19) * 50 + 19]);
+  CHECK(fb[size_t(220) * mm::kWidth + 300] == noise[0]);
+  CHECK(fb[size_t(239) * mm::kWidth + 319] == noise[size_t(19) * 50 + 19]);
 
   // A new subscriber gets the whole frame.
   auto fresh = frame();
@@ -65,10 +65,10 @@ void wire_format() {
   CHECK(m.next(buf, sizeof buf) == 0);
   uint8_t info[mm::kInfoSize];
   CHECK(mm::Mirror::info(info, sizeof info) == mm::kInfoSize);
-  CHECK(Bytes(info, info + sizeof info) == check::unhex("0000f001401008"));
+  CHECK(Bytes(info, info + sizeof info) == check::unhex("00014000f01008"));
   // Malformed tiles are refused.
   auto phone = frame();
-  Bytes bad = check::unhex("0100f00008100801803412");  // x 240: off screen
+  Bytes bad = check::unhex("0101400008100801803412");  // x 320: off screen
   CHECK(!mm::Mirror::apply(bad.data(), bad.size(), phone.data()));
   bad = check::unhex("010000000810080140" "3412");  // 64 of 128 pixels
   CHECK(!mm::Mirror::apply(bad.data(), bad.size(), phone.data()));

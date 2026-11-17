@@ -33,6 +33,9 @@ struct RemoteTouch {
 std::deque<RemoteTouch> g_remote;
 RemoteTouch g_remote_last = {0, 0, false};
 lv_indev_t* g_remote_indev = nullptr;
+// The touch keyboard can be switched off (the phone's keyboard types through
+// Mava Screen, or a hardware keyboard is enough).
+bool g_osk_off = false;
 
 lv_font_t g_font;  // Vazirmatn (Persian + Latin), falling back to Montserrat for symbols
 lv_group_t* g_group = nullptr;
@@ -55,6 +58,7 @@ lv_obj_t* g_info = nullptr;      // network / settings text
 lv_obj_t* g_messages = nullptr;  // chat history
 lv_obj_t* g_input = nullptr;     // chat text area
 lv_obj_t* g_osk = nullptr;       // touch keyboard
+lv_obj_t* g_home_grid = nullptr; // home buttons (two columns)
 mesh::osk::Page g_osk_page = mesh::osk::Page::Persian;
 
 void show(Screen s);
@@ -224,7 +228,7 @@ void osk_event(lv_event_t* e) {
 
 void osk_create(lv_obj_t* parent) {
   g_osk = lv_buttonmatrix_create(parent);
-  lv_obj_set_size(g_osk, lv_pct(100), 130);
+  lv_obj_set_size(g_osk, lv_pct(100), 112);  // landscape: 240 px tall, keep the chat visible
   lv_obj_set_style_pad_all(g_osk, 2, 0);
   lv_obj_set_style_pad_gap(g_osk, 2, 0);
   lv_obj_set_style_bg_color(g_osk, col::bg(), 0);
@@ -237,7 +241,7 @@ void osk_create(lv_obj_t* parent) {
   osk_set_page(kbmodule::present() && !kbmodule::layout().persian() ? mesh::osk::Page::Latin
                                                                       : mesh::osk::Page::Persian);
   // With a hardware keyboard the touch keyboard waits until the text area is tapped.
-  if (kbmodule::present() || !display::touch()) lv_obj_add_flag(g_osk, LV_OBJ_FLAG_HIDDEN);
+  if (g_osk_off || kbmodule::present() || !display::touch()) lv_obj_add_flag(g_osk, LV_OBJ_FLAG_HIDDEN);
 }
 
 // ---- screens ----
@@ -342,10 +346,21 @@ void show(Screen s) {
         lv_obj_set_style_text_align(w, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_base_dir(w, LV_BASE_DIR_LTR, 0);
       }
-      button(g_body, LV_SYMBOL_LIST "  گفتگوها / Chats", [](lv_event_t*) { show(Screen::Chats); });
-      button(g_body, LV_SYMBOL_GPS "  شبکه / Network", [](lv_event_t*) { show(Screen::Network); });
-      button(g_body, LV_SYMBOL_WIFI "  مرورگر آیفون / Web access", [](lv_event_t*) { show(Screen::Web); });
-      button(g_body, LV_SYMBOL_SETTINGS "  تنظیمات / Settings", [](lv_event_t*) { show(Screen::Settings); });
+      {
+        // Landscape: the four buttons in two columns under the wordmark.
+        lv_obj_t* grid = lv_obj_create(g_body);
+        lv_obj_remove_style_all(grid);
+        lv_obj_set_size(grid, lv_pct(100), LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
+        lv_obj_set_style_pad_gap(grid, 6, 0);
+        g_home_grid = grid;
+      }
+      button(g_home_grid, LV_SYMBOL_LIST "  گفتگوها / Chats", [](lv_event_t*) { show(Screen::Chats); });
+      button(g_home_grid, LV_SYMBOL_GPS "  شبکه / Network", [](lv_event_t*) { show(Screen::Network); });
+      button(g_home_grid, LV_SYMBOL_WIFI "  مرورگر / Web", [](lv_event_t*) { show(Screen::Web); });
+      button(g_home_grid, LV_SYMBOL_SETTINGS "  تنظیمات / Settings", [](lv_event_t*) { show(Screen::Settings); });
+      for (uint32_t i = 0; i < lv_obj_get_child_count(g_home_grid); i++)
+        lv_obj_set_width(lv_obj_get_child(g_home_grid, int32_t(i)), lv_pct(48));
       break;
     case Screen::Chats: {
       title("گفتگوها");
@@ -382,7 +397,7 @@ void show(Screen s) {
       lv_obj_add_event_cb(g_input,
                           [](lv_event_t* e) {
                             lv_indev_t* in = lv_event_get_indev(e);
-                            if (g_osk && in && lv_indev_get_type(in) == LV_INDEV_TYPE_POINTER)
+                            if (g_osk && !g_osk_off && in && lv_indev_get_type(in) == LV_INDEV_TYPE_POINTER)
                               lv_obj_remove_flag(g_osk, LV_OBJ_FLAG_HIDDEN);
                           },
                           LV_EVENT_CLICKED, nullptr);
@@ -420,7 +435,7 @@ void show(Screen s) {
       std::string link = g_msg->my_link();
       label(g_body, g_msg->my_name());
       lv_obj_t* qr = lv_qrcode_create(g_body);
-      lv_qrcode_set_size(qr, 190);
+      lv_qrcode_set_size(qr, 150);  // landscape: 240 px tall
       lv_qrcode_update(qr, link.data(), uint32_t(link.size()));
       lv_obj_set_style_border_color(qr, lv_color_white(), 0);
       lv_obj_set_style_border_width(qr, 4, 0);
@@ -592,8 +607,38 @@ bool ready() { return g_ready; }
 void remote_touch(int x, int y, bool pressed) {
   if (!g_ready) return;
   wake();
+  // The phone sends screen (landscape) coordinates; LVGL rotates pointer
+  // input as if it came from the panel, so undo that first.
+  lv_display_t* d = lv_display_get_default();
+  int pw = lv_display_get_physical_horizontal_resolution(d), ph = lv_display_get_physical_vertical_resolution(d);
+  switch (lv_display_get_rotation(d)) {
+    case LV_DISPLAY_ROTATION_90: {
+      int px = y, py = ph - 1 - x;
+      x = px, y = py;
+      break;
+    }
+    case LV_DISPLAY_ROTATION_270: {
+      int px = pw - 1 - y, py = x;
+      x = px, y = py;
+      break;
+    }
+    case LV_DISPLAY_ROTATION_180:
+      x = pw - 1 - x, y = ph - 1 - y;
+      break;
+    default:
+      break;
+  }
   if (g_remote.size() >= 32) g_remote.pop_front();  // a stalled UI keeps the latest
   g_remote.push_back({int16_t(x), int16_t(y), pressed});
+}
+
+void remote_option(uint8_t id, uint8_t value) {
+  if (id != 1) return;  // mirror::kOptTouchKeyboard
+  g_osk_off = value == 0;
+  if (g_osk) {
+    if (g_osk_off) lv_obj_add_flag(g_osk, LV_OBJ_FLAG_HIDDEN);
+    else if (!kbmodule::present() && g_screen == Screen::Chat) lv_obj_remove_flag(g_osk, LV_OBJ_FLAG_HIDDEN);
+  }
 }
 
 bool remote_key(uint8_t action, uint32_t cp) {

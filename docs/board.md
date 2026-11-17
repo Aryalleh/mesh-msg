@@ -134,6 +134,12 @@ rare phone below it), connects to it itself (`central_task`, one outgoing link a
 sends the hello and carries the stream in writes; the other side's notifications come back
 into the same mesh seats. So boards in Bluetooth range mesh with each other too, besides LoRa.
 
+**A relay between all layers.** Whatever arrives on one side goes out on all the others,
+once (host test `all_layers`): from a Bluetooth phone → LoRa, the relay and the other phones;
+heard on LoRa → the phones and the relay; from the relay → the phones and LoRa (hop count + 1).
+Bluetooth phones are store sinks like USB and the browser, so a phone that connects later gets
+what it missed. Packets bigger than LoRa's 233 bytes (photos, voice) stay between phones.
+
 All together: Android ↔ Android, iPhone ↔ Android (the iPhone connects), phone ↔ board,
 board ↔ board, and meshd (Linux) → everyone it sees (docs/desktop.md). One mesh.
 

@@ -1,5 +1,5 @@
 // Screen mirror (docs/screen.md): the handheld's screen on a phone over the
-// host link. The board keeps a copy of the 240×320 RGB565 frame; LVGL's
+// host link. The board keeps a copy of the 320×240 RGB565 frame; LVGL's
 // flushes are blitted into it and mark 16×8 tiles dirty; the main loop sends
 // dirty tiles as SCREEN events while the host's output buffer has room, so
 // the screen never waits for USB and only what changed is sent.
@@ -12,6 +12,7 @@
 // INPUT command arguments (host::kOpInput):
 //   touch: 0 | x u16 BE | y u16 BE | pressed u8
 //   key:   1 | action u8 (keys::Action) | code point u32 BE (Text)
+//   option:2 | id u8 | value u8 | 0 0 0  (kOptTouchKeyboard: 0 = hide it, the phone types)
 // Pure C++, no heap, no Arduino: host-tested.
 #pragma once
 
@@ -21,12 +22,13 @@
 namespace mesh {
 namespace mirror {
 
-constexpr int kWidth = 240;
-constexpr int kHeight = 320;
+// Landscape, as the BlackBerry: 320 × 240 (the panel is rotated in hardware).
+constexpr int kWidth = 320;
+constexpr int kHeight = 240;
 constexpr int kTileW = 16;
 constexpr int kTileH = 8;
-constexpr int kCols = kWidth / kTileW;   // 15
-constexpr int kRows = kHeight / kTileH;  // 40
+constexpr int kCols = kWidth / kTileW;   // 20
+constexpr int kRows = kHeight / kTileH;  // 30
 constexpr int kTiles = kCols * kRows;
 
 constexpr uint8_t kInfo = 0;
@@ -39,6 +41,8 @@ constexpr size_t kMaxTile = kTileHeader + kTileW * kTileH * 2;  // raw is never 
 
 constexpr uint8_t kInputTouch = 0;
 constexpr uint8_t kInputKey = 1;
+constexpr uint8_t kInputOption = 2;
+constexpr uint8_t kOptTouchKeyboard = 1;
 constexpr size_t kInputSize = 6;
 
 class Mirror {

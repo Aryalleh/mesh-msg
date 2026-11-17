@@ -149,6 +149,12 @@ class ScreenSession(private val port: SerialLink, val frame: ScreenFrame, privat
         }
     }
 
+    /** Board options: id 1 = the touch keyboard (false hides it: the phone types). */
+    fun option(id: Int, on: Boolean) {
+        if (closed) return
+        runCatching { send(OP_INPUT, byteArrayOf(2, id.toByte(), if (on) 1 else 0, 0, 0, 0)) }
+    }
+
     /** Types text on the board, one Text key per code point. */
     fun type(text: String) {
         var i = 0
@@ -159,8 +165,12 @@ class ScreenSession(private val port: SerialLink, val frame: ScreenFrame, privat
         }
     }
 
+    /** Sent right after SCREEN 1 (before any frame), e.g. to hide the touch keyboard. */
+    var onStart: (ScreenSession) -> Unit = {}
+
     fun run() {
         send(OP_SCREEN, byteArrayOf(1))
+        onStart(this)
         val buf = ByteArray(16 * 1024)
         val pending = ByteArrayOutputStream()
         while (!closed) {

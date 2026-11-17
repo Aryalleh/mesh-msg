@@ -1,5 +1,5 @@
 // The handheld's screen and touch panel (docs/handheld-proto.md §4) for LVGL:
-// ILI9341 240×320 on its own SPI bus, backlight PWM, XPT2046 resistive touch
+// ILI9341 240×320, used in landscape (320×240), on its own SPI bus, backlight PWM, XPT2046 resistive touch
 // on the same bus. Nothing here runs without LCD_CS (the plain Mava board).
 #pragma once
 

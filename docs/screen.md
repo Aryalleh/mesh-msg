@@ -14,6 +14,20 @@ phone (Mava Screen) ── USB-OTG ── board's own USB socket (host link, por
    INPUT touch / key ───────────►  fed to LVGL like the touch panel / keyboard module
 ```
 
+## Landscape, speed, keyboards (0.1.1-beta17)
+
+- The screen is **landscape, 320 × 240**, as on a BlackBerry: the ILI9341 is rotated in hardware
+  (`LCD_ROTATION`, default 90; 270 if the panel is mounted the other way), so the copy sent to
+  the phone is landscape too (20 × 30 tiles). The phone app sizes the picture from the info event.
+- **Speed:** the board used to send at most 256 bytes to USB per main-loop pass (the ESP32-S3
+  USB-Serial/JTAG transmit buffer defaults to 256 bytes, and one chunk was written per pass), so
+  a full frame took seconds. Now the transmit buffer is 16 kB, every pass drains what is waiting,
+  the node's per-port output is 8 kB and up to 64 tiles are queued per pass.
+- **Keyboards:** one firmware for all of them: the Pico keyboard module (own matrix, BlackBerry
+  9900 keyboard, 9900 keyboard + trackpad, detected), the touch keyboard, and the phone's
+  keyboard through Mava Screen. Mava Screen's switch *Type with the phone's keyboard* (on by
+  default) sends INPUT option `2 | 1 | 0` and the board hides its touch keyboard.
+
 ## How it works
 
 - It is the same host link the apps use for LoRa over USB (docs/firmware.md): the phone

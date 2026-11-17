@@ -37,7 +37,7 @@ using route::Millis;
 constexpr uint8_t kFirmwareVersion = 1;
 constexpr uint32_t kStoreTTL = 3 * 24 * 3600;  // seconds
 constexpr uint8_t kLoRaMaxHops = 3;             // docs/firmware.md §2a
-constexpr size_t kHostOut = 4096;               // host output buffer (bytes)
+constexpr size_t kHostOut = 8192;               // host output buffer (bytes)
 constexpr size_t kNeighbours = 32;
 constexpr Millis kNeighbourTTL = 3600ull * 1000;
 constexpr size_t kInflight = 32;  // packets in the host output buffer

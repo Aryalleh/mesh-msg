@@ -239,6 +239,9 @@ void on_channel_changed(const net::Settings& s) {
 }  // namespace
 
 void setup() {
+  // A big USB transmit buffer: the screen on a phone (remote.h) streams tens
+  // of kB per frame; the default 256 bytes held it to a crawl.
+  Serial.setTxBufferSize(16384);
   Serial.begin(115200);
   Serial.setTimeout(0);
   board::init();
@@ -395,12 +398,13 @@ void loop() {
     node.host_detach(kUsbPort);
     logf("USB host quiet for 90 s: back to the text log");
   }
-  if (node.host_pending(kUsbPort) > 0) {
+  // Everything waiting, as far as the USB buffer takes it (not one chunk per pass).
+  for (int i = 0; i < 64 && node.host_pending(kUsbPort) > 0; i++) {
     int room = Serial.availableForWrite();
-    if (room > 0) {
-      size_t n = node.host_tx(kUsbPort, buf, size_t(room) < sizeof buf ? size_t(room) : sizeof buf);
-      if (n > 0) Serial.write(buf, n);
-    }
+    if (room <= 0) break;
+    size_t n = node.host_tx(kUsbPort, buf, size_t(room) < sizeof buf ? size_t(room) : sizeof buf);
+    if (n == 0) break;
+    Serial.write(buf, n);
   }
 
   // ---- BLE host (port 1) ----

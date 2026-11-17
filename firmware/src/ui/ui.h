@@ -45,5 +45,7 @@ bool ready();
 // coordinates, or a key (keys::Action, code point for Text). False: unknown action.
 void remote_touch(int x, int y, bool pressed);
 bool remote_key(uint8_t action, uint32_t cp);
+// An option from the phone: id 1 = the touch keyboard (value 0 hides it).
+void remote_option(uint8_t id, uint8_t value);
 
 }  // namespace ui

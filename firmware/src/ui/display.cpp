@@ -111,8 +111,16 @@ bool begin() {
     g_error = "LVGL display not created";
     return false;
   }
-  lv_display_set_rotation(g_disp, LV_DISPLAY_ROTATION_0);
-  size_t bytes = size_t(kWidth) * kBufLines * 2;
+  // Landscape, as the BlackBerry: 320 × 240. The panel rotates in hardware
+  // (MADCTL), so flushed areas (and the phone's copy) are in landscape too.
+  // LCD_ROTATION 270 if the panel is mounted the other way round.
+#ifndef LCD_ROTATION
+#define LCD_ROTATION 90
+#endif
+  lv_display_set_rotation(g_disp, LCD_ROTATION == 270 ? LV_DISPLAY_ROTATION_270
+                                  : LCD_ROTATION == 0 ? LV_DISPLAY_ROTATION_0
+                                                      : LV_DISPLAY_ROTATION_90);
+  size_t bytes = size_t(kHeight) * kBufLines * 2;  // rows are up to 320 pixels wide
   // The panel is fed by the CPU (SPI writeBytes), so any memory works: fast
   // internal RAM first, PSRAM when Wi-Fi, BLE and TLS have taken that.
   auto alloc = [](size_t n) {

@@ -667,6 +667,61 @@ void ble_mesh_peers() {
   CHECK(r.board.wipes == 0);
 }
 
+// The board as a relay between all layers: a packet from a Bluetooth phone
+// goes out on LoRa, to the relay and to the other phones; one heard on LoRa
+// reaches the phones and the relay; one from the relay reaches the phones and LoRa.
+void all_layers() {
+  Rig r(33), far(34);
+  auto& n = *r.node;
+  const size_t pa = mesh::node::Node::kMeshPort0, pb = pa + 1;
+  mesh::blemesh::Peer a, b;
+  uint8_t hello[] = {mesh::blemesh::kHelloMagic, 1, 2, 3, 4};
+  CHECK(a.rx(n, pa, hello, sizeof hello, 1000) && b.rx(n, pb, hello, sizeof hello, 1000));
+  Air air;
+  air.now = 1000;
+  std::vector<mesh::node::Node*> both = {&n, far.node.get()};
+  uint8_t body[2048];
+  uint32_t seqs[8];
+  size_t k = 0;
+
+  // Bluetooth → LoRa + relay + other phone.
+  Bytes d1 = data_packet(0x41);
+  Bytes s1 = mesh_frames({d1});
+  CHECK(a.rx(n, pa, s1.data(), s1.size(), air.now));
+  air.run(both, air.now + 20000);
+  far.host.cmd(*far.node, host::kOpHello, 1, {}, air.now);
+  far.host.drain(*far.node);
+  bool on_air = false;
+  for (auto& p : far.host.packets()) on_air |= p == d1;
+  CHECK(on_air);
+  size_t bn = n.uplink_take(body, sizeof body, seqs, 8, &k);
+  CHECK(k == 1 && Bytes(body + 4, body + bn) == d1);
+  auto got = mesh_split(mesh_drain(b, n, pb));
+  CHECK(got.size() == 1 && got[0] == d1);
+
+  // LoRa → both phones + relay.
+  Bytes d2 = data_packet(0x42);
+  far.host.send(*far.node, host::kKindPacket, d2, air.now);
+  air.run(both, air.now + 20000);
+  CHECK(mesh_split(mesh_drain(a, n, pa)).size() == 1);
+  CHECK(mesh_split(mesh_drain(b, n, pb)).size() == 1);
+  bn = n.uplink_take(body, sizeof body, seqs, 8, &k);
+  CHECK(k == 1 && Bytes(body + 4, body + bn) == d2);
+
+  // Relay → both phones + LoRa.
+  Bytes d3 = data_packet(0x43);
+  CHECK(n.uplink_rx(d3.data(), d3.size(), air.now));
+  CHECK(mesh_split(mesh_drain(a, n, pa)).size() == 1 && mesh_split(mesh_drain(b, n, pb)).size() == 1);
+  air.run(both, air.now + 20000);
+  far.host.drain(*far.node);
+  on_air = false;  // the router counts the hop into LoRa: same packet ID, hop count + 1
+  mesh::Packet want, got3;
+  CHECK(mesh::decode(d3.data(), d3.size(), want) == mesh::Err::Ok);
+  for (auto& p : far.host.packets())
+    on_air |= mesh::decode(p.data(), p.size(), got3) == mesh::Err::Ok && std::memcmp(got3.id, want.id, 8) == 0;
+  CHECK(on_air);
+}
+
 // SET_WIFI / HOTSPOT from a trusted host reach the board; bad arguments and
 // boards without Wi-Fi are answered with an ack status.
 void wifi_commands() {
@@ -759,6 +814,7 @@ void run_node() {
   web_port_untrusted();
   wifi_commands();
   ble_mesh_peers();
+  all_layers();
   two_hosts_and_uplink();
   commands();
   announces();

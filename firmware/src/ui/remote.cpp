@@ -16,7 +16,7 @@ namespace host = mesh::host;
 mm::Mirror* g_mirror = nullptr;
 int g_port = -1;  // subscribed host port
 bool g_send_info = false;
-constexpr int kTilesPerLoop = 16;
+constexpr int kTilesPerLoop = 64;  // bounded by the port's output room
 
 int get16(const uint8_t* p) { return int(p[0]) << 8 | p[1]; }
 
@@ -58,6 +58,10 @@ uint8_t command(mesh::node::Node& node, size_t port, uint8_t op, const uint8_t* 
       int x = get16(a + 1), y = get16(a + 3);
       if (x >= mm::kWidth || y >= mm::kHeight || a[5] > 1) return host::kAckBadArgs;
       ui::remote_touch(x, y, a[5] == 1);
+      return host::kAckOk;
+    }
+    if (a[0] == mm::kInputOption) {
+      ui::remote_option(a[1], a[2]);
       return host::kAckOk;
     }
     if (a[0] == mm::kInputKey) {

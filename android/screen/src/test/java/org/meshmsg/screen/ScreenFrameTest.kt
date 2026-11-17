@@ -13,12 +13,12 @@ class ScreenFrameTest {
         val f = ScreenFrame()
         assertFalse(f.apply(hex("0100100008100801803412"))) // a tile before the info
         // Same bytes as firmware/test/mirror_test.cpp wire_format.
-        assertTrue(f.apply(hex("0000f001401008")))
-        assertEquals(240, f.width)
-        assertEquals(320, f.height)
+        assertTrue(f.apply(hex("00014000f01008"))) // landscape 320 × 240
+        assertEquals(320, f.width)
+        assertEquals(240, f.height)
         assertTrue(f.apply(hex("0100100008100801803412")))
         val c = ScreenFrame.argb(0x1234)
-        for (y in 8 until 16) for (x in 16 until 32) assertEquals(c, f.pixels[y * 240 + x])
+        for (y in 8 until 16) for (x in 16 until 32) assertEquals(c, f.pixels[y * 320 + x])
         assertEquals(0xFF000000.toInt(), f.pixels[0])
 
         // A raw 2×1 tile: white, then pure red.
@@ -28,7 +28,7 @@ class ScreenFrameTest {
 
         // Off screen, short runs, wrong sizes: refused, nothing changes.
         val v = f.version
-        assertFalse(f.apply(hex("0100f00008100801803412")))
+        assertFalse(f.apply(hex("0101400008100801803412")))
         assertFalse(f.apply(hex("010000000810080140" + "3412")))
         assertFalse(f.apply(hex("0100000000020100ffff")))
         assertEquals(v, f.version)

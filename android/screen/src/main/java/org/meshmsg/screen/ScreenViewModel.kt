@@ -32,12 +32,14 @@ data class ScreenUi(
     val width: Int = 0,
     val height: Int = 0,
     val version: Long = 0,
+    val phoneKeyboard: Boolean = true, // hide the board's touch keyboard: type with the phone's
 )
 
 class ScreenViewModel(app: Application) : AndroidViewModel(app) {
     private val ctx: Context get() = getApplication()
     private val usb = ctx.getSystemService(UsbManager::class.java)
-    private val _state = MutableStateFlow(ScreenUi())
+    private val prefs = ctx.getSharedPreferences("screen", Context.MODE_PRIVATE)
+    private val _state = MutableStateFlow(ScreenUi(phoneKeyboard = prefs.getBoolean("phone_keyboard", true)))
     val state: StateFlow<ScreenUi> = _state
     val frame = ScreenFrame()
     @Volatile var session: ScreenSession? = null
@@ -124,6 +126,7 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
                 val p = UsbSerial.open(manager, d)
                 port = p
                 val s = ScreenSession(p, frame)
+                s.onStart = { it.option(OPT_TOUCH_KEYBOARD, !_state.value.phoneKeyboard) }
                 session = s
                 _state.update { it.copy(connected = true, connecting = false) }
                 // Watch for the board's answer while the session runs.
@@ -158,12 +161,19 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
         job?.cancel()
     }
 
+    fun setPhoneKeyboard(on: Boolean) {
+        prefs.edit().putBoolean("phone_keyboard", on).apply()
+        _state.update { it.copy(phoneKeyboard = on) }
+        session?.option(OPT_TOUCH_KEYBOARD, !on)
+    }
+
     fun retry() {
         _state.update { it.copy(error = null) }
         connect()
     }
 
     private companion object {
+        const val OPT_TOUCH_KEYBOARD = 1
         const val ACTION_PERMISSION = "org.meshmsg.screen.USB_PERMISSION"
     }
 }

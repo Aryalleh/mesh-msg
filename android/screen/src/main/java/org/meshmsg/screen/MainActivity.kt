@@ -41,6 +41,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -135,6 +137,13 @@ private fun ScreenApp(s: ScreenUi, vm: ScreenViewModel) {
                 Keys(vm)
                 TypeBox(vm)
             }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.phone_keyboard), color = Fg, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = s.phoneKeyboard, onCheckedChange = vm::setPhoneKeyboard,
+                    colors = SwitchDefaults.colors(checkedTrackColor = Primary, checkedThumbColor = Color.White),
+                )
+            }
             Text(stringResource(R.string.help), color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
         }
     }
@@ -166,8 +175,8 @@ private fun Status(s: ScreenUi, vm: ScreenViewModel) {
 /** The board's screen, scaled to fit, pixels kept sharp; touches go back to the board. */
 @Composable
 private fun BoardScreen(s: ScreenUi, vm: ScreenViewModel) {
-    val w = if (s.width > 0) s.width else 240
-    val h = if (s.height > 0) s.height else 320
+    val w = if (s.width > 0) s.width else 320
+    val h = if (s.height > 0) s.height else 240
     val bitmap = remember(w, h) { Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888) }
     val buf = remember(w, h) { IntArray(w * h) }
     Box(

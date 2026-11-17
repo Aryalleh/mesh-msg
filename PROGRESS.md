@@ -1631,3 +1631,18 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (LittleFS `/cl-*`, user seed `/cl-seed`, HELLO-attached host port, packets both ways);
   UI: Chats → My contact (QR of the link), nearby people, ✓, live refresh on revision.
 - Release v0.1.1-beta16. Not tested on hardware (phone ↔ handheld end to end untested).
+- Released **v0.1.1-beta16** (run #111, 0e4c36f).
+
+### 2026-11-17 — Landscape screen, fast USB mirror, phone keyboard, relay between all layers
+
+- Landscape 320×240 (`LCD_ROTATION` 90, hardware MADCTL rotation); mirror 320×240 (20×30
+  tiles; vectors in mirror_test + ScreenFrameTest updated); remote touches un-rotated before
+  LVGL's pointer transform (`ui::remote_touch`); home in two columns, OSK 112 px, QR 150 px;
+  UI simulator renders landscape.
+- USB mirror speed: cause = HWCDC TX buffer 256 B + one ≤512 B write per loop. Now
+  `Serial.setTxBufferSize(16384)`, drain loop each pass, `kHostOut` 8 kB, 64 tiles/pass.
+- INPUT option `2 | id | value` (`kOptTouchKeyboard`): Mava Screen switch "Type with the
+  phone's keyboard" (default on, saved) hides the board's touch keyboard.
+- Relay across layers already held (stores for every sink); host test `all_layers` now proves
+  BLE→LoRa+relay+phones, LoRa→phones+relay, relay→phones+LoRa.
+- Release v0.1.1-beta17.
