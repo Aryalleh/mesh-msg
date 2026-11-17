@@ -127,6 +127,16 @@ No pairing (owner's choice, 0.1.1-beta14): phones connect directly. Up to 3 phon
 The advert holds the mesh service and session ID (29 of 31 bytes); the host-link service and
 the name `Mava-XXXX` are in the scan response.
 
+**Board ↔ board** (0.1.1-beta15): the board's session ID is `00` + 3 random bytes (new each
+boot): lower than almost every phone's, so phones connect to it. The board also scans for
+the mesh service and, when it sees a device with a *lower* session ID (another board, or the
+rare phone below it), connects to it itself (`central_task`, one outgoing link at a time),
+sends the hello and carries the stream in writes; the other side's notifications come back
+into the same mesh seats. So boards in Bluetooth range mesh with each other too, besides LoRa.
+
+All together: Android ↔ Android, iPhone ↔ Android (the iPhone connects), phone ↔ board,
+board ↔ board, and meshd (Linux) → everyone it sees (docs/desktop.md). One mesh.
+
 ## 5. Internet: the relay worker
 
 With Wi-Fi up, a FreeRTOS task runs the gateway session (`POST /v1/gateway`, docs/server.md

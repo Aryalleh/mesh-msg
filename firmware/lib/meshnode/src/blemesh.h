@@ -29,6 +29,9 @@ class Peer {
  public:
   void reset();
   bool up() const { return hello_; }
+  // This side connected (GATT client) and sent the hello itself: the stream
+  // starts at once.
+  void start(node::Node& node, size_t port, route::Millis now);
 
   // Bytes a phone wrote. False: not a hello first, or a corrupt stream (the
   // caller disconnects the phone). Packets larger than LoRa (media) are skipped.

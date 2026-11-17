@@ -27,14 +27,18 @@ void Peer::packet(node::Node& node, size_t port, route::Millis now) {
   if (e) node.host_rx(port, f, e, now);
 }
 
+void Peer::start(node::Node& node, size_t port, route::Millis now) {
+  hello_ = true;
+  // A new peer in this seat: send it everything (RESYNC), then the backlog
+  // streams as for any host that says HELLO.
+  command(node, port, host::kOpResync, now);
+  command(node, port, host::kOpHello, now);
+}
+
 bool Peer::rx(node::Node& node, size_t port, const uint8_t* b, size_t n, route::Millis now) {
   if (!hello_) {
     if (n != 1 + kSessionBytes || b[0] != kHelloMagic) return false;
-    hello_ = true;
-    // A new phone in this seat: send it everything (RESYNC), then the backlog
-    // streams as for any host that says HELLO.
-    command(node, port, host::kOpResync, now);
-    command(node, port, host::kOpHello, now);
+    start(node, port, now);
     return true;
   }
   for (size_t i = 0; i < n; i++) {

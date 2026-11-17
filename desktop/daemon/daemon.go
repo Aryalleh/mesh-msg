@@ -25,6 +25,7 @@ import (
 
 	"github.com/Aryalleh/mesh-msg/core/hostlink"
 	"github.com/Aryalleh/mesh-msg/core/node"
+	"github.com/Aryalleh/mesh-msg/desktop/blemesh"
 )
 
 //go:embed ui/index.html
@@ -86,11 +87,21 @@ func (d *Daemon) startNode() {
 	done := make(chan struct{})
 	n := d.node
 	d.stop, d.done = cancel, done
+	bt := !d.cfg.Bluetooth.Off
 	go func() {
 		defer close(done)
+		var wg sync.WaitGroup
+		if bt {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				blemesh.Run(ctx, n, log.Printf)
+			}()
+		}
 		if err := n.Run(ctx); err != nil {
 			log.Printf("meshd: %v", err)
 		}
+		wg.Wait()
 	}()
 }
 

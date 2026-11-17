@@ -648,6 +648,19 @@ void ble_mesh_peers() {
   CHECK(got.size() == 1 && got[0] == d3);
   CHECK(mesh_split(mesh_drain(b, n, pb)).size() == 1);
 
+  // A seat where the board connected out (another board): no hello from the
+  // other side, the stream starts at once.
+  mesh::blemesh::Peer c;
+  const size_t pc = pa + 2;
+  c.start(n, pc, 1000);
+  CHECK(c.up() && n.host_attached(pc));
+  got = mesh_split(mesh_drain(c, n, pc));
+  CHECK(got.size() == 3);  // d1, d2, d3: everything stored
+  Bytes d4 = data_packet(0x34);
+  Bytes s4 = mesh_frames({d4});
+  CHECK(c.rx(n, pc, s4.data(), s4.size(), 1000));
+  CHECK(mesh_split(mesh_drain(a, n, pa)).size() == 1);
+
   // Untrusted: no WIPE through a mesh seat. A zero length frame is corrupt.
   uint8_t zero[] = {0, 0, 0};
   CHECK(!a.rx(n, pa, zero, sizeof zero, 1000));

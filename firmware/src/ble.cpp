@@ -4,6 +4,8 @@
 #include <NimBLEDevice.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <freertos/stream_buffer.h>
+#include <freertos/task.h>
 
 #include <cstring>
 
@@ -28,7 +30,7 @@ constexpr int kNotifiesPerLoop = 4;
 constexpr size_t kMaxWrite = 244;  // MTU 247 − 3
 
 // NimBLE's task → main loop: everything that happens on a connection.
-enum class Ev : uint8_t { Connect, Disconnect, Mtu, HostWrite, MeshWrite, HostSub, MeshSub };
+enum class Ev : uint8_t { Connect, Disconnect, Mtu, HostWrite, MeshWrite, HostSub, MeshSub, ClientUp };
 struct Msg {
   Ev ev;
   uint16_t conn;
@@ -36,6 +38,18 @@ struct Msg {
   uint8_t d[kMaxWrite];
 };
 QueueHandle_t g_q = nullptr;
+
+// Mesh session ID: 0x00 then 3 random bytes, new each boot. Lower than almost
+// any phone's (random 4 bytes), so phones connect to the board; between two
+// boards (or the rare phone below it) the larger one connects (BleProto rule).
+uint8_t g_session[4] = {};
+
+// The one link this board opens itself (GATT client): candidates from the
+// scan, bytes to write to the peer, its connection handle.
+QueueHandle_t g_cand = nullptr;
+StreamBufferHandle_t g_out = nullptr;
+volatile uint16_t g_client_conn = 0xFFFF;
+volatile bool g_client_kill = false;
 
 NimBLECharacteristic* g_tx = nullptr;
 NimBLECharacteristic* g_mesh_tx = nullptr;
@@ -92,10 +106,83 @@ Server g_server_cb;
 Rx g_rx_cb(Ev::HostWrite), g_mesh_rx_cb(Ev::MeshWrite);
 Tx g_tx_cb(Ev::HostSub), g_mesh_tx_cb(Ev::MeshSub);
 
+// ---- scan: other boards (and phones) with a lower session ID ----
+
+class ScanCb : public NimBLEScanCallbacks {
+  void onResult(const NimBLEAdvertisedDevice* d) override {
+    if (!d->haveManufacturerData() || !d->isAdvertisingService(NimBLEUUID(kMeshService))) return;
+    std::string m = d->getManufacturerData();
+    if (m.size() != 2 + 4 || uint8_t(m[0]) != uint8_t(kManufacturer) || uint8_t(m[1]) != uint8_t(kManufacturer >> 8)) return;
+    if (memcmp(g_session, m.data() + 2, 4) <= 0) return;  // theirs is larger: they connect to us
+    ble_addr_t a = *d->getAddress().getBase();
+    xQueueSend(g_cand, &a, 0);
+  }
+};
+ScanCb g_scan_cb;
+
+// Connects to one candidate at a time and keeps that link going: hello,
+// notifications in (queued to the main loop like a phone's writes), the main
+// loop's bytes out as writes with response.
+void central_task(void*) {
+  NimBLEScan* scan = NimBLEDevice::getScan();
+  scan->setScanCallbacks(&g_scan_cb, false);
+  scan->setActiveScan(false);
+  scan->setInterval(1000);
+  scan->setWindow(150);
+  ble_addr_t last = {};
+  uint32_t last_at = 0;
+  for (;;) {
+    if (!scan->isScanning()) scan->start(30000, false, true);
+    ble_addr_t a;
+    if (xQueueReceive(g_cand, &a, pdMS_TO_TICKS(1000)) != pdTRUE) continue;
+    if (g_conn_count >= kMaxConns) continue;
+    if (memcmp(&a, &last, sizeof a) == 0 && millis() - last_at < 30000) continue;  // tried just now
+    last = a;
+    last_at = millis();
+    scan->stop();
+    NimBLEClient* cl = NimBLEDevice::createClient();
+    cl->setConnectTimeout(5000);
+    if (!cl->connect(NimBLEAddress(a))) {
+      NimBLEDevice::deleteClient(cl);
+      continue;
+    }
+    NimBLERemoteService* svc = cl->getService(kMeshService);
+    NimBLERemoteCharacteristic* rx = svc ? svc->getCharacteristic(kMeshRx) : nullptr;
+    NimBLERemoteCharacteristic* tx = svc ? svc->getCharacteristic(kMeshTx) : nullptr;
+    if (!rx || !tx) {
+      cl->disconnect();
+      NimBLEDevice::deleteClient(cl);
+      continue;
+    }
+    g_conn_count = g_conn_count + 1;
+    g_client_kill = false;
+    xStreamBufferReset(g_out);
+    g_client_conn = cl->getConnHandle();
+    post(Ev::ClientUp, g_client_conn, cl->getMTU());
+    uint8_t hello[1 + 4] = {mesh::blemesh::kHelloMagic, g_session[0], g_session[1], g_session[2], g_session[3]};
+    bool ok = tx->subscribe(true, [](NimBLERemoteCharacteristic*, uint8_t* d, size_t n, bool) {
+      post(Ev::MeshWrite, g_client_conn, uint16_t(n), d);
+    }) && rx->writeValue(hello, sizeof hello, true);
+    while (ok && cl->isConnected() && !g_client_kill) {
+      uint8_t buf[kMaxWrite];
+      size_t chunk = cl->getMTU() > 3 ? size_t(cl->getMTU()) - 3 : 20;
+      if (chunk > sizeof buf) chunk = sizeof buf;
+      size_t n = xStreamBufferReceive(g_out, buf, chunk, pdMS_TO_TICKS(200));
+      if (n && !rx->writeValue(buf, n, true)) break;
+    }
+    post(Ev::Disconnect, g_client_conn);
+    g_client_conn = 0xFFFF;
+    if (cl->isConnected()) cl->disconnect();
+    NimBLEDevice::deleteClient(cl);
+    g_conn_count = g_conn_count > 0 ? g_conn_count - 1 : 0;
+  }
+}
+
 // ---- main-loop state ----
 
 struct Conn {
   bool used = false;
+  bool client = false;  // this board connected (writes out instead of notifications)
   uint16_t handle = 0;
   uint16_t mtu = 23;
   bool host_sub = false, mesh_sub = false;
@@ -162,6 +249,35 @@ void handle(mesh::node::Node& node, const Msg& m, mesh::route::Millis now) {
     case Ev::Mtu:
       if (c) c->mtu = m.n;
       return;
+    case Ev::ClientUp: {
+      Conn* x = c;  // the server callbacks may have seen this connection too
+      if (x && x->seat >= 0) free_seat(node, *x);
+      for (auto& y : g_conns) {
+        if (x) break;
+        if (!y.used) x = &y;
+      }
+      int seat = -1;
+      for (int i = 0; i < int(mesh::node::Node::kMeshPorts); i++)
+        if (!g_seat_used[i]) {
+          seat = i;
+          break;
+        }
+      if (!x || seat < 0) {
+        g_client_kill = true;
+        return;
+      }
+      *x = Conn();
+      x->used = true;
+      x->client = true;
+      x->handle = m.conn;
+      x->mtu = m.n ? m.n : 23;
+      x->mesh_sub = true;
+      x->seat = seat;
+      g_seat_used[seat] = true;
+      g_peers[seat].reset();
+      g_peers[seat].start(node, mesh::node::Node::kMeshPort0 + size_t(seat), now);
+      return;
+    }
     case Ev::HostSub:
       if (c) c->host_sub = m.n != 0;
       return;
@@ -189,7 +305,8 @@ void handle(mesh::node::Node& node, const Msg& m, mesh::route::Millis now) {
       size_t port = mesh::node::Node::kMeshPort0 + size_t(c->seat);
       if (!g_peers[c->seat].rx(node, port, m.d, m.n, now)) {
         free_seat(node, *c);
-        drop_conn(m.conn);  // not a mesh phone, or a corrupt stream: it reconnects
+        if (c->client) g_client_kill = true;  // the central task closes it
+        else drop_conn(m.conn);               // not a mesh phone, or a corrupt stream: it reconnects
       }
       return;
     }
@@ -212,7 +329,14 @@ void pump(NimBLECharacteristic* chr, uint16_t h, size_t chunk, Pending& p, Next 
 
 bool begin(const char* name) {
   g_q = xQueueCreate(32, sizeof(Msg));
-  if (!g_q) return false;
+  g_cand = xQueueCreate(4, sizeof(ble_addr_t));
+  g_out = xStreamBufferCreate(2048, 1);
+  if (!g_q || !g_cand || !g_out) return false;
+  uint32_t r = esp_random();
+  g_session[0] = 0;
+  g_session[1] = uint8_t(r >> 16);
+  g_session[2] = uint8_t(r >> 8);
+  g_session[3] = uint8_t(r) | 1;  // never 0 0 0 0
   NimBLEDevice::init(name);
   NimBLEDevice::setMTU(247);
   // No pairing: phones connect directly (owner's choice). The host-link port
@@ -235,13 +359,14 @@ bool begin(const char* name) {
   server->start();
 
   // Advert as the phones advertise each other: their mesh service and a
-  // session ID. The board's is the lowest (0), so every phone connects to it
-  // (the larger ID connects). The host-link service and the name go in the
+  // session ID (g_session: phones connect to the board; boards between
+  // themselves: the larger ID connects, central_task). The host-link service and the name go in the
   // scan response (3 + 18 + 8 = 29 of 31 bytes in the advert).
   NimBLEAdvertisementData adv;
   adv.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
   adv.addServiceUUID(NimBLEUUID(kMeshService));
-  const uint8_t manu[] = {uint8_t(kManufacturer), uint8_t(kManufacturer >> 8), 0, 0, 0, 0};
+  const uint8_t manu[] = {uint8_t(kManufacturer), uint8_t(kManufacturer >> 8), g_session[0], g_session[1], g_session[2],
+                          g_session[3]};
   adv.setManufacturerData(manu, sizeof manu);
   NimBLEAdvertisementData scan;
   scan.addServiceUUID(NimBLEUUID(kService));
@@ -249,7 +374,9 @@ bool begin(const char* name) {
   NimBLEAdvertising* a = NimBLEDevice::getAdvertising();
   a->setAdvertisementData(adv);
   a->setScanResponseData(scan);
-  return a->start();
+  if (!a->start()) return false;
+  // Other boards nearby: connect to those with a lower session ID.
+  return xTaskCreatePinnedToCore(central_task, "ble-central", 6144, nullptr, 1, nullptr, 0) == pdPASS;
 }
 
 bool connected() { return g_conn_count > 0; }
@@ -277,6 +404,17 @@ void loop(mesh::node::Node& node, mesh::route::Millis now) {
     if (!c.used || c.seat < 0 || !c.mesh_sub) continue;
     size_t port = mesh::node::Node::kMeshPort0 + size_t(c.seat);
     mesh::blemesh::Peer& p = g_peers[c.seat];
+    if (c.client) {  // our own link: hand bytes to the central task, which writes them
+      size_t room = xStreamBufferSpacesAvailable(g_out);
+      uint8_t buf[kMaxWrite];
+      while (room >= sizeof buf) {
+        size_t k = p.tx(node, port, buf, sizeof buf);
+        if (!k) break;
+        xStreamBufferSend(g_out, buf, k, 0);
+        room -= k;
+      }
+      continue;
+    }
     pump(g_mesh_tx, c.handle, c.mtu > 3 ? size_t(c.mtu) - 3 : 20, g_seat_pending[c.seat],
          [&](uint8_t* out, size_t cap) { return p.tx(node, port, out, cap); });
   }

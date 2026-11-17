@@ -27,7 +27,18 @@ tray app can come later.
 | Relay (HTTPS/WS) | client + gateway + bridge sessions to one or more relays |
 | LoRa over USB serial | plug in a LoRa node → the PC becomes a Tier 1 gateway |
 | LAN | UDP multicast discovery + TCP: PCs and phones on the same private network mesh directly |
-| Bluetooth (BlueZ) | later: join Tier 0 phone mesh |
+| Bluetooth (BlueZ) | joins the Bluetooth mesh of phones and Mava boards (Linux, on by default) |
+
+### Bluetooth
+
+meshd joins the same Bluetooth mesh as the phones and the Mava board (`desktop/blemesh`,
+service `6d657368-6d73-6700-…`, docs/board.md §4). It only connects out (GATT client through
+BlueZ over D-Bus): every 15 s it scans 8 s for devices advertising the mesh service and
+connects to new ones, up to 4. It never advertises, so phones and boards never need to
+connect to it. Status: `mesh status` shows the `ble` link ("2 peers", "no Bluetooth
+adapter", …). Turn it off with `[bluetooth] off = true`. Needs a Bluetooth adapter and
+`bluetoothd`; if BlueZ refuses access, add the user to the `bluetooth` group
+(`sudo usermod -aG bluetooth $USER`, then log in again).
 
 ## 4. Roles (config)
 

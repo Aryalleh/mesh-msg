@@ -1598,3 +1598,19 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Node allocated in PSRAM (static RAM 164 kB → 83 kB).
 - App: BleLoRa no longer bonds; strings updated. Lint + 86 tests green.
 - Release v0.1.1-beta14.
+
+### 2026-11-17 — One Bluetooth mesh: board ↔ board, meshd on Bluetooth
+
+- Owner: all devices must talk over Bluetooth, one unified mesh.
+- Firmware: board session ID = 00 + 3 random bytes; `central_task` (NimBLE client) scans for
+  the mesh service and connects to devices with a lower session ID (other boards), one
+  outgoing link at a time: hello, notifications → mesh seat (Ev::ClientUp, `Peer::start`),
+  main loop → stream buffer → writes with response. Host test extended (client-mode seat).
+- meshd: `desktop/blemesh` (tinygo.org/x/bluetooth v0.17.0, BlueZ over D-Bus, pure Go: static
+  builds still fine). Central only (never advertises): scan 8 s every 15 s, connect to new
+  mesh devices up to 4; router link "ble" with len3 framing, hello first, per-peer writer;
+  unit tests. `[bluetooth] off = false` default (on for old configs too); started with the
+  node in `Daemon.startNode`. Without an adapter: "no Bluetooth adapter", retry every 5 min.
+- iPhone already connects to anything advertising the mesh with manufacturer data, so
+  iPhone ↔ board works with beta14.
+- Release v0.1.1-beta15. Not tested on hardware.

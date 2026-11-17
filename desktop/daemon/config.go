@@ -19,8 +19,15 @@ type Config struct {
 	UI string `toml:"ui" json:"ui"`
 	// NoUpdateCheck turns off the daily check for a newer release (roadmap B7).
 	NoUpdateCheck bool `toml:"no_update_check" json:"no_update_check"`
+	// Bluetooth: join the Bluetooth mesh of phones and Mava boards (Linux, BlueZ).
+	Bluetooth BluetoothConfig `toml:"bluetooth" json:"bluetooth"`
 	// Path is the file the config was loaded from ("" = not saved).
 	Path string `toml:"-" json:"path"`
+}
+
+// BluetoothConfig: on unless off (older config files have no section).
+type BluetoothConfig struct {
+	Off bool `toml:"off" json:"off"`
 }
 
 // DefaultConfig is written on first start.
@@ -87,6 +94,11 @@ quota_kb_per_hour = 512
 [lora]
 enabled = false
 port = "/dev/ttyACM0"
+
+# Bluetooth: join the mesh of phones and Mava boards nearby (Linux, BlueZ).
+# meshd connects to them; it needs a Bluetooth adapter and bluetoothd.
+[bluetooth]
+off = false
 
 # Mesh with other meshd nodes on your local / private network.
 [lan]
