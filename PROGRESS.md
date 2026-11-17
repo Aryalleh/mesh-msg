@@ -1660,3 +1660,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   fake board (login, preview, send ✓, incoming via polling); scripts/test-web.sh PASS.
 - Calls (owner also asked): not built; see the plan in the reply / docs/calls.md.
 - Release v0.1.1-beta18.
+- Released **v0.1.1-beta17** (run #113, e3b0409) and **v0.1.1-beta18** (run #115, 9ef0519).
