@@ -69,4 +69,11 @@ void Identity::wipe() {
   crypto_wipe(ed_secret_, sizeof ed_secret_);
 }
 
+bool Identity::dh(const uint8_t peer[32], uint8_t out[32]) const {
+  crypto_x25519(out, x_priv_, peer);
+  uint8_t z = 0;
+  for (int i = 0; i < 32; i++) z |= out[i];
+  return z != 0;
+}
+
 }  // namespace mesh

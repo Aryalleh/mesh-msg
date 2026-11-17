@@ -6,10 +6,12 @@
 package spec
 
 import (
+	"bytes"
 	"encoding/hex"
 	"time"
 
 	"github.com/Aryalleh/mesh-msg/core/announce"
+	"github.com/Aryalleh/mesh-msg/core/e2e"
 	"github.com/Aryalleh/mesh-msg/core/hostlink"
 	"github.com/Aryalleh/mesh-msg/core/identity"
 	"github.com/Aryalleh/mesh-msg/core/packet"
@@ -28,6 +30,7 @@ type Vectors struct {
 	Announces []SignedVector   `json:"announces"`
 	Receipts  []SignedVector   `json:"receipts"`
 	Text      []TextVector     `json:"text"`
+	E2E       []E2EVector      `json:"e2e"`
 	HostLink  HostLinkVectors  `json:"hostlink"`
 }
 
@@ -108,6 +111,21 @@ type SignedVector struct {
 	Valid   bool   `json:"valid"`
 	Comment string `json:"comment"`
 	Acked   string `json:"acked,omitempty"`
+}
+
+// E2EVector is a DATA body sealed by core/e2e with a fixed ephemeral key
+// (Noise K: known contact, X: first contact). The recipient must open it to
+// the same inner payload; a sealer with the same ephemeral must produce it.
+type E2EVector struct {
+	Pattern       string `json:"pattern"` // "K" or "X"
+	SenderSeed    string `json:"sender_seed"`
+	RecipientSeed string `json:"recipient_seed"`
+	Ephemeral     string `json:"ephemeral"` // X25519 private key of e
+	PacketID      string `json:"packet_id"`
+	ContentType   uint8  `json:"content_type"`
+	Time          uint32 `json:"time"`
+	Content       string `json:"content"`
+	Body          string `json:"body"`
 }
 
 type TextVector struct {
@@ -213,6 +231,25 @@ func Generate() Vectors {
 		v.Text = append(v.Text, TextVector{Text: s, ContentType: ct, Encoded: h(b)})
 	}
 	v.HostLink = hostLinkVectors()
+	for i, known := range []bool{true, false} {
+		sender, _ := identity.FromSeed(seed(1))
+		recipient, _ := identity.FromSeed(seed(2))
+		eph := make([]byte, 32)
+		for j := range eph {
+			eph[j] = byte(0x40 + j + i)
+		}
+		pid := packet.ID{0xE2, 0xE0, 1, 2, 3, 4, 5, byte(i)}
+		ct, content := textenc.Encode([]string{"سلام از دستگاه دستی", "hello, first contact"}[i])
+		in := e2e.Inner{ContentType: ct, Time: time.Unix(1767225600+int64(i), 0), Content: content}
+		body, err := e2e.SealWith(bytes.NewReader(eph), sender, recipient.Public, known, pid, in)
+		if err != nil {
+			panic(err)
+		}
+		v.E2E = append(v.E2E, E2EVector{
+			Pattern: map[bool]string{true: "K", false: "X"}[known], SenderSeed: h(seed(1)), RecipientSeed: h(seed(2)),
+			Ephemeral: h(eph), PacketID: h(pid[:]), ContentType: ct, Time: uint32(in.Time.Unix()), Content: h(content), Body: h(body),
+		})
+	}
 	return v
 }
 

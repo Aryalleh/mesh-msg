@@ -7,6 +7,8 @@
 
 #include "announce.h"
 #include "check.h"
+#include "e2e.h"
+#include "textenc.h"
 #include "identity.h"
 #include "hostlink.h"
 #include "json.h"
@@ -292,6 +294,64 @@ void hostlink(const json::Value& hv) {
   }
 }
 
+// Compact Persian text (core/textenc): the handheld's client encodes it.
+void text(const json::Value& vs) {
+  for (const auto& t : vs.arr) {
+    std::string out;
+    uint8_t ct = mesh::textenc::encode(t["text"].s(), out);
+    Bytes want = check::unhex(t["encoded"].s());
+    CHECKC(ct == t["content_type"].i() && Bytes(out.begin(), out.end()) == want, t["text"].s());
+    std::string back;
+    CHECKC(mesh::textenc::decode(ct, want.data(), want.size(), back) && back == t["text"].s(), t["text"].s());
+  }
+}
+
+// Noise K / X bodies sealed by core/e2e with a fixed ephemeral: open them,
+// and sealing with the same ephemeral gives the same bytes.
+void e2e(const json::Value& vs) {
+  using mesh::Identity;
+  using mesh::PublicKey;
+  for (const auto& v : vs.arr) {
+    Bytes ss = check::unhex(v["sender_seed"].s()), rs = check::unhex(v["recipient_seed"].s());
+    Identity sender = Identity::from_seed(ss.data()), recipient = Identity::from_seed(rs.data());
+    Bytes eph = check::unhex(v["ephemeral"].s()), pid = check::unhex(v["packet_id"].s());
+    Bytes content = check::unhex(v["content"].s()), body = check::unhex(v["body"].s());
+    bool known = v["pattern"].s() == "K";
+    uint8_t out[512];
+    size_t n = mesh::e2e::seal(sender, recipient.pub(), known, pid.data(), eph.data(), uint8_t(v["content_type"].i()),
+                               uint32_t(v["time"].i()), content.data(), content.size(), out, sizeof out);
+    CHECK_HEX(hex(Bytes(out, out + n)), v["body"].s(), "seal " + v["pattern"].s());
+    uint8_t plain[512];
+    mesh::e2e::Opened o;
+    PublicKey contacts[2] = {Identity::from_seed(check::unhex(v["recipient_seed"].s()).data()).pub(), sender.pub()};
+    CHECKC(mesh::e2e::open(recipient, contacts, 2, pid.data(), body.data(), body.size(), plain, sizeof plain, o),
+           "open " + v["pattern"].s());
+    CHECK(o.first_contact == !known && (known ? o.contact == 1 : o.contact == -1));
+    CHECK(std::memcmp(o.from.x, sender.pub().x, 32) == 0 && std::memcmp(o.from.ed, sender.pub().ed, 32) == 0);
+    CHECK(o.content_type == v["content_type"].i() && o.time == uint32_t(v["time"].i()));
+    CHECK(Bytes(o.content, o.content + o.len) == content);
+    // Tampered, or not for this recipient: refused.
+    Bytes bad = body;
+    bad[bad.size() - 1] ^= 1;
+    CHECK(!mesh::e2e::open(recipient, contacts, 2, pid.data(), bad.data(), bad.size(), plain, sizeof plain, o));
+    CHECK(!mesh::e2e::open(sender, contacts, 2, pid.data(), body.data(), body.size(), plain, sizeof plain, o));
+    Bytes pid2 = pid;
+    pid2[0] ^= 1;  // the prologue binds the packet ID
+    CHECK(!mesh::e2e::open(recipient, contacts, 2, pid2.data(), body.data(), body.size(), plain, sizeof plain, o));
+  }
+  // RFC 8439 §2.8.2: ChaCha20-Poly1305 AEAD.
+  Bytes key = check::unhex("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f");
+  Bytes nonce = check::unhex("070000004041424344454647"), ad = check::unhex("50515253c0c1c2c3c4c5c6c7");
+  std::string pt =
+      "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
+  Bytes ct(pt.size());
+  uint8_t tag[16];
+  mesh::e2e::aead_seal(key.data(), nonce.data(), ad.data(), ad.size(), reinterpret_cast<const uint8_t*>(pt.data()),
+                       pt.size(), ct.data(), tag);
+  CHECK_HEX(hex(Bytes(tag, tag + 16)), std::string("1ae10b594f09e26a7e902ecbd0600691"), "rfc8439 tag");
+  CHECK_HEX(hex(Bytes(ct.begin(), ct.begin() + 16)), std::string("d31a8d34648e60db7b86afbc53ef7ec2"), "rfc8439 ct");
+}
+
 }  // namespace
 
 int run_vectors(const char* path) {
@@ -314,12 +374,13 @@ int run_vectors(const char* path) {
   announces(v["announces"]);
   receipts(v["receipts"]);
   hostlink(v["hostlink"]);
-  // "text" (compact Persian encoding) is end-to-end payload: nodes forward
-  // ciphertext and never see it, so the firmware does not implement it.
+  // Text and e2e: end-to-end payload, used by the handheld's own client (lib/meshclient).
+  text(v["text"]);
+  e2e(v["e2e"]);
   std::printf("vectors: %zu headers, %zu inc_hop, %zu fragment sets, %zu frames, %zu identities, %zu announces, "
-              "%zu receipts (%zu text vectors not applicable to firmware)\n",
+              "%zu receipts, %zu text, %zu e2e\n",
               v["headers"].arr.size(), v["inc_hop"].arr.size(), v["fragments"].arr.size(), v["frames"].arr.size(),
               v["identities"].arr.size(), v["announces"].arr.size(), v["receipts"].arr.size(),
-              v["text"].arr.size());
+              v["text"].arr.size(), v["e2e"].arr.size());
   return 0;
 }

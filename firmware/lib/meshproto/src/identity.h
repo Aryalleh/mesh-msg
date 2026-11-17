@@ -35,6 +35,9 @@ class Identity {
   const PublicKey& pub() const { return pub_; }
   // Signs domain || msg. Returns false if the message is too long.
   bool sign(const char* domain, const uint8_t* msg, size_t n, uint8_t sig[kSigSize]) const;
+  // X25519 with our private key (Noise es / ss). False if the result is all
+  // zero (a low-order peer key).
+  bool dh(const uint8_t peer[32], uint8_t out[32]) const;
   void wipe();
 
  private:

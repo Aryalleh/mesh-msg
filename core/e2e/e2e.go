@@ -15,6 +15,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/flynn/noise"
@@ -78,9 +79,15 @@ func keypair(id *identity.Identity) noise.DHKey {
 // Seal encrypts inner from sender to recipient. knownContact selects Noise K
 // (the recipient already has the sender's key) or Noise X (first contact).
 func Seal(sender *identity.Identity, recipient identity.Public, knownContact bool, id packet.ID, inner Inner) ([]byte, error) {
+	return SealWith(rand.Reader, sender, recipient, knownContact, id, inner)
+}
+
+// SealWith is Seal with the ephemeral key read from random (32 bytes): fixed
+// bytes give the deterministic messages of spec/test-vectors. Use Seal.
+func SealWith(random io.Reader, sender *identity.Identity, recipient identity.Public, knownContact bool, id packet.ID, inner Inner) ([]byte, error) {
 	cfg := noise.Config{
 		CipherSuite:   suite,
-		Random:        rand.Reader,
+		Random:        random,
 		Initiator:     true,
 		Prologue:      packet.Prologue(packet.TypeData, id, recipient.Hash()),
 		StaticKeypair: keypair(sender),
