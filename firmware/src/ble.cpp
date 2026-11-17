@@ -55,6 +55,10 @@ NimBLECharacteristic* g_tx = nullptr;
 NimBLECharacteristic* g_mesh_tx = nullptr;
 volatile int g_conn_count = 0;
 
+// For the board log (status()): what happened on Bluetooth since boot.
+volatile uint32_t g_connects = 0, g_disconnects = 0, g_hellos = 0;
+volatile int g_last_reason = 0;
+
 void post(Ev ev, uint16_t conn, uint16_t n = 0, const uint8_t* d = nullptr) {
   Msg m;
   m.ev = ev;
@@ -67,11 +71,14 @@ void post(Ev ev, uint16_t conn, uint16_t n = 0, const uint8_t* d = nullptr) {
 class Server : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer*, NimBLEConnInfo& info) override {
     g_conn_count = g_conn_count + 1;
+    g_connects = g_connects + 1;
     post(Ev::Connect, info.getConnHandle(), info.getMTU());
     // Room for more phones: keep advertising.
     if (g_conn_count < kMaxConns) NimBLEDevice::startAdvertising();
   }
-  void onDisconnect(NimBLEServer*, NimBLEConnInfo& info, int) override {
+  void onDisconnect(NimBLEServer*, NimBLEConnInfo& info, int reason) override {
+    g_disconnects = g_disconnects + 1;
+    g_last_reason = reason;
     g_conn_count = g_conn_count > 0 ? g_conn_count - 1 : 0;
     post(Ev::Disconnect, info.getConnHandle());
     NimBLEDevice::startAdvertising();
@@ -158,6 +165,7 @@ void central_task(void*) {
     g_client_kill = false;
     xStreamBufferReset(g_out);
     g_client_conn = cl->getConnHandle();
+    g_hellos = g_hellos + 1;
     post(Ev::ClientUp, g_client_conn, cl->getMTU());
     uint8_t hello[1 + 4] = {mesh::blemesh::kHelloMagic, g_session[0], g_session[1], g_session[2], g_session[3]};
     bool ok = tx->subscribe(true, [](NimBLERemoteCharacteristic*, uint8_t* d, size_t n, bool) {
@@ -303,7 +311,10 @@ void handle(mesh::node::Node& node, const Msg& m, mesh::route::Millis now) {
         if (c->seat < 0) return drop_conn(m.conn);
       }
       size_t port = mesh::node::Node::kMeshPort0 + size_t(c->seat);
-      if (!g_peers[c->seat].rx(node, port, m.d, m.n, now)) {
+      const bool had_hello = g_peers[c->seat].up();
+      const bool ok = g_peers[c->seat].rx(node, port, m.d, m.n, now);
+      if (ok && !had_hello && g_peers[c->seat].up()) g_hellos = g_hellos + 1;
+      if (!ok) {
         free_seat(node, *c);
         if (c->client) g_client_kill = true;  // the central task closes it
         else drop_conn(m.conn);               // not a mesh phone, or a corrupt stream: it reconnects
@@ -327,7 +338,7 @@ void pump(NimBLECharacteristic* chr, uint16_t h, size_t chunk, Pending& p, Next 
 
 }  // namespace
 
-bool begin(const char* name) {
+bool begin(const char* name, const uint8_t id[6]) {
   g_q = xQueueCreate(32, sizeof(Msg));
   g_cand = xQueueCreate(4, sizeof(ble_addr_t));
   g_out = xStreamBufferCreate(2048, 1);
@@ -338,6 +349,17 @@ bool begin(const char* name) {
   g_session[2] = uint8_t(r >> 8);
   g_session[3] = uint8_t(r) | 1;  // never 0 0 0 0
   NimBLEDevice::init(name);
+  // A random static address made from the node's identity, not the chip's
+  // public MAC: stable across restarts, new after a wipe. Phones that paired
+  // with this chip under its MAC in the pairing-code builds (beta10–beta13)
+  // still hold that bond and try to encrypt with keys the board no longer
+  // has: the link drops right after connecting ("PIN or key missing") and the
+  // mesh never forms. Under a new address the phone sees a new device.
+  uint8_t addr[6];
+  memcpy(addr, id, 6);
+  addr[5] |= 0xC0;  // random static: the two top bits set (val[] is little-endian)
+  bool addr_ok = NimBLEDevice::setOwnAddr(addr) && NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_RANDOM);
+  if (!addr_ok) NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_PUBLIC);
   NimBLEDevice::setMTU(247);
   // No pairing: phones connect directly (owner's choice). The host-link port
   // is therefore untrusted over Bluetooth: packets and status only; settings,
@@ -380,6 +402,23 @@ bool begin(const char* name) {
 }
 
 bool connected() { return g_conn_count > 0; }
+
+void status(char* out, size_t cap) {
+  NimBLEAdvertising* a = NimBLEDevice::getAdvertising();
+  const int r = g_last_reason;
+  const int hci = r >= 0x200 && r < 0x300 ? r - 0x200 : -1;  // BLE_HS_ERR_HCI_BASE + HCI code
+  const char* why = hci == 0x06   ? " (phone holds an old pairing: forget Mava in its Bluetooth settings)"
+                    : hci == 0x3D ? " (encryption failed: forget Mava in the phone's Bluetooth settings)"
+                    : hci == 0x13 ? " (phone closed it)"
+                    : hci == 0x08 ? " (out of range)"
+                    : hci == 0x3E ? " (connection failed)"
+                                  : "";
+  snprintf(out, cap, "%s %s, advertising %s, links %d, connects %lu, hellos %lu, drops %lu, last drop 0x%x%s",
+           NimBLEDevice::getAddress().toString().c_str(),
+           NimBLEDevice::getAddress().getType() == BLE_ADDR_RANDOM ? "random" : "public",
+           a && a->isAdvertising() ? "on" : "OFF", int(g_conn_count), (unsigned long)g_connects,
+           (unsigned long)g_hellos, (unsigned long)g_disconnects, r, why);
+}
 
 int mesh_peers() {
   int n = 0;

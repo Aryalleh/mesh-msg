@@ -1676,3 +1676,13 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (`http_date`, checked against Python's parser). Log shows the account state.
 - Release v0.1.1-beta19.
 - Released **v0.1.1-beta19** (run #117, 111512f).
+- Phone ↔ board Bluetooth mesh never formed (phone "searching", board "Bluetooth phones 0").
+  The phone router already sends on all links (relay, LoRa, every BLE peer). Likely cause:
+  the phone kept a bond from the pairing-code builds (beta10–13) to the chip's public MAC;
+  after a fresh flash the board lacks the keys, Android's encryption fails, link drops.
+  Board now uses a random static address made from the node identity (`ble::begin(name, id)`),
+  logs a `Bluetooth …` status line every 10 s (address, advertising, links, connects,
+  hellos, drops, last HCI reason with a hint). Android: `StaleBond.forget` before mesh/board
+  connects (reflection; refused on Android 13+), `BleLoRa` rescans after 2 failures and
+  stores a moved address; mesh scan BALANCED unless battery saver.
+- Release v0.1.1-beta20.

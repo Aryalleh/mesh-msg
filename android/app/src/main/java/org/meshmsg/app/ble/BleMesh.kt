@@ -143,7 +143,7 @@ class BleMesh(
         val scanner = adapter?.bluetoothLeScanner ?: return
         if (on && running) {
             val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(BleProto.SERVICE)).build()
-            val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build()
+            val settings = ScanSettings.Builder().setScanMode(if (saver) ScanSettings.SCAN_MODE_LOW_POWER else ScanSettings.SCAN_MODE_BALANCED).build()
             if (!scanning) scanning = runCatching { scanner.startScan(listOf(filter), settings, scanCallback) }.isSuccess
             if (saver) HandlerCompat.postDelayed(handler, { scan(false) }, SCAN_TOKEN, SAVER_SCAN_MS)
         } else {
@@ -158,6 +158,7 @@ class BleMesh(
         val id = BleProto.peerId(theirs)
         if (id in peers || id in connecting || peers.size + connecting.size >= BleProto.MAX_PEERS) return
         connecting += id
+        StaleBond.forget(device)
         val cb = Client(id)
         val gatt = runCatching { device.connectGatt(context, false, cb, BluetoothDevice.TRANSPORT_LE) }.getOrNull()
         if (gatt == null) connecting -= id

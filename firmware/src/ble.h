@@ -17,12 +17,17 @@
 
 namespace ble {
 
-bool begin(const char* name);
+// id: 6 bytes of the node identity; the board's Bluetooth address is made
+// from them (random static), not the chip's MAC.
+bool begin(const char* name, const uint8_t id[6]);
 // Moves bytes between the BLE link and node host port 1. Call from the main
 // loop with the node lock held.
 void loop(mesh::node::Node& node, mesh::route::Millis now);
 bool connected();
 int mesh_peers();  // phones in the Bluetooth mesh right now
+// One line for the board log: address, advertising, links, connects, hellos,
+// drops and the last drop's reason.
+void status(char* out, size_t cap);
 
 constexpr size_t kPort = 1;
 

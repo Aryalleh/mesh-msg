@@ -285,9 +285,13 @@ void setup() {
        board::setup_switch_on() ? "ON" : "off", net::mode() == net::Mode::Setup ? "hotspot ON" : "joining saved Wi-Fi",
        name, g_net.password);
   logf("boot: BLE");
-  bool ble_ok = ble::begin(name);
+  bool ble_ok = ble::begin(name, pk.ed);
   node.set_port_trusted(ble::kPort, false);  // no pairing over Bluetooth: packets and status only
-  logf("BLE %s as %s (no pairing; phones' mesh + host link)", ble_ok ? "ok" : "FAILED", name);
+  {
+    char bt[200];
+    ble::status(bt, sizeof bt);
+    logf("BLE %s as %s (no pairing; phones' mesh + host link): %s", ble_ok ? "ok" : "FAILED", name, bt);
+  }
 
   logf("boot: radio");
   g_mt.begin(mesh::meshtastic::Backend::node_id_for(node.pub().x), board::random32(), channel_of(g_net));
@@ -439,6 +443,9 @@ void loop() {
          net::ap_name(), g_net.password, ble::mesh_peers(), wifi, net::web_url(), net::relay_state(),
          ui::client_state().c_str(),
          g_radio_ok ? "ok" : "NOT FOUND");
+    char bt[200];
+    ble::status(bt, sizeof bt);
+    logf("Bluetooth %s", bt);
   }
   if (g_led_off && now >= g_led_off) {
     board::led(false);

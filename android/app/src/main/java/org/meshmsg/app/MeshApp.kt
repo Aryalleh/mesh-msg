@@ -167,19 +167,19 @@ class MeshApp : Application() {
         val core = _backend.value?.core ?: return
         val addr = settings.boardAddress ?: return
         if (!bluetoothAllowed() || boardBle != null) return
-        boardBle = BleLoRa(this, addr).also { it.attach(core, addr) }
+        boardBle = BleLoRa(this, addr) { settings.boardAddress = it }.also { it.attach(core, addr) }
     }
 
     /**
      * Looks for a Mava board nearby over Bluetooth (about 12 s) and attaches
-     * the nearest one; done(true) if one was found. Pairing (the board's
-     * passkey) happens when the core first opens the link.
+     * the nearest one; done(true) if one was found. No pairing: the board
+     * takes packets and status requests over Bluetooth.
      */
     fun connectBoardBle(done: (Boolean) -> Unit) {
         scope.launch {
             val core = _backend.value?.core
             if (core == null || !bluetoothAllowed()) return@launch done(false)
-            val b = boardBle ?: BleLoRa(this@MeshApp, settings.boardAddress)
+            val b = boardBle ?: BleLoRa(this@MeshApp, settings.boardAddress) { settings.boardAddress = it }
             val addr = runCatching { b.scan() }.getOrNull() ?: return@launch done(false)
             settings.boardAddress = addr
             lock.withLock {

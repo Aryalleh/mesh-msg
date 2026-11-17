@@ -38,9 +38,15 @@ import java.util.concurrent.TimeUnit
  * of range or restarts is picked up again by itself.
  */
 @SuppressLint("MissingPermission") // callers check MeshApp.bluetoothAllowed() first
-class BleLoRa(private val context: Context, private var address: String?) : StreamOpener {
+class BleLoRa(
+    private val context: Context,
+    private var address: String?,
+    /** The board answered under a new address (beta20 firmware changed it): remember it. */
+    private val moved: (String) -> Unit = {},
+) : StreamOpener {
     private val manager = context.getSystemService(BluetoothManager::class.java)
     private var attached = false
+    private var failures = 0
 
     /** The remembered board, or null before the first connection. */
     val boardAddress: String? get() = address
@@ -80,15 +86,30 @@ class BleLoRa(private val context: Context, private var address: String?) : Stre
     }
 
     override fun open(): Stream {
-        val addr = address ?: throw IOException("no Mava board chosen")
+        var addr = address ?: throw IOException("no Mava board chosen")
         val adapter = manager?.adapter ?: throw IOException("no Bluetooth")
         if (!adapter.isEnabled) throw IOException("Bluetooth is off")
+        // The remembered address keeps failing: look for the board again (a
+        // board on beta20 or later answers under a new address, made from its
+        // identity; a wiped board gets another one).
+        if (failures >= 2) {
+            failures = 0
+            val found = runCatching { scan(8_000) }.getOrNull()
+            if (found != null && found != addr) {
+                addr = found
+                address = found
+                moved(found)
+            }
+        }
         val device = adapter.getRemoteDevice(addr)
+        org.meshmsg.app.ble.StaleBond.forget(device)
         val link = Link(device)
         try {
             link.connect()
+            failures = 0
             return link
         } catch (e: Exception) {
+            failures++
             link.close()
             throw if (e is IOException) e else IOException(e.message ?: e.toString())
         }
