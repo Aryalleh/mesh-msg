@@ -1541,3 +1541,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   served by `serve_wasm` as application/wasm (streamFile adds the encoding); app.js unpacks
   gzip with DecompressionStream if it still arrives compressed (checked in Chromium with a
   raw-gzip main.wasm). Cancelled the beta11 run (#97) and re-cut beta11 with the fix.
+- Released **v0.1.1-beta11** (run #99, 66b7893): adds `mava-screen-0.1.1-beta11-android.apk`; includes the board web-app wasm fix.
