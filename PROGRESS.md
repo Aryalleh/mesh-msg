@@ -1442,3 +1442,15 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Tag `v0.1.1-beta7` on main (CI publishes Android APKs, meshd/mesh, relay, board flasher,
   signed release.json).
 
+### 2026-11-17 — Project blueprint poster
+
+- `hardware/blueprint/blueprint.py` → `docs/images/mava-blueprint.{png,pdf}` (7200×4800 px +
+  vector PDF): tiers and roles, packet header and Noise K/X, LoRa sizes, Bluetooth (phone
+  mesh and board host link: UUIDs, link sequence, rules), the board (ESP32-S3, SX1262,
+  node ports, setup switch, relay worker, flash layout), handheld + RP2040 keyboard module
+  + three versions + UI, Meshtastic frame and relaying, software stack, a message's path,
+  security / release / design tokens. Linked from README.
+- protocol.md single-frame budget corrected to the 233-byte MTU (154 bytes of text).
+- Tag v0.1.1-beta7 could not be pushed from the cloud session (git proxy cuts tag pushes;
+  branch pushes work): the owner pushes it (`git push origin v0.1.1-beta7`).
+

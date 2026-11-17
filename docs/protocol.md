@@ -76,7 +76,7 @@ Inner plaintext:
 6  .. content
 ```
 
-**Single-frame budget:** 255 − 26 header − 48 Noise − 6 inner = **175 bytes of content**.
+**Single-frame budget:** 233 (LoRa MTU = Meshtastic payload) − 26 header − 48 Noise − 5 inner = **154 bytes of content**.
 
 ### Text encoding
 

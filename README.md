@@ -66,6 +66,12 @@ blocked servers, no app-store access. See [docs/threat-model.md](docs/threat-mod
 - [Threat model](docs/threat-model.md)
 - [Decisions](docs/decisions.md) · [Roadmap](docs/roadmap.md)
 
+## Blueprint
+
+[![Mava blueprint](docs/images/mava-blueprint.png)](docs/images/mava-blueprint.pdf)
+
+The whole project on one poster (PNG 7200×4800, vector PDF): `python3 hardware/blueprint/blueprint.py`.
+
 ## Status
 
 M0–M3 implemented: Go core, simulator, relay and Linux desktop (`meshd` + `mesh`),
