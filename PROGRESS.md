@@ -1723,3 +1723,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   unzips to filesDir/board/<ver>; the newest of APK-bundled/downloaded is used; INTERNET
   permission; auto check at start + button. Tests: RFC vectors, the real beta22 release.json.
 - Release v0.1.1-beta23.
+- Released **v0.1.1-beta23** (run #126, 61aa31f); release now carries mava-board-images-0.1.1-beta23.zip (4.1 MB) in the signed manifest.
