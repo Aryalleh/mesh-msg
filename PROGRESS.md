@@ -1695,3 +1695,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   `board::storage_format` now removes everything except `/web`; missing client → a 404 page
   that says how to fix it (root and `/app…`), `/app` → `/app/`, other unknown paths on the home
   Wi-Fi → `/app/`; boot log says "browser app installed / MISSING". Release v0.1.1-beta21.
+- Released **v0.1.1-beta21** (run #122, b5eb12e).
