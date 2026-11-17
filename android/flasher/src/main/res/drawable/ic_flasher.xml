@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A chip with a lightning bolt, Mava violet on near-black. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#0B0A14" android:pathData="M8,0h32a8,8 0 0 1 8,8v32a8,8 0 0 1 -8,8h-32a8,8 0 0 1 -8,-8v-32a8,8 0 0 1 8,-8z" />
+    <path android:strokeColor="#7C3AED" android:strokeWidth="2.5" android:fillColor="#15122A"
+        android:pathData="M14,12h20l2,2v20l-2,2h-20l-2,-2v-20z" />
+    <path android:strokeColor="#A78BFA" android:strokeWidth="2"
+        android:pathData="M18,8v4M24,8v4M30,8v4M18,36v4M24,36v4M30,36v4M8,18h4M8,24h4M8,30h4M36,18h4M36,24h4M36,30h4" />
+    <path android:fillColor="#D946EF" android:pathData="M26,15l-7,11h5l-2,8l8,-12h-5z" />
+</vector>

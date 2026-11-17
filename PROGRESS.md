@@ -1470,3 +1470,22 @@ links. Chose: quick items in beta3; calls follow in later betas.
   meshmsg-desktop linux amd64/arm64, meshmsg-relay linux amd64/arm64,
   mava-board-flasher linux, signed release.json, SHA256SUMS. The tag was created by the release step.
 - Nothing from this release has been tested on hardware yet (see Next step).
+
+### 2026-11-17 — Board flasher for Android
+
+- `android/flasher` (new Gradle module, app id `org.meshmsg.flasher`, Compose, Mava violet
+  theme, en/fa): writes the board over USB-OTG. Espressif's ROM serial protocol in Kotlin
+  (`esp/EspLoader.kt`: SLIP, sync, chip check, watchdogs off on USB-Serial/JTAG, SPI attach,
+  FLASH_DEFL_* in 1 KB blocks, MD5 verify, force-download clear + RTS reset; reset sequences
+  and constants checked against esptool 4.8.1's source). USB drivers in plain Android USB
+  host calls (`usb/UsbSerial.kt`): ESP32-S3 native USB / CDC-ACM, CP210x, CH340.
+  Modes: Install everything (= `mava-flash board --erase`), Update firmware only. "Board log"
+  resets the board and shows its text log, picking out hotspot name + device password.
+- Tests: `EspLoaderTest` against a simulated ESP32-S3 ROM (`FakeRom`: download mode only
+  after the right reset, boot text, inflate into 16 MB, MD5): full and firmware-only writes,
+  baud switch on UART bridges only, verify failure, silent board.
+- `scripts/build-flasher.sh` also writes `dist/board-images/` (bootloader with dio/80m/16MB
+  merged with the partition table by esptool merge_bin, boot_app0, firmware, littlefs,
+  images.txt); CI: new `flasher-android` job builds `mava-board-flasher-<ver>-android.apk`
+  for the release; the `android` job builds `:app` only. Firmware unchanged (owner asked).
+- Not tested on a phone with a board yet.

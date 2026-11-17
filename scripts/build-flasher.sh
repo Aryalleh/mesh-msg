@@ -3,6 +3,8 @@
 #   dist/mava-board-flasher-<version>-linux.tar.gz
 # with the ESP32-S3 firmware + web client file system, the three keyboard-module
 # images, Espressif's standalone esptool (x86-64) and tools/flasher/mava-flash.
+# Also dist/board-images/ (+ .tar): the image set the Android flasher bundles
+# (android/flasher, -PboardImages=dist/board-images).
 #   VERSION=0.1.1-beta7 scripts/build-flasher.sh
 # Needs Go, PlatformIO and network access to PlatformIO's registry and GitHub.
 set -euo pipefail
@@ -31,6 +33,19 @@ unzip -q -o "$zip" -d "$(dirname "$zip")"
 cp "$(dirname "$zip")/esptool-linux-amd64/esptool" "$out/tools/esptool"
 chmod +x "$out/tools/esptool"
 cp "$(dirname "$zip")/esptool-linux-amd64/LICENSE" "$out/tools/esptool-LICENSE" 2>/dev/null || true
+
+# Android flasher images: the bootloader with the flash settings written into
+# its header (as esptool write_flash --flash_mode dio --flash_freq 80m
+# --flash_size 16MB does) merged with the partition table, so the phone writes
+# exactly what the Linux flasher writes.
+ai=dist/board-images
+rm -rf "$ai" && mkdir -p "$ai"
+"$out/tools/esptool" --chip esp32s3 merge_bin -o "$ai/boot.bin" --flash_mode dio --flash_freq 80m --flash_size 16MB \
+  0x0 "$b/bootloader.bin" 0x8000 "$b/partitions.bin" > /dev/null
+cp "$out/images/boot_app0.bin" "$b/firmware.bin" "$b/littlefs.bin" "$ai/"
+printf '0x0 boot.bin boot\n0xe000 boot_app0.bin boot\n0x10000 firmware.bin app\n0x810000 littlefs.bin fs\n' > "$ai/images.txt"
+echo "$VERSION" > "$ai/VERSION"
+tar -C dist -cf dist/board-images.tar board-images
 
 cp tools/flasher/mava-flash "$out/"
 cp docs/flashing.md "$out/README.md"

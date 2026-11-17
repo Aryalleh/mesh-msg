@@ -1,6 +1,7 @@
 # Builds the apps on every push to main and on tags. A tag v* publishes a
 # GitHub release (prerelease for -alpha/-beta/-rc) with the Android APKs, the
-# Linux desktop binaries, the relay and the Mava board's Linux flasher, all
+# Linux desktop binaries, the relay and the Mava board's flashers (Linux and
+# Android), all
 # stamped with the tag's version. A manual run (workflow_dispatch) with
 # release_tag does the same without pushing a tag first: the release step
 # creates the tag on the commit it built.
@@ -92,7 +93,7 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew --no-daemon -PversionName='${{ needs.version.outputs.name }}' -PversionCode='${{ needs.version.outputs.code }}' \
-            lintDebug testDebugUnitTest assembleDebug 2>&1 | tee ../gradle.log
+            :app:lintDebug :app:testDebugUnitTest :app:assembleDebug 2>&1 | tee ../gradle.log
 
       - name: Report build errors
         if: failure()
@@ -177,16 +178,86 @@ jobs:
         run: |
           pip install platformio
           VERSION='${{ needs.version.outputs.name }}' scripts/build-flasher.sh
-          mkdir -p out && mv dist/*.tar.gz out/
+          mkdir -p out images && mv dist/*.tar.gz out/ && mv dist/board-images.tar images/
 
       - uses: actions/upload-artifact@v4
         with:
           name: board
           path: out/
 
+      # For the Android flasher only, not a release asset.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: board-images
+          path: images/
+
+  # The Mava board flasher for Android (android/flasher): the same images,
+  # written over USB-OTG from a phone.
+  flasher-android:
+    needs: [version, board]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        run: |
+          export ANDROID_HOME=${ANDROID_HOME:-$HOME/android-sdk}
+          sdkm=$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$sdkm" ]; then
+            mkdir -p "$ANDROID_HOME/cmdline-tools"
+            curl -sSLo /tmp/clt.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q /tmp/clt.zip -d /tmp/clt && mv /tmp/clt/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+            sdkm=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
+          fi
+          yes | "$sdkm" --licenses >/dev/null || true
+          "$sdkm" "platforms;android-35" "build-tools;35.0.0" >/dev/null
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: board-images
+          path: imgs
+
+      - name: Lint, tests, APK
+        run: |
+          set -o pipefail
+          tar -xf imgs/board-images.tar -C imgs
+          test -s imgs/board-images/firmware.bin
+          cd android
+          ./gradlew --no-daemon -PversionName='${{ needs.version.outputs.name }}' -PversionCode='${{ needs.version.outputs.code }}' \
+            -PboardImages="$GITHUB_WORKSPACE/imgs/board-images" \
+            :flasher:lintDebug :flasher:testDebugUnitTest :flasher:assembleDebug 2>&1 | tee ../gradle.log
+
+      - name: Report build errors
+        if: failure()
+        run: |
+          grep -E '^e: |Error: |FAILED|Exception|What went wrong' -A2 gradle.log | head -40 | while IFS= read -r l; do
+            echo "::error::${l//%/%25}"
+          done
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          cp android/flasher/build/outputs/apk/debug/flasher-debug.apk "dist/mava-board-flasher-${{ needs.version.outputs.name }}-android.apk"
+          unzip -l dist/*.apk | grep -q 'assets/board/firmware.bin'
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flasher-android
+          path: dist/
+
   release:
     if: needs.version.outputs.tag != ''
-    needs: [version, android, desktop, board]
+    needs: [version, android, desktop, board, flasher-android]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -199,6 +270,9 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
+      - name: Drop build-only files
+        run: rm -f dist/board-images.tar
 
       # Update check (roadmap B7, decisions D20): every release carries a
       # release.json signed with the release key (secret RELEASE_SIGNING_KEY,
@@ -240,6 +314,9 @@ jobs:
           **Mava board (Linux flasher)**: `mava-board-flasher-…-linux.tar.gz` holds the ESP32-S3
           firmware, the web client for iPhones and the keyboard-module images, with esptool.
           `./mava-flash board --erase` the first time, then `./mava-flash board`; see README.md inside.
+          **Mava board (Android flasher)**: `mava-board-flasher-…-android.apk` writes the same firmware
+          from a phone over a USB-OTG adapter (Install everything / Update firmware only) and shows
+          the board's log: hotspot name, device password, BLE passkey.
           **Relay server**: `meshmsg-relay-…-linux-amd64.tar.gz`. Run `sudo sh install.sh` inside
           (it asks for your Mava account id for the admin panel at `/admin`). Relays serve the
           signed release manifest at `/v1/release`.

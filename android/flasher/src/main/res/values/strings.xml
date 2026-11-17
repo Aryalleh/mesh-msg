@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mava Flasher</string>
+    <string name="title">Board flasher</string>
+    <string name="images_version">Firmware %1$s</string>
+    <string name="no_images">This copy carries no firmware. Download the flasher APK from the release page.</string>
+    <string name="no_usb_host">This phone has no USB host (OTG) support.</string>
+    <string name="no_board">No board on USB. Connect the board with a USB-OTG adapter and a data cable (a charge-only cable shows nothing).</string>
+    <string name="board_found">Board: %1$s</string>
+    <string name="allow_usb">Allow USB access</string>
+    <string name="install_all">Install everything</string>
+    <string name="install_all_desc">Firmware and web client. The board gets a new identity and device password; its settings start over. Use this the first time.</string>
+    <string name="firmware_only">Update firmware only</string>
+    <string name="firmware_only_desc">Keeps identity, settings and stored messages.</string>
+    <string name="confirm_title">Start the board over?</string>
+    <string name="confirm_text">The board gets a new identity and device password, and its Wi-Fi and LoRa settings start over.</string>
+    <string name="confirm_ok">Install</string>
+    <string name="cancel">Cancel</string>
+    <string name="phase_connecting">Connecting to the board…</string>
+    <string name="phase_writing">Writing %1$s (%2$d of %3$d)</string>
+    <string name="phase_restarting">Restarting the board…</string>
+    <string name="done">Done. The board restarts with the new firmware. Open the board log to see its hotspot name and device password.</string>
+    <string name="failed">Failed: %1$s</string>
+    <string name="board_log">Board log</string>
+    <string name="board_log_desc">Restarts the board and shows what it prints: hotspot name, device password, BLE passkey, what it hears.</string>
+    <string name="stop">Stop</string>
+    <string name="hotspot_found">Hotspot %1$s · password %2$s</string>
+    <string name="log_title">Log</string>
+    <string name="help_title">If it doesn\'t connect</string>
+    <string name="help_text">• Hold BOOT, press and release RESET, release BOOT, then try again.\n• On a dev board with two USB sockets, use the one marked USB.\n• The Mava firmware needs an ESP32-S3 with 16 MB flash and 8 MB PSRAM (N16R8).\n• The keyboard module (Raspberry Pi Pico) is flashed from a computer, with the Linux flasher.</string>
+</resources>

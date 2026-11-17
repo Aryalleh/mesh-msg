@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">فلشر Mava</string>
+    <string name="title">فلشر برد</string>
+    <string name="images_version">فرم‌ور %1$s</string>
+    <string name="no_images">این نسخه فرم‌ور ندارد. APK فلشر را از صفحهٔ انتشار دانلود کنید.</string>
+    <string name="no_usb_host">این گوشی از USB میزبان (OTG) پشتیبانی نمی‌کند.</string>
+    <string name="no_board">بردی روی USB نیست. برد را با تبدیل USB-OTG و کابل دیتا وصل کنید (کابل فقط‌شارژ چیزی نشان نمی‌دهد).</string>
+    <string name="board_found">برد: %1$s</string>
+    <string name="allow_usb">اجازهٔ دسترسی USB</string>
+    <string name="install_all">نصب کامل</string>
+    <string name="install_all_desc">فرم‌ور و برنامهٔ مرورگر. برد هویت و رمز دستگاه تازه می‌گیرد و تنظیماتش از نو شروع می‌شود. بار اول همین را بزنید.</string>
+    <string name="firmware_only">فقط به‌روزرسانی فرم‌ور</string>
+    <string name="firmware_only_desc">هویت، تنظیمات و پیام‌های ذخیره‌شده می‌مانند.</string>
+    <string name="confirm_title">برد از نو شروع شود؟</string>
+    <string name="confirm_text">برد هویت و رمز دستگاه تازه می‌گیرد و تنظیمات وای‌فای و LoRa آن از نو شروع می‌شود.</string>
+    <string name="confirm_ok">نصب</string>
+    <string name="cancel">انصراف</string>
+    <string name="phase_connecting">در حال اتصال به برد…</string>
+    <string name="phase_writing">نوشتن %1$s (%2$d از %3$d)</string>
+    <string name="phase_restarting">راه‌اندازی دوبارهٔ برد…</string>
+    <string name="done">تمام شد. برد با فرم‌ور تازه راه‌اندازی می‌شود. برای دیدن نام هات‌اسپات و رمز دستگاه، لاگ برد را باز کنید.</string>
+    <string name="failed">ناموفق: %1$s</string>
+    <string name="board_log">لاگ برد</string>
+    <string name="board_log_desc">برد را دوباره راه‌اندازی می‌کند و آنچه چاپ می‌کند را نشان می‌دهد: نام هات‌اسپات، رمز دستگاه، رمز جفت‌شدن بلوتوث و آنچه می‌شنود.</string>
+    <string name="stop">توقف</string>
+    <string name="hotspot_found">هات‌اسپات %1$s · رمز %2$s</string>
+    <string name="log_title">لاگ</string>
+    <string name="help_title">اگر وصل نشد</string>
+    <string name="help_text">• دکمهٔ BOOT را نگه دارید، RESET را بزنید و رها کنید، بعد BOOT را رها کنید و دوباره امتحان کنید.\n• روی بردهای توسعه با دو سوکت USB، از سوکتی که USB نوشته شده استفاده کنید.\n• فرم‌ور Mava به ESP32-S3 با ۱۶ مگابایت فلش و ۸ مگابایت PSRAM نیاز دارد (N16R8).\n• ماژول کیبورد (Raspberry Pi Pico) با فلشر لینوکس از کامپیوتر فلش می‌شود.</string>
+</resources>
