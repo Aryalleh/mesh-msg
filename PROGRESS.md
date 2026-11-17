@@ -1724,3 +1724,11 @@ links. Chose: quick items in beta3; calls follow in later betas.
   permission; auto check at start + button. Tests: RFC vectors, the real beta22 release.json.
 - Release v0.1.1-beta23.
 - Released **v0.1.1-beta23** (run #126, 61aa31f); release now carries mava-board-images-0.1.1-beta23.zip (4.1 MB) in the signed manifest.
+- Owner's beta23 log: BLE link up (links 1, hellos 1, packets in 78→251/30 s, out 14→36: the
+  phone gateways its relay traffic onto BLE), account "messages for it 0" (the phone's board
+  contact is the account from before the last "Install everything", which wiped the seed).
+  Owner says the phone app shows no BLE mesh connection; asked for a screenshot.
+  "relay no wifi" while joined: the relay state was set before Wi-Fi came up and not again
+  until an attempt ended; TLS handshake waits 120 s by default. Now `set_detail("connecting")`
+  before probes, HTTP connect timeout 8 s, TLS handshake 20 s, and an "off" state that names
+  the reason. Release v0.1.1-beta24.

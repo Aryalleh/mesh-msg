@@ -719,8 +719,12 @@ void clock_from(const String& date) {
 }
 
 bool begin_http(HTTPClient& http, WiFiClientSecure& tls, WiFiClient& plain, const String& url) {
+  // Short waits: a network that silently drops the relay would otherwise hold
+  // the worker for minutes (the TLS handshake waits 120 s by default).
+  http.setConnectTimeout(8000);
   if (url.startsWith("https://")) {
     tls.setCACert(kRootCAs);
+    tls.setHandshakeTimeout(20);
     return http.begin(tls, url);
   }
   return http.begin(plain, url);
@@ -772,10 +776,12 @@ bool probe(const String& base, String& why) {
 // default relay) its IP address. Sets g_base.
 bool fetch_info() {
   String first = String(g_s->relay_url), why1, why2;
+  set_detail("connecting", first);
   if (probe(first, why1)) {
     g_base = first;
     return true;
   }
+  if (first == kDefaultRelay) set_detail("connecting", why1 + "; trying " + String(kDefaultRelayIp));
   if (first == kDefaultRelay && probe(kDefaultRelayIp, why2)) {
     g_base = kDefaultRelayIp;
     return true;
@@ -869,7 +875,11 @@ void relay_task(void*) {
     bool up = g_mode == Mode::Station && WiFi.status() == WL_CONNECTED;
     g_wifi_up = up;
     if (!up || !g_s->relay_on || !g_s->relay_url[0] || !body) {
-      g_relay_state = g_mode == Mode::Setup ? "setup" : (g_s->wifi_ssid[0] ? "no wifi" : "off");
+      g_relay_state = g_mode == Mode::Setup ? "setup (hotspot only)"
+                      : !up                ? (g_s->wifi_ssid[0] ? "no wifi" : "off (no Wi-Fi saved)")
+                      : !g_s->relay_on     ? "off (switched off in the setup panel)"
+                      : !g_s->relay_url[0] ? "off (no relay address)"
+                                           : "no memory";
       vTaskDelay(pdMS_TO_TICKS(1000));
       continue;
     }
