@@ -266,3 +266,56 @@ func TestTickExpires(t *testing.T) {
 		t.Fatal("not expired")
 	}
 }
+
+type uplinkSpy struct{ sent int }
+
+func (u *uplinkSpy) Name() string            { return "relay" }
+func (u *uplinkSpy) Kind() LinkKind          { return Uplink }
+func (u *uplinkSpy) MTU() int                { return packet.MaxSize }
+func (u *uplinkSpy) Send(_ PeerID, _ []byte) { u.sent++ }
+
+// Relay-list bulletins hop between nearby devices that accept them, reach
+// late-comers from the store, and never go to relays or LoRa.
+func TestRelayListBulletin(t *testing.T) {
+	n := newNet(t)
+	a, b, c, d := n.add("a"), n.add("b"), n.add("c"), n.add("d")
+	accepted := map[string]int{}
+	for _, nd := range []*node{b, d} {
+		name := nd.name
+		nd.r.cfg.RelayList = func(body []byte) bool { accepted[name]++; return string(body) == "list-v2" }
+	}
+	c.r.cfg.RelayList = func([]byte) bool { return false } // finds it not newer
+	n.bleLinks("a", "b", "c", "d")
+	up := &uplinkSpy{}
+	a.r.AddLink(up)
+	b.r.AddLink(&radio{n: n, owner: "b"})
+	n.connect("a", "b")
+	n.connect("b", "c")
+	n.run()
+
+	a.r.PublishRelayList(RelayListPacket([]byte("list-v2"), 0))
+	n.run()
+	if up.sent != 0 {
+		t.Fatal("bulletin sent to a relay")
+	}
+	if accepted["b"] != 1 || dataCount(t, b.store) != 1 {
+		t.Fatalf("b: accepted %d, stored %d", accepted["b"], dataCount(t, b.store))
+	}
+	if dataCount(t, c.store) != 0 {
+		t.Fatal("c stored a bulletin it rejected")
+	}
+	if n.txCount["b"] != 0 {
+		t.Fatal("bulletin went on LoRa")
+	}
+	// d comes along later and gets it from b's store.
+	n.connect("b", "d")
+	n.run()
+	if accepted["d"] != 1 || dataCount(t, d.store) != 1 {
+		t.Fatalf("d: accepted %d", accepted["d"])
+	}
+	// A newer list replaces the old one in the store.
+	a.r.PublishRelayList(RelayListPacket([]byte("list-v3"), 0))
+	if dataCount(t, a.store) != 1 {
+		t.Fatalf("a holds %d bulletins", dataCount(t, a.store))
+	}
+}

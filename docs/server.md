@@ -31,7 +31,11 @@ spread via `/v1/relays`; clients also put the relay they use into their announce
 protocol.md "Relay discovery"), and the official list lives in `network/relays.json`. So
 users learn new addresses when old ones are blocked, even over Bluetooth and LoRa. A relay
 fills in its own `pubkey` in the list it serves. To add an official relay, append it to
-`network/relays.json` (with its `/v1/info` pubkey) and push to main.
+`network/relays.json` (with its `/v1/info` pubkey), bump its `serial`, re-sign it
+(`RELEASE_SIGNING_KEY=$(cat ~/.config/mesh-msg/release-signing.key) go run ./tools/relays-sign`,
+which writes `network/relays.json.sig`; `go test ./network` fails on a stale signature) and push
+to main. Apps fetch both files, cache them, and pass the signed list to nearby devices
+(protocol.md "Relay-list bulletin").
 
 ## 3. Replication and routing between relays
 

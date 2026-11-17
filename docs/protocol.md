@@ -138,6 +138,20 @@ pinned, and a relay that changes key is dropped. Hints to private, loopback or l
 addresses are ignored, candidates from strangers are capped, at most 6 discovered relays are
 used at once (on top of configured ones), and one unreachable for a day is dropped. Users can
 turn discovery off or forget a relay.
+
+**Relay-list bulletin.** Every app keeps the official list on disk (with the time it last
+reached GitHub), so it starts with the cached relays at once and never waits for GitHub,
+which is refetched in the background every 6 h. When `network/relays.json` is signed with
+the project key (`network/relays.json.sig`, `go run ./tools/relays-sign`; the release key of
+D20 under the context `MESHMSG-RELAYS-v1\0`), apps also pass it to each other as a
+**bulletin**: a DATA packet to the fixed `dest_hash` = first 16 bytes of
+`SHA-256("MESHMSG-RELAYLIST-BULLETIN")`, `NO_LORA`, `max_hops` 15, `packet_id` = first 8
+bytes of `SHA-256(body)`, body = `signature(64) || relays.json bytes`. A node stores and
+passes it on (Bluetooth, LAN, direct links; it is handed to new neighbours from the store
+like any DATA) only if the signature verifies and its `serial` is higher than the list it
+holds; it never goes to relays or LoRa. An older list is dropped from the store when a newer
+one arrives. So during an Internet blackout a phone that never reached GitHub still gets the
+newest list from any phone near it.
 Announces are rate-limited per interface (see firmware/android docs) and are **opt-in for
 visibility outside Tier 0** (privacy: see threat-model.md).
 
