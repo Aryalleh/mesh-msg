@@ -1378,3 +1378,14 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Not built: calls in the browser (HTTPS secure context, WebCodecs/Opus, UDP proxy) —
   written up in docs/web-access.md.
 
+### 2026-11-17 — Handheld schematic PDF; web status wording
+
+- `hardware/handheld/schematic.py` → `handheld-schematic.pdf` (7 A3 pages: overview, ESP32-S3,
+  LoRa + display + backlight, audio + fuel gauge + vibration, power + USB, keyboard module +
+  version A matrix, versions B/C keypad + trackpad + 1.8 V LDO). Modules connect by net
+  name. Fixed while reviewing the render: pin anchors of +/− pairs collided (D+/D−, IN+/IN−,
+  LED+/LED− lost a net), pin order, fixed drawing scale.
+- Web client: the header showed "● برد ○ رله", which read like a choice; it is a link
+  status ("اتصال: برد ✓ · رله ✗"). Every message goes out on all links at once as the
+  browser's identity; Settings explains it. `scripts/test-web.sh` PASS.
+

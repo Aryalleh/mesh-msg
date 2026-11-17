@@ -29,9 +29,12 @@ function header(title, back) {
   $("back").classList.toggle("hidden", !back);
 }
 
+// Not a choice: every message goes out on all links at once, under the same
+// identity; this only shows which links are up right now.
 function renderStatus() {
-  const parts = Object.entries(state.statuses).map(([k, v]) => (v ? "●" : "○") + " " + k);
-  $("status").textContent = parts.join("  ");
+  const parts = Object.entries(state.statuses).map(([k, v]) => k + (v ? " ✓" : " ✗"));
+  $("status").textContent = parts.length ? "اتصال: " + parts.join(" · ") : "";
+  $("status").title = "پیام‌ها هم‌زمان از همهٔ مسیرهای وصل فرستاده می‌شوند";
 }
 
 // ---- screens ----
@@ -126,7 +129,7 @@ function showSettings() {
     <div class="card">
       <label>نام شما<input id="sname" dir="auto" value="${esc(setting("mava.name", ""))}"></label>
       <label>رله‌ها (با ویرگول جدا)<input id="relays" class="ltr" value="${esc(setting("mava.relays", DEFAULT_RELAYS))}"></label>
-      <p class="muted">رله‌ها وقتی گوشی اینترنت دارد استفاده می‌شوند؛ بدون اینترنت، پیام‌ها از راه برد Mava (LoRa) می‌روند.</p>
+      <p class="muted">لازم نیست بین برد و رله انتخاب کنید: هر پیام با همین هویتِ این مرورگر هم‌زمان از همهٔ مسیرهای وصل فرستاده می‌شود — از راه برد Mava (LoRa، بلوتوث و اتصال اینترنتی خود برد) و، اگر گوشی اینترنت دارد، مستقیم به رله‌ها. گیرنده هر نسخه را فقط یک بار نشان می‌دهد. «اتصال» در بالای صفحه فقط نشان می‌دهد کدام مسیر الان وصل است.</p>
       <p><button class="primary" id="ssave">ذخیره</button></p>
     </div>
     <div class="card"><b>شناسه</b><p class="ltr">${esc(mava.hash())}</p>

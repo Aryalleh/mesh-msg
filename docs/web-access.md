@@ -18,7 +18,9 @@ iPhone Safari ── Wi-Fi ──► Mava board / handheld  ──LoRa (Meshtast
   — without core/node's SQL databases, compiled to WebAssembly (`web/cmd/webclient`). Keys
   and messages stay in the browser's storage (`localStorage`); **the board never sees
   plaintext**, exactly as with a phone on Bluetooth.
-- **Two ways out at once**, deduplicated by packet ID:
+- **Two ways out at once**, deduplicated by packet ID — there is nothing to choose: every
+  message leaves on every link that is up, always as the browser's own identity, and the
+  page's header ("اتصال") only shows which links are up:
   - the **board**: `POST /api/link` carries the host-link stream (base64), so the browser
     is host port 2 of the node next to USB and BLE — its packets go on LoRa and to the
     board's other hosts and relay, and what the mesh delivers comes back;
