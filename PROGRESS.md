@@ -1535,3 +1535,9 @@ links. Chose: quick items in beta3; calls follow in later betas.
   `flasher-android` job → release asset `mava-screen-<ver>-android.apk`. docs/screen.md.
 - Release v0.1.1-beta11. Not tested on hardware.
 - beta11 run #95 failed only in the APK check step (`unzip -l dist/*.apk` with two APKs); fixed, re-run.
+- Owner hit "WebAssembly.instantiate(): expected magic word … found 1f 8b" in the board's
+  browser app (so the board runs and serves /app/). Arduino's static handler doesn't know
+  `.wasm` → application/octet-stream → no `Content-Encoding: gzip`. Fix: `/app/main.wasm`
+  served by `serve_wasm` as application/wasm (streamFile adds the encoding); app.js unpacks
+  gzip with DecompressionStream if it still arrives compressed (checked in Chromium with a
+  raw-gzip main.wasm). Cancelled the beta11 run (#97) and re-cut beta11 with the fix.

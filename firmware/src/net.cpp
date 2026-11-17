@@ -425,6 +425,21 @@ void handle_save() {
   }
 }
 
+// The web client's WebAssembly: Arduino's static handler doesn't know .wasm,
+// sends it as application/octet-stream and then leaves out
+// "Content-Encoding: gzip", so the browser got the gzip bytes. Served here as
+// application/wasm; streamFile adds the encoding for a .gz file.
+void serve_wasm() {
+  File f = LittleFS.open("/web/main.wasm.gz", "r");
+  if (!f) {
+    g_web.send(404, "text/plain", "web client not installed");
+    return;
+  }
+  g_web.sendHeader("Cache-Control", "max-age=600");
+  g_web.streamFile(f, "application/wasm");
+  f.close();
+}
+
 void redirect_portal() {
   g_web.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/");
   g_web.send(302);
@@ -678,6 +693,7 @@ bool begin(Settings& s, mesh::node::Node& node, void* node_lock, const Hooks& ho
   g_web.on("/connecttest.txt", redirect_portal);
   g_web.on("/ncsi.txt", redirect_portal);
   g_web.on("/api/link", HTTP_POST, handle_link);
+  g_web.on("/app/main.wasm", HTTP_GET, serve_wasm);
   g_web.serveStatic("/app/", LittleFS, "/web/", "max-age=600");  // index.htm, *.gz
   g_web.onNotFound(not_found);
 

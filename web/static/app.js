@@ -243,7 +243,14 @@ function boot() {
 async function load() {
   const go = new Go();
   const resp = await fetch("main.wasm");
-  const bytes = await resp.arrayBuffer(); // works whatever MIME type the board sends
+  if (!resp.ok) throw new Error("main.wasm: HTTP " + resp.status);
+  let bytes = await resp.arrayBuffer(); // works whatever MIME type the board sends
+  // Still gzip (a board firmware before 0.1.1-beta11 forgot Content-Encoding): unpack here.
+  const head = new Uint8Array(bytes, 0, 2);
+  if (head[0] === 0x1f && head[1] === 0x8b && "DecompressionStream" in window) {
+    const plain = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    bytes = await new Response(plain).arrayBuffer();
+  }
   const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
   window.addEventListener("mava-ready", boot, { once: true });
   go.run(instance);
