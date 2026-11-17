@@ -238,6 +238,10 @@ void on_channel_changed(const net::Settings& s) {
 
 }  // namespace
 
+// The main loop runs the web server's handlers, and the browser's send runs
+// Noise and Ed25519 inside one: more stack than Arduino's default 8 kB.
+SET_LOOP_TASK_STACK_SIZE(16 * 1024);
+
 void setup() {
   // A big USB transmit buffer: the screen on a phone (remote.h) streams tens
   // of kB per frame; the default 256 bytes held it to a crawl.

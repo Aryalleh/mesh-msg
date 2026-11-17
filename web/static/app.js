@@ -24,7 +24,22 @@ class BoardAccount {
     this.cb = () => {};
   }
   async api(path, body) {
-    const r = await fetch("/api/acct/" + path, body ? { method: "POST", body: new URLSearchParams(body) } : {});
+    // A board busy for a moment (radio, Wi-Fi scan) drops a request now and
+    // then: try again before calling it unreachable.
+    let r;
+    for (let i = 0; ; i++) {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 10000);
+      try {
+        r = await fetch("/api/acct/" + path, { ...(body ? { method: "POST", body: new URLSearchParams(body) } : {}), signal: ctl.signal });
+        break;
+      } catch (e) {
+        if (i >= 2) throw new Error("برد جواب نمی‌دهد");
+        await new Promise((ok) => setTimeout(ok, 700));
+      } finally {
+        clearTimeout(t);
+      }
+    }
     if (r.status === 401) throw new Error("login");
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
@@ -62,13 +77,27 @@ class BoardAccount {
   }
   async setName(name) { this.me = await this.api("name", { name }); }
   onEvent(cb) { this.cb = cb; }
+  async status() { return this.api("status"); }
+  async setWifi(ssid, pass) { return this.api("wifi", { ssid, pass }); }
   async start() {
+    let fails = 0, tick = 0;
     for (;;) {
       try {
         const { rev } = await this.api("rev");
+        fails = 0;
+        hideHint();
         if (!state.links.board) {
           state.links.board = true;
           renderStatus();
+        }
+        // The board's own relay link, every ~10 s.
+        if (tick++ % 5 === 0) {
+          const st = await this.status().catch(() => null);
+          const up = !!(st && String(st.relay).startsWith("online"));
+          if (st && state.links.relay !== up) {
+            state.links.relay = up;
+            renderStatus();
+          }
         }
         if (rev !== this.rev) {
           this.rev = rev;
@@ -77,6 +106,7 @@ class BoardAccount {
         }
       } catch (e) {
         if (e.message === "login") return showLogin();
+        if (++fails >= 2) showHint();
         if (state.links.board) {
           state.links.board = false;
           renderStatus();
@@ -85,6 +115,26 @@ class BoardAccount {
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
+}
+
+// The page loaded but the board stopped answering. The usual reason on a
+// phone: this Wi-Fi has no internet, so the phone sends traffic over mobile
+// data instead, where the board is not.
+function showHint() {
+  if ($("hint")) return;
+  const d = document.createElement("div");
+  d.id = "hint";
+  d.className = "card";
+  d.setAttribute("role", "alert");
+  d.innerHTML = `<b>برد جواب نمی‌دهد.</b>
+    <p class="muted">اگر دادهٔ همراه گوشی روشن است، چون این Wi-Fi اینترنت ندارد گوشی ممکن است درخواست‌ها را از دادهٔ همراه بفرستد و به برد نرسند: دادهٔ همراه را خاموش کنید، یا وقتی گوشی پرسید «این Wi-Fi اینترنت ندارد»، «ماندن / Keep» را بزنید. اگر برد تازه راه‌اندازی شده، چند ثانیه صبر کنید.</p>
+    <p class="muted ltr" dir="ltr">The board is not answering. With mobile data on, the phone may send this page's requests over mobile data because this Wi-Fi has no internet: turn mobile data off, or choose "Keep Wi-Fi / Stay connected".</p>`;
+  $("main").prepend(d);
+}
+
+function hideHint() {
+  const h = $("hint");
+  if (h) h.remove();
 }
 
 function showLogin(wrong) {
@@ -300,6 +350,16 @@ function showSettings() {
       </div>
       <div class="row"><button class="btn primary" id="ssave">ذخیره</button></div>
     </div>
+    ${state.board ? `<div class="card">
+      <h2>${icon("globe")} Wi-Fi و رلهٔ برد</h2>
+      <p class="muted" id="bstat">…</p>
+      <label for="wssid">نام شبکه (SSID)</label>
+      <input id="wssid" class="ltr" dir="ltr" list="wnets" autocomplete="off"><datalist id="wnets"></datalist>
+      <label for="wpass">رمز شبکه</label>
+      <input id="wpass" type="password" class="ltr" dir="ltr" autocomplete="off">
+      <p class="muted">برد به این شبکه وصل می‌شود تا از رله پیام بفرستد و بگیرد. هات‌اسپات خود برد کنارش روشن می‌ماند، پس این گوشی وصل می‌ماند (شاید چند ثانیه قطع و وصل شود).</p>
+      <div class="row"><button class="btn primary" id="wsave">ذخیرهٔ Wi-Fi</button></div>
+    </div>` : ""}
     <div class="card">
       <h2>${icon("radio")} برد یا رله؟ هر دو.</h2>
       <p class="muted">لازم نیست انتخاب کنید: هر پیام با همین هویتِ این مرورگر هم‌زمان از همهٔ مسیرهای وصل فرستاده می‌شود — از راه برد Mava (LoRa، بلوتوث و اینترنتِ خود برد) و، اگر گوشی اینترنت دارد، مستقیم به رله‌ها. گیرنده هر پیام را فقط یک بار می‌بیند. نشانه‌های بالای صفحه فقط نشان می‌دهند کدام مسیر الان وصل است.</p>
@@ -311,6 +371,7 @@ function showSettings() {
         ? "حساب روی خود برد است (همان حساب صفحهٔ دستگاه)؛ این مرورگر فقط آن را نشان می‌دهد. پیام‌ها از LoRa، بلوتوث و رلهٔ برد می‌روند."
         : "کلیدها در حافظهٔ این مرورگر ذخیره شده‌اند. پاک کردن داده‌های سایت، هویت شما را پاک می‌کند."}</p>
     </div>`;
+  if (state.board) boardWifi();
   $("ssave").onclick = async () => {
     const name = $("sname").value.trim();
     if (state.board) {
@@ -328,6 +389,32 @@ function showSettings() {
     }
     toast("ذخیره شد");
     showChats();
+  };
+}
+
+async function boardWifi() {
+  const wifiText = { hotspot: "فقط هات‌اسپات (شبکه‌ای ذخیره نشده یا کلید راه‌اندازی روشن است)", joined: "وصل به", joining: "در حال وصل شدن به", off: "خاموش" };
+  const fill = async (first) => {
+    const st = await mava.status().catch(() => null);
+    if (!st || state.screen !== "settings") return;
+    const where = st.ssid && st.wifi !== "hotspot" ? ` «${esc(st.ssid)}»` : "";
+    $("bstat").innerHTML = `Wi-Fi: ${esc(wifiText[st.wifi] || st.wifi)}${where}${st.ip ? ` (${esc(st.ip)})` : ""}<br>رله: ${esc(st.relay)}<br>هات‌اسپات: ${esc(st.hotspot)}${st.switch ? "<br>کلید راه‌اندازی روشن است: تا روشن است برد به Wi-Fi وصل نمی‌شود." : ""}`;
+    if (first && !$("wssid").value) $("wssid").value = st.ssid || "";
+    $("wnets").innerHTML = (st.nets || []).map((n) => `<option value="${esc(n)}">`).join("");
+    if (first && !(st.nets || []).length) setTimeout(() => fill(false), 4000); // the scan takes a few seconds
+  };
+  fill(true);
+  $("wsave").onclick = async () => {
+    const ssid = $("wssid").value.trim(), pass = $("wpass").value;
+    if (!ssid) return toast("نام شبکه را بنویسید");
+    if (pass && pass.length < 8) return toast("رمز Wi-Fi دست‌کم ۸ نویسه است");
+    try {
+      await mava.setWifi(ssid, pass);
+      toast("ذخیره شد؛ برد به " + ssid + " وصل می‌شود");
+      setTimeout(() => fill(false), 8000);
+    } catch (e) {
+      toast("ذخیره نشد: " + e.message);
+    }
   };
 }
 

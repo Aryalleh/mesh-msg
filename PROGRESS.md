@@ -1696,3 +1696,11 @@ links. Chose: quick items in beta3; calls follow in later betas.
   that says how to fix it (root and `/app…`), `/app` → `/app/`, other unknown paths on the home
   Wi-Fi → `/app/`; boot log says "browser app installed / MISSING". Release v0.1.1-beta21.
 - Released **v0.1.1-beta21** (run #122, b5eb12e).
+- Web app on the board: "Failed to fetch" on send, board chip "disconnected", no Wi-Fi setting
+  in the web app. Added `/api/acct/status` (Wi-Fi/relay/hotspot/switch/scan list) and
+  `/api/acct/wifi` (device-password cookie only, no messenger needed → `set_wifi`); Settings →
+  "Board Wi-Fi and relay" card; relay chip from status; `BoardAccount.api` retries (10 s
+  timeout, 3 tries) and shows a hint (mobile data routes around a no-internet Wi-Fi) after 2
+  failed polls. Loop task stack 16 kB (`SET_LOOP_TASK_STACK_SIZE`): browser sends run Noise +
+  Ed25519 inside the WebServer handler. Checked with Playwright against a fake board.
+  Release v0.1.1-beta22.

@@ -502,6 +502,64 @@ void json(int code, const std::string& body) {
   g_web.send(code, "application/json; charset=utf-8", body.c_str());
 }
 
+std::string jstr(const char* s) {
+  std::string o = "\"";
+  for (; *s; s++) {
+    unsigned char c = static_cast<unsigned char>(*s);
+    if (c == '"' || c == '\\') {
+      o += '\\';
+      o += char(c);
+    } else if (c < 0x20) {
+      char e[8];
+      snprintf(e, sizeof e, "\\u%04x", c);
+      o += e;
+    } else {
+      o += char(c);
+    }
+  }
+  return o + "\"";
+}
+
+// The device password alone (no messenger needed): the board's Wi-Fi and
+// status in the web app's settings, as in the setup panel.
+bool dev_ready() {
+  if (acct_authed()) return true;
+  json(401, "{\"error\":\"login\"}");
+  return false;
+}
+
+// GET /api/acct/status: the board's Wi-Fi, hotspot and relay, for the web app.
+void acct_status() {
+  if (!dev_ready()) return;
+  const char* wifi = g_mode == Mode::Setup ? "hotspot" : g_wifi_up ? "joined" : g_s->wifi_ssid[0] ? "joining" : "off";
+  std::string b = "{\"wifi\":" + jstr(wifi) + ",\"ssid\":" + jstr(g_s->wifi_ssid) +
+                  ",\"ip\":" + jstr(g_wifi_up ? WiFi.localIP().toString().c_str() : "") +
+                  ",\"hotspot\":" + jstr(g_ap_name) + ",\"relay\":" + jstr(const_cast<const char*>(g_relay_state)) +
+                  ",\"switch\":" + (g_switch ? "true" : "false") + ",\"nets\":[";
+  int n = WiFi.scanComplete();
+  if (n == WIFI_SCAN_FAILED) WiFi.scanNetworks(true);  // results on the next request
+  for (int i = 0; i < n && i < 20; i++) b += (i ? "," : "") + jstr(WiFi.SSID(i).c_str());
+  json(200, b + "]}");
+}
+
+// POST /api/acct/wifi ssid=…&pass=…: the network the board joins (its own
+// hotspot stays on beside it, so this phone stays connected).
+void acct_wifi() {
+  if (!dev_ready()) return;
+  mesh::host::WifiConfig w;
+  String ssid = g_web.arg("ssid"), pass = g_web.arg("pass");
+  if (ssid.length() >= sizeof w.ssid || pass.length() >= sizeof w.pass || (pass.length() && pass.length() < 8))
+    return json(400, "{\"error\":\"bad network name or password (8 characters or more)\"}");
+  w.has_ssid = true;
+  copy(w.ssid, sizeof w.ssid, ssid);
+  if (pass.length() || g_web.hasArg("pass")) {
+    w.has_pass = true;
+    copy(w.pass, sizeof w.pass, pass);
+  }
+  set_wifi(w);
+  json(200, "{}");
+}
+
 // Common checks: 404 without a messenger on this board (the page then uses
 // its own in-browser account), 401 before login.
 bool acct_ready() {
@@ -909,6 +967,8 @@ bool begin(Settings& s, mesh::node::Node& node, void* node_lock, const Hooks& ho
     g_account->set_name(g_web.arg("name").c_str());
     json(200, g_account->me());
   });
+  g_web.on("/api/acct/status", HTTP_GET, acct_status);
+  g_web.on("/api/acct/wifi", HTTP_POST, acct_wifi);
   g_web.on("/app/main.wasm", HTTP_GET, serve_wasm);
   g_web.serveStatic("/app/", LittleFS, "/web/", "max-age=600");  // index.htm, *.gz
   g_web.onNotFound(not_found);
