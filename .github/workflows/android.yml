@@ -251,7 +251,7 @@ jobs:
           mkdir -p dist
           cp android/flasher/build/outputs/apk/debug/flasher-debug.apk "dist/mava-board-flasher-${{ needs.version.outputs.name }}-android.apk"
           cp android/screen/build/outputs/apk/debug/screen-debug.apk "dist/mava-screen-${{ needs.version.outputs.name }}-android.apk"
-          unzip -l dist/*.apk | grep -q 'assets/board/firmware.bin'
+          unzip -l "dist/mava-board-flasher-${{ needs.version.outputs.name }}-android.apk" | grep -q 'assets/board/firmware.bin'
           ls -la dist
 
       - uses: actions/upload-artifact@v4

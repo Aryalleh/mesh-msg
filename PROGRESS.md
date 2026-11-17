@@ -1534,3 +1534,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   round trip + wire bytes (C++), the same bytes decoded in Kotlin. CI builds it in the
   `flasher-android` job → release asset `mava-screen-<ver>-android.apk`. docs/screen.md.
 - Release v0.1.1-beta11. Not tested on hardware.
+- beta11 run #95 failed only in the APK check step (`unzip -l dist/*.apk` with two APKs); fixed, re-run.
