@@ -72,6 +72,10 @@ writes it from the phone, no computer needed:
 4. **Board log** restarts the board and shows what it prints; the hotspot name and device
    password are picked out at the top.
 
+5. **Board Wi-Fi** (firmware 0.1.1-beta9 on) sets the network the board joins over the same
+   cable, and opens or closes its setup hotspot: no switch needed. It talks to the board's
+   own USB socket (the firmware's host link is there, not on a USB-serial chip).
+
 Keep the screen on and the cable still while it writes (about 2–4 minutes). Each region is
 checked against the chip's MD5 of the flash before the board restarts.
 

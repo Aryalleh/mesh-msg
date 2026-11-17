@@ -56,6 +56,9 @@ Usage:
                                  region=EU_868… preset=FAST|BALANCED|LONG
                                  freq=869.525 (MHz) power=14 (dBm) name=… announce=30 (min)
   mesh lora plans                region frequency plans and presets
+  mesh lora wifi ssid=… password=… [relay=https://…]
+                                 the board's Wi-Fi, set over USB (ssid= forgets it)
+  mesh lora hotspot on|off       open the board's setup hotspot now / back to normal
   mesh config                    show all settings
   mesh config set key=value…     change settings (mesh config keys lists them)
   mesh relay add <name> <url> [via] | rm <name>

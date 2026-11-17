@@ -30,6 +30,42 @@ func loraCmd(args []string) error {
 		}
 		return call("POST", "/lora/"+url.PathEscape(*name)+"/config", patch, nil)
 	}
+	if len(args) > 0 && args[0] == "wifi" {
+		fs := flag.NewFlagSet("lora wifi", flag.ContinueOnError)
+		name := fs.String("node", "lora", "attached node name")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		w, err := parseWifi(fs.Args())
+		if err != nil {
+			return err
+		}
+		if err := call("POST", "/lora/"+url.PathEscape(*name)+"/wifi", w, nil); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "saved on the board; with the setup switch off it joins that network now")
+		return nil
+	}
+	if len(args) > 0 && args[0] == "hotspot" {
+		fs := flag.NewFlagSet("lora hotspot", flag.ContinueOnError)
+		name := fs.String("node", "lora", "attached node name")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if fs.NArg() != 1 || (fs.Arg(0) != "on" && fs.Arg(0) != "off") {
+			return errors.New("usage: mesh lora hotspot on|off")
+		}
+		on := fs.Arg(0) == "on"
+		if err := call("POST", "/lora/"+url.PathEscape(*name)+"/hotspot", map[string]bool{"on": on}, nil); err != nil {
+			return err
+		}
+		if on {
+			fmt.Fprintln(out, "hotspot on: join Mava-XXXX with the device password, the setup panel opens")
+		} else {
+			fmt.Fprintln(out, "hotspot back to normal (on only with the setup switch on or no Wi-Fi saved)")
+		}
+		return nil
+	}
 	var nodes []node.LoRaState
 	if err := call("GET", "/lora", nil, &nodes); err != nil {
 		return err
@@ -107,6 +143,34 @@ func printLoRa(l node.LoRaState) {
 		fmt.Fprintf(out, "  uptime    %s, firmware v%d\n", time.Duration(s.UptimeS)*time.Second, s.FirmwareVersion)
 	}
 	fmt.Fprintf(out, "  host link sent %d, received %d, waiting %d, bad frames %d\n", l.Sent, l.Received, l.Queued, l.BadFrames)
+}
+
+// parseWifi turns key=value arguments into a board Wi-Fi change.
+func parseWifi(kv []string) (hostlink.WifiConfig, error) {
+	var w hostlink.WifiConfig
+	if len(kv) == 0 {
+		return w, errors.New("usage: mesh lora wifi ssid=… password=… [relay=https://…]  (ssid= forgets the network)")
+	}
+	for _, a := range kv {
+		k, v, ok := strings.Cut(a, "=")
+		if !ok {
+			return w, fmt.Errorf("%q: want key=value", a)
+		}
+		switch k {
+		case "ssid":
+			w.SSID = &v
+		case "password", "pass":
+			w.Password = &v
+		case "relay":
+			w.Relay = &v
+		default:
+			return w, fmt.Errorf("unknown Wi-Fi setting %q (ssid, password, relay)", k)
+		}
+	}
+	if _, err := w.EncodeTLV(); err != nil {
+		return w, err
+	}
+	return w, nil
 }
 
 // parsePatch turns key=value arguments into a node config patch.

@@ -457,6 +457,53 @@ func (n *Node) LoRaConfigure(name string, patch LoRaPatch) error {
 	return l.configure(tlv)
 }
 
+// LoRaWifi sets the Wi-Fi of an attached board (the Mava board): network,
+// password and relay; only non-nil fields change. Nodes without Wi-Fi
+// answer that they don't know the command.
+func (n *Node) LoRaWifi(name string, w hostlink.WifiConfig) error {
+	tlv, err := w.EncodeTLV()
+	if err != nil {
+		return err
+	}
+	return n.loraAck(name, hostlink.OpSetWifi, tlv)
+}
+
+// LoRaHotspot opens the board's setup hotspot now (on), or returns it to
+// normal: hotspot only while the setup switch is on or no Wi-Fi is saved.
+func (n *Node) LoRaHotspot(name string, on bool) error {
+	arg := byte(0)
+	if on {
+		arg = 1
+	}
+	return n.loraAck(name, hostlink.OpHotspot, []byte{arg})
+}
+
+func (n *Node) loraAck(name string, op byte, args []byte) error {
+	n.mu.Lock()
+	l := n.loras[name]
+	n.mu.Unlock()
+	if l == nil {
+		return fmt.Errorf("lora: no node %q", name)
+	}
+	m, err := l.command(op, args, true)
+	if err != nil {
+		return err
+	}
+	if m.Op != hostlink.EvAck || len(m.Data) != 2 {
+		return errors.New("lora: unexpected reply")
+	}
+	switch m.Data[1] {
+	case hostlink.AckOK:
+		return nil
+	case hostlink.AckUnknownOp:
+		return errors.New("lora: this node has no Wi-Fi (or its firmware is older than 0.1.1-beta9)")
+	case hostlink.AckBadArgs:
+		return errors.New("lora: the node rejected the settings")
+	default:
+		return fmt.Errorf("lora: the node refused (status %d)", m.Data[1])
+	}
+}
+
 // LoRaPatch is a partial node configuration (JSON from the UI / CLI).
 type LoRaPatch struct {
 	Role        *string `json:"role,omitempty"`   // client | repeater | gateway

@@ -107,6 +107,15 @@ struct Board : mesh::node::Platform {
   }
   void reboot() override { board::reboot(); }
   uint16_t battery_mv() override { return board::battery_mv(); }
+  uint8_t set_wifi(const mesh::host::WifiConfig& w) override {
+    logf("host set Wi-Fi%s%s%s", w.has_ssid ? (w.ssid[0] ? " (network)" : " (forget network)") : "",
+         w.has_pass ? " (password)" : "", w.has_relay ? " (relay)" : "");
+    return net::set_wifi(w);
+  }
+  uint8_t hotspot(bool on) override {
+    logf("host: hotspot %s", on ? "on" : "back to normal");
+    return net::hotspot(on);
+  }
 };
 
 FlashPersist g_persist;
@@ -242,26 +251,35 @@ void setup() {
   net::init_secrets(g_net);
   if (memcmp(&before, &g_net, sizeof g_net) != 0) net::save(g_net);
 
+  // Wi-Fi and BLE first: if a part that isn't fitted makes a later step
+  // hang, the hotspot is already up. The relay worker waits for the lock.
+  xSemaphoreTake(g_lock, portMAX_DELAY);
+  const mesh::PublicKey& pk = node.pub();
+  char name[24];
+  snprintf(name, sizeof name, "Mava-%02X%02X", pk.ed[0], pk.ed[1]);
+  logf("boot: Wi-Fi");
+  net::Hooks hooks;
+  hooks.channel_changed = on_channel_changed;
+  bool net_ok = net::begin(g_net, node, g_lock, hooks);
+  logf("Wi-Fi %s, setup switch %s, %s; hotspot %s, device password: %s", net_ok ? "ok" : "FAILED",
+       board::setup_switch_on() ? "ON" : "off", net::mode() == net::Mode::Setup ? "hotspot ON" : "joining saved Wi-Fi",
+       name, g_net.password);
+  logf("boot: BLE");
+  bool ble_ok = ble::begin(name, g_net.ble_passkey);
+  logf("BLE %s as %s (passkey %06lu)", ble_ok ? "ok" : "FAILED", name, (unsigned long)g_net.ble_passkey);
+
+  logf("boot: radio");
   g_mt.begin(mesh::meshtastic::Backend::node_id_for(node.pub().x), board::random32(), channel_of(g_net));
   g_radio_ok = radio::begin(cfg);
   logf("%s: %s, %s %lu Hz %d dBm, Meshtastic !%08lx channel %s (hash %u)", radio::chip_name(),
        g_radio_ok ? "ok" : "NOT FOUND", mesh::host::kRegions[cfg.region].name, (unsigned long)cfg.channel_hz(),
        cfg.tx_dbm, (unsigned long)g_mt.node_id(), g_net.channel, g_mt.channel_hash());
-  const mesh::PublicKey& pk = node.pub();
   logf("identity ed25519 %02x%02x%02x%02x%02x%02x%02x%02x…", pk.ed[0], pk.ed[1], pk.ed[2], pk.ed[3], pk.ed[4], pk.ed[5],
        pk.ed[6], pk.ed[7]);
+  logf("boot: stored packets");
   restore_store(node, board::now_ms());
-
-  char name[24];
-  snprintf(name, sizeof name, "Mava-%02X%02X", pk.ed[0], pk.ed[1]);
-  bool ble_ok = ble::begin(name, g_net.ble_passkey);
-  net::Hooks hooks;
-  hooks.channel_changed = on_channel_changed;
-  bool net_ok = net::begin(g_net, node, g_lock, hooks);
-  logf("BLE %s as %s (passkey %06lu); Wi-Fi %s, setup switch %s", ble_ok ? "ok" : "FAILED", name,
-       (unsigned long)g_net.ble_passkey, net_ok ? "ok" : "FAILED", board::setup_switch_on() ? "ON" : "off");
-  logf("hotspot %s, device password: %s", name, g_net.password);
 #if defined(I2C_SDA) && defined(I2C_SCL)
+  logf("boot: keyboard module");
   Wire.begin(I2C_SDA, I2C_SCL, 400000);
   static const char* kVariants[] = {"7x7 matrix", "BlackBerry 9900", "BlackBerry 9900 + trackpad"};
   if (kbmodule::begin()) {
@@ -271,10 +289,14 @@ void setup() {
     logf("keyboard module: none");
   }
 #endif
+  xSemaphoreGive(g_lock);  // the screen reads the node status under the lock
+  logf("boot: screen");
   g_ui = ui::begin(ui_status, ui::stub_messenger());
   logf("screen: %s", g_ui ? "ok" : "none");
   logf("ready; attach meshd ([lora] port = this serial port), pair a phone, or watch the air");
 }
+
+constexpr Millis kHelloEvery = 10000;
 
 void loop() {
   mesh::node::Node& node = *g_node;
@@ -357,6 +379,19 @@ void loop() {
   if (now - last_tick >= kTickEvery) {
     last_tick = now;
     node.tick(now);
+  }
+  // The boot lines go out before a terminal can open the USB port: repeat what
+  // is needed to reach the board (silent once a USB host attaches).
+  static Millis last_hello = 0;
+  if (now - last_hello >= kHelloEvery) {
+    last_hello = now;
+    const char* wifi = net::mode() == net::Mode::Setup ? "hotspot ON"
+                       : net::wifi_up()                ? "joined"
+                       : g_net.wifi_ssid[0]            ? "joining"
+                                                       : "off";
+    logf("hotspot %s, device password: %s; BLE passkey %06lu; Wi-Fi %s %s; relay %s; radio %s", net::ap_name(),
+         g_net.password, (unsigned long)g_net.ble_passkey, wifi, net::web_url(), net::relay_state(),
+         g_radio_ok ? "ok" : "NOT FOUND");
   }
   if (g_led_off && now >= g_led_off) {
     board::led(false);

@@ -1,9 +1,10 @@
 // Wi-Fi side of the board (docs/board.md §2, §5):
 //
-//   setup switch ON  → hotspot "Mava-XXXX" (WPA2, device password) with a
+//   setup switch ON, no Wi-Fi saved yet, or a host sent HOTSPOT 1
+//                    → hotspot "Mava-XXXX" (WPA2, device password) with a
 //                      captive portal: the setup panel opens by itself on the
 //                      phone or laptop that joins. Station mode is off.
-//   setup switch OFF → hotspot off; the board joins the saved Wi-Fi and the
+//   otherwise        → hotspot off; the board joins the saved Wi-Fi and the
 //                      relay worker runs the gateway session with the relay:
 //                      uploads what the relay does not have (with the relay's
 //                      proof of work), long-polls /v1/gateway for receipts and
@@ -57,6 +58,12 @@ void init_secrets(Settings& s);
 bool begin(Settings& s, mesh::node::Node& node, void* node_lock, const Hooks& hooks);
 // Switch, hotspot, portal and web panel. Main loop, node lock held.
 void loop(mesh::route::Millis now);
+
+// From a trusted host (USB, BLE: SET_WIFI / HOTSPOT); host::kAck* status.
+// Main loop, node lock held.
+uint8_t set_wifi(const mesh::host::WifiConfig& w);
+uint8_t hotspot(bool on);
+const char* ap_name();  // "Mava-XXXX"
 
 enum class Mode : uint8_t { Off, Setup, Station };
 Mode mode();

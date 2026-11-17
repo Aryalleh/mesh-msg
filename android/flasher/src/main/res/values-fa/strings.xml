@@ -26,6 +26,20 @@
     <string name="stop">توقف</string>
     <string name="hotspot_found">هات‌اسپات %1$s · رمز %2$s</string>
     <string name="log_title">لاگ</string>
+    <string name="wifi_title">وای‌فای برد</string>
+    <string name="wifi_desc">شبکه‌ای که برد به آن وصل می‌شود را از همین کابل USB تنظیم می‌کند (سوکت USB خود برد). هات‌اسپات و کلید لازم نیست. از فرم‌ور 0.1.1-beta9 به بعد.</string>
+    <string name="wifi_ssid">نام شبکه (SSID)</string>
+    <string name="wifi_password">رمز</string>
+    <string name="show">نمایش</string>
+    <string name="hide">پنهان</string>
+    <string name="wifi_save">ذخیره روی برد</string>
+    <string name="wifi_saved">ذخیره شد. اگر کلید setup خاموش باشد، برد همین حالا به %1$s وصل می‌شود.</string>
+    <string name="hotspot_on">روشن‌کردن هات‌اسپات</string>
+    <string name="hotspot_off">هات‌اسپات به حالت عادی</string>
+    <string name="hotspot_opened">هات‌اسپات در حال روشن‌شدن است: با رمز دستگاه به Mava-XXXX وصل شوید (لاگ برد هر دو را نشان می‌دهد).</string>
+    <string name="hotspot_normal">هات‌اسپات به حالت عادی برگشت: فقط وقتی کلید setup روشن است یا وای‌فای ذخیره نشده روشن می‌شود.</string>
+    <string name="ack_old_firmware">فرم‌ور برد قدیمی است: اول فرم‌ور تازه را نصب کنید (فقط به‌روزرسانی فرم‌ور).</string>
+    <string name="ack_bad_args">برد این تنظیمات را نپذیرفت.</string>
     <string name="help_title">اگر وصل نشد</string>
     <string name="help_text">• دکمهٔ BOOT را نگه دارید، RESET را بزنید و رها کنید، بعد BOOT را رها کنید و دوباره امتحان کنید.\n• روی بردهای توسعه با دو سوکت USB، از سوکتی که USB نوشته شده استفاده کنید.\n• فرم‌ور Mava به ESP32-S3 با ۱۶ مگابایت فلش و ۸ مگابایت PSRAM نیاز دارد (N16R8).\n• ماژول کیبورد (Raspberry Pi Pico) با فلشر لینوکس از کامپیوتر فلش می‌شود.</string>
 </resources>

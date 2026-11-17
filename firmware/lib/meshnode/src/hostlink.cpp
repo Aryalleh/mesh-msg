@@ -247,5 +247,57 @@ void Status::encode(uint8_t out[kStatusSize]) const {
   put16(out + 34, battery_mv);
 }
 
+bool WifiConfig::parse(const uint8_t* b, size_t n) {
+  WifiConfig c;
+  while (n > 0) {
+    if (n < 2 || n < 2 + size_t(b[1])) return false;
+    uint8_t tag = b[0], len = b[1];
+    const uint8_t* v = b + 2;
+    b += 2 + len;
+    n -= 2 + len;
+    if (std::memchr(v, 0, len) != nullptr) return false;
+    switch (tag) {
+      case kWifiTagSsid:
+        if (c.has_ssid || len > kMaxSsidLen) return false;
+        std::memcpy(c.ssid, v, len);
+        c.has_ssid = true;
+        break;
+      case kWifiTagPass:
+        if (c.has_pass || len > kMaxWifiPassLen || (len > 0 && len < 8)) return false;
+        std::memcpy(c.pass, v, len);
+        c.has_pass = true;
+        break;
+      case kWifiTagRelay:
+        if (c.has_relay || len > kMaxRelayUrlLen) return false;
+        if (len > 0 && !(len > 7 && std::memcmp(v, "http://", 7) == 0) && !(len > 8 && std::memcmp(v, "https://", 8) == 0))
+          return false;
+        std::memcpy(c.relay, v, len);
+        c.has_relay = true;
+        break;
+      default:
+        return false;
+    }
+  }
+  *this = c;
+  return true;
+}
+
+size_t WifiConfig::encode(uint8_t* out, size_t cap) const {
+  size_t o = 0;
+  auto put = [&](bool has, uint8_t tag, const char* s) {
+    if (!has) return true;
+    size_t l = std::strlen(s);
+    if (o + 2 + l > cap) return false;
+    out[o++] = tag;
+    out[o++] = uint8_t(l);
+    std::memcpy(out + o, s, l);
+    o += l;
+    return true;
+  };
+  if (!put(has_ssid, kWifiTagSsid, ssid) || !put(has_pass, kWifiTagPass, pass) || !put(has_relay, kWifiTagRelay, relay))
+    return 0;
+  return o;
+}
+
 }  // namespace host
 }  // namespace mesh

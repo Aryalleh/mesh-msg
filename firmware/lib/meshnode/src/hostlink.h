@@ -58,6 +58,9 @@ constexpr uint8_t kOpGetIdentity = 0x05;
 constexpr uint8_t kOpResync = 0x06;
 constexpr uint8_t kOpReboot = 0x07;
 constexpr uint8_t kOpWipe = 0x08;
+// Boards with Wi-Fi (the Mava board); other nodes answer kAckUnknownOp.
+constexpr uint8_t kOpSetWifi = 0x09;  // args: Wi-Fi TLVs (WifiConfig); saved, applied at once
+constexpr uint8_t kOpHotspot = 0x0A;  // args: [1] open the setup hotspot now, [0] back to normal
 
 constexpr uint8_t kEvStatus = 0x81;
 constexpr uint8_t kEvConfig = 0x82;
@@ -122,6 +125,28 @@ struct NodeConfig {
   // apply_tlv updates from (possibly partial) TLVs; unchanged on error.
   bool apply_tlv(const uint8_t* b, size_t n);
   bool operator==(const NodeConfig& o) const;
+};
+
+// SET_WIFI arguments: tag(1) | len(1) | value, any subset. An empty SSID
+// forgets the saved network (the board then opens its setup hotspot).
+constexpr uint8_t kWifiTagSsid = 1;   // 0–32 bytes
+constexpr uint8_t kWifiTagPass = 2;   // empty (open network) or 8–63 bytes (WPA2)
+constexpr uint8_t kWifiTagRelay = 3;  // relay URL, http:// or https://, up to 95 bytes
+constexpr size_t kMaxSsidLen = 32;
+constexpr size_t kMaxWifiPassLen = 63;
+constexpr size_t kMaxRelayUrlLen = 95;
+constexpr size_t kMaxWifiTLV = 3 * 2 + kMaxSsidLen + kMaxWifiPassLen + kMaxRelayUrlLen;
+
+struct WifiConfig {
+  char ssid[kMaxSsidLen + 1] = {};
+  char pass[kMaxWifiPassLen + 1] = {};
+  char relay[kMaxRelayUrlLen + 1] = {};
+  bool has_ssid = false, has_pass = false, has_relay = false;
+
+  // parse reads SET_WIFI TLVs; false on malformed, duplicate, too long,
+  // NUL bytes, a WPA2 password of 1–7 bytes or a relay that isn't http(s).
+  bool parse(const uint8_t* b, size_t n);
+  size_t encode(uint8_t* out, size_t cap) const;
 };
 
 constexpr size_t kStatusSize = 36;

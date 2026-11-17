@@ -24,15 +24,17 @@ type fakeAir struct {
 }
 
 type fakeLoRa struct {
-	air  *fakeAir
-	id   *identity.Identity
-	mu   sync.Mutex
-	conn net.Conn
-	cfg  hostlink.NodeConfig
-	seen map[packet.Key]bool
-	wmu  sync.Mutex
-	fail int // fail this many opens first
-	hold [][]byte
+	air     *fakeAir
+	id      *identity.Identity
+	mu      sync.Mutex
+	conn    net.Conn
+	cfg     hostlink.NodeConfig
+	wifi    []byte // last SET_WIFI arguments
+	hotspot int    // last HOTSPOT argument
+	seen    map[packet.Key]bool
+	wmu     sync.Mutex
+	fail    int // fail this many opens first
+	hold    [][]byte
 }
 
 func (a *fakeAir) add(t *testing.T) *fakeLoRa {
@@ -138,6 +140,16 @@ func (f *fakeLoRa) command(conn net.Conn, m hostlink.Message) {
 		}
 		f.mu.Unlock()
 		f.event(conn, hostlink.EvAck, m.Req, []byte{m.Op, status})
+	case hostlink.OpSetWifi:
+		f.mu.Lock()
+		f.wifi = append([]byte(nil), m.Data...)
+		f.mu.Unlock()
+		f.event(conn, hostlink.EvAck, m.Req, []byte{m.Op, hostlink.AckOK})
+	case hostlink.OpHotspot:
+		f.mu.Lock()
+		f.hotspot = int(m.Data[0])
+		f.mu.Unlock()
+		f.event(conn, hostlink.EvAck, m.Req, []byte{m.Op, hostlink.AckOK})
 	default:
 		f.event(conn, hostlink.EvAck, m.Req, []byte{m.Op, hostlink.AckUnknownOp})
 	}
@@ -258,6 +270,25 @@ func TestLoRaConfigureAndReconnect(t *testing.T) {
 	}
 	if err := n.LoRaConfigure("lora", node.LoRaPatch{}); err == nil {
 		t.Fatal("empty patch accepted")
+	}
+
+	// The board's Wi-Fi, over the host link.
+	ssid, pass := "home", "secret12"
+	if err := n.LoRaWifi("lora", hostlink.WifiConfig{SSID: &ssid, Password: &pass}); err != nil {
+		t.Fatal(err)
+	}
+	if err := n.LoRaHotspot("lora", true); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	gotWifi, gotHotspot := string(f.wifi), f.hotspot
+	f.mu.Unlock()
+	if gotWifi != "\x01\x04home\x02\x08secret12" || gotHotspot != 1 {
+		t.Fatalf("wifi %q hotspot %d", gotWifi, gotHotspot)
+	}
+	short := "abc"
+	if err := n.LoRaWifi("lora", hostlink.WifiConfig{Password: &short}); err == nil {
+		t.Fatal("short WPA2 password accepted")
 	}
 
 	// Unplug: the link notices, reports it, and reconnects by itself.

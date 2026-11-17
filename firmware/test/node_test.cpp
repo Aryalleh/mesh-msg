@@ -30,6 +30,22 @@ struct FakeBoard : mesh::node::Platform {
   void wipe() override { wipes++; }
   void reboot() override { reboots++; }
   uint16_t battery_mv() override { return 3912; }
+  bool has_wifi = true;
+  int wifi_sets = 0, hotspots = 0;
+  host::WifiConfig wifi;
+  bool hotspot_on = false;
+  uint8_t set_wifi(const host::WifiConfig& w) override {
+    if (!has_wifi) return Platform::set_wifi(w);
+    wifi = w;
+    wifi_sets++;
+    return host::kAckOk;
+  }
+  uint8_t hotspot(bool on) override {
+    if (!has_wifi) return Platform::hotspot(on);
+    hotspot_on = on;
+    hotspots++;
+    return host::kAckOk;
+  }
 };
 
 struct FakeFlash : mesh::store::Persist {
@@ -558,6 +574,48 @@ void two_hosts_and_uplink() {
   CHECK(ble.packets().size() >= 4 && usb.packets().empty());
 }
 
+// SET_WIFI / HOTSPOT from a trusted host reach the board; bad arguments and
+// boards without Wi-Fi are answered with an ack status.
+void wifi_commands() {
+  Rig r(31);
+  auto& n = *r.node;
+  Host usb;
+  Bytes tlv = {host::kWifiTagSsid, 4, 'h', 'o', 'm', 'e', host::kWifiTagPass, 8, 's', 'e', 'c', 'r', 'e', 't', '1', '2'};
+  usb.cmd(n, host::kOpSetWifi, 1, tlv, 1000);
+  usb.cmd(n, host::kOpSetWifi, 2, {host::kWifiTagPass, 3, 'a', 'b', 'c'}, 1000);           // WPA2 needs 8+
+  usb.cmd(n, host::kOpSetWifi, 3, {host::kWifiTagRelay, 5, 'f', 't', 'p', ':', '/'}, 1000);  // not http(s)
+  usb.cmd(n, host::kOpSetWifi, 4, {host::kWifiTagSsid, 3, 'a', 0, 'b'}, 1000);              // NUL
+  usb.cmd(n, host::kOpSetWifi, 5, {host::kWifiTagSsid, 1, 'a', host::kWifiTagSsid, 1, 'b'}, 1000);  // twice
+  usb.cmd(n, host::kOpHotspot, 6, {1}, 1000);
+  usb.cmd(n, host::kOpHotspot, 7, {2}, 1000);
+  usb.drain(n);
+  auto acks = usb.events(host::kEvAck);
+  CHECK(acks.size() == 7);
+  CHECK(acks[0][2] == host::kOpSetWifi && acks[0][3] == host::kAckOk);
+  for (int i = 1; i <= 4; i++) CHECK(acks[i][3] == host::kAckBadArgs);
+  CHECK(acks[5][2] == host::kOpHotspot && acks[5][3] == host::kAckOk && acks[6][3] == host::kAckBadArgs);
+  CHECK(r.board.wifi_sets == 1 && std::string(r.board.wifi.ssid) == "home" && std::string(r.board.wifi.pass) == "secret12");
+  CHECK(r.board.wifi.has_ssid && r.board.wifi.has_pass && !r.board.wifi.has_relay);
+  CHECK(r.board.hotspots == 1 && r.board.hotspot_on);
+
+  // Round trip of the TLV codec, and an empty SSID (forget the network).
+  host::WifiConfig w;
+  CHECK(w.parse(tlv.data(), tlv.size()));
+  uint8_t out[host::kMaxWifiTLV];
+  size_t on = w.encode(out, sizeof out);
+  CHECK(Bytes(out, out + on) == tlv);
+  host::WifiConfig e;
+  uint8_t forget[] = {host::kWifiTagSsid, 0};
+  CHECK(e.parse(forget, sizeof forget) && e.has_ssid && e.ssid[0] == 0);
+
+  // A node without Wi-Fi says so.
+  r.board.has_wifi = false;
+  usb.cmd(n, host::kOpHotspot, 8, {1}, 1000);
+  usb.drain(n);
+  acks = usb.events(host::kEvAck);
+  CHECK(acks.size() == 1 && acks[0][3] == host::kAckUnknownOp);
+}
+
 // The web port (anyone on the Wi-Fi) exchanges packets and reads status but
 // cannot change, reboot or wipe the node.
 void web_port_untrusted() {
@@ -569,11 +627,14 @@ void web_port_untrusted() {
   web.cmd(n, host::kOpWipe, 2, {'W', 'I', 'P', 'E'}, 1000);
   web.cmd(n, host::kOpSetConfig, 3, {host::kTagAnnounceMin, 2, 0, 0}, 1000);
   web.cmd(n, host::kOpReboot, 4, {}, 1000);
+  web.cmd(n, host::kOpSetWifi, 5, {host::kWifiTagSsid, 1, 'x'}, 1000);
+  web.cmd(n, host::kOpHotspot, 6, {1}, 1000);
   web.drain(n);
   auto acks = web.events(host::kEvAck);
-  CHECK(web.events(host::kEvStatus).size() == 1 && acks.size() == 3);
+  CHECK(web.events(host::kEvStatus).size() == 1 && acks.size() == 5);
   for (auto& a : acks) CHECK(a.size() == 4 && a[3] == host::kAckNotAllowed);
   CHECK(r.board.wipes == 0 && r.board.saves == 0 && !n.reboot_requested());
+  CHECK(r.board.wifi_sets == 0 && r.board.hotspots == 0);
   // Packets still flow both ways.
   Bytes d = data_packet(0x51);
   web.send(n, host::kKindPacket, d, 1000);
@@ -587,6 +648,7 @@ void web_port_untrusted() {
 
 void run_node() {
   web_port_untrusted();
+  wifi_commands();
   two_hosts_and_uplink();
   commands();
   announces();

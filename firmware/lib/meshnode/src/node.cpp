@@ -432,6 +432,22 @@ void Node::command(size_t port, const uint8_t* p, size_t n, Millis now) {
       platform_.wipe();
       reboot_ = true;
       return;
+    case host::kOpSetWifi: {
+      host::WifiConfig w;
+      if (!w.parse(a, an)) {
+        ack(port, op, req, host::kAckBadArgs);
+        return;
+      }
+      ack(port, op, req, platform_.set_wifi(w));
+      return;
+    }
+    case host::kOpHotspot:
+      if (an != 1 || a[0] > 1) {
+        ack(port, op, req, host::kAckBadArgs);
+        return;
+      }
+      ack(port, op, req, platform_.hotspot(a[0] == 1));
+      return;
     default:
       ack(port, op, req, host::kAckUnknownOp);
   }

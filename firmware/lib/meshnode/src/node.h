@@ -54,6 +54,16 @@ class Platform {
   virtual void wipe() = 0;
   virtual void reboot() = 0;
   virtual uint16_t battery_mv() = 0;  // 0 = unknown / mains
+  // Wi-Fi (boards that have it): return a host::kAck* status. SET_WIFI and
+  // HOTSPOT come from trusted host ports only (USB, BLE), never the web port.
+  virtual uint8_t set_wifi(const host::WifiConfig& w) {
+    (void)w;
+    return host::kAckUnknownOp;
+  }
+  virtual uint8_t hotspot(bool on) {
+    (void)on;
+    return host::kAckUnknownOp;
+  }
 
  protected:
   ~Platform() = default;

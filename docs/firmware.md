@@ -125,7 +125,9 @@ noise or a mid-stream start. Commands: `HELLO [unix_time]` (status reply, then t
 backlog streams), `GET_STATUS`, `GET_CONFIG`, `SET_CONFIG` (TLVs: role, region, preset,
 frequency, power, name, announce interval — validated against the region plan, persisted,
 radio retuned live), `GET_IDENTITY`, `RESYNC` (resend everything stored), `REBOOT`,
-`WIPE "WIPE"`. Events: `STATUS` (36-byte block), `CONFIG`, `IDENTITY`, `ACK`, `LOG`.
+`WIPE "WIPE"`, and on boards with Wi-Fi `SET_WIFI` (TLVs: 1 SSID 0–32 bytes, 2 password
+empty or 8–63, 3 relay URL; empty SSID forgets the network) and `HOTSPOT 1|0` (open the setup
+hotspot now / back to normal); other nodes answer `ACK unknown op`. Events: `STATUS` (36-byte block), `CONFIG`, `IDENTITY`, `ACK`, `LOG`.
 
 Mesh packets from the host are transmitted as is (the host's router has already handled the
 hop count). Packets the node hears are stored and streamed to the host; a packet counts as

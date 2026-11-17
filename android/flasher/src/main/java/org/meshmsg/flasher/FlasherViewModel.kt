@@ -37,6 +37,8 @@ data class UiState(
     val progress: Float = 0f,
     val outcome: Outcome? = null,
     val hotspot: Pair<String, String>? = null,
+    val wifiBusy: Boolean = false,
+    val wifiMessage: Pair<Boolean, String>? = null, // ok?, text
     val log: List<String> = emptyList(),
 )
 
@@ -228,6 +230,51 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
         val clean = text.filter { it == '\t' || it >= ' ' }
         HOTSPOT.find(clean)?.let { m -> _state.update { it.copy(hotspot = m.groupValues[1] to m.groupValues[2]) } }
         log(clean)
+    }
+
+    /** Board Wi-Fi over the host link (firmware 0.1.1-beta9+, the board's own USB). */
+    fun setWifi(ssid: String, password: String) {
+        val args = try {
+            HostLink.wifiTlv(ssid.trim(), password, null)
+        } catch (e: IllegalArgumentException) {
+            _state.update { it.copy(wifiMessage = false to (e.message ?: "")) }
+            return
+        }
+        boardCommand(HostLink.OP_SET_WIFI, args) { ctx.getString(R.string.wifi_saved, ssid.trim()) }
+    }
+
+    fun hotspot(on: Boolean) {
+        boardCommand(HostLink.OP_HOTSPOT, byteArrayOf(if (on) 1 else 0)) {
+            ctx.getString(if (on) R.string.hotspot_opened else R.string.hotspot_normal)
+        }
+    }
+
+    private fun boardCommand(op: Int, args: ByteArray, okText: () -> String) {
+        val st = _state.value
+        if (st.busy || st.wifiBusy) return
+        stopMonitor()
+        _state.update { it.copy(wifiBusy = true, wifiMessage = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            monitor?.join()
+            var port: UsbSerial? = null
+            val result = try {
+                val p = openPort()
+                port = p
+                if (!p.nativeUsb) log("note: this is a USB-serial chip; the firmware's host link is on the board's own USB socket")
+                when (val ack = BoardLink(p).command(op, args)) {
+                    HostLink.ACK_OK -> true to okText()
+                    HostLink.ACK_UNKNOWN_OP -> false to ctx.getString(R.string.ack_old_firmware)
+                    HostLink.ACK_BAD_ARGS -> false to ctx.getString(R.string.ack_bad_args)
+                    else -> false to "status $ack"
+                }
+            } catch (e: Exception) {
+                false to (e.message ?: e.toString())
+            } finally {
+                port?.close()
+            }
+            log((if (result.first) "ok: " else "error: ") + result.second)
+            _state.update { it.copy(wifiBusy = false, wifiMessage = result) }
+        }
     }
 
     fun stopMonitor() {

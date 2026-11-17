@@ -26,6 +26,20 @@
     <string name="stop">Stop</string>
     <string name="hotspot_found">Hotspot %1$s · password %2$s</string>
     <string name="log_title">Log</string>
+    <string name="wifi_title">Board Wi-Fi</string>
+    <string name="wifi_desc">Sets the network the board joins, over this USB cable (the board\'s own USB socket). No hotspot or switch needed. Needs the firmware from 0.1.1-beta9 on.</string>
+    <string name="wifi_ssid">Network name (SSID)</string>
+    <string name="wifi_password">Password</string>
+    <string name="show">Show</string>
+    <string name="hide">Hide</string>
+    <string name="wifi_save">Save to board</string>
+    <string name="wifi_saved">Saved. With the setup switch off, the board joins %1$s now.</string>
+    <string name="hotspot_on">Open hotspot now</string>
+    <string name="hotspot_off">Hotspot back to normal</string>
+    <string name="hotspot_opened">The hotspot is opening: join Mava-XXXX with the device password (Board log shows both).</string>
+    <string name="hotspot_normal">Hotspot back to normal: on only with the setup switch on or no Wi-Fi saved.</string>
+    <string name="ack_old_firmware">The board\'s firmware is older: install the new firmware first (Update firmware only).</string>
+    <string name="ack_bad_args">The board rejected these settings.</string>
     <string name="help_title">If it doesn\'t connect</string>
     <string name="help_text">• Hold BOOT, press and release RESET, release BOOT, then try again.\n• On a dev board with two USB sockets, use the one marked USB.\n• The Mava firmware needs an ESP32-S3 with 16 MB flash and 8 MB PSRAM (N16R8).\n• The keyboard module (Raspberry Pi Pico) is flashed from a computer, with the Linux flasher.</string>
 </resources>

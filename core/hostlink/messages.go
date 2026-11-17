@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Command payload: op(1) | req(1) | args. Event payload: ev(1) | req(1) | data,
@@ -17,6 +18,8 @@ const (
 	OpResync      byte = 0x06 // host lost its state: resend the whole stored backlog
 	OpReboot      byte = 0x07
 	OpWipe        byte = 0x08 // args: "WIPE"; erases store, config and node identity
+	OpSetWifi     byte = 0x09 // args: Wi-Fi TLVs (WifiConfig); boards with Wi-Fi only
+	OpHotspot     byte = 0x0A // args: [1] open the setup hotspot now, [0] back to normal
 
 	EvStatus   byte = 0x81
 	EvConfig   byte = 0x82 // data: config TLVs
@@ -32,6 +35,58 @@ const (
 	AckUnknownOp  byte = 2
 	AckNotAllowed byte = 3
 )
+
+// SET_WIFI TLV tags (tag | len | value).
+const (
+	WifiTagSSID     byte = 1 // 0–32 bytes; empty forgets the saved network
+	WifiTagPassword byte = 2 // empty (open network) or 8–63 bytes (WPA2)
+	WifiTagRelay    byte = 3 // http:// or https:// URL, up to 95 bytes
+)
+
+// WifiConfig is the argument of OpSetWifi: only non-nil fields change.
+type WifiConfig struct {
+	SSID     *string `json:"ssid,omitempty"`
+	Password *string `json:"password,omitempty"`
+	Relay    *string `json:"relay,omitempty"`
+}
+
+// EncodeTLV checks the fields as the firmware does and encodes them.
+func (w WifiConfig) EncodeTLV() ([]byte, error) {
+	var b []byte
+	put := func(tag byte, v *string, max int, what string) error {
+		if v == nil {
+			return nil
+		}
+		if len(*v) > max {
+			return fmt.Errorf("hostlink: %s longer than %d bytes", what, max)
+		}
+		if strings.IndexByte(*v, 0) >= 0 {
+			return fmt.Errorf("hostlink: %s contains a NUL byte", what)
+		}
+		b = append(b, tag, byte(len(*v)))
+		b = append(b, *v...)
+		return nil
+	}
+	if w.SSID == nil && w.Password == nil && w.Relay == nil {
+		return nil, errors.New("hostlink: nothing to set")
+	}
+	if w.Password != nil && len(*w.Password) > 0 && len(*w.Password) < 8 {
+		return nil, errors.New("hostlink: a Wi-Fi password has 8–63 characters (or none for an open network)")
+	}
+	if w.Relay != nil && *w.Relay != "" && !strings.HasPrefix(*w.Relay, "http://") && !strings.HasPrefix(*w.Relay, "https://") {
+		return nil, errors.New("hostlink: the relay address starts with https:// or http://")
+	}
+	if err := put(WifiTagSSID, w.SSID, 32, "SSID"); err != nil {
+		return nil, err
+	}
+	if err := put(WifiTagPassword, w.Password, 63, "password"); err != nil {
+		return nil, err
+	}
+	if err := put(WifiTagRelay, w.Relay, 95, "relay address"); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
 
 // WipeConfirm must be the argument of OpWipe.
 var WipeConfirm = []byte("WIPE")

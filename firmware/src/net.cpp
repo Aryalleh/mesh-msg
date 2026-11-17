@@ -28,6 +28,7 @@ using mesh::route::Millis;
 constexpr const char* kSettingsFile = "/net";
 constexpr const char* kCursorFile = "/cur";
 constexpr Millis kDebounce = 60;
+constexpr Millis kLeaveSetupMs = 5000;  // after a panel save: let the page reach the phone
 constexpr int kPollWait = 10;        // s, gateway long-poll
 constexpr size_t kUploadMax = 16;    // packets per call
 constexpr size_t kServeMax = 32;
@@ -41,6 +42,8 @@ Hooks g_hooks;
 Mode g_mode = Mode::Off;
 bool g_switch = false, g_switch_raw = false;
 Millis g_switch_since = 0;
+bool g_forced = false;   // a host asked for the hotspot (HOTSPOT 1), until HOTSPOT 0 or a reboot
+Millis g_saved_at = 0;   // the panel saved settings (0 = not recently)
 bool g_time_given = false;
 
 DNSServer g_dns;
@@ -136,6 +139,11 @@ void start_station() {
   configTime(0, 0, "pool.ntp.org", "time.google.com");
   g_web.begin();  // the web app for browsers on this network
 }
+
+// The hotspot is on while the setup switch is on, while a host asked for it,
+// and while no Wi-Fi is saved (a new board, or one without the switch): there
+// is nothing else to join, and the panel or a host is the only way to set one.
+Mode wanted_mode() { return g_switch || g_forced || !g_s->wifi_ssid[0] ? Mode::Setup : Mode::Station; }
 
 void set_mode(Mode m) {
   if (m == g_mode) return;
@@ -260,7 +268,8 @@ void page_panel(const char* msg) {
   b += "<fieldset><legend>رمز دستگاه</legend><label>رمز جدید هات‌اسپات و پنل (۸ تا ۱۶ حرف، خالی = بدون "
        "تغییر)<input name=newpass type=password minlength=8 maxlength=16></label></fieldset>";
   b += "<button>ذخیره</button></form>";
-  b += "<p class=n>بعد از ذخیره، کلید setup را خاموش کنید تا برد به وای‌فای وصل شود.</p>";
+  b += "<p class=n>بعد از ذخیره، اگر کلید setup خاموش باشد برد خودش به وای‌فای وصل می‌شود؛ وگرنه کلید را "
+       "خاموش کنید.</p>";
   b += "<p><a href=/app/>پیام‌رسان در مرورگر (Mava web)</a></p>";
   send_page(b);
 }
@@ -407,7 +416,13 @@ void handle_save() {
     start_setup();
     return;
   }
-  page_panel("ذخیره شد. برای اتصال به وای‌فای، کلید setup را خاموش کنید.");
+  g_saved_at = board::now_ms() | 1;
+  if (wanted_mode() == Mode::Station) {
+    page_panel("ذخیره شد. چند ثانیهٔ دیگر هات‌اسپات خاموش می‌شود و برد به وای‌فای وصل می‌شود. "
+               "برای بازگشت به این پنل، کلید setup را روشن کنید.");
+  } else {
+    page_panel("ذخیره شد. برای اتصال به وای‌فای، کلید setup را خاموش کنید.");
+  }
 }
 
 void redirect_portal() {
@@ -670,7 +685,7 @@ bool begin(Settings& s, mesh::node::Node& node, void* node_lock, const Hooks& ho
 
   g_switch = g_switch_raw = board::setup_switch_on();
   g_switch_since = board::now_ms();
-  set_mode(g_switch ? Mode::Setup : Mode::Station);
+  set_mode(wanted_mode());
   return xTaskCreatePinnedToCore(relay_task, "mava-relay", 12288, nullptr, 1, nullptr, 0) == pdPASS;
 }
 
@@ -681,7 +696,12 @@ void loop(Millis now) {
     g_switch_since = now;
   } else if (raw != g_switch && now - g_switch_since >= kDebounce) {
     g_switch = raw;
-    set_mode(g_switch ? Mode::Setup : Mode::Station);
+    g_saved_at = 0;
+  }
+  Mode want = wanted_mode();
+  if (want != g_mode && !(g_mode == Mode::Setup && g_saved_at && now - g_saved_at < kLeaveSetupMs)) {
+    g_saved_at = 0;
+    set_mode(want);
   }
   if (g_mode == Mode::Setup) g_dns.processNextRequest();
   if (g_mode != Mode::Off) g_web.handleClient();
@@ -697,6 +717,28 @@ void loop(Millis now) {
     }
   }
 }
+
+uint8_t set_wifi(const mesh::host::WifiConfig& w) {
+  Settings s = *g_s;
+  if (w.has_ssid) copy(s.wifi_ssid, sizeof s.wifi_ssid, w.ssid);
+  if (w.has_pass) copy(s.wifi_pass, sizeof s.wifi_pass, w.pass);
+  if (w.has_relay) copy(s.relay_url, sizeof s.relay_url, w.relay);
+  bool changed = strcmp(s.wifi_ssid, g_s->wifi_ssid) != 0 || strcmp(s.wifi_pass, g_s->wifi_pass) != 0;
+  *g_s = s;
+  save(s);
+  // Joined with the old network: join again with the new one (loop() starts it).
+  if (changed && g_mode == Mode::Station) set_mode(Mode::Off);
+  g_saved_at = 0;
+  return mesh::host::kAckOk;
+}
+
+uint8_t hotspot(bool on) {
+  g_forced = on;
+  g_saved_at = 0;
+  return mesh::host::kAckOk;
+}
+
+const char* ap_name() { return g_ap_name; }
 
 Mode mode() { return g_mode; }
 bool wifi_up() { return g_wifi_up; }

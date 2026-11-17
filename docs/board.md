@@ -45,8 +45,11 @@ The pins are build flags in `firmware/platformio.ini`. The board definition is
 
 1. **First boot** generates the node identity, a **device password** (10 characters, no
    look-alike letters) and a 6-digit **BLE passkey**, and prints both on the USB log
-   (`pio device monitor`). Put them on the board's label at assembly.
-2. **Switch ON → setup mode.** The board stops using Wi-Fi as a client and opens the hotspot
+   (`pio device monitor`). Put them on the board's label at assembly. The log repeats the
+   hotspot name, device password and BLE passkey every 10 s until a host attaches, and
+   each boot step is logged (`boot: Wi-Fi`, `boot: radio`, …) so a step that hangs shows.
+2. **Setup mode: switch ON, no Wi-Fi saved yet, or a host asked for it.** A new board (or
+   one without the switch fitted) opens the hotspot by itself. The board stops using Wi-Fi as a client and opens the hotspot
    `Mava-XXXX` (WPA2, device password). A phone or laptop that joins gets the panel by
    itself (captive portal: every DNS name answers 192.168.4.1, and the Android, iOS/macOS and
    Windows connectivity checks are redirected to the panel). The panel asks for the device
@@ -56,11 +59,23 @@ The pins are build flags in `firmware/platformio.ini`. The board definition is
    frequency and power; Meshtastic channel name and key; node name; a new device password.
    It also shows the node's status (identity, Meshtastic node number, neighbours, stored
    packets, airtime, USB/BLE host, relay state) and the BLE passkey.
-4. **Switch OFF → normal mode.** The hotspot goes off, the board joins the saved Wi-Fi, sets
-   its clock by NTP (so it announces itself without a host) and starts the relay worker.
-   Flip the switch ON again at any time to change settings; no reboot needed.
+   After *Save* with the switch off, the hotspot closes a few seconds later and the board
+   joins the network.
+4. **Switch OFF and Wi-Fi saved → normal mode.** The hotspot goes off, the board joins the
+   saved Wi-Fi, sets its clock by NTP (so it announces itself without a host) and starts the
+   relay worker. Flip the switch ON again at any time to change settings; no reboot needed.
 
-Without saved Wi-Fi, the board still works fully on LoRa, BLE and USB.
+**Without the hotspot**: a host on USB or BLE (trusted ports only, never the web port) sets
+the Wi-Fi with the host-link command `SET_WIFI` (network, password, relay) and opens or
+closes the hotspot with `HOTSPOT 1/0`:
+
+```
+mesh lora wifi ssid="Home" password="…"     # meshd on a PC, board on USB
+mesh lora hotspot on                         # open the setup hotspot now (off: back to normal)
+```
+
+The Android flasher has the same as **Board Wi-Fi** (docs/flashing.md). Without saved
+Wi-Fi the board still works fully on LoRa, BLE and USB, with its hotspot open.
 
 ## 3. LoRa: the Meshtastic backbone
 

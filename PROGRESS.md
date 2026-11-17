@@ -1489,3 +1489,23 @@ links. Chose: quick items in beta3; calls follow in later betas.
   images.txt); CI: new `flasher-android` job builds `mava-board-flasher-<ver>-android.apk`
   for the release; the `android` job builds `:app` only. Firmware unchanged (owner asked).
 - Not tested on a phone with a board yet.
+- Released as **v0.1.1-beta8** (Actions run #89, commit a23a1e8): adds
+  `mava-board-flasher-0.1.1-beta8-android.apk` to the usual assets.
+
+### 2026-11-17 — Hotspot without the switch; board Wi-Fi over the host link
+
+- Owner's board showed no hotspot (no switch fitted; Wi-Fi was off with nothing saved).
+  Firmware: the hotspot is on while the switch is on, **or no Wi-Fi is saved**, or a host
+  sent `HOTSPOT 1`; after a panel save with the switch off it leaves the hotspot after 5 s
+  and joins. Wi-Fi + BLE now start before radio / store / keyboard / screen (lock held, the
+  relay worker waits; released before the screen, whose status callback takes it); each
+  boot step is logged and the hotspot name / device password / BLE passkey / Wi-Fi / relay /
+  radio line repeats every 10 s until a USB host attaches.
+- Host link: `SET_WIFI` 0x09 (TLVs 1 SSID, 2 password, 3 relay; checked in
+  `host::WifiConfig::parse`) and `HOTSPOT` 0x0A, trusted ports only, via
+  `Platform::set_wifi/hotspot` (default: unknown op). Go: `hostlink.WifiConfig`,
+  `Node.LoRaWifi/LoRaHotspot`, meshd `POST /lora/{name}/wifi|hotspot`, `mesh lora wifi
+  ssid=… password=…`, `mesh lora hotspot on|off`. Android flasher: **Board Wi-Fi** panel
+  (Kotlin host link framing, checked against spec vectors). Tests on all three sides.
+- Next: the owner flashes beta9 ("Update firmware only" or `./mava-flash firmware`) and
+  sends the board log; unknown module (N16R8 needed) and the cable/socket remain suspects.

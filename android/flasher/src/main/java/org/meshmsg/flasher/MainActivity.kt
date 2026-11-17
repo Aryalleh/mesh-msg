@@ -30,7 +30,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -170,6 +177,8 @@ private fun FlasherScreen(s: UiState, vm: FlasherViewModel) {
                 }
             }
 
+            WifiPanel(s, vm)
+
             Panel {
                 Text(stringResource(R.string.board_log), color = PrimaryHi, fontWeight = FontWeight.Bold)
                 Text(stringResource(R.string.board_log_desc), color = Muted, fontSize = 13.sp)
@@ -222,6 +231,52 @@ private fun FlasherScreen(s: UiState, vm: FlasherViewModel) {
             dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } },
             containerColor = S1,
         )
+    }
+}
+
+@Composable
+private fun WifiPanel(s: UiState, vm: FlasherViewModel) {
+    var ssid by rememberSaveable { mutableStateOf("") }
+    var pass by rememberSaveable { mutableStateOf("") }
+    var show by remember { mutableStateOf(false) }
+    val enabled = s.device != null && !s.busy && !s.wifiBusy
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = Accent, unfocusedBorderColor = Border, focusedLabelColor = PrimaryHi,
+        unfocusedLabelColor = Muted, cursorColor = Accent, focusedTextColor = Fg, unfocusedTextColor = Fg,
+    )
+    Panel {
+        Text(stringResource(R.string.wifi_title), color = PrimaryHi, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.wifi_desc), color = Muted, fontSize = 13.sp)
+        OutlinedTextField(
+            value = ssid, onValueChange = { ssid = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.wifi_ssid)) }, colors = fieldColors, shape = Chamfer,
+        )
+        OutlinedTextField(
+            value = pass, onValueChange = { pass = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.wifi_password)) }, colors = fieldColors, shape = Chamfer,
+            visualTransformation = if (show) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                TextButton(onClick = { show = !show }) {
+                    Text(stringResource(if (show) R.string.hide else R.string.show), color = Muted, fontSize = 12.sp)
+                }
+            },
+        )
+        Button(
+            onClick = { vm.setWifi(ssid, pass) }, enabled = enabled && ssid.isNotBlank(), shape = Chamfer,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), colors = ButtonDefaults.buttonColors(containerColor = Primary),
+        ) { Text(stringResource(R.string.wifi_save)) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { vm.hotspot(true) }, enabled = enabled, shape = Chamfer, border = BorderStroke(1.dp, Border),
+                modifier = Modifier.weight(1f),
+            ) { Text(stringResource(R.string.hotspot_on), color = if (enabled) Fg else Muted, fontSize = 13.sp) }
+            OutlinedButton(
+                onClick = { vm.hotspot(false) }, enabled = enabled, shape = Chamfer, border = BorderStroke(1.dp, Border),
+                modifier = Modifier.weight(1f),
+            ) { Text(stringResource(R.string.hotspot_off), color = if (enabled) Fg else Muted, fontSize = 13.sp) }
+        }
+        s.wifiMessage?.let { (ok, text) -> Text(text, color = if (ok) Ok else Err, fontSize = 13.sp) }
     }
 }
 

@@ -237,6 +237,32 @@ func (d *Daemon) apiHandler() http.Handler {
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
+	mux.HandleFunc("POST /lora/{name}/wifi", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		var c hostlink.WifiConfig
+		if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		if err := n.LoRaWifi(r.PathValue("name"), c); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	mux.HandleFunc("POST /lora/{name}/hotspot", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			On bool `json:"on"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		if err := n.LoRaHotspot(r.PathValue("name"), req.On); err != nil {
+			httpErr(w, err, 400)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
 	mux.HandleFunc("GET /folders", h(func(n *node.Node, w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, n.Folders())
 	}))
