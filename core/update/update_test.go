@@ -115,12 +115,21 @@ func TestEvaluate(t *testing.T) {
 
 // fakeGitHub serves a releases list with the given manifests (newest first).
 func fakeGitHub(t *testing.T, raws [][]byte, pre []bool) *httptest.Server {
+	return fakeGitHubTags(t, raws, pre, nil)
+}
+
+// fakeGitHubTags is fakeGitHub with tag names (in list order; nil: none).
+func fakeGitHubTags(t *testing.T, raws [][]byte, pre []bool, tags []string) *httptest.Server {
 	mux := http.NewServeMux()
 	var srv *httptest.Server
 	mux.HandleFunc("/releases", func(w http.ResponseWriter, r *http.Request) {
 		var out []map[string]any
 		for i := range raws {
-			out = append(out, map[string]any{"prerelease": pre[i], "assets": []map[string]string{
+			tag := ""
+			if tags != nil {
+				tag = tags[i]
+			}
+			out = append(out, map[string]any{"tag_name": tag, "prerelease": pre[i], "assets": []map[string]string{
 				{"name": "other.apk", "browser_download_url": srv.URL + "/nope"},
 				{"name": ManifestName, "browser_download_url": fmt.Sprintf("%s/m/%d", srv.URL, i)},
 			}})
@@ -256,5 +265,25 @@ func TestCheckerStaleRelay(t *testing.T) {
 	st = c.Check(context.Background())
 	if st.Latest == nil || st.Latest.Version != "0.1.1-beta2" || st.Available || st.Error != "" {
 		t.Fatalf("relay only: %+v", st)
+	}
+}
+
+// GitHub listed beta9, beta8, beta7, beta12, beta11: the highest tag must win,
+// not the first release with a manifest.
+func TestFetchGitHubUnorderedList(t *testing.T) {
+	pub, priv := testKey(t)
+	var raws [][]byte
+	tags := []string{"v0.1.1-beta9", "v0.1.1-beta8", "v0.1.1-beta7", "v0.1.1-beta12", "v0.1.1-beta11"}
+	for _, tag := range tags {
+		b, _ := Sign(manifest(strings.TrimPrefix(tag, "v")), priv)
+		raws = append(raws, b)
+	}
+	gh := fakeGitHubTags(t, raws, []bool{true, true, true, true, true}, tags)
+	m, _, err := FetchGitHub(context.Background(), http.DefaultClient, gh.URL+"/releases", ChannelBeta, pub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Version != "0.1.1-beta12" {
+		t.Fatalf("got %s, want 0.1.1-beta12", m.Version)
 	}
 }

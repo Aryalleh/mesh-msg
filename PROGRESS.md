@@ -1574,6 +1574,16 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Release v0.1.1-beta13.
 - Released **v0.1.1-beta12** (run #101, 7854748) and **v0.1.1-beta13** (run #103, a638ba4), all assets present.
 
+### 2026-11-17 — eu-1 updated to beta13; update check picks the highest tag
+
+- eu-1 relay upgraded 0.1.1-beta4 → 0.1.1-beta13 (official release tarball, SHA256SUMS
+  checked; old binary kept as `/usr/local/bin/meshmsg-relay.bak-beta4`). `/v1/info` answers
+  on the domain and the IP. This also brings the beta7 CORS headers the board's web client needs.
+- Bug found while doing it: eu-1's `/v1/release?channel=beta` served **beta9**, not the newest.
+  GitHub's releases list is not newest-first (it returned beta9, beta8, beta7, beta12, beta11)
+  and `FetchGitHub` stopped at the first signed manifest. It now sorts releases by tag version
+  first (`TestFetchGitHubUnorderedList`, fails on the old code). Affects relays, meshd and the
+  Android app (same Go core). Reaches eu-1 only after the next release + relay update.
 ### 2026-11-17 — Board in the phones' Bluetooth mesh, no pairing
 
 - Owner: remove the pairing code; BLE must join the mesh like phone↔phone and phone↔node.

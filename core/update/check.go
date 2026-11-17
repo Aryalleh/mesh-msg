@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -188,24 +189,34 @@ func FetchManifest(ctx context.Context, cl *http.Client, u string, pub ed25519.P
 	return m, b, nil
 }
 
-// FetchGitHub walks the GitHub releases list (newest first) and returns the
-// newest verified manifest on a channel ch accepts, with its raw bytes.
+// ghRelease is the part of a GitHub release the update check reads.
+type ghRelease struct {
+	Tag        string `json:"tag_name"`
+	Draft      bool   `json:"draft"`
+	Prerelease bool   `json:"prerelease"`
+	Assets     []struct {
+		Name string `json:"name"`
+		URL  string `json:"browser_download_url"`
+	} `json:"assets"`
+}
+
+// FetchGitHub walks the GitHub releases list and returns the newest verified
+// manifest on a channel ch accepts, with its raw bytes. GitHub does not list
+// releases strictly newest first (it showed beta9, beta8, beta7, beta12, ...),
+// so releases are first ordered by the version in their tag names.
 func FetchGitHub(ctx context.Context, cl *http.Client, api, ch string, pub ed25519.PublicKey) (*Manifest, []byte, error) {
 	b, err := get(ctx, cl, api, 4<<20)
 	if err != nil {
 		return nil, nil, err
 	}
-	var rels []struct {
-		Draft      bool `json:"draft"`
-		Prerelease bool `json:"prerelease"`
-		Assets     []struct {
-			Name string `json:"name"`
-			URL  string `json:"browser_download_url"`
-		} `json:"assets"`
-	}
+	var rels []ghRelease
 	if err := json.Unmarshal(b, &rels); err != nil {
 		return nil, nil, fmt.Errorf("github: %w", err)
 	}
+	// Highest tag first; releases without a version tag keep their order at the end.
+	slices.SortStableFunc(rels, func(a, b ghRelease) int {
+		return Compare(b.Tag, a.Tag)
+	})
 	var best *Manifest
 	var bestRaw []byte
 	var lastErr error
@@ -228,7 +239,7 @@ func FetchGitHub(ctx context.Context, cl *http.Client, api, ch string, pub ed255
 			}
 		}
 		if best != nil {
-			break // releases are listed newest first
+			break // releases are sorted newest first
 		}
 		if tried++; tried >= 5 {
 			break
