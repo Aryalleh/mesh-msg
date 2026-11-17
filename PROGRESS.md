@@ -1704,3 +1704,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   failed polls. Loop task stack 16 kB (`SET_LOOP_TASK_STACK_SIZE`): browser sends run Noise +
   Ed25519 inside the WebServer handler. Checked with Playwright against a fake board.
   Release v0.1.1-beta22.
+- Released **v0.1.1-beta22** (run #124, f5da158).
