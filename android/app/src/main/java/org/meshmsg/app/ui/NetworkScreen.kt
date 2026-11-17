@@ -46,6 +46,7 @@ fun NetworkScreen(
     bluetoothAllowed: Boolean,
     onAllowBluetooth: () -> Unit,
     onConnectUsb: () -> Unit,
+    onConnectBle: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Scaffold(modifier = modifier, topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_network)) }) }) { pad ->
@@ -81,6 +82,9 @@ fun NetworkScreen(
                 PathCard(MeshIcons.Antenna, stringResource(R.string.path_lora), PathState.Off, stringResource(R.string.lora_none_body)) {
                     FilledTonalButton(onClick = onConnectUsb, modifier = Modifier.heightIn(min = 48.dp)) {
                         Text(stringResource(R.string.connect_usb_node))
+                    }
+                    FilledTonalButton(onClick = onConnectBle, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(stringResource(R.string.connect_ble_node))
                     }
                 }
             } else {

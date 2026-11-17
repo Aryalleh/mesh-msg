@@ -26,6 +26,7 @@ import org.meshmsg.app.data.CoreBackend
 import org.meshmsg.app.data.NetBinder
 import org.meshmsg.app.data.Settings
 import org.meshmsg.app.data.UpdateManager
+import org.meshmsg.app.lora.BleLoRa
 import org.meshmsg.app.lora.UsbLoRa
 import org.meshmsg.app.service.MeshService
 import java.io.File
@@ -50,6 +51,7 @@ class MeshApp : Application() {
     private val lock = Mutex()
     private var ble: BleMesh? = null
     private var usb: UsbLoRa? = null
+    private var boardBle: BleLoRa? = null
     private var restartJob: Job? = null
 
     private val meshDir: File get() = File(filesDir, "mesh")
@@ -79,6 +81,7 @@ class MeshApp : Application() {
                     _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig(), NetBinder(this@MeshApp)).also(::watchCalls)
                     restartBle()
                     usb = UsbLoRa(this@MeshApp).also { it.attachIfPresent(_backend.value!!.core) }
+                    attachBoardBle()
                 }
                 if (!updatesStarted) {
                     updatesStarted = true
@@ -130,6 +133,7 @@ class MeshApp : Application() {
                 _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig(), NetBinder(this@MeshApp)).also(::watchCalls)
                 restartBle()
                 usb = UsbLoRa(this@MeshApp).also { it.attachIfPresent(_backend.value!!.core) }
+                attachBoardBle()
             }
             if (settings.batteryMode != BatteryMode.Off) MeshService.start(this@MeshApp) else MeshService.stop(this@MeshApp)
         }
@@ -139,6 +143,7 @@ class MeshApp : Application() {
         ble?.stop()
         ble = null
         usb = null
+        boardBle = null
         _backend.value?.stop()
         _backend.value = null
     }
@@ -149,7 +154,40 @@ class MeshApp : Application() {
 
     /** Called when the Bluetooth permission was just granted. */
     fun onBluetoothPermission() {
-        scope.launch { lock.withLock { restartBle() } }
+        scope.launch {
+            lock.withLock {
+                restartBle()
+                attachBoardBle()
+            }
+        }
+    }
+
+    /** The remembered Mava board over Bluetooth: the core keeps it connected. */
+    private fun attachBoardBle() {
+        val core = _backend.value?.core ?: return
+        val addr = settings.boardAddress ?: return
+        if (!bluetoothAllowed() || boardBle != null) return
+        boardBle = BleLoRa(this, addr).also { it.attach(core, addr) }
+    }
+
+    /**
+     * Looks for a Mava board nearby over Bluetooth (about 12 s) and attaches
+     * the nearest one; done(true) if one was found. Pairing (the board's
+     * passkey) happens when the core first opens the link.
+     */
+    fun connectBoardBle(done: (Boolean) -> Unit) {
+        scope.launch {
+            val core = _backend.value?.core
+            if (core == null || !bluetoothAllowed()) return@launch done(false)
+            val b = boardBle ?: BleLoRa(this@MeshApp, settings.boardAddress)
+            val addr = runCatching { b.scan() }.getOrNull() ?: return@launch done(false)
+            settings.boardAddress = addr
+            lock.withLock {
+                b.attach(core, addr)
+                boardBle = b
+            }
+            done(true)
+        }
     }
 
     private fun restartBle() {
@@ -173,6 +211,7 @@ class MeshApp : Application() {
                 ble?.stop()
                 ble = null
                 usb = null
+                boardBle = null
                 val b = _backend.value
                 _backend.value = null
                 runCatching { b?.wipe() }

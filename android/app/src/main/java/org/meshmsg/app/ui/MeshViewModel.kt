@@ -120,6 +120,9 @@ class MeshViewModel(application: Application) : AndroidViewModel(application), S
 
     fun connectUsb(): Boolean = app.connectUsb()
 
+    /** Scans for a Mava board over Bluetooth; found = false if none answered. */
+    fun connectBoardBle(found: (Boolean) -> Unit) = app.connectBoardBle(found)
+
     private fun io(block: suspend (CoreBackend) -> Result<*>) {
         val b = backend.value ?: return
         viewModelScope.launch(Dispatchers.IO) {

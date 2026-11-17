@@ -1542,3 +1542,17 @@ links. Chose: quick items in beta3; calls follow in later betas.
   gzip with DecompressionStream if it still arrives compressed (checked in Chromium with a
   raw-gzip main.wasm). Cancelled the beta11 run (#97) and re-cut beta11 with the fix.
 - Released **v0.1.1-beta11** (run #99, 66b7893): adds `mava-screen-0.1.1-beta11-android.apk`; includes the board web-app wasm fix.
+
+### 2026-11-17 — Android app ↔ Mava board over Bluetooth
+
+- Owner asked why the app's BLE mesh kept searching with the board centimetres away: that
+  mesh only finds phones (service 6d657368-6d73-6700); the board's host-link service
+  (6d657368-6c72-0000) had no Android client. New `lora/BleLoRa.kt` (StreamOpener like
+  UsbLoRa): scan by service UUID (nearest by RSSI), GATT connect, MTU 247, bond (passkey
+  prompt; RX needs encryption + MITM), subscribe to TX notifications, writes with response
+  chunked to MTU−3; attached as LoRa link "ble". Settings.boardAddress remembers the board;
+  MeshApp reattaches it on start/restart/permission; Network screen button + snackbars
+  (en/fa). Built locally (NDK + gomobile AAR here now): app lint + 86 unit tests green.
+- boardlink `BoardLink.diagnosis()`: a missing ACK now reports nothing / log text only /
+  other frames (owner saw "did not answer" on beta10). Test added.
+- Release v0.1.1-beta12. Not tested on hardware.

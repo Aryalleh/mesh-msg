@@ -111,7 +111,15 @@ GATT service `6d657368-6c72-0000-8000-00805f9b34fb` (docs/firmware.md §6): the 
 byte stream, exactly as over USB, so the apps drive the board the way meshd does. Writing
 requires a bonded, authenticated link (6-digit passkey), so nobody in radio range can send
 commands such as `WIPE`. One phone at a time; notifications are sized to the negotiated MTU.
-The iPhone app already speaks this service (`ios/Mava/LoRaBle.swift`).
+The iPhone app already speaks this service (`ios/Mava/LoRaBle.swift`); the Android app does
+from 0.1.1-beta12 (`android/app/.../lora/BleLoRa.kt`): **Network → Connect board over
+Bluetooth** scans ~12 s for the service, picks the nearest board, remembers it, and the core
+keeps it connected (reopened after range loss or a board restart). The first connection
+pairs: Android asks for the board's passkey (board log / handheld screen). USB and Bluetooth
+can both be attached; the core deduplicates.
+
+This is not the phone-to-phone "nearby" mesh (service `6d657368-6d73-6700-…`): that one only
+finds other phones running Mava.
 
 ## 5. Internet: the relay worker
 

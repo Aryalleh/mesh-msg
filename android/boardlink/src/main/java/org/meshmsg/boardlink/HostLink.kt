@@ -130,23 +130,40 @@ class BoardLink(private val port: SerialLink) {
     private val buf = ByteArray(4096)
     private val pending = ByteArrayOutputStream()
 
+    /** What came back while waiting for the last ACK (for the error message). */
+    var received = 0
+        private set
+    var frames = 0
+        private set
+    private val text = StringBuilder()
+
     /** Returns the ACK status (HostLink.ACK_*). */
     fun command(op: Int, args: ByteArray, timeoutMs: Int = 4000): Int {
         req = (req % 255) + 1
+        received = 0
+        frames = 0
+        text.setLength(0)
         val payload = byteArrayOf(op.toByte(), req.toByte()) + args
         port.write(HostLink.encode(HostLink.KIND_COMMAND, payload))
         val deadline = System.nanoTime() + timeoutMs * 1_000_000L
         while (System.nanoTime() < deadline) {
             val n = port.read(buf, 100)
+            received += n
             for (i in 0 until n) {
                 val b = buf[i]
                 if (b.toInt() != 0) {
                     pending.write(b.toInt())
                     continue
                 }
-                val f = HostLink.decode(pending.toByteArray())
+                val chunk = pending.toByteArray()
                 pending.reset()
-                if (f == null || f.first != HostLink.KIND_EVENT) continue
+                val f = HostLink.decode(chunk)
+                if (f == null) {
+                    keepText(chunk)
+                    continue
+                }
+                frames++
+                if (f.first != HostLink.KIND_EVENT) continue
                 val p = f.second
                 if (p.size >= 4 && (p[0].toInt() and 0xFF) == HostLink.EV_ACK && (p[1].toInt() and 0xFF) == req &&
                     (p[2].toInt() and 0xFF) == op
@@ -155,6 +172,28 @@ class BoardLink(private val port: SerialLink) {
                 }
             }
         }
-        throw IOException("the board did not answer (is it running the Mava firmware 0.1.1-beta9 or later?)")
+        keepText(pending.toByteArray())
+        throw IOException(diagnosis())
+    }
+
+    private fun keepText(b: ByteArray) {
+        val s = String(b, Charsets.UTF_8).filter { it == '\n' || it >= ' ' }.trim()
+        if (s.isEmpty()) return
+        text.append(s).append('\n')
+        if (text.length > 600) text.delete(0, text.length - 600)
+    }
+
+    /** Why there was no answer, from what did come back. */
+    fun diagnosis(): String {
+        val last = text.toString().trim().lines().takeLast(3).joinToString(" | ").take(240)
+        return when {
+            received == 0 ->
+                "the board sent nothing back over USB in 4 s (the board's own USB socket? Mava firmware running?)"
+            frames == 0 && last.isNotEmpty() ->
+                "the board only printed log text and did not take the command; it printed: $last"
+            frames > 0 ->
+                "the board answered $frames host-link frames but not this command (firmware older than 0.1.1-beta9?)"
+            else -> "the board sent $received bytes that were not host-link frames"
+        }
     }
 }

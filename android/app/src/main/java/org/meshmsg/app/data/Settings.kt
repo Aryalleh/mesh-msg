@@ -40,6 +40,11 @@ class Settings(context: Context) {
     /** Always Active: the mesh keeps running in the background (not user-changeable). */
     val batteryMode: BatteryMode get() = BatteryMode.Active
 
+    /** The Mava board used over Bluetooth (its address), or null. */
+    var boardAddress: String?
+        get() = p.getString("board_ble", null)
+        set(v) = p.edit { if (v == null) remove("board_ble") else putString("board_ble", v) }
+
     var relays: List<Relay>
         get() {
             val json = p.getString("relays", null) ?: return DEFAULT_RELAYS

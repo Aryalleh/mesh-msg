@@ -346,6 +346,9 @@ class MainActivity : ComponentActivity() {
                     val allowed by vm.bluetoothAllowed.collectAsStateWithLifecycle()
                     val scope = rememberCoroutineScope()
                     val noNode = stringResource(R.string.usb_no_device)
+                    val noBoard = stringResource(R.string.ble_no_board)
+                    val boardFound = stringResource(R.string.ble_board_found)
+                    val searching = stringResource(R.string.ble_searching)
                     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.onBluetoothPermission() }
                     NetworkScreen(
                         status, allowed,
@@ -353,6 +356,14 @@ class MainActivity : ComponentActivity() {
                             if (allowed) startActivity(Intent(SystemSettings.ACTION_BLUETOOTH_SETTINGS)) else ask.launch(MeshApp.BLE_PERMISSIONS)
                         },
                         onConnectUsb = { if (!vm.connectUsb()) scope.launch { snackbar.showSnackbar(noNode) } },
+                        onConnectBle = {
+                            if (!allowed) {
+                                ask.launch(MeshApp.BLE_PERMISSIONS)
+                            } else {
+                                scope.launch { snackbar.showSnackbar(searching) }
+                                vm.connectBoardBle { ok -> scope.launch { snackbar.showSnackbar(if (ok) boardFound else noBoard) } }
+                            }
+                        },
                     )
                 }
                 composable(Routes.SETTINGS) {

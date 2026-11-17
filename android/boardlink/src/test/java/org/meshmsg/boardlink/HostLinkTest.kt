@@ -83,4 +83,38 @@ class HostLinkTest {
         assertArrayEquals(args, p.copyOfRange(2, p.size))
         assertEquals(HostLink.ACK_UNKNOWN_OP, BoardLink(FakeBoard(HostLink.ACK_UNKNOWN_OP)).command(HostLink.OP_HOTSPOT, byteArrayOf(1)))
     }
+
+    /** No ACK: the error says what came back (nothing, or only log text). */
+    @Test
+    fun diagnosisWhenTheBoardDoesNotAnswer() {
+        val silent = object : SerialLink {
+            override val nativeUsb = true
+            override fun write(data: ByteArray) {}
+            override fun read(buf: ByteArray, timeoutMs: Int) = 0
+            override fun setLines(dtr: Boolean, rts: Boolean) {}
+            override fun setBaud(baud: Int) {}
+        }
+        try {
+            BoardLink(silent).command(HostLink.OP_HOTSPOT, byteArrayOf(1), timeoutMs = 300)
+            fail("answered")
+        } catch (e: java.io.IOException) {
+            assertTrue(e.message, e.message!!.contains("sent nothing"))
+        }
+        val chatty = object : SerialLink by silent {
+            var sent = false
+            override fun read(buf: ByteArray, timeoutMs: Int): Int {
+                if (sent) return 0
+                sent = true
+                val t = "hotspot Mava-1A2B, device password: 12345678\r\n".toByteArray()
+                t.copyInto(buf)
+                return t.size
+            }
+        }
+        try {
+            BoardLink(chatty).command(HostLink.OP_HOTSPOT, byteArrayOf(1), timeoutMs = 300)
+            fail("answered")
+        } catch (e: java.io.IOException) {
+            assertTrue(e.message, e.message!!.contains("only printed log text") && e.message!!.contains("Mava-1A2B"))
+        }
+    }
 }
