@@ -51,6 +51,73 @@ mesh::osk::Page g_osk_page = mesh::osk::Page::Persian;
 
 void show(Screen s);
 
+// ---- design system (docs/design.md): dark violet, neon focus ----
+namespace col {
+inline lv_color_t bg() { return lv_color_hex(0x0B0A14); }
+inline lv_color_t surface() { return lv_color_hex(0x15122A); }
+inline lv_color_t surface2() { return lv_color_hex(0x1E1A3A); }
+inline lv_color_t border() { return lv_color_hex(0x3B2A6B); }
+inline lv_color_t fg() { return lv_color_hex(0xECE8FF); }
+inline lv_color_t muted() { return lv_color_hex(0xA9A2CF); }
+inline lv_color_t primary() { return lv_color_hex(0x7C3AED); }
+inline lv_color_t primary_hi() { return lv_color_hex(0xA78BFA); }
+inline lv_color_t accent() { return lv_color_hex(0xD946EF); }
+inline lv_color_t mine() { return lv_color_hex(0x2E1A5E); }
+}  // namespace col
+
+lv_style_t g_st_btn, g_st_btn_focus, g_st_btn_pressed, g_st_card, g_st_input, g_st_input_focus, g_st_key, g_st_key_pressed;
+
+void styles_init() {
+  lv_style_init(&g_st_btn);
+  lv_style_set_bg_color(&g_st_btn, col::surface2());
+  lv_style_set_bg_opa(&g_st_btn, LV_OPA_COVER);
+  lv_style_set_border_color(&g_st_btn, col::border());
+  lv_style_set_border_width(&g_st_btn, 1);
+  lv_style_set_radius(&g_st_btn, 2);
+  lv_style_set_text_color(&g_st_btn, col::fg());
+  lv_style_set_shadow_width(&g_st_btn, 0);
+  lv_style_set_min_height(&g_st_btn, 40);
+  // keyboard / trackpad focus: a magenta edge with a violet glow
+  lv_style_init(&g_st_btn_focus);
+  lv_style_set_border_color(&g_st_btn_focus, col::accent());
+  lv_style_set_border_width(&g_st_btn_focus, 2);
+  lv_style_set_shadow_color(&g_st_btn_focus, col::primary());
+  lv_style_set_shadow_width(&g_st_btn_focus, 12);
+  lv_style_set_shadow_opa(&g_st_btn_focus, LV_OPA_70);
+  lv_style_set_outline_width(&g_st_btn_focus, 0);
+  lv_style_init(&g_st_btn_pressed);
+  lv_style_set_bg_color(&g_st_btn_pressed, col::primary());
+  lv_style_init(&g_st_card);
+  lv_style_set_bg_color(&g_st_card, col::surface());
+  lv_style_set_bg_opa(&g_st_card, LV_OPA_COVER);
+  lv_style_set_border_color(&g_st_card, col::border());
+  lv_style_set_border_width(&g_st_card, 1);
+  lv_style_set_radius(&g_st_card, 2);
+  lv_style_set_text_color(&g_st_card, col::fg());
+  lv_style_init(&g_st_input);
+  lv_style_set_bg_color(&g_st_input, col::bg());
+  lv_style_set_border_color(&g_st_input, col::border());
+  lv_style_set_border_width(&g_st_input, 1);
+  lv_style_set_radius(&g_st_input, 2);
+  lv_style_set_text_color(&g_st_input, col::fg());
+  lv_style_init(&g_st_input_focus);
+  lv_style_set_border_color(&g_st_input_focus, col::primary_hi());
+  lv_style_set_shadow_color(&g_st_input_focus, col::primary());
+  lv_style_set_shadow_width(&g_st_input_focus, 10);
+  lv_style_set_shadow_opa(&g_st_input_focus, LV_OPA_60);
+  lv_style_init(&g_st_key);
+  lv_style_set_bg_color(&g_st_key, col::surface2());
+  lv_style_set_bg_opa(&g_st_key, LV_OPA_COVER);
+  lv_style_set_border_color(&g_st_key, col::border());
+  lv_style_set_border_width(&g_st_key, 1);
+  lv_style_set_radius(&g_st_key, 2);
+  lv_style_set_text_color(&g_st_key, col::fg());
+  lv_style_set_shadow_width(&g_st_key, 0);
+  lv_style_init(&g_st_key_pressed);
+  lv_style_set_bg_color(&g_st_key_pressed, col::primary());
+  lv_style_set_text_color(&g_st_key_pressed, lv_color_white());
+}
+
 // ---- helpers ----
 
 lv_obj_t* label(lv_obj_t* parent, const std::string& text) {
@@ -70,6 +137,10 @@ lv_obj_t* button(lv_obj_t* parent, const std::string& text, lv_event_cb_t cb, vo
   lv_obj_set_style_base_dir(l, LV_BASE_DIR_AUTO, 0);
   lv_obj_center(l);
   lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, user);
+  lv_obj_add_style(b, &g_st_btn, 0);
+  lv_obj_add_style(b, &g_st_btn_focus, LV_STATE_FOCUSED);
+  lv_obj_add_style(b, &g_st_btn_focus, LV_STATE_FOCUS_KEY);
+  lv_obj_add_style(b, &g_st_btn_pressed, LV_STATE_PRESSED);
   lv_group_add_obj(g_group, b);
   return b;
 }
@@ -148,6 +219,12 @@ void osk_create(lv_obj_t* parent) {
   lv_obj_set_size(g_osk, lv_pct(100), 130);
   lv_obj_set_style_pad_all(g_osk, 2, 0);
   lv_obj_set_style_pad_gap(g_osk, 2, 0);
+  lv_obj_set_style_bg_color(g_osk, col::bg(), 0);
+  lv_obj_set_style_border_color(g_osk, col::accent(), 0);
+  lv_obj_set_style_border_width(g_osk, 1, 0);
+  lv_obj_set_style_border_side(g_osk, LV_BORDER_SIDE_TOP, 0);
+  lv_obj_add_style(g_osk, &g_st_key, LV_PART_ITEMS);
+  lv_obj_add_style(g_osk, &g_st_key_pressed, LV_PART_ITEMS | LV_STATE_PRESSED);
   lv_obj_add_event_cb(g_osk, osk_event, LV_EVENT_VALUE_CHANGED, nullptr);
   osk_set_page(kbmodule::present() && !kbmodule::layout().persian() ? mesh::osk::Page::Latin
                                                                       : mesh::osk::Page::Persian);
@@ -165,12 +242,18 @@ void clear() {
   lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_all(scr, 0, 0);
   lv_obj_set_style_pad_gap(scr, 0, 0);
+  lv_obj_set_style_bg_color(scr, col::bg(), 0);
+  lv_obj_set_style_bg_grad_color(scr, lv_color_hex(0x1A1033), 0);
+  lv_obj_set_style_bg_grad_dir(scr, LV_GRAD_DIR_VER, 0);
   g_bar = lv_label_create(scr);
   lv_obj_set_width(g_bar, lv_pct(100));
   lv_obj_set_style_pad_all(g_bar, 3, 0);
   lv_obj_set_style_bg_opa(g_bar, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(g_bar, lv_palette_darken(LV_PALETTE_BLUE_GREY, 3), 0);
-  lv_obj_set_style_text_color(g_bar, lv_color_white(), 0);
+  lv_obj_set_style_bg_color(g_bar, col::surface(), 0);
+  lv_obj_set_style_text_color(g_bar, col::primary_hi(), 0);
+  lv_obj_set_style_border_color(g_bar, col::accent(), 0);
+  lv_obj_set_style_border_width(g_bar, 1, 0);
+  lv_obj_set_style_border_side(g_bar, LV_BORDER_SIDE_BOTTOM, 0);
   lv_label_set_text(g_bar, bar_text().c_str());
   g_body = lv_obj_create(scr);
   lv_obj_set_width(g_body, lv_pct(100));
@@ -179,11 +262,13 @@ void clear() {
   lv_obj_set_style_pad_all(g_body, 6, 0);
   lv_obj_set_style_radius(g_body, 0, 0);
   lv_obj_set_style_border_width(g_body, 0, 0);
+  lv_obj_set_style_bg_opa(g_body, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_text_color(g_body, col::fg(), 0);
 }
 
 void title(const char* t) {
   lv_obj_t* l = label(g_body, t);
-  lv_obj_set_style_text_color(l, lv_palette_main(LV_PALETTE_BLUE), 0);
+  lv_obj_set_style_text_color(l, col::primary_hi(), 0);
 }
 
 std::string network_text() {
@@ -200,7 +285,7 @@ std::string network_text() {
 std::string settings_text() {
   const Status& s = g_status;
   return "رمز دستگاه (هات‌اسپات و پنل): " + s.password + "\nرمز جفت‌شدن بلوتوث: " + std::to_string(s.passkey) +
-         "\n\nتنظیم وای‌فای و رله: کلید setup را روشن کنید و به هات‌اسپات وصل شوید.\nزبان: Alt + Shift\nنور: Vol + / Vol −";
+         "\n\nتنظیم وای‌فای و رله: کلید setup را روشن کنید و به هات‌اسپات وصل شوید.\nزبان: Alt + Shift\nنور: Vol+ / Vol-";
 }
 
 void refresh_messages() {
@@ -209,9 +294,12 @@ void refresh_messages() {
   for (const Message& m : g_msg->messages(g_chat)) {
     lv_obj_t* l = label(g_messages, m.text);
     lv_obj_set_style_bg_opa(l, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(l, m.mine ? lv_palette_lighten(LV_PALETTE_GREEN, 3) : lv_palette_lighten(LV_PALETTE_GREY, 3), 0);
+    lv_obj_set_style_bg_color(l, m.mine ? col::mine() : col::surface2(), 0);
+    lv_obj_set_style_border_color(l, m.mine ? col::primary_hi() : col::border(), 0);
+    lv_obj_set_style_border_width(l, 1, 0);
+    lv_obj_set_style_text_color(l, col::fg(), 0);
     lv_obj_set_style_pad_all(l, 4, 0);
-    lv_obj_set_style_radius(l, 6, 0);
+    lv_obj_set_style_radius(l, 2, 0);
   }
   lv_obj_scroll_to_y(g_messages, LV_COORD_MAX, LV_ANIM_OFF);
 }
@@ -239,7 +327,13 @@ void show(Screen s) {
   static std::vector<std::string> ids;  // user data of the chat buttons
   switch (s) {
     case Screen::Home:
-      title("Mava");
+      {
+        lv_obj_t* w = label(g_body, "MAVA");
+        lv_obj_set_style_text_color(w, col::primary_hi(), 0);
+        lv_obj_set_style_text_letter_space(w, 6, 0);
+        lv_obj_set_style_text_align(w, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_base_dir(w, LV_BASE_DIR_LTR, 0);
+      }
       button(g_body, LV_SYMBOL_LIST "  گفتگوها / Chats", [](lv_event_t*) { show(Screen::Chats); });
       button(g_body, LV_SYMBOL_GPS "  شبکه / Network", [](lv_event_t*) { show(Screen::Network); });
       button(g_body, LV_SYMBOL_WIFI "  مرورگر آیفون / Web access", [](lv_event_t*) { show(Screen::Web); });
@@ -263,11 +357,14 @@ void show(Screen s) {
       lv_obj_set_flex_grow(g_messages, 1);
       lv_obj_set_flex_flow(g_messages, LV_FLEX_FLOW_COLUMN);
       lv_obj_set_style_pad_all(g_messages, 3, 0);
+      lv_obj_add_style(g_messages, &g_st_card, 0);
       g_input = lv_textarea_create(g_body);
       lv_textarea_set_one_line(g_input, true);
       lv_textarea_set_placeholder_text(g_input, "پیام…");
       lv_obj_set_width(g_input, lv_pct(100));
       lv_obj_set_style_base_dir(g_input, LV_BASE_DIR_AUTO, 0);
+      lv_obj_add_style(g_input, &g_st_input, 0);
+      lv_obj_add_style(g_input, &g_st_input_focus, LV_STATE_FOCUSED);
       lv_obj_add_event_cb(g_input, [](lv_event_t*) { send_input(); }, LV_EVENT_READY, nullptr);
       lv_obj_add_event_cb(g_input,
                           [](lv_event_t* e) {
@@ -427,8 +524,8 @@ bool begin(StatusFn status, Messenger& messenger) {
   g_font = mava_font_16;
   g_font.fallback = &lv_font_montserrat_14;
   lv_display_t* disp = lv_display_get_default();
-  lv_theme_t* th = lv_theme_default_init(disp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_GREEN),
-                                         false, &g_font);
+  lv_theme_t* th = lv_theme_default_init(disp, col::primary(), col::accent(), true, &g_font);
+  styles_init();
   lv_display_set_theme(disp, th);
   g_group = lv_group_create();
   lv_group_set_default(g_group);

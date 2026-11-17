@@ -12,7 +12,8 @@ GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o "$OUT/main.wasm" ./we
 root="$(go env GOROOT)"
 if [ -f "$root/lib/wasm/wasm_exec.js" ]; then cp "$root/lib/wasm/wasm_exec.js" "$OUT/"; else cp "$root/misc/wasm/wasm_exec.js" "$OUT/"; fi
 cp web/static/index.htm web/static/app.js "$OUT/"
+mkdir -p "$OUT/fonts" && cp web/static/fonts/*.woff2 "$OUT/fonts/"
 if [ "$GZIP" = 1 ]; then
-  for f in "$OUT"/*; do gzip -9 -n -f "$f"; done
+  for f in "$OUT"/*.*; do gzip -9 -n -f "$f"; done
 fi
 ls -la "$OUT"

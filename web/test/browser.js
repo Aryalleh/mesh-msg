@@ -15,6 +15,7 @@ const SHOTS = process.argv[2];
     p.on('pageerror', (e) => console.log(name, 'pageerror', e.message));
     await p.goto('http://127.0.0.1:8080/app/index.htm');
     await p.waitForSelector('#name', { timeout: 30000 });
+    if (SHOTS && name.startsWith('Ali board')) await p.screenshot({ path: SHOTS + '/web-welcome.png' });
     await p.fill('#name', name);
     await p.click('#go');
     await p.waitForSelector('#mylink');

@@ -1,12 +1,14 @@
 // Mava in the browser (docs/web-access.md): the UI around window.mava, the
 // Go client compiled to WebAssembly (web/cmd/webclient). Served by a Mava
 // board at /app/; the board is the link to LoRa and the local mesh, relays
-// are reached over HTTPS when the phone has internet.
+// are reached over HTTPS when the phone has internet. Design: docs/design.md.
 "use strict";
 
 const $ = (id) => document.getElementById(id);
 const DEFAULT_RELAYS = "https://eu-1.mfadem.ir";
-const state = { chat: null, statuses: {} };
+const state = { chat: null, links: {}, screen: "", shown: 0 };
+
+const icon = (name, cls = "") => `<svg class="i ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -24,69 +26,103 @@ function time(ms) {
   return new Date(ms).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function header(title, back) {
-  $("title").textContent = title;
+function initial(name) {
+  const c = [...String(name).trim()][0] || "?";
+  return esc(c.toUpperCase());
+}
+
+let toastTimer = 0;
+function toast(text) {
+  const t = $("toast");
+  t.textContent = text;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3500);
+}
+
+function header(title, back, wordmark = false, menu = true) {
+  $("menu").classList.toggle("hidden", !menu);
+  $("title").innerHTML = wordmark ? `<span class="wordmark">MAVA</span>` : esc(title);
   $("back").classList.toggle("hidden", !back);
 }
 
-// Not a choice: every message goes out on all links at once, under the same
-// identity; this only shows which links are up right now.
+// Link status, not a choice: every message leaves on every link that is up,
+// as this browser's identity. Icon + word, never colour alone.
 function renderStatus() {
-  const parts = Object.entries(state.statuses).map(([k, v]) => k + (v ? " ✓" : " ✗"));
-  $("status").textContent = parts.length ? "اتصال: " + parts.join(" · ") : "";
-  $("status").title = "پیام‌ها هم‌زمان از همهٔ مسیرهای وصل فرستاده می‌شوند";
+  const names = { board: ["radio", "برد"], relay: ["globe", "رله"] };
+  $("status").innerHTML = Object.entries(state.links)
+    .map(([k, on]) => `<span class="chip ${on ? "on" : ""}" title="${on ? "وصل" : "قطع"}">${icon(names[k][0])}${names[k][1]} ${on ? "وصل" : "قطع"}</span>`)
+    .join("");
 }
 
 // ---- screens ----
 
 function showWelcome() {
-  header("Mava", false);
+  state.screen = "welcome";
+  header("", false, true, false);
   $("composer").classList.add("hidden");
   $("main").innerHTML = `
+    <div class="card" style="text-align:center">
+      <div class="wordmark" style="font-size:34px;margin:8px 0">MAVA</div>
+      <p>پیام‌رسانی که بدون اینترنت هم کار می‌کند: از راه LoRa، بلوتوث و رله‌ها.</p>
+      <p class="muted">${icon("lock")} کلیدهای شما فقط در همین مرورگر می‌مانند.</p>
+    </div>
     <div class="card">
-      <p>به Mava خوش آمدید. این پیام‌رسان در خود مرورگر اجرا می‌شود؛ کلیدهای شما فقط روی همین دستگاه می‌مانند.</p>
-      <p class="muted">Welcome. Your keys stay in this browser.</p>
-      <label>نام شما<input id="name" dir="auto" autocomplete="nickname"></label>
-      <p><button class="primary" id="go">شروع</button></p>
+      <label for="name">نام شما (برای مخاطبان)</label>
+      <input id="name" dir="auto" autocomplete="nickname" maxlength="40">
+      <div class="row"><button class="btn primary" id="go">شروع</button></div>
     </div>`;
   $("go").onclick = () => {
     save("mava.name", $("name").value.trim());
     boot();
   };
+  $("name").focus();
 }
 
 function showChats() {
   state.chat = null;
-  header("گفتگوها", false);
+  state.screen = "chats";
+  header("", false, true);
   $("composer").classList.add("hidden");
   const contacts = JSON.parse(mava.contacts());
-  let html = `<div class="card">`;
-  if (!contacts.length) html += `<p class="muted">هنوز مخاطبی ندارید. لینک مخاطب را اضافه کنید یا لینک خودتان را بفرستید.</p>`;
+  let list = "";
   for (const c of contacts) {
     const last = JSON.parse(mava.messages(c.hash)).pop();
-    html += `<div class="contact" data-h="${esc(c.hash)}"><div><b dir="auto">${esc(c.name)}</b>
-      <div class="muted" dir="auto">${last ? esc(last.text.slice(0, 60)) : ""}</div></div>
-      <span class="muted">${last ? time(last.time) : ""}</span></div>`;
+    list += `<button class="contact" data-h="${esc(c.hash)}">
+      <span class="avatar" aria-hidden="true">${initial(c.name)}</span>
+      <span class="c-main"><span class="c-name" dir="auto">${esc(c.name)}</span>
+      <span class="c-last" dir="auto">${last ? esc(last.text.slice(0, 80)) : "—"}</span></span>
+      <span class="c-time">${last ? time(last.time) : ""}</span></button>`;
   }
-  html += `</div>
+  $("main").innerHTML = `
     <div class="card">
-      <label>افزودن مخاطب (لینک یا meshmsg:)<input id="uri" class="ltr" placeholder="https://eu-1.mfadem.ir/add#…"></label>
-      <label>نام (اختیاری)<input id="cname" dir="auto"></label>
-      <p><button class="primary" id="add">افزودن</button></p>
+      <h2>${icon("chat")} گفتگوها</h2>
+      ${list ? `<div class="list">${list}</div>` : `<div class="empty">هنوز گفتگویی ندارید.<br>لینک خودتان را بفرستید یا لینک یک مخاطب را اضافه کنید.</div>`}
     </div>
     <div class="card">
-      <b>لینک شما</b> <span class="muted">برای اینکه دیگران شما را اضافه کنند</span>
+      <details ${contacts.length ? "" : "open"}>
+        <summary>${icon("user-plus")} افزودن مخاطب</summary>
+        <label for="uri">لینک مخاطب (https://…/add#… یا meshmsg:)</label>
+        <input id="uri" class="ltr" dir="ltr" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <label for="cname">نام (اختیاری)</label>
+        <input id="cname" dir="auto">
+        <div class="row"><button class="btn primary" id="add">${icon("user-plus")} افزودن</button></div>
+      </details>
+    </div>
+    <div class="card">
+      <h2>${icon("share")} لینک شما</h2>
+      <p class="muted">این لینک را برای دیگران بفرستید تا شما را اضافه کنند.</p>
       <p class="ltr" id="mylink">${esc(mava.link())}</p>
-      <button class="link" id="share">اشتراک / کپی</button>
+      <div class="row"><button class="btn ghost" id="share">${icon("share")} اشتراک / کپی</button></div>
     </div>`;
-  $("main").innerHTML = html;
   document.querySelectorAll(".contact").forEach((el) => (el.onclick = () => showChat(el.dataset.h)));
   $("add").onclick = () => {
     try {
       const c = JSON.parse(mava.addContact($("uri").value, $("cname").value));
       showChat(c.hash);
     } catch (e) {
-      alert("لینک نامعتبر است\n" + e.message);
+      toast("لینک نامعتبر است — آن را کامل کپی کنید");
+      $("uri").focus();
     }
   };
   $("share").onclick = async () => {
@@ -94,46 +130,66 @@ function showChats() {
     if (navigator.share) {
       try { await navigator.share({ title: "Mava", text: link }); return; } catch {}
     }
-    try { await navigator.clipboard.writeText(link); alert("کپی شد"); } catch { prompt("لینک شما:", link); }
+    try { await navigator.clipboard.writeText(link); toast("لینک کپی شد"); } catch { prompt("لینک شما:", link); }
   };
 }
 
 function showChat(hash) {
   state.chat = hash;
+  state.screen = "chat";
   const c = JSON.parse(mava.contacts()).find((x) => x.hash === hash);
   header(c ? c.name : hash.slice(0, 8), true);
   $("composer").classList.remove("hidden");
+  state.shown = Infinity; // no entrance animation for the history
   renderMessages();
+  state.shown = JSON.parse(mava.messages(hash)).length;
   $("text").focus();
 }
 
 function renderMessages() {
   if (!state.chat) return;
   const msgs = JSON.parse(mava.messages(state.chat));
-  let html = `<div class="msgs">`;
-  for (const m of msgs) {
-    const tick = m.mine ? (m.status === "delivered" ? " ✓✓" : " ✓") : "";
-    html += `<div class="msg ${m.mine ? "mine" : "theirs"}">${esc(m.text)}<small>${time(m.time)}${tick}</small></div>`;
+  if (!msgs.length) {
+    $("main").innerHTML = `<div class="empty">${icon("lock")}<br>پیام‌ها سرتاسر رمز می‌شوند.<br>اولین پیام را بفرستید.</div>`;
+    return;
   }
-  html += `</div>`;
-  if (!msgs.length) html = `<p class="muted">اولین پیام را بفرستید.</p>`;
-  $("main").innerHTML = html;
+  let html = `<div class="msgs" role="log" aria-live="polite">`;
+  msgs.forEach((m, i) => {
+    const tick = m.mine
+      ? m.status === "delivered"
+        ? `<span class="delivered">✓✓<span class="sr">رسید</span></span>`
+        : `<span>✓<span class="sr">فرستاده شد</span></span>`
+      : "";
+    const fresh = i >= state.shown ? " fresh" : "";
+    html += `<div class="msg ${m.mine ? "mine" : "theirs"}${fresh}">${esc(m.text)}<small>${time(m.time)} ${tick}</small></div>`;
+  });
+  state.shown = msgs.length;
+  $("main").innerHTML = html + `</div>`;
   $("main").scrollTop = $("main").scrollHeight;
 }
 
 function showSettings() {
   state.chat = null;
+  state.screen = "settings";
   header("تنظیمات", true);
   $("composer").classList.add("hidden");
   $("main").innerHTML = `
     <div class="card">
-      <label>نام شما<input id="sname" dir="auto" value="${esc(setting("mava.name", ""))}"></label>
-      <label>رله‌ها (با ویرگول جدا)<input id="relays" class="ltr" value="${esc(setting("mava.relays", DEFAULT_RELAYS))}"></label>
-      <p class="muted">لازم نیست بین برد و رله انتخاب کنید: هر پیام با همین هویتِ این مرورگر هم‌زمان از همهٔ مسیرهای وصل فرستاده می‌شود — از راه برد Mava (LoRa، بلوتوث و اتصال اینترنتی خود برد) و، اگر گوشی اینترنت دارد، مستقیم به رله‌ها. گیرنده هر نسخه را فقط یک بار نشان می‌دهد. «اتصال» در بالای صفحه فقط نشان می‌دهد کدام مسیر الان وصل است.</p>
-      <p><button class="primary" id="ssave">ذخیره</button></p>
+      <label for="sname">نام شما</label>
+      <input id="sname" dir="auto" value="${esc(setting("mava.name", ""))}">
+      <label for="relays">رله‌ها (با ویرگول جدا)</label>
+      <input id="relays" class="ltr" dir="ltr" value="${esc(setting("mava.relays", DEFAULT_RELAYS))}" inputmode="url">
+      <div class="row"><button class="btn primary" id="ssave">ذخیره</button></div>
     </div>
-    <div class="card"><b>شناسه</b><p class="ltr">${esc(mava.hash())}</p>
-      <p class="muted">کلیدها در حافظهٔ این مرورگر ذخیره شده‌اند. پاک کردن داده‌های سایت، هویت شما را پاک می‌کند.</p></div>`;
+    <div class="card">
+      <h2>${icon("radio")} برد یا رله؟ هر دو.</h2>
+      <p class="muted">لازم نیست انتخاب کنید: هر پیام با همین هویتِ این مرورگر هم‌زمان از همهٔ مسیرهای وصل فرستاده می‌شود — از راه برد Mava (LoRa، بلوتوث و اینترنتِ خود برد) و، اگر گوشی اینترنت دارد، مستقیم به رله‌ها. گیرنده هر پیام را فقط یک بار می‌بیند. نشانه‌های بالای صفحه فقط نشان می‌دهند کدام مسیر الان وصل است.</p>
+    </div>
+    <div class="card">
+      <h2>${icon("lock")} شناسه</h2>
+      <p class="ltr">${esc(mava.hash())}</p>
+      <p class="muted">کلیدها در حافظهٔ این مرورگر ذخیره شده‌اند. پاک کردن داده‌های سایت، هویت شما را پاک می‌کند.</p>
+    </div>`;
   $("ssave").onclick = () => {
     const name = $("sname").value.trim();
     save("mava.name", name);
@@ -144,6 +200,7 @@ function showSettings() {
       location.reload();
       return;
     }
+    toast("ذخیره شد");
     showChats();
   };
 }
@@ -156,7 +213,7 @@ function send() {
     $("text").value = "";
     renderMessages();
   } catch (e) {
-    alert(e.message);
+    toast("ارسال نشد: " + e.message);
   }
 }
 
@@ -166,13 +223,12 @@ function onEvent(json) {
   const e = JSON.parse(json);
   if (e.kind === "link") {
     const [name, st] = e.detail.split(": ");
-    const key = name === "board" ? "برد" : "رله";
-    state.statuses[key] = st === "online";
+    state.links[name === "board" ? "board" : "relay"] = st === "online";
     renderStatus();
     return;
   }
   if (state.chat && e.contact === state.chat) renderMessages();
-  else if (!state.chat && $("title").textContent === "گفتگوها") showChats();
+  else if (state.screen === "chats") showChats();
 }
 
 function boot() {
@@ -187,7 +243,7 @@ function boot() {
 async function load() {
   const go = new Go();
   const resp = await fetch("main.wasm");
-  const bytes = await resp.arrayBuffer();  // works whatever MIME type the board sends
+  const bytes = await resp.arrayBuffer(); // works whatever MIME type the board sends
   const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
   window.addEventListener("mava-ready", boot, { once: true });
   go.run(instance);
@@ -203,5 +259,5 @@ $("text").addEventListener("keydown", (e) => {
   }
 });
 load().catch((e) => {
-  $("main").innerHTML = `<div class="card">بارگذاری نشد: ${esc(e.message)}</div>`;
+  $("main").innerHTML = `<div class="card">بارگذاری نشد: ${esc(e.message)}<div class="row"><button class="btn ghost" onclick="location.reload()">دوباره</button></div></div>`;
 });

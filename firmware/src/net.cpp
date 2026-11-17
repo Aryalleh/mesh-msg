@@ -153,15 +153,31 @@ void set_mode(Mode m) {
 
 // ---- panel ----
 
+// Setup panel style: the Mava design system (docs/design.md) — dark violet,
+// neon glow on focus and the primary button, chamfered corners, 48 px
+// controls, visible labels. Fonts come from the web client when installed.
 const char kStyle[] =
-    "<meta name=viewport content='width=device-width,initial-scale=1'><meta charset=utf-8>"
-    "<style>body{font-family:sans-serif;max-width:560px;margin:auto;padding:12px;background:#f5f6f8;color:#16181d}"
-    "h1{font-size:20px}fieldset{background:#fff;border:1px solid #dde;border-radius:10px;margin:12px 0;padding:10px}"
-    "legend{font-weight:bold}label{display:block;margin-top:8px;font-size:14px}"
-    "input,select{width:100%;box-sizing:border-box;padding:8px;font-size:15px;margin-top:3px;direction:ltr}"
-    "button{margin-top:12px;padding:10px 18px;font-size:16px;border:0;border-radius:8px;background:#2a7de1;color:#fff}"
-    "table{width:100%;font-size:13px}td:last-child{direction:ltr;text-align:left}.n{color:#666;font-size:13px}"
-    "@media(prefers-color-scheme:dark){body{background:#15171b;color:#e7e9ee}fieldset{background:#1e2127;border-color:#333}}"
+    "<meta name=viewport content='width=device-width,initial-scale=1,viewport-fit=cover'><meta charset=utf-8>"
+    "<meta name=theme-color content='#0B0A14'><style>"
+    "@font-face{font-family:Vazirmatn;src:url(/app/fonts/vazirmatn-arabic-400-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+200C-200F,U+FB50-FEFF}"
+    "@font-face{font-family:Orbitron;font-weight:700;src:url(/app/fonts/orbitron-latin-700-normal.woff2) format('woff2')}"
+    ":root{--bg:#0B0A14;--s1:#15122A;--s2:#1E1A3A;--b:#3B2A6B;--fg:#ECE8FF;--mu:#A9A2CF;--p:#7C3AED;--ph:#A78BFA;--a:#D946EF;--ok:#22D3EE;"
+    "--ch:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}"
+    "*{box-sizing:border-box}body{font:16px/1.6 Vazirmatn,system-ui,sans-serif;max-width:560px;margin:auto;padding:16px;"
+    "background:var(--bg) radial-gradient(120% 50% at 50% -10%,rgba(124,58,237,.25),transparent 60%) fixed;color:var(--fg)}"
+    "h1{font:700 22px Orbitron,sans-serif;letter-spacing:.15em;color:var(--ph);text-shadow:0 0 12px rgba(167,139,250,.6)}"
+    "fieldset{background:linear-gradient(180deg,var(--s2),var(--s1));border:1px solid var(--b);clip-path:var(--ch);margin:12px 0;padding:14px}"
+    "legend{font-weight:bold;color:var(--ph);padding:0 6px}label{display:block;margin-top:10px;font-size:14px;color:var(--mu)}"
+    "input,select{width:100%;min-height:48px;padding:10px;font:16px Vazirmatn,system-ui;margin-top:4px;direction:ltr;color:var(--fg);"
+    "background:var(--bg);border:1px solid var(--b);clip-path:var(--ch)}"
+    "input:focus,select:focus{outline:none;border-color:var(--ph);box-shadow:0 0 0 1px rgba(167,139,250,.4),0 0 16px rgba(124,58,237,.5)}"
+    "input[type=checkbox]{min-height:0;width:20px;height:20px;accent-color:var(--p);vertical-align:middle;margin-inline-end:6px}"
+    "button{margin-top:14px;min-height:48px;padding:0 28px;font:700 16px Vazirmatn,system-ui;border:0;color:#fff;cursor:pointer;"
+    "background:linear-gradient(135deg,var(--p),var(--a));clip-path:var(--ch);box-shadow:0 0 18px rgba(124,58,237,.5)}"
+    "button:focus-visible,a:focus-visible{outline:2px solid var(--a);outline-offset:2px}"
+    "table{width:100%;font-size:14px;border-collapse:collapse}td{padding:4px 0;border-bottom:1px solid rgba(59,42,107,.6)}"
+    "td:last-child{direction:ltr;text-align:left;color:var(--ok);font-family:ui-monospace,monospace}.n{color:var(--mu);font-size:14px}"
+    "a{color:var(--ph)}p b{color:var(--a)}"
     "</style>";
 
 bool authed() {
@@ -179,7 +195,7 @@ void send_page(const String& body) {
 }
 
 void page_login(const char* msg) {
-  String b = "<h1>Mava — ورود به پنل</h1>";
+  String b = "<h1>MAVA</h1><p class=n>پنل تنظیم برد — ورود</p>";
   if (msg && *msg) b += String("<p>") + msg + "</p>";
   b += "<form method=post action=/login><fieldset><label>رمز دستگاه<input name=p type=password "
        "autocomplete=current-password autofocus></label><button>ورود</button></fieldset></form>";
@@ -196,9 +212,9 @@ void page_panel(const char* msg) {
   char nid[12];
   snprintf(nid, sizeof nid, "!%08lx", (unsigned long)mesh::meshtastic::Backend::node_id_for(pk.x));
 
-  String b = "<h1>Mava — ";
+  String b = "<h1>MAVA</h1><p class=n>پنل تنظیم برد · ";
   b += html_escape(cfg.name);
-  b += "</h1>";
+  b += "</p>";
   if (msg && *msg) b += String("<p><b>") + msg + "</b></p>";
   b += "<fieldset><legend>وضعیت</legend><table>";
   b += row("شناسه", hex(pk.ed, 8));

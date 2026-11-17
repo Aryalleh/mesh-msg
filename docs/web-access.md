@@ -34,6 +34,12 @@ iPhone Safari ── Wi-Fi ──► Mava board / handheld  ──LoRa (Meshtast
   home Wi-Fi `/` redirects to `/app/`; in setup mode (hotspot) the panel links to it. The
   handheld's **Web access** screen shows the address and a QR code.
 
+Design: [design.md](design.md).
+
+| Welcome | Chats | Chat |
+|---|---|---|
+| ![](images/web/web-welcome.png) | ![](images/web/web-chats-board.png) | ![](images/web/web-chat-board.png) |
+
 ## Using it
 
 1. Board on the home Wi-Fi (setup switch off) or the phone on the board's hotspot.

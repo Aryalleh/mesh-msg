@@ -4,50 +4,131 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#1f6feb">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0B0A14">
 <title>Mava</title>
 <style>
-:root{--bg:#f4f5f7;--card:#fff;--fg:#15171b;--muted:#6b7280;--accent:#1f6feb;--mine:#d9f2d5;--theirs:#fff;--line:#e3e6ea}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#181b21;--fg:#e8eaee;--muted:#9aa1ad;--accent:#4c8dff;--mine:#1f3b23;--theirs:#20242c;--line:#2a2f38}}
+/* Mava design system (docs/design.md): dark OLED, neon violet, cyberpunk HUD.
+   Tokens only below; components use var(--…). */
+@font-face{font-family:Vazirmatn;font-weight:400;font-display:swap;src:url(fonts/vazirmatn-arabic-400-normal.woff2) format("woff2");unicode-range:U+0600-06FF,U+200C-200F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:Vazirmatn;font-weight:700;font-display:swap;src:url(fonts/vazirmatn-arabic-700-normal.woff2) format("woff2");unicode-range:U+0600-06FF,U+200C-200F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:Vazirmatn;font-weight:400;font-display:swap;src:url(fonts/vazirmatn-latin-400-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+2000-206F}
+@font-face{font-family:Vazirmatn;font-weight:700;font-display:swap;src:url(fonts/vazirmatn-latin-700-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+2000-206F}
+@font-face{font-family:Orbitron;font-weight:700;font-display:swap;src:url(fonts/orbitron-latin-700-normal.woff2) format("woff2")}
+:root{
+  --bg:#0B0A14; --surface:#15122A; --surface-2:#1E1A3A; --border:#3B2A6B;
+  --fg:#ECE8FF; --muted:#A9A2CF; --primary:#7C3AED; --primary-hi:#A78BFA;
+  --accent:#D946EF; --ok:#22D3EE; --danger:#FF4D6D; --mine:#2E1A5E;
+  --glow:0 0 0 1px rgba(167,139,250,.35),0 0 18px rgba(124,58,237,.45);
+  --chamfer:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;
+  --t-fast:150ms;--t:220ms;
+  --font:Vazirmatn,system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"JetBrains Mono",Menlo,monospace;
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Vazirmatn",Tahoma,sans-serif;height:100dvh;display:flex;flex-direction:column}
-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--accent);color:#fff;padding-top:max(10px,env(safe-area-inset-top))}
-header h1{font-size:18px;margin:0;flex:1}
-header button{background:none;border:0;color:#fff;font-size:20px;padding:4px 8px}
-#status{font-size:12px;opacity:.9}
-main{flex:1;overflow:auto;padding:10px 12px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
-.row{display:flex;gap:8px;align-items:center}
-.contact{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--line);cursor:pointer}
+html,body{height:100%}
+body{margin:0;background:var(--bg) radial-gradient(120% 60% at 50% -10%,rgba(124,58,237,.22),transparent 60%) fixed;
+  color:var(--fg);font:16px/1.6 var(--font);display:flex;flex-direction:column;min-height:100dvh;-webkit-tap-highlight-color:transparent}
+/* faint CRT scanlines, never on top of interaction */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:100;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px)}
+svg.i{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+/* header */
+header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:var(--s2);
+  padding:calc(var(--s2) + env(safe-area-inset-top)) var(--s3) var(--s2);
+  background:rgba(11,10,20,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);box-shadow:0 1px 0 rgba(217,70,239,.35)}
+.icon-btn{display:inline-grid;place-items:center;width:44px;height:44px;border:0;background:transparent;border-radius:10px;color:var(--primary-hi);transition:background var(--t-fast)}
+.icon-btn:active{background:var(--surface-2)}
+#title{flex:1;margin:0;font-size:18px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wordmark{font-family:Orbitron,var(--font);letter-spacing:.18em;color:var(--primary-hi);text-shadow:0 0 12px rgba(167,139,250,.65)}
+#status{display:flex;gap:var(--s1);flex-wrap:wrap;justify-content:flex-end}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:12px;line-height:20px;border:1px solid var(--border);color:var(--muted);clip-path:var(--chamfer);background:var(--surface)}
+.chip svg.i{width:14px;height:14px}
+.chip.on{color:var(--ok);border-color:rgba(34,211,238,.6)}
+/* main */
+main{flex:1;overflow:auto;padding:var(--s3) var(--s3) var(--s5);width:100%;max-width:720px;margin:0 auto;overscroll-behavior:contain}
+.card{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--border);clip-path:var(--chamfer);padding:var(--s4);margin-bottom:var(--s3)}
+.card h2{margin:0 0 var(--s2);font-size:15px;color:var(--primary-hi);display:flex;align-items:center;gap:var(--s2)}
+.muted{color:var(--muted);font-size:14px}
+label{display:block;margin:var(--s2) 0 var(--s1);font-size:14px;color:var(--muted)}
+input,textarea{width:100%;min-height:48px;font:16px/1.5 var(--font);padding:10px 12px;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:0;clip-path:var(--chamfer);transition:border-color var(--t-fast),box-shadow var(--t-fast)}
+input:focus,textarea:focus{outline:none;border-color:var(--primary-hi);box-shadow:var(--glow)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);min-height:48px;padding:0 var(--s5);border:0;clip-path:var(--chamfer);font-weight:700;transition:transform var(--t-fast),filter var(--t-fast)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;box-shadow:var(--glow)}
+.btn.ghost{background:var(--surface-2);color:var(--primary-hi);border:1px solid var(--border)}
+.row{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;margin-top:var(--s3)}
+.ltr{direction:ltr;unicode-bidi:plaintext;word-break:break-all;font:13px/1.5 var(--mono);color:var(--primary-hi);background:var(--bg);padding:var(--s2);border:1px dashed var(--border)}
+/* chats */
+.list{padding:0;margin:0}
+.contact{display:flex;align-items:center;gap:var(--s3);width:100%;min-height:64px;padding:var(--s2) var(--s1);background:none;border:0;border-bottom:1px solid rgba(59,42,107,.6);text-align:start;transition:background var(--t-fast)}
 .contact:last-child{border-bottom:0}
-.muted{color:var(--muted);font-size:13px}
-input,textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg)}
-button.primary{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:inherit}
-button.link{background:none;border:0;color:var(--accent);font:inherit;padding:6px 0}
-.msgs{display:flex;flex-direction:column;gap:6px}
-.msg{max-width:82%;padding:7px 11px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word;unicode-bidi:plaintext}
-.msg.mine{align-self:flex-start;background:var(--mine)}
-.msg.theirs{align-self:flex-end;background:var(--theirs);border:1px solid var(--line)}
-.msg small{display:block;font-size:11px;color:var(--muted);direction:ltr;text-align:left}
-footer{display:flex;gap:8px;padding:8px 10px;background:var(--card);border-top:1px solid var(--line);padding-bottom:max(8px,env(safe-area-inset-bottom))}
-footer textarea{resize:none;height:44px}
-.ltr{direction:ltr;unicode-bidi:plaintext;word-break:break-all;font-size:13px}
+.contact:active{background:rgba(124,58,237,.12)}
+.avatar{display:grid;place-items:center;width:44px;height:44px;flex:none;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent));clip-path:var(--chamfer)}
+.c-main{flex:1;min-width:0}
+.c-name{font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-last{display:block;color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-time{color:var(--muted);font:12px var(--mono)}
+details summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:var(--s2);min-height:44px;color:var(--primary-hi);font-weight:700}
+details summary::-webkit-details-marker{display:none}
+/* messages */
+.msgs{display:flex;flex-direction:column;gap:var(--s2)}
+.msg{max-width:84%;padding:var(--s2) var(--s3);white-space:pre-wrap;word-wrap:break-word;unicode-bidi:plaintext;border:1px solid var(--border);clip-path:var(--chamfer)}
+.msg.fresh{animation:in var(--t) ease-out}
+.msg.mine{align-self:flex-start;background:var(--mine);border-color:rgba(167,139,250,.55)}
+.msg.theirs{align-self:flex-end;background:var(--surface-2)}
+.msg small{display:flex;align-items:center;gap:4px;justify-content:flex-end;font:11px var(--mono);color:var(--muted);direction:ltr;margin-top:2px}
+.msg small svg.i{width:14px;height:14px}
+.msg small .delivered{color:var(--ok);letter-spacing:-.2em}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.empty{text-align:center;padding:var(--s5) var(--s3);color:var(--muted)}
+/* composer */
+footer{position:sticky;bottom:0;display:flex;gap:var(--s2);align-items:flex-end;padding:var(--s2) var(--s3) calc(var(--s2) + env(safe-area-inset-bottom));
+  background:rgba(11,10,20,.9);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--border)}
+footer textarea{resize:none;height:48px;max-height:140px}
+#send{width:48px;height:48px;padding:0;flex:none}
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;max-width:90vw;padding:var(--s2) var(--s4);background:var(--surface-2);border:1px solid var(--accent);clip-path:var(--chamfer);box-shadow:var(--glow);opacity:0;pointer-events:none;transition:opacity var(--t)}
+#toast.show{opacity:1}
 .hidden{display:none!important}
-#loading{margin:auto;text-align:center}
+#loading{margin:auto;text-align:center;padding:var(--s5)}
+.loader{width:56px;height:56px;margin:var(--s4) auto;border:3px solid var(--surface-2);border-top-color:var(--accent);border-radius:50%;animation:spin 900ms linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}body::after{display:none}}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-user-plus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-check2" viewBox="0 0 24 24"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></symbol>
+  <symbol id="i-radio" viewBox="0 0 24 24"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+</svg>
 <header>
-  <button id="back" class="hidden" aria-label="بازگشت">→</button>
-  <h1 id="title">Mava</h1>
-  <span id="status"></span>
-  <button id="menu" aria-label="تنظیمات">⚙</button>
+  <button id="back" class="icon-btn hidden" aria-label="بازگشت"><svg class="i"><use href="#i-back"/></svg></button>
+  <h1 id="title"><span class="wordmark">MAVA</span></h1>
+  <div id="status" role="status" aria-live="polite"></div>
+  <button id="menu" class="icon-btn" aria-label="تنظیمات"><svg class="i"><use href="#i-settings"/></svg></button>
 </header>
-<main id="main"><div id="loading">در حال بارگذاری… <div class="muted">Loading the client (≈3 MB, once)</div></div></main>
+<main id="main"><div id="loading"><div class="wordmark" style="font-size:28px">MAVA</div><div class="loader" aria-hidden="true"></div><div class="muted">در حال بارگذاری · loading (≈3 MB, once)</div></div></main>
 <footer id="composer" class="hidden">
-  <textarea id="text" placeholder="پیام…" dir="auto"></textarea>
-  <button class="primary" id="send">ارسال</button>
+  <label for="text" class="sr">پیام</label>
+  <textarea id="text" placeholder="پیام…" dir="auto" rows="1" enterkeyhint="send"></textarea>
+  <button class="btn primary" id="send" aria-label="ارسال"><svg class="i"><use href="#i-send"/></svg></button>
 </footer>
+<div id="toast" role="status" aria-live="polite"></div>
 <script src="wasm_exec.js"></script>
 <script src="app.js"></script>
 </body>

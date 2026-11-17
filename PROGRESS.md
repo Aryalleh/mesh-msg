@@ -1416,3 +1416,16 @@ links. Chose: quick items in beta3; calls follow in later betas.
   status ("اتصال: برد ✓ · رله ✗"). Every message goes out on all links at once as the
   browser's identity; Settings explains it. `scripts/test-web.sh` PASS.
 
+### 2026-11-17 — Violet cyberpunk design system (UI UX Pro Max)
+
+- Owner: use the UI UX Pro Max skill, violet / purple cyberpunk theme, on the board and the
+  web interface. docs/design.md: tokens (dark OLED `#0B0A14`, violet `#7C3AED`/`#A78BFA`,
+  magenta focus `#D946EF`, cyan "up"), Vazirmatn + Orbitron wordmark (self-hosted, OFL),
+  chamfered corners, glow only on focus / primary, faint scanlines, reduced motion.
+- Web client rewritten on the tokens: SVG icon sprite (no emoji), link chips with icon +
+  word, labelled fields, toasts, safe areas, only new messages animate. Setup panel
+  (net.cpp) restyled. Handheld LVGL theme: dark violet, focus glow for keypad / trackpad,
+  violet bubbles and keyboard. Screenshots in docs/images/{handheld-ui,web}.
+- `scripts/test-web.sh` fixed: `go run` left the dev server running between runs (stale
+  port); it now builds and runs a binary. PASS.
+
