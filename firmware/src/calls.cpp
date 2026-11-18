@@ -410,7 +410,9 @@ bool begin(const mesh::Identity& self) {
   }
   // Above the main loop (priority 1) on the same core: 20 ms audio steps
   // must not wait for a screen redraw. It sleeps in select() in between.
-  return xTaskCreatePinnedToCore(task, "mava-call", 16384, nullptr, 2, nullptr, 1) == pdPASS;
+  // 10 kB of stack (internal RAM): Opus keeps its scratch on the heap, the
+  // largest frames here are ~3 kB.
+  return xTaskCreatePinnedToCore(task, "mava-call", 10240, nullptr, 2, nullptr, 1) == pdPASS;
 }
 
 namespace {

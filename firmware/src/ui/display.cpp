@@ -17,9 +17,10 @@ namespace {
 
 constexpr int kWidth = 240, kHeight = 320;
 constexpr uint32_t kLcdHz = 40000000, kTouchHz = 2000000;
-// Two buffers of 20 rows in internal RAM: 2 × 12.5 kB. Rendering into PSRAM
-// made the screen visibly slow (beta33); 40-row buffers in internal RAM left
-// TLS without memory before its buffers moved to PSRAM (board::tls_memory_in_psram).
+// One buffer of 20 rows (12.5 kB) in internal RAM: rendering into PSRAM made
+// the screen visibly slow (beta33). One is enough: the flush writes the panel
+// before it returns, so a second buffer was never drawn into meanwhile, and
+// internal RAM is short (Wi-Fi, Bluetooth, TLS: beta35 ran out with two).
 constexpr int kBufLines = 20;
 
 // Raw XPT2046 readings at the screen edges (portrait x 0 and 239, y 0 and
@@ -217,12 +218,11 @@ bool begin() {
     return p ? p : heap_caps_malloc(n, MALLOC_CAP_SPIRAM);
   };
   void* a = alloc(bytes);
-  void* b = alloc(bytes);
-  if (!a || !b) {
-    g_error = "no memory for the draw buffers";
+  if (!a) {
+    g_error = "no memory for the draw buffer";
     return false;
   }
-  lv_display_set_buffers(g_disp, a, b, bytes, LV_DISPLAY_RENDER_MODE_PARTIAL);
+  lv_display_set_buffers(g_disp, a, nullptr, bytes, LV_DISPLAY_RENDER_MODE_PARTIAL);
 #ifdef TOUCH_CS
   pinMode(TOUCH_CS, OUTPUT);
   cs(TOUCH_CS, false);

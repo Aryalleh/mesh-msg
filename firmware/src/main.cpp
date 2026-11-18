@@ -316,13 +316,14 @@ void on_channel_changed(const net::Settings& s) {
 SET_LOOP_TASK_STACK_SIZE(16 * 1024);
 
 void setup() {
-  // A big USB transmit buffer: the screen on a phone (hwsim.h) streams tens
-  // of kB per frame; the default 256 bytes held it to a crawl.
-  Serial.setTxBufferSize(16384);
+  // A big USB transmit buffer where the screen goes to a phone (hwsim.h:
+  // tens of kB per frame; 256 bytes held it to a crawl). Both buffers live in
+  // internal RAM, so the build without simulators keeps them small.
+  Serial.setTxBufferSize(MAVA_HWSIM ? 16384 : 4096);
   // And a big receive buffer: the phone's microphone over USB is ~33 kB/s
   // (Mava Screen, 16 kHz); the default 256 bytes overflowed during a screen
   // redraw and took key presses down with the audio (owner, beta33).
-  Serial.setRxBufferSize(8192);
+  Serial.setRxBufferSize(MAVA_HWSIM ? 8192 : 2048);
   Serial.begin(115200);
   Serial.setTimeout(0);
   board::init();
@@ -365,6 +366,13 @@ void setup() {
     char ck[160];
     wallclock::status(ck, sizeof ck);
     logf("clock: %s", ck);
+    // Internal RAM is what Wi-Fi, Bluetooth and TLS live on: its low-water mark
+    // shows how close the board came to running out.
+    logf("memory: internal %u kB free (lowest %u kB, largest block %u kB), PSRAM %u kB free",
+         unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+         unsigned(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL) / 1024),
+         unsigned(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+         unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
   }
 
   // Wi-Fi and BLE first: if a part that isn't fitted makes a later step
@@ -584,6 +592,13 @@ void loop() {
     char ck[160];
     wallclock::status(ck, sizeof ck);
     logf("clock: %s", ck);
+    // Internal RAM is what Wi-Fi, Bluetooth and TLS live on: its low-water mark
+    // shows how close the board came to running out.
+    logf("memory: internal %u kB free (lowest %u kB, largest block %u kB), PSRAM %u kB free",
+         unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+         unsigned(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL) / 1024),
+         unsigned(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+         unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
     if (audio::outputs() > 0 || audio::mic_frames() > 0) {
       char au[160];
       audio::status(au, sizeof au);

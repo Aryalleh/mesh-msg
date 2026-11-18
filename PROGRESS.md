@@ -2018,3 +2018,11 @@ links. Chose: quick items in beta3; calls follow in later betas.
   panel's own pixels (MTC2; MTC1 files from beta33/34 converted), so it holds in any rotation;
   call video decodes to the current screen size.
 - Released **v0.1.1-beta35** (owner asked; tag on `3b21823`): Mava Board app (one APK `mava-board-…-android.apk`), RINGING, screen rotation. Not yet run on hardware.
+- Owner on beta35: navigating the menus, the screen dies and the board restarts; log
+  "esp-aes: Failed to allocate memory", "BLE_INIT: Malloc failed": internal RAM used up.
+  LVGL used the C library's malloc, so every object (< 4 kB) went to internal RAM; beta34
+  had also put 2 × 12.5 kB draw buffers back there. Now LVGL has its own allocator, PSRAM
+  first (`LV_USE_STDLIB_MALLOC=255`, `src/ui/lv_mem_psram.cpp`); one 20-row draw buffer
+  (the flush is synchronous, the second never helped); call task stack 10 kB; USB buffers
+  16 kB TX / 8 kB RX only in the simulator build (4 kB / 2 kB plain). Every 10 s the log
+  shows internal RAM free, its lowest point and the largest block.
