@@ -1769,3 +1769,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   `BleMesh` waits 5 s before reconnecting a dropped peer, and records why it dropped one
   (`lastDrop`, shown as "Last disconnect" on the Network screen). The phone's first drop
   reason is still unknown: that line will show it. Release v0.1.1-beta28.
+- Released **v0.1.1-beta28** (c784fd9).
