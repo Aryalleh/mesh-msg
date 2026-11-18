@@ -24,6 +24,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.ParcelUuid
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.os.HandlerCompat
 import org.meshmsg.meshcore.Core
@@ -72,6 +73,14 @@ class BleMesh(
     private val serverPeers = HashMap<String, Peer>() // by device address
     private val serverMtu = HashMap<String, Int>()
     private val connecting = HashSet<String>() // session IDs with a connection attempt running
+    // Session ID → when we last dropped it. Android keeps a link that is still
+    // closing and hands it to the next connectGatt: the peer then sees our
+    // new hello in the middle of the old stream. Waiting lets the link close.
+    private val droppedAt = HashMap<String, Long>()
+
+    /** Why the last Bluetooth peer went away (the Network screen shows it), or null. */
+    @Volatile var lastDrop: String? = null
+        private set
 
     // ---- lifecycle ----
 
@@ -157,13 +166,14 @@ class BleMesh(
         if (!running || !BleProto.shouldConnect(session, theirs)) return
         val id = BleProto.peerId(theirs)
         if (id in peers || id in connecting || peers.size + connecting.size >= BleProto.MAX_PEERS) return
+        droppedAt[id]?.let { if (SystemClock.elapsedRealtime() - it < RECONNECT_AFTER_DROP_MS) return }
         connecting += id
         StaleBond.forget(device)
         val cb = Client(id)
         val gatt = runCatching { device.connectGatt(context, false, cb, BluetoothDevice.TRANSPORT_LE) }.getOrNull()
         if (gatt == null) connecting -= id
         // Give up on attempts that never complete (peer walked away).
-        handler.postDelayed({ if (id in connecting) cb.fail(gatt) }, CONNECT_TIMEOUT_MS)
+        handler.postDelayed({ if (id in connecting) cb.fail(gatt, "connection timed out") }, CONNECT_TIMEOUT_MS)
     }
 
     // ---- shared peer handling ----
@@ -174,7 +184,9 @@ class BleMesh(
         runCatching { core.peerUp(BleProto.LINK_NAME, p.id) }
     }
 
-    private fun drop(p: Peer) {
+    private fun drop(p: Peer, why: String = "closed") {
+        droppedAt[p.id] = SystemClock.elapsedRealtime()
+        if (running) lastDrop = why
         if (peers.remove(p.id) === p && p.up) runCatching { core.peerDown(BleProto.LINK_NAME, p.id) }
         p.up = false
         serverPeers.values.remove(p)
@@ -184,7 +196,7 @@ class BleMesh(
 
     private fun received(p: Peer, value: ByteArray) {
         // An error means the chunk stream is corrupt: reconnect from scratch.
-        runCatching { core.receive(BleProto.LINK_NAME, p.id, value) }.onFailure { drop(p) }
+        runCatching { core.receive(BleProto.LINK_NAME, p.id, value) }.onFailure { drop(p, "bad stream: ${it.message}") }
     }
 
     private fun pump(p: Peer) {
@@ -192,7 +204,7 @@ class BleMesh(
         val next = p.queue.removeFirstOrNull() ?: return
         p.queued -= next.size
         p.busy = true
-        if (!p.write(next)) drop(p)
+        if (!p.write(next)) drop(p, "write refused")
     }
 
     /** Called by the Go core (any thread). */
@@ -204,7 +216,7 @@ class BleMesh(
                 p.queue.addLast(part)
                 p.queued += part.size
             }
-            if (p.queued > BleProto.MAX_QUEUED_BYTES) drop(p) else pump(p)
+            if (p.queued > BleProto.MAX_QUEUED_BYTES) drop(p, "too much waiting to send") else pump(p)
         }
     }
 
@@ -215,9 +227,13 @@ class BleMesh(
         private var rx: BluetoothGattCharacteristic? = null
         private var helloSent = false
 
-        fun fail(gatt: BluetoothGatt?) {
+        fun fail(gatt: BluetoothGatt?, why: String = "connection failed") {
             connecting -= id
-            peer?.let { drop(it) } ?: runCatching { gatt?.close() }
+            droppedAt[id] = SystemClock.elapsedRealtime()
+            peer?.let { drop(it, why) } ?: run {
+                if (running) lastDrop = why
+                runCatching { gatt?.close() }
+            }
         }
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -225,7 +241,7 @@ class BleMesh(
                 if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED && running) {
                     if (!gatt.requestMtu(BleProto.WANTED_MTU)) gatt.discoverServices()
                 } else {
-                    fail(gatt)
+                    fail(gatt, "disconnected (status $status)")
                 }
             }
         }
@@ -270,7 +286,7 @@ class BleMesh(
 
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             handler.post {
-                if (status != BluetoothGatt.GATT_SUCCESS) return@post fail(gatt)
+                if (status != BluetoothGatt.GATT_SUCCESS) return@post fail(gatt, "write failed (status $status)")
                 val p = peer
                 if (p == null && helloSent) {
                     // The hello was accepted: the link is up.
@@ -426,6 +442,7 @@ class BleMesh(
     private companion object {
         const val TAG = "BleMesh"
         const val CONNECT_TIMEOUT_MS = 20_000L
+        const val RECONNECT_AFTER_DROP_MS = 5_000L
         const val SAVER_SCAN_MS = 10_000L
         const val SAVER_PERIOD_MS = 180_000L
         val SCAN_TOKEN = Any()

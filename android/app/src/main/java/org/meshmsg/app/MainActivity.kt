@@ -352,6 +352,7 @@ class MainActivity : ComponentActivity() {
                     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.onBluetoothPermission() }
                     NetworkScreen(
                         status, allowed,
+                        lastBleDrop = vm.bleLastDrop,
                         onAllowBluetooth = {
                             if (allowed) startActivity(Intent(SystemSettings.ACTION_BLUETOOTH_SETTINGS)) else ask.launch(MeshApp.BLE_PERMISSIONS)
                         },

@@ -1760,3 +1760,12 @@ links. Chose: quick items in beta3; calls follow in later betas.
   last (`own_messages_kept` test); (3) BLE log names the corrupt-stream reason
   (`Peer::error()`). post() clamps writes to 244. Release v0.1.1-beta27.
 - Released **v0.1.1-beta27** (9f73e6c).
+- Owner's beta27 log: "frame length 5080217" (0x4D8499: a hello mid-stream) and "no hello
+  (101 bytes, first 0x00)"; connects 8 / drops 7 / corrupt 9 after the phone first closed
+  the link (0x213). Android reuses a still-closing ACL for the next connectGatt, so the
+  phone's new session landed on the board's old seat. Board: `blemesh::Peer` restarts the
+  session on a hello from the same session ID anywhere, or any hello at a packet boundary
+  (`restarts()`; ble.cpp drops the seat's pending bytes; test `ble_mesh_restart`). Android:
+  `BleMesh` waits 5 s before reconnecting a dropped peer, and records why it dropped one
+  (`lastDrop`, shown as "Last disconnect" on the Network screen). The phone's first drop
+  reason is still unknown: that line will show it. Release v0.1.1-beta28.

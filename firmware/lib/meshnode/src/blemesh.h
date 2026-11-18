@@ -36,6 +36,9 @@ class Peer {
   uint32_t packets_out() const { return out_n_; }
   // Why rx() last returned false ("" = never), for the board log.
   const char* error() const { return err_; }
+  // Times the phone said hello again on this connection (a new session):
+  // the caller drops bytes it still had queued for the old stream.
+  uint32_t restarts() const { return restarts_; }
   // This side connected (GATT client) and sent the hello itself: the stream
   // starts at once.
   void start(node::Node& node, size_t port, route::Millis now);
@@ -64,6 +67,8 @@ class Peer {
   size_t q_off_ = 0, q_len_ = 0;
   uint32_t in_n_ = 0, skipped_n_ = 0, out_n_ = 0;
   char err_[48] = {};
+  uint8_t session_[kSessionBytes] = {};
+  uint32_t restarts_ = 0;
 };
 
 }  // namespace blemesh

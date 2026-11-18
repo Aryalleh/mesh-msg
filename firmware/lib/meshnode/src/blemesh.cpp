@@ -37,11 +37,28 @@ void Peer::start(node::Node& node, size_t port, route::Millis now) {
 }
 
 bool Peer::rx(node::Node& node, size_t port, const uint8_t* b, size_t n, route::Millis now) {
+  const bool is_hello = n == 1 + kSessionBytes && b[0] == kHelloMagic;
   if (!hello_) {
-    if (n != 1 + kSessionBytes || b[0] != kHelloMagic) {
+    if (!is_hello) {
       std::snprintf(err_, sizeof err_, "no hello (%u bytes, first 0x%02x)", unsigned(n), n ? b[0] : 0);
       return false;
     }
+    std::memcpy(session_, b + 1, kSessionBytes);
+    start(node, port, now);
+    return true;
+  }
+  // A hello again: the phone started a new session on this connection.
+  // Certain from the same phone (its session ID) anywhere in the stream, and
+  // from any phone at a packet boundary (a length starting 0x4D is > 5 MB).
+  const bool boundary = hdr_n_ == 0;
+  if (is_hello && (boundary || std::memcmp(session_, b + 1, kSessionBytes) == 0)) {
+    uint32_t in = in_n_, sk = skipped_n_, out = out_n_, rs = restarts_;
+    reset();
+    in_n_ = in;
+    skipped_n_ = sk;
+    out_n_ = out;
+    restarts_ = rs + 1;
+    std::memcpy(session_, b + 1, kSessionBytes);
     start(node, port, now);
     return true;
   }

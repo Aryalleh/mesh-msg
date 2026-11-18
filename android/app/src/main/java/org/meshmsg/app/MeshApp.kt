@@ -175,6 +175,9 @@ class MeshApp : Application() {
      * the nearest one; done(true) if one was found. No pairing: the board
      * takes packets and status requests over Bluetooth.
      */
+    /** Why the last Bluetooth mesh peer went away, for the Network screen. */
+    val bleLastDrop: String? get() = ble?.lastDrop
+
     fun connectBoardBle(done: (Boolean) -> Unit) {
         scope.launch {
             val core = _backend.value?.core

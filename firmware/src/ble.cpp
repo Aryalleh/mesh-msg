@@ -63,6 +63,7 @@ volatile int g_last_reason = 0;
 
 volatile uint32_t g_lost = 0;
 uint32_t g_corrupt = 0;  // phones dropped for a stream that made no sense
+uint32_t g_restarts = 0;  // a phone said hello again on its connection (new session)
 char g_corrupt_why[48] = {};  // events that could not be queued (for the log)
 
 // Never drop silently: a lost write shifts the phone's byte stream (every
@@ -326,7 +327,13 @@ void handle(mesh::node::Node& node, const Msg& m, mesh::route::Millis now) {
       }
       size_t port = mesh::node::Node::kMeshPort0 + size_t(c->seat);
       const bool had_hello = g_peers[c->seat].up();
+      const uint32_t restarts = g_peers[c->seat].restarts();
       const bool ok = g_peers[c->seat].rx(node, port, m.d, m.n, now);
+      if (g_peers[c->seat].restarts() != restarts) {
+        g_seat_pending[c->seat].n = 0;  // half a packet of the old stream: the new one starts clean
+        g_hellos = g_hellos + 1;
+        g_restarts = g_restarts + 1;
+      }
       if (ok && !had_hello && g_peers[c->seat].up()) g_hellos = g_hellos + 1;
       if (!ok) {
         g_corrupt++;
@@ -445,9 +452,9 @@ void status(char* out, size_t cap) {
            (unsigned long)g_hellos, (unsigned long)g_disconnects, r, why);
   // Packets on the Bluetooth mesh since boot (in: from phones to the node).
   if (k > 0 && size_t(k) < cap)
-    snprintf(out + k, cap - size_t(k), "; packets in %lu (too big for LoRa, skipped %lu), out %lu; queue %u waiting, lost %lu, corrupt streams %lu%s%s%s",
+    snprintf(out + k, cap - size_t(k), "; packets in %lu (too big for LoRa, skipped %lu), out %lu; queue %u waiting, lost %lu, restarted %lu, corrupt streams %lu%s%s%s",
              (unsigned long)pin, (unsigned long)pskip, (unsigned long)pout, unsigned(uxQueueMessagesWaiting(g_q)),
-             (unsigned long)g_lost, (unsigned long)g_corrupt, g_corrupt_why[0] ? " (last: " : "",
+             (unsigned long)g_lost, (unsigned long)g_restarts, (unsigned long)g_corrupt, g_corrupt_why[0] ? " (last: " : "",
              g_corrupt_why, g_corrupt_why[0] ? ")" : "");
 }
 

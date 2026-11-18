@@ -44,6 +44,7 @@ import org.meshmsg.app.ui.theme.Space
 fun NetworkScreen(
     status: NetStatus,
     bluetoothAllowed: Boolean,
+    lastBleDrop: String? = null,
     onAllowBluetooth: () -> Unit,
     onConnectUsb: () -> Unit,
     onConnectBle: () -> Unit = {},
@@ -80,7 +81,16 @@ fun NetworkScreen(
                     val count = it.detail.takeWhile(Char::isDigit).toIntOrNull() ?: 0
                     val detail = if (it.state == PathState.Up && count > 0) pluralStringResource(R.plurals.nearby_phones, count, count)
                     else stringResource(R.string.nearby_searching)
-                    PathCard(MeshIcons.Bluetooth, stringResource(R.string.path_nearby), it.state, detail)
+                    PathCard(MeshIcons.Bluetooth, stringResource(R.string.path_nearby), it.state, detail) {
+                        // Why the last peer went away: for reports (technical, as the core says it).
+                        lastBleDrop?.let { why ->
+                            Text(
+                                stringResource(R.string.nearby_last_drop, why),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
 

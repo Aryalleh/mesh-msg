@@ -344,4 +344,5 @@
     <string name="call_full_screen_allow">اجازه دادن</string>
     <string name="settings_full_screen">تماس ورودی تمام‌صفحه</string>
     <string name="settings_full_screen_off">مجاز نیست: تماس‌ها فقط به صورت اعلان دیده می‌شوند. برای اجازه بزنید.</string>
+    <string name="nearby_last_drop">آخرین قطع: %1$s</string>
 </resources>

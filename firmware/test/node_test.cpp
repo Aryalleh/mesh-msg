@@ -667,6 +667,33 @@ void ble_mesh_peers() {
   CHECK(r.board.wipes == 0);
 }
 
+// The phone starts over on the same connection (Android reuses a link that is
+// still closing): its hello arrives in the middle of the old stream, even in
+// the middle of a packet. The board restarts the seat instead of calling the
+// stream corrupt, drops what was half sent, and the new stream works.
+void ble_mesh_restart() {
+  Rig r(35);
+  auto& n = *r.node;
+  const size_t pa = mesh::node::Node::kMeshPort0;
+  mesh::blemesh::Peer a;
+  uint8_t hello[] = {mesh::blemesh::kHelloMagic, 7, 7, 7, 7};
+  CHECK(a.rx(n, pa, hello, sizeof hello, 1000));
+  Bytes d1 = data_packet(0x51);
+  Bytes s1 = mesh_frames({d1});
+  CHECK(a.rx(n, pa, s1.data(), 10, 1000));  // half a packet, then the link broke
+  uint32_t restarts = a.restarts();
+  CHECK(a.rx(n, pa, hello, sizeof hello, 1000));  // same phone, new session
+  CHECK(a.restarts() == restarts + 1 && a.up());
+  Bytes d2 = data_packet(0x52);
+  Bytes s2 = mesh_frames({d1, d2});
+  CHECK(a.rx(n, pa, s2.data(), s2.size(), 1000));
+  CHECK(a.packets_in() == 2);
+  // At a packet boundary a hello from another session restarts too (no
+  // packet length starts with 0x4D: that would be over 5 MB).
+  uint8_t other[] = {mesh::blemesh::kHelloMagic, 1, 2, 3, 4};
+  CHECK(a.rx(n, pa, other, sizeof other, 1000) && a.restarts() == restarts + 2);
+}
+
 // The board as a relay between all layers: a packet from a Bluetooth phone
 // goes out on LoRa, to the relay and to the other phones; one heard on LoRa
 // reaches the phones and the relay; one from the relay reaches the phones and LoRa.
@@ -841,6 +868,7 @@ void run_node() {
   web_port_untrusted();
   wifi_commands();
   ble_mesh_peers();
+  ble_mesh_restart();
   all_layers();
   two_hosts_and_uplink();
   commands();
