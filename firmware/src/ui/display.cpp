@@ -17,11 +17,16 @@ constexpr int kWidth = 240, kHeight = 320;
 constexpr uint32_t kLcdHz = 40000000, kTouchHz = 2000000;
 constexpr int kBufLines = 40;
 
-// Raw XPT2046 readings at the screen edges (portrait); change after a
-// calibration on the real panel.
+// Raw XPT2046 readings at the screen edges (portrait x 0 and 239, y 0 and
+// 319). On the owner's panel ("TFT SPI 240x320 V1.2") raw X falls as portrait
+// x grows: with MIN < MAX, touches came out mirrored top to bottom in
+// landscape (2026-11-18). A panel the other way round: swap the pair in
+// build_flags (-DTOUCH_X_MIN=220 -DTOUCH_X_MAX=3880).
 #ifndef TOUCH_X_MIN
-#define TOUCH_X_MIN 220
-#define TOUCH_X_MAX 3880
+#define TOUCH_X_MIN 3880
+#define TOUCH_X_MAX 220
+#endif
+#ifndef TOUCH_Y_MIN
 #define TOUCH_Y_MIN 260
 #define TOUCH_Y_MAX 3860
 #endif
@@ -121,11 +126,13 @@ bool begin() {
                                   : LCD_ROTATION == 0 ? LV_DISPLAY_ROTATION_0
                                                       : LV_DISPLAY_ROTATION_90);
   size_t bytes = size_t(kHeight) * kBufLines * 2;  // rows are up to 320 pixels wide
-  // The panel is fed by the CPU (SPI writeBytes), so any memory works: fast
-  // internal RAM first, PSRAM when Wi-Fi, BLE and TLS have taken that.
+  // The panel is fed by the CPU (SPI writeBytes), so any memory works: PSRAM.
+  // Internal RAM is what Wi-Fi, Bluetooth and TLS need: two 25 kB buffers
+  // there left the relay's TLS handshake failing with "SSL - Memory
+  // allocation failed" (owner, 2026-11-18).
   auto alloc = [](size_t n) {
-    void* p = heap_caps_malloc(n, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    return p ? p : heap_caps_malloc(n, MALLOC_CAP_SPIRAM);
+    void* p = heap_caps_malloc(n, MALLOC_CAP_SPIRAM);
+    return p ? p : heap_caps_malloc(n, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   };
   void* a = alloc(bytes);
   void* b = alloc(bytes);

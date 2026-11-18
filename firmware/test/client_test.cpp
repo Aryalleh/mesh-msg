@@ -1,10 +1,12 @@
 // The handheld's messaging client: two clients talk through a "network" that
 // hands each one the other's packets.
+#include <cstring>
 #include <map>
 #include <random>
 
 #include "check.h"
 #include "client.h"
+#include "packet.h"
 
 namespace mc = mesh::client;
 
@@ -120,6 +122,50 @@ void two_clients() {
   CHECK(a2.messages(0)[1].text == longtext && a2.find(a2.contacts()[0].id()) == 0);
 }
 
+// Call signals (content type 7): handed to the call handler with the
+// sender and whether they are a saved contact; never messages, never make a
+// stranger a contact; sent with PRIORITY.
+void call_signals() {
+  MemStore sa, sb, sc;
+  auto ka = seed(4), kb = seed(5), kc = seed(6);
+  mc::Client a(ka.data(), sa, rnd), b(kb.data(), sb, rnd), c(kc.data(), sc, rnd);
+  CHECK(a.add_contact(b.link(), T) == 0);
+  CHECK(a.send_text(0, "hi", T));
+  deliver(a, b, T);
+  deliver(b, a, T);  // receipt
+  struct Got {
+    mesh::PublicKey from;
+    bool contact = false;
+    std::vector<uint8_t> sig;
+    int n = 0;
+  } gb, ga;
+  b.set_call_handler([&](const mesh::PublicKey& f, bool k, const uint8_t* d, size_t n) {
+    gb.from = f, gb.contact = k, gb.sig.assign(d, d + n), gb.n++;
+  });
+  a.set_call_handler([&](const mesh::PublicKey& f, bool k, const uint8_t* d, size_t n) {
+    ga.from = f, ga.contact = k, ga.sig.assign(d, d + n), ga.n++;
+  });
+  const uint8_t sig[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0, 9, 9};
+  CHECK(a.send_call(b.pub(), sig, sizeof sig, T + 1));
+  auto out = a.take_outgoing();
+  CHECK(out.size() == 1);
+  mesh::Packet p;
+  CHECK(mesh::decode(out[0].data(), out[0].size(), p) == mesh::Err::Ok && p.priority());
+  size_t msgs = b.messages(0).size();
+  b.on_packet(out[0].data(), out[0].size(), T + 1);
+  CHECK(gb.n == 1 && gb.contact && std::memcmp(gb.from.x, a.pub().x, 32) == 0);
+  CHECK(gb.sig == std::vector<uint8_t>(sig, sig + sizeof sig));
+  CHECK(b.messages(0).size() == msgs);
+  CHECK(b.take_outgoing().size() == 1);  // the receipt
+  b.on_packet(out[0].data(), out[0].size(), T + 1);  // the same packet again: once
+  CHECK(gb.n == 1);
+  // A stranger calls: handed over as not a contact, and stays a stranger.
+  CHECK(c.send_call(a.pub(), sig, sizeof sig, T + 2));
+  deliver(c, a, T + 2);
+  CHECK(ga.n == 1 && !ga.contact && a.contact_of(c.pub()) < 0 && a.contact_of(b.pub()) == 0);
+  for (auto& k : a.contacts()) CHECK(std::memcmp(k.pub.x, c.pub().x, 32) != 0 || !k.saved);
+}
+
 void links_and_base64() {
   std::vector<uint8_t> b(64);
   for (size_t i = 0; i < b.size(); i++) b[i] = uint8_t(i * 7);
@@ -140,6 +186,7 @@ void links_and_base64() {
 }  // namespace
 
 void run_client() {
+  call_signals();
   two_clients();
   links_and_base64();
 }

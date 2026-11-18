@@ -59,6 +59,8 @@ bool begin(StatusFn status, Messenger& messenger);
 // without holding the node lock.
 void loop(uint32_t now_ms);
 bool ready();
+// The navigation keys on NAV_KEYS_PIN were found at boot (lib/meshkeys ladder.h).
+bool nav_keys();
 
 // Input from a phone or PC showing the screen (hwsim.h): a touch at screen
 // coordinates, or a key (keys::Action, code point for Text). False: unknown action.

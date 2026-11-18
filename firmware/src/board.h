@@ -17,6 +17,10 @@ uint32_t random32();
 void random_bytes(uint8_t* out, size_t n);
 
 void init();  // chip selects, strapping pins, switch and INT inputs
+// TLS (mbedTLS) takes its buffers from PSRAM, small blocks from internal RAM:
+// the SDK's default puts all of it in internal RAM, which Wi-Fi, Bluetooth
+// and the screen share ("SSL - Memory allocation failed"). Call first.
+void tls_memory_in_psram();
 void led(bool on);
 uint16_t battery_mv();  // 0 = unknown / mains
 

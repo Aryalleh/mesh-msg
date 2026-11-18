@@ -2,11 +2,13 @@
 // exactly once, debouncing, Alt + Shift switches language, layers.
 #include <cstring>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "check.h"
 #include "kbproto.h"
 #include "keys.h"
+#include "ladder.h"
 
 namespace k = mesh::keys;
 
@@ -127,7 +129,44 @@ void blackberry() {
         r.out[2].action == k::Action::Ok && r.out[3].action == k::Action::Symbols);
 }
 
+// Navigation keys on one ADC pin: each resistor's voltage is its key, with
+// 5 % resistors and a 3.25–3.35 V supply; debounce, release, repeat.
+void ladder() {
+  const double ohms[] = {0, 1000, 2200, 4700, 6800, 10000, 15000, 22000, 39000};
+  for (int i = 0; i < 9; i++)
+    for (double tol : {0.95, 1.05})
+      for (double pull : {9500.0, 10500.0})
+        for (double vcc : {3250.0, 3350.0}) {
+          double r = ohms[i] * tol;
+          uint32_t mv = uint32_t(vcc * r / (r + pull));
+          CHECKC(k::ladder_key(mv) == i, std::to_string(i) + " at " + std::to_string(mv) + " mV");
+        }
+  CHECK(k::ladder_key(3300) == -1 && k::ladder_key(3100) == -1);  // no key (the ADC tops out near 3.1 V)
+  k::Ladder l;
+  uint32_t t = 0;
+  auto run = [&](uint32_t mv, uint32_t ms) {
+    std::vector<k::Action> out;
+    for (uint32_t e = 0; e < ms; e += 10, t += 10) {
+      k::Action a = l.feed(mv, t);
+      if (a != k::Action::None) out.push_back(a);
+    }
+    return out;
+  };
+  CHECK(run(3300, 100).empty());
+  CHECK(run(1650, 20).empty());                      // Back, bouncing: too short
+  CHECK(run(3300, 50).empty());
+  auto ok = run(1336, 300);                          // OK held: one press, no repeat
+  CHECK(ok.size() == 1 && ok[0] == k::Action::Ok);
+  CHECK(run(3300, 50).empty());
+  auto up = run(0, 1000);                            // Up held: a press, then repeats
+  CHECK(up.size() >= 5 && up[0] == k::Action::Up);
+  CHECK(run(3300, 50).empty() && l.held() == -1);
+  auto end = run(2627, 100);
+  CHECK(end.size() == 1 && end[0] == k::Action::End);
+}
+
 void run_keys() {
+  ladder();
   const k::Keyboard& kb7 = k::keyboard(k::Variant::Matrix7x7);
   check_layout(kb7, 17);
   blackberry();

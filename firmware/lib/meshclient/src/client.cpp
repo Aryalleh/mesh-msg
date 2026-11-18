@@ -242,27 +242,23 @@ std::vector<std::vector<uint8_t>> Client::take_outgoing() {
   return o;
 }
 
-bool Client::send_text(size_t ci, const std::string& text, uint32_t now, std::string* err) {
+bool Client::send_content(const PublicKey& to, bool known, uint8_t ct, const uint8_t* content, size_t len,
+                          bool priority, uint32_t now, uint8_t packet_id[8], std::string* err) {
   auto fail = [&](const char* why) {
     if (err) *err = why;
     return false;
   };
-  if (ci >= contacts_.size()) return fail("no such contact");
-  if (text.empty()) return fail("empty");
-  std::string content;
-  uint8_t ct = textenc::encode(text, content);
-  if (content.size() > kMaxContent) return fail("too long");
-  Contact& c = contacts_[ci];
+  if (len > kMaxContent) return fail("too long");
   Packet p;
   p.type = Type::Data;
   p.max_hops = kDefaultMaxHops;
+  if (priority) p.ctx |= kCtxPriority;
   random_(p.id, 8);
-  c.pub.hash(p.dest);
+  to.hash(p.dest);
   uint8_t eph[32];
   random_(eph, sizeof eph);
-  std::vector<uint8_t> body(content.size() + e2e::kOverheadX + 32 + e2e::kInnerHeader);
-  size_t n = e2e::seal(id_, c.pub, c.knows_me, p.id, eph, ct, now, reinterpret_cast<const uint8_t*>(content.data()),
-                       content.size(), body.data(), body.size());
+  std::vector<uint8_t> body(len + e2e::kOverheadX + 32 + e2e::kInnerHeader);
+  size_t n = e2e::seal(id_, to, known, p.id, eph, ct, now, content, len, body.data(), body.size());
   std::memset(eph, 0, sizeof eph);
   if (!n) return fail("encryption failed");
   p.body = body.data();
@@ -274,10 +270,28 @@ bool Client::send_text(size_t ci, const std::string& text, uint32_t now, std::st
     if (fragment(p, kLoRaMTU, i, f) != Err::Ok) return fail("fragment");
     queue(f);
   }
+  if (packet_id) std::memcpy(packet_id, p.id, 8);
+  return true;
+}
+
+bool Client::send_text(size_t ci, const std::string& text, uint32_t now, std::string* err) {
+  if (ci >= contacts_.size()) {
+    if (err) *err = "no such contact";
+    return false;
+  }
+  if (text.empty()) {
+    if (err) *err = "empty";
+    return false;
+  }
+  std::string content;
+  uint8_t ct = textenc::encode(text, content);
+  Contact& c = contacts_[ci];
   Message m;
+  if (!send_content(c.pub, c.knows_me, ct, reinterpret_cast<const uint8_t*>(content.data()), content.size(), false,
+                    now, m.packet_id, err))
+    return false;
   m.mine = true;
   m.time = now;
-  std::memcpy(m.packet_id, p.id, 8);
   m.text = text;
   c.saved = true;
   c.last = now;
@@ -285,6 +299,22 @@ bool Client::send_text(size_t ci, const std::string& text, uint32_t now, std::st
   save_contacts();
   stats_.sent++;
   return true;
+}
+
+bool Client::send_call(const PublicKey& peer, const uint8_t* sig, size_t n, uint32_t now) {
+  int ci = -1;
+  for (size_t i = 0; i < contacts_.size(); i++)
+    if (std::memcmp(contacts_[i].pub.x, peer.x, 32) == 0) ci = int(i);
+  bool known = ci >= 0 && contacts_[size_t(ci)].knows_me;
+  return send_content(peer, known, e2e::kCall, sig, n, true, now, nullptr, nullptr);
+}
+
+int Client::contact_of(const PublicKey& pub) const {
+  for (size_t i = 0; i < contacts_.size(); i++)
+    if (contacts_[i].saved && std::memcmp(contacts_[i].pub.x, pub.x, 32) == 0 &&
+        std::memcmp(contacts_[i].pub.ed, pub.ed, 32) == 0)
+      return int(i);
+  return -1;
 }
 
 bool Client::seen(const uint8_t id[8]) {
@@ -403,25 +433,37 @@ void Client::on_data(const Packet& p, uint32_t now) {
       return;
     }
     stats_.opened++;
-    int ci = o.contact >= 0 ? o.contact : upsert(o.from, now);
-    if (ci < 0) return;
-    Contact& c = contacts_[size_t(ci)];
-    c.saved = true;
-    c.knows_me = true;  // they wrote to us: they have our key
-    c.last = now;
-    if (o.content_type == e2e::kText || o.content_type == e2e::kTextCompact) {
-      Message m;
-      m.time = o.time ? o.time : now;
-      std::memcpy(m.packet_id, p.id, 8);
-      if (textenc::decode(o.content_type, o.content, o.len, m.text)) add_message(size_t(ci), m);
+    if (o.content_type == e2e::kCall) {
+      // Not a message, and a stranger's call does not make them a contact.
+      int known = contact_of(o.from);
+      if (known >= 0) contacts_[size_t(known)].knows_me = true;
+      if (on_call_) on_call_(o.from, known >= 0, o.content, o.len);
+    } else if (!on_message(p, o, now)) {
+      return;  // no room for a new contact: not delivered
     }
-    save_contacts();
-    rev_++;
   }
   // The signed receipt: the sender's tick turns, and nodes holding the message purge it.
   uint8_t buf[kReceiptBody];
   Packet r;
   if (build_receipt(id_, p.id, kDefaultMaxHops, buf, sizeof buf, r) == AnnounceErr::Ok) queue(r);
+}
+
+bool Client::on_message(const Packet& p, const e2e::Opened& o, uint32_t now) {
+  int ci = o.contact >= 0 ? o.contact : upsert(o.from, now);
+  if (ci < 0) return false;
+  Contact& c = contacts_[size_t(ci)];
+  c.saved = true;
+  c.knows_me = true;  // they wrote to us: they have our key
+  c.last = now;
+  if (o.content_type == e2e::kText || o.content_type == e2e::kTextCompact) {
+    Message m;
+    m.time = o.time ? o.time : now;
+    std::memcpy(m.packet_id, p.id, 8);
+    if (textenc::decode(o.content_type, o.content, o.len, m.text)) add_message(size_t(ci), m);
+  }
+  save_contacts();
+  rev_++;
+  return true;
 }
 
 void Client::tick(uint32_t now) {

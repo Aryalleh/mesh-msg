@@ -9,6 +9,7 @@
 
 #include "display.h"
 #include "kbmodule.h"
+#include "ladder.h"
 #include "osk.h"
 
 LV_FONT_DECLARE(mava_font_16);  // Vazirmatn 16 px (fonts/mava_font_16.c, OFL)
@@ -20,6 +21,14 @@ namespace k = mesh::keys;
 
 constexpr uint32_t kSleepMs = 60000;
 constexpr int kTrackStep = 6;  // trackpad counts per list step
+
+// Navigation keys on one ADC pin (lib/meshkeys ladder.h): Up, Down, Left,
+// Right, OK, Back, Menu, Call, End without the keyboard module.
+#ifdef NAV_KEYS_PIN
+mesh::keys::Ladder g_nav;
+bool g_nav_on = false;
+uint32_t g_nav_at = 0;
+#endif
 
 StatusFn g_status_fn = nullptr;
 RadioFn g_radio_fn = nullptr;
@@ -631,6 +640,15 @@ bool begin(StatusFn status, Messenger& messenger) {
   g_remote_indev = lv_indev_create();
   lv_indev_set_type(g_remote_indev, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(g_remote_indev, remote_cb);
+#ifdef NAV_KEYS_PIN
+  // Fitted when its 10 k pull-up holds the pin high: a pin left open floats
+  // and would press keys at random.
+  g_nav_on = true;  // Arduino's default attenuation reads 0–3.1 V
+  for (int i = 0; i < 20 && g_nav_on; i++) {
+    g_nav_on = analogReadMilliVolts(NAV_KEYS_PIN) >= 2900;
+    delay(5);
+  }
+#endif
   if (g_status_fn) g_status = g_status_fn();
   show(Screen::Home);
   display::backlight(g_brightness);
@@ -639,6 +657,14 @@ bool begin(StatusFn status, Messenger& messenger) {
 }
 
 bool ready() { return g_ready; }
+
+bool nav_keys() {
+#ifdef NAV_KEYS_PIN
+  return g_nav_on;
+#else
+  return false;
+#endif
+}
 
 void remote_touch(int x, int y, bool pressed) {
   if (!g_ready) return;
@@ -700,6 +726,13 @@ void loop(uint32_t now_ms) {
   int dx = 0, dy = 0;
   size_t n = kbmodule::poll(now_ms, out, 8, &dx, &dy);
   for (size_t i = 0; i < n; i++) on_output(out[i]);
+#ifdef NAV_KEYS_PIN
+  if (g_nav_on && now_ms - g_nav_at >= 10) {
+    g_nav_at = now_ms;
+    k::Action a = g_nav.feed(analogReadMilliVolts(NAV_KEYS_PIN), now_ms);
+    if (a != k::Action::None) on_output(k::Output{a, 0});
+  }
+#endif
   if (dy) {
     wake();
     track_y += dy;

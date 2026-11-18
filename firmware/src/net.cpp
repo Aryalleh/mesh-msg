@@ -12,6 +12,7 @@
 #include <LittleFS.h>
 #include <mbedtls/base64.h>
 #include <mbedtls/sha256.h>
+#include <esp_sntp.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -20,6 +21,7 @@
 #include "board.h"
 #include "meshtastic.h"
 #include "roots.h"
+#include "wallclock.h"
 
 namespace net {
 namespace {
@@ -142,6 +144,7 @@ void start_station() {
   WiFi.softAP(g_ap_name, g_s->password);
   WiFi.setAutoReconnect(true);
   WiFi.begin(g_s->wifi_ssid, g_s->wifi_pass);
+  sntp_set_time_sync_notification_cb([](struct timeval* tv) { wallclock::set(uint32_t(tv->tv_sec), "NTP"); });
   configTime(0, 0, "pool.ntp.org", "time.google.com");
   g_web.begin();  // the web app for browsers on this network
 }
@@ -708,14 +711,29 @@ uint32_t http_date(const String& d) {
 // Without NTP (filtered on some networks) the relay's clock is good enough
 // for announces: the board's account can then announce and be reached.
 void clock_from(const String& date) {
-  if (g_time_given || !date.length()) return;
+  if (wallclock::trusted() || !date.length()) return;
   uint32_t t = http_date(date);
-  if (!t) return;
-  struct timeval tv = {time_t(t), 0};
-  settimeofday(&tv, nullptr);
-  Lock l;
-  g_node->set_time(t, board::now_ms());
-  g_time_given = true;
+  if (t) wallclock::set(t, "the relay");  // the main loop hands it to the node
+}
+
+// The relay's certificate is checked against the clock: with no RTC and no
+// network time yet (a fresh boot), wait a little for NTP, then ask the relay
+// host over plain HTTP for its Date header (any answer has one, a redirect
+// too). Without this the first HTTPS fails as "connection refused" with a
+// certificate error (owner, 2026-11-18).
+void ensure_clock(const String& host) {
+  for (int i = 0; i < 50 && !wallclock::trusted(); i++) delay(100);  // NTP, up to 5 s
+  if (wallclock::trusted()) return;
+  HTTPClient http;
+  WiFiClient plain;
+  http.setConnectTimeout(5000);
+  if (!http.begin(plain, "http://" + host + "/")) return;
+  http.setTimeout(5000);
+  http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
+  const char* keep[] = {"Date"};
+  http.collectHeaders(keep, 1);
+  if (http.GET() > 0) clock_from(http.header("Date"));
+  http.end();
 }
 
 bool begin_http(HTTPClient& http, WiFiClientSecure& tls, WiFiClient& plain, const String& url) {
@@ -742,6 +760,7 @@ bool probe(const String& base, String& why) {
     why = host + ": name lookup failed";
     return false;
   }
+  if (base.startsWith("https://")) ensure_clock(host);
   HTTPClient http;
   WiFiClientSecure tls;
   WiFiClient plain;
@@ -759,6 +778,7 @@ bool probe(const String& base, String& why) {
       char err[80] = {};
       if (base.startsWith("https://")) tls.lastError(err, sizeof err);
       why = base + ": " + HTTPClient::errorToString(code) + (err[0] ? String(", TLS: ") + err : String());
+      if (err[0] && !wallclock::trusted()) why += " (the board's clock is not set yet: no RTC, NTP or relay time)";
     } else {
       why = base + ": HTTP " + String(code);
     }
@@ -1009,12 +1029,11 @@ void loop(Millis now) {
     g_node->host_detach(mesh::node::Node::kWebPort);
     g_web_session = "";
   }
-  if (g_mode == Mode::Station && !g_time_given) {
-    time_t t = time(nullptr);
-    if (t > 1700000000) {
-      g_node->set_time(uint32_t(t), now);
-      g_time_given = true;
-    }
+  // The node learns the time once the clock is trusted (an RTC at boot, NTP,
+  // the relay's Date): announces need it, also without Wi-Fi.
+  if (!g_time_given && wallclock::trusted()) {
+    g_node->set_time(wallclock::trusted_now(), now);
+    g_time_given = true;
   }
 }
 

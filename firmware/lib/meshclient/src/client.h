@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "e2e.h"
 #include "identity.h"
 #include "packet.h"
 
@@ -64,6 +65,19 @@ class Client {
   void on_packet(const uint8_t* raw, size_t n, uint32_t now);
   // Encrypts text to contact (index into contacts()); false + err if not.
   bool send_text(size_t contact, const std::string& text, uint32_t now, std::string* err = nullptr);
+  // A call signal (content type 7) to peer, with the PRIORITY flag (ringing
+  // must not wait behind queued messages). Contacts get Noise K when they
+  // know us, anyone else Noise X (a REJECT to a stranger).
+  bool send_call(const PublicKey& peer, const uint8_t* sig, size_t n, uint32_t now);
+  // Call signals that arrive: from, whether they are a saved contact (calls
+  // are for contacts only), the signal. Not stored, not a message.
+  using CallHandler = std::function<void(const PublicKey& from, bool contact, const uint8_t* sig, size_t n)>;
+  void set_call_handler(CallHandler h) { on_call_ = std::move(h); }
+  // A saved contact's index, or -1.
+  int contact_of(const PublicKey& pub) const;
+  // The user identity (for the call handshake).
+  const Identity& identity() const { return id_; }
+
   // Adds a contact from a link / meshmsg: URI; returns its index or -1.
   int add_contact(const std::string& link, uint32_t now);
   // Names a contact (keeps them as a saved contact).
@@ -104,7 +118,10 @@ class Client {
   int upsert(const PublicKey& pub, uint32_t now);
   void add_message(size_t contact, const Message& m);
   void queue(const Packet& p);
+  bool send_content(const PublicKey& to, bool known, uint8_t ct, const uint8_t* content, size_t n, bool priority,
+                    uint32_t now, uint8_t packet_id[8], std::string* err);
   void on_data(const Packet& p, uint32_t now);
+  bool on_message(const Packet& p, const e2e::Opened& o, uint32_t now);
   bool seen(const uint8_t id[8]);
   void load();
   void save_contacts();
@@ -132,6 +149,7 @@ class Client {
   uint32_t rev_ = 1;
   Stats stats_;
   std::vector<OtherDest> others_;
+  CallHandler on_call_;
 };
 
 std::string base64url(const uint8_t* b, size_t n);

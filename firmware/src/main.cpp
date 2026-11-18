@@ -26,6 +26,7 @@
 #include "ble.h"
 #include "hwsim/hwsim.h"
 #include "board.h"
+#include "wallclock.h"
 #include "meshtastic.h"
 #include "net.h"
 #include "node.h"
@@ -319,6 +320,7 @@ void setup() {
   Serial.begin(115200);
   Serial.setTimeout(0);
   board::init();
+  board::tls_memory_in_psram();
   Millis t0 = board::now_ms();
   while (!Serial && board::now_ms() - t0 < 1500) delay(10);  // a monitor just opened?
 
@@ -347,6 +349,17 @@ void setup() {
   net::Settings before = g_net;
   net::init_secrets(g_net);
   if (memcmp(&before, &g_net, sizeof g_net) != 0) net::save(g_net);
+
+  // The clock before Wi-Fi: the relay's TLS checks its certificate against it.
+#if defined(I2C_SDA) && defined(I2C_SCL)
+  Wire.begin(I2C_SDA, I2C_SCL, 400000);  // RTC, keyboard module, later the codec and fuel gauge
+#endif
+  wallclock::begin();
+  {
+    char ck[160];
+    wallclock::status(ck, sizeof ck);
+    logf("clock: %s", ck);
+  }
 
   // Wi-Fi and BLE first: if a part that isn't fitted makes a later step
   // hang, the hotspot is already up. The relay worker waits for the lock.
@@ -384,7 +397,6 @@ void setup() {
   restore_store(node, board::now_ms());
 #if defined(I2C_SDA) && defined(I2C_SCL)
   logf("boot: keyboard module");
-  Wire.begin(I2C_SDA, I2C_SCL, 400000);
   static const char* kVariants[] = {"7x7 matrix", "BlackBerry 9900", "BlackBerry 9900 + trackpad"};
   if (kbmodule::begin()) {
     logf("keyboard module: %s", kVariants[int(kbmodule::variant())]);
@@ -412,6 +424,14 @@ void setup() {
   logf("messenger: %s", g_client_on ? (g_ui ? "on (screen and browser)" : "on (browser: http://<board>/app/)") : "off");
   logf("screen: %s%s%s; screen on a phone over USB: %s", g_ui ? "ok" : "none", g_ui ? "" : " — ", g_ui ? "" : display::error(),
        g_ui && mirror ? "yes" : mirror ? "no" : "no (no PSRAM for the frame copy)");
+#ifdef NAV_KEYS_PIN
+  logf("navigation keys (resistor ladder on GPIO %d): %s", NAV_KEYS_PIN,
+       !g_ui ? "no screen" : ui::nav_keys() ? "found" : "none (the pin is not pulled up)");
+#endif
+  logf("memory after the screen: internal %u kB free (largest block %u kB), PSRAM %u kB free",
+       unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+       unsigned(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+       unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
   logf("ready; attach meshd ([lora] port = this serial port), pair a phone, or watch the air");
 }
 
@@ -505,6 +525,12 @@ void loop() {
 
   // ---- Wi-Fi: setup switch, hotspot panel, NTP ----
   net::loop(now);
+  // ---- clock: a phone's HELLO also sets it; the RTC and flash keep it ----
+  if (!wallclock::trusted()) {
+    uint32_t t = node.unix_time(now);
+    if (t) wallclock::set(t, "a phone or computer");
+  }
+  wallclock::loop();
 
   // ---- sounds; pre-release simulators: screen, keys, audio on a phone ----
   audio::loop(uint32_t(now));
@@ -535,6 +561,9 @@ void loop() {
          unsigned(sc.used), unsigned(mesh::store::kSlots), unsigned(sc.data), unsigned(sc.own), unsigned(sc.receipts),
          unsigned(sc.announces), unsigned(sc.other), (unsigned long)ss.full, (unsigned long)ss.quota);
     logf("account %s", ui::client_state().c_str());
+    char ck[160];
+    wallclock::status(ck, sizeof ck);
+    logf("clock: %s", ck);
     if (audio::outputs() > 0 || audio::mic_frames() > 0) {
       char au[160];
       audio::status(au, sizeof au);

@@ -1933,3 +1933,19 @@ links. Chose: quick items in beta3; calls follow in later betas.
   the board call the phone: same code on both sides, codec choice, audio both ways, mute,
   hang-up. Next: board integration (content type 7 in the client, lwIP UDP, Opus, the USB
   audio simulator at 16 kHz, call screens).
+- 2026-11-18, owner's report on the board with the display: (1) "SSL - Memory allocation
+  failed": the screen's two 25 kB draw buffers took internal RAM before the relay's TLS
+  needed it, and mbedTLS allocates only internal RAM (SDK default). Draw buffers now PSRAM
+  first; `board::tls_memory_in_psram()` routes mbedTLS blocks ≥ 256 B to PSRAM
+  (`mbedtls_platform_set_calloc_free`); boot log shows internal RAM after the screen. (2)
+  "connection refused" with a certificate error: no clock at boot. New `src/wallclock.*`:
+  RTC module on I2C 47/48 (DS3231/DS1307 0x68, PCF85063A 0x51) sets the clock at boot and
+  gets every network time; without one the clock starts at the last saved time or the build
+  date (untrusted: certificate checks only). Before the first HTTPS the relay worker waits
+  up to 5 s for NTP, then reads the relay host's Date over plain HTTP. The node gets the time
+  when the clock is trusted (also from a phone's HELLO), not from `time() > 1700000000`. (3)
+  Touch mirrored top to bottom in landscape: XPT2046 X runs the other way on the owner's
+  panel; default `TOUCH_X_MIN 3880 / MAX 220`. (4) Navigation keys without the keyboard
+  module: nine buttons as a resistor ladder on GPIO 2 (`NAV_KEYS_PIN`, lib/meshkeys
+  ladder.*, host-tested with 5 % parts and 3.25–3.35 V), found at boot by its pull-up.
+  Wiring in handheld-proto.md §4.

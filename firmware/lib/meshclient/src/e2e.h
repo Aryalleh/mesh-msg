@@ -19,6 +19,7 @@ constexpr size_t kInnerHeader = 5;  // content type (1) + Unix time (4, big endi
 
 constexpr uint8_t kText = 0;
 constexpr uint8_t kTextCompact = 1;
+constexpr uint8_t kCall = 7;  // call signaling (docs/calls.md §2)
 
 // Seals the inner payload (type | time | content) from sender to recipient.
 // known: Noise K, else Noise X. ephemeral: 32 random bytes (the e private

@@ -46,7 +46,7 @@ framework (§8), touch keyboard (§8) and browser access (§10) are described th
 |---|---|---|---|
 | 0 | BOOT button | button to GND | strap; free for nothing else |
 | 1 | LoRa DIO1 | SX1262 | RTC pin: a packet wakes the chip |
-| 2 | — | free | |
+| 2 | Navigation keys | resistor ladder (§4) | ADC1; nine keys on one pin for boards without the keyboard module |
 | 3 | LCD SCK | ILI9341, XPT2046 T_CLK, microSD | strap (JTAG source, only with the eFuse set); the display's own SPI bus |
 | 4 | LoRa BUSY | SX1262 | |
 | 5 | Touch CS | XPT2046 T_CS | 10 k pull-up |
@@ -66,7 +66,7 @@ framework (§8), touch keyboard (§8) and browser access (§10) are described th
 | 43 / 44 | — | free (UART0) | debug console or an extension |
 | 45 | I2S DOUT | WM8960 DACDAT (speaker / earpiece) | strap: low at reset — 100 k to GND |
 | 46 | LCD backlight PWM | display LED / backlight switch (§4) | strap: low at reset — 100 k to GND |
-| 47 / 48 | I2C SDA / SCL | WM8960 0x1A, MAX17048 0x36, keyboard module 0x1F | 3.3 k pull-ups. On a DevKitC with its RGB LED on 48, remove the LED. |
+| 47 / 48 | I2C SDA / SCL | WM8960 0x1A, MAX17048 0x36, keyboard module 0x1F, RTC 0x68 / 0x51 | 3.3 k pull-ups. On a DevKitC with its RGB LED on 48, remove the LED. |
 
 The radio and the display have separate SPI buses, so a screen redraw never delays a LoRa
 interrupt and the display can use DMA at full speed. The display, the radio, touch, SD card
@@ -131,6 +131,30 @@ the silkscreen**: www.waveshare.com was not reachable from the build environment
 earpiece, speaker, headset (menu choice; the jack has no detect line wired).
 
 **MAX17048** — on the cell (VCC/GND), SDA/SCL → 47/48.
+
+**RTC module** — keeps the time while the board is off, so the relay's TLS certificate
+checks out at once after boot (without it the first HTTPS waits for NTP or the relay's Date
+header). A DS3231 module (or DS1307) with its coin cell: VCC → 3.3 V, GND, SDA → 47, SCL → 48
+(address 0x68); the handheld's PCF85063A (0x51) works the same (a PCF8563 does not). The
+firmware sets the clock from it at boot and writes network time (NTP, the relay, a phone's
+HELLO) back to it; the log's `clock:` line says which. Without an RTC the clock starts at the
+last time saved to flash or the build date (good enough for the certificate check, not
+trusted for message times).
+
+**Navigation keys** (no keyboard module; firmware `NAV_KEYS_PIN`, default GPIO 2) — nine
+push buttons on one pin: 10 kΩ from 3.3 V to GPIO 2, and from GPIO 2 to GND one button each
+through its resistor (5 % parts are fine):
+
+| Key | Up | Down | Left | Right | OK | Back | Menu | 📞 Call | ⛔ End |
+|---|---|---|---|---|---|---|---|---|---|
+| Resistor to GND | 0 Ω (wire) | 1 kΩ | 2.2 kΩ | 4.7 kΩ | 6.8 kΩ | 10 kΩ | 15 kΩ | 22 kΩ | 39 kΩ |
+
+One key at a time; arrows repeat while held. The board looks for the 10 kΩ pull-up at boot
+(log: `navigation keys … found`); an open pin is ignored. Leave out keys you don't need.
+
+**Touch calibration** — `TOUCH_X_MIN/MAX`, `TOUCH_Y_MIN/MAX` (raw XPT2046 readings at the
+portrait edges). The defaults fit the red "TFT SPI 240x320 V1.2" module, whose X runs from
+3880 down to 220; a panel whose touches come out mirrored needs the pair swapped.
 
 **Vibration** — motor between 3.3 V and the AO3400 drain, 1N4148 across the motor, gate ←
 GPIO 38 through 100 Ω, 100 k to GND.

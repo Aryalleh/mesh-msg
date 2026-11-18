@@ -5,8 +5,10 @@
 #include <LittleFS.h>
 
 #include <vector>
+#include <esp_heap_caps.h>
 #include <esp_random.h>
 #include <esp_system.h>
+#include <mbedtls/platform.h>
 
 
 namespace board {
@@ -35,6 +37,26 @@ uint64_t now_ms() {
 }
 
 uint32_t random32() { return esp_random(); }
+
+namespace {
+
+constexpr size_t kTlsSmall = 256;  // below this, internal RAM first (many tiny blocks)
+
+void* tls_calloc(size_t n, size_t size) {
+  if (size && n > SIZE_MAX / size) return nullptr;
+  size_t bytes = n * size;
+  const uint32_t ext = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, in = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+  void* p = heap_caps_calloc(n, size, bytes < kTlsSmall ? in : ext);
+  return p ? p : heap_caps_calloc(n, size, bytes < kTlsSmall ? ext : in);
+}
+
+void tls_free(void* p) { heap_caps_free(p); }
+
+}  // namespace
+
+void tls_memory_in_psram() {
+  if (heap_caps_get_total_size(MALLOC_CAP_SPIRAM) > 0) mbedtls_platform_set_calloc_free(tls_calloc, tls_free);
+}
 
 void random_bytes(uint8_t* out, size_t n) {
   while (n > 0) {
