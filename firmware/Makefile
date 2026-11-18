@@ -7,15 +7,15 @@ CC ?= cc
 CXX ?= c++
 BUILD := build
 SAN := -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all
-INC := -Ilib/meshproto/src -Ilib/meshroute/src -Ilib/meshnode/src -Ilib/meshtastic/src -Ilib/meshkeys/src -Ilib/meshui/src -Ilib/meshclient/src -Ilib/hwsim/src -Ilib/meshaudio/src -Ilib/monocypher/src
+INC := -Ilib/meshproto/src -Ilib/meshroute/src -Ilib/meshnode/src -Ilib/meshtastic/src -Ilib/meshkeys/src -Ilib/meshui/src -Ilib/meshclient/src -Ilib/hwsim/src -Ilib/meshaudio/src -Ilib/meshcall/src -Ilib/monocypher/src
 CFLAGS := -std=c99 -O1 -g $(SAN) $(INC)
 CXXFLAGS := -std=c++17 -O1 -g -Wall -Wextra -Wpedantic -Wshadow -Werror $(SAN) $(INC)
 
 LIB_C := lib/monocypher/src/monocypher.c lib/monocypher/src/monocypher-ed25519.c
-LIB_CXX := $(wildcard lib/meshproto/src/*.cpp lib/meshroute/src/*.cpp lib/meshnode/src/*.cpp lib/meshtastic/src/*.cpp lib/meshkeys/src/*.cpp lib/meshui/src/*.cpp lib/meshclient/src/*.cpp lib/hwsim/src/*.cpp lib/meshaudio/src/*.cpp)
+LIB_CXX := $(wildcard lib/meshproto/src/*.cpp lib/meshroute/src/*.cpp lib/meshnode/src/*.cpp lib/meshtastic/src/*.cpp lib/meshkeys/src/*.cpp lib/meshui/src/*.cpp lib/meshclient/src/*.cpp lib/hwsim/src/*.cpp lib/meshaudio/src/*.cpp lib/meshcall/src/*.cpp)
 TEST_CXX := $(wildcard test/*.cpp)
 OBJS := $(LIB_C:%.c=$(BUILD)/%.o) $(LIB_CXX:%.cpp=$(BUILD)/%.o) $(TEST_CXX:%.cpp=$(BUILD)/%.o)
-HDRS := $(wildcard lib/meshproto/src/*.h lib/meshroute/src/*.h lib/meshnode/src/*.h lib/meshtastic/src/*.h lib/meshkeys/src/*.h lib/meshui/src/*.h lib/meshclient/src/*.h lib/hwsim/src/*.h lib/meshaudio/src/*.h test/*.h)
+HDRS := $(wildcard lib/meshproto/src/*.h lib/meshroute/src/*.h lib/meshnode/src/*.h lib/meshtastic/src/*.h lib/meshkeys/src/*.h lib/meshui/src/*.h lib/meshclient/src/*.h lib/hwsim/src/*.h lib/meshaudio/src/*.h lib/meshcall/src/*.h test/*.h)
 
 .PHONY: test sim clean
 test: $(BUILD)/host_tests

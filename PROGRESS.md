@@ -1878,3 +1878,23 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - On main (`d270256`; CI: both firmware envs, Mava Screen lint/tests/APK green). Release notes
   v0.1.1-beta32 ready; release waits for the owner's go. Then the owner tests picture off,
   sound test, message chime, echo test.
+
+### 2026-11-18 — Board calls, step 1: call crypto in C++, pinned to the Go code
+
+- Owner: video and voice calls on the board, audio module and camera simulated over USB.
+  Decisions (asked): video codec **MJPEG** added to calls for boards (Android uses it with a
+  board), **voice first**, then video; calls must work on one LAN **and across NATs** (the
+  phones' direct-path methods). Plan: `firmware/lib/meshcall` (pure C++, host-tested) =
+  crypto, signals + direct offer encoding, direct agent (STUN, probes, checks, link), call
+  manager + jitter; then the board (messenger content type 7, lwIP UDP, libopus 16 kHz,
+  hwsim audio at 16 kHz, call screens). Not in the first version: the birthday method
+  (256 sockets), router port mapping, TURN.
+- Local Go reference: `go1.24` + the deps cloned from GitHub (`flynn/noise`, `golang/crypto`,
+  `golang/sys`, `golang/net`, `pion/*`, `wlynxg/anet`; their go.mod reduced to module + go
+  line) with `replace` in a scratch copy of `core/`; `go test ./core/call ./core/direct`
+  pass there. `spec/test-vectors/calls.json` was made by the real Go code (Noise KK with
+  fixed ephemerals, media frames, signals, probes, link datagram, HKDF keys).
+- `lib/meshcall/src/callcrypto.*`: HMAC-SHA256, HKDF-SHA256, ChaCha20-Poly1305 (RFC 8439 from
+  Monocypher's ChaCha20 + Poly1305), Noise_KK_25519_ChaChaPoly_SHA256, call code. Host test
+  `call_test.cpp` matches every vector; Go tests `core/call/vectors_test.go`,
+  `core/direct/vectors_test.go` pin the same file on the Go side.
