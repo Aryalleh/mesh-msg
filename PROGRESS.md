@@ -2026,3 +2026,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (the flush is synchronous, the second never helped); call task stack 10 kB; USB buffers
   16 kB TX / 8 kB RX only in the simulator build (4 kB / 2 kB plain). Every 10 s the log
   shows internal RAM free, its lowest point and the largest block.
+- Notes for beta36 written (memory fix); not released yet.
