@@ -25,8 +25,10 @@ on the same LAN and across NATs like the phones. Protocol core in C++ done and t
 hole punching, call manager + jitter buffer; simulated NATs; TestBoardPeer has the Go phone
 code and the board's manager call each other over loopback UDP). Next: board integration
 (content type 7 in mc::Client, lwIP UDP, Opus at 16 kHz, the USB audio simulator at 16 kHz,
-call screens and keys, reflectors from the relays). beta32 (screen off, phone audio
-simulator) is prepared but not released.
+call screens and keys, reflectors from the relays) done too (step 4, CI builds both envs).
+Next: the owner tries calls on hardware; then video (MJPEG; the phone's camera stands in for
+the board's over USB). beta32 notes cover all of it (calls, the 2026-11-18 fixes, Mava
+Screen); not released yet.
 
 **Owner's board (no LoRa module), Bluetooth messages**: beta29 log showed the store full of
 receipts (`receipts 256`, every DATA refused, incl. 10 from the relay) and the phone dropping
