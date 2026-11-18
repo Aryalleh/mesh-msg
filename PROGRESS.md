@@ -2017,4 +2017,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   new info event to the phone; host test `portrait()`); touch calibration now maps to the
   panel's own pixels (MTC2; MTC1 files from beta33/34 converted), so it holds in any rotation;
   call video decodes to the current screen size.
-- Notes for beta35 written (Mava Board app, RINGING, rotation); not released yet.
+- Released **v0.1.1-beta35** (owner asked; tag on `3b21823`): Mava Board app (one APK `mava-board-…-android.apk`), RINGING, screen rotation. Not yet run on hardware.
