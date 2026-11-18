@@ -2,6 +2,8 @@
 # libcrypto for the Meshtastic channel AES).
 #   make test     build and run the tests (ASan + UBSan) against spec/test-vectors
 #   make sim      build build/meshnode-sim (real nodes on a simulated radio, ptys for meshd)
+#   make callpeer build build/callpeer (the board's call manager on loopback UDP;
+#                 core/call TestBoardPeer calls it from the Go phone code)
 
 CC ?= cc
 CXX ?= c++
@@ -17,7 +19,7 @@ TEST_CXX := $(wildcard test/*.cpp)
 OBJS := $(LIB_C:%.c=$(BUILD)/%.o) $(LIB_CXX:%.cpp=$(BUILD)/%.o) $(TEST_CXX:%.cpp=$(BUILD)/%.o)
 HDRS := $(wildcard lib/meshproto/src/*.h lib/meshroute/src/*.h lib/meshnode/src/*.h lib/meshtastic/src/*.h lib/meshkeys/src/*.h lib/meshui/src/*.h lib/meshclient/src/*.h lib/hwsim/src/*.h lib/meshaudio/src/*.h lib/meshcall/src/*.h test/*.h)
 
-.PHONY: test sim clean
+.PHONY: test sim callpeer clean
 test: $(BUILD)/host_tests
 	./$(BUILD)/host_tests ../spec/test-vectors/vectors.json
 
@@ -28,6 +30,10 @@ $(BUILD)/host_tests: $(OBJS)
 LIB_OBJS := $(LIB_C:%.c=$(BUILD)/%.o) $(LIB_CXX:%.cpp=$(BUILD)/%.o)
 sim: $(BUILD)/meshnode-sim
 $(BUILD)/meshnode-sim: $(LIB_OBJS) $(BUILD)/sim/meshsim.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lcrypto
+
+callpeer: $(BUILD)/callpeer
+$(BUILD)/callpeer: $(LIB_OBJS) $(BUILD)/sim/callpeer.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ -lcrypto
 
 $(BUILD)/%.o: %.c

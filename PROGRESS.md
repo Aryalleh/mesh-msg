@@ -19,6 +19,15 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 
 ## Next step
 
+**Board voice and video calls (owner, 2026-11-18)**: voice first, then video with MJPEG; calls
+on the same LAN and across NATs like the phones. Protocol core in C++ done and tested
+(`firmware/lib/meshcall`: crypto pinned to Go vectors, signals, direct agent with STUN and
+hole punching, call manager + jitter buffer; simulated NATs; TestBoardPeer has the Go phone
+code and the board's manager call each other over loopback UDP). Next: board integration
+(content type 7 in mc::Client, lwIP UDP, Opus at 16 kHz, the USB audio simulator at 16 kHz,
+call screens and keys, reflectors from the relays). beta32 (screen off, phone audio
+simulator) is prepared but not released.
+
 **Owner's board (no LoRa module), Bluetooth messages**: beta29 log showed the store full of
 receipts (`receipts 256`, every DATA refused, incl. 10 from the relay) and the phone dropping
 the link on "status 17" (ATT insufficient resources). beta30 caps receipts and keeps NimBLE
@@ -1909,3 +1918,18 @@ links. Chose: quick items in beta3; calls follow in later betas.
   filtering, a STUN reflector: same LAN → class 1, two NATs → class 4 (hole punched),
   symmetric sequential → predicted (class 5), UDP blocked → "a network on the way blocks UDP",
   replayed datagram dropped, keepalives hold a quiet link, silence closes it.
+- Step 3: `lib/meshcall/src/call.*`: the call manager (port of core/call, event driven, no
+  heap): OFFER/ANSWER/REJECT/CANCEL/END/CONTROL, ring 45 s, busy, contacts only, a stored
+  OFFER past its expiry = missed without ringing, the direct agent, Noise KK hello repeated
+  every 250 ms, sealed media frames, keepalive frames every 2 s, "connection lost" after 20 s
+  of silence, mute, and the adaptive jitter buffer (40–200 ms, same rules as jitter.go). The
+  board answers voice only for now (a video OFFER shows `video_offered`). Tests
+  (`test/callmgr_test.cpp`, on `test/netsim.h`, the simulated network moved out of
+  direct_test): talk on a LAN (class 1), across two NATs (class 4), through a symmetric NAT,
+  declined, cancelled = missed, no answer, no common codec, not a contact, expired OFFER,
+  busy, silent peer, no path, strangers' signals ignored. Interop: `make -C firmware
+  callpeer` builds the manager on real loopback UDP; `core/call/board_test.go`
+  (TestBoardPeer, CI runs it with MAVA_CALLPEER) has the Go phone code call the board and
+  the board call the phone: same code on both sides, codec choice, audio both ways, mute,
+  hang-up. Next: board integration (content type 7 in the client, lwIP UDP, Opus, the USB
+  audio simulator at 16 kHz, call screens).

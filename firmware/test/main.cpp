@@ -19,6 +19,7 @@ void run_client();
 void run_audio();
 void run_call(const std::string& dir);
 void run_direct(const std::string& dir);
+void run_callmgr();
 
 int main(int argc, char** argv) {
   const char* vectors = argc > 1 ? argv[1] : "../spec/test-vectors/vectors.json";
@@ -42,6 +43,7 @@ int main(int argc, char** argv) {
     std::string dir = slash == std::string::npos ? std::string(".") : v.substr(0, slash);
     run_call(dir);
     run_direct(dir);
+    run_callmgr();
   }
   if (check::failures() != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", check::failures());
