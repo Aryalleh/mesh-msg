@@ -8,6 +8,7 @@
 #include <freertos/stream_buffer.h>
 #include <freertos/task.h>
 
+#include <cstdio>
 #include <cstring>
 
 #include "blemesh.h"
@@ -61,7 +62,8 @@ volatile uint32_t g_connects = 0, g_disconnects = 0, g_hellos = 0;
 volatile int g_last_reason = 0;
 
 volatile uint32_t g_lost = 0;
-uint32_t g_corrupt = 0;  // phones dropped for a stream that made no sense  // events that could not be queued (for the log)
+uint32_t g_corrupt = 0;  // phones dropped for a stream that made no sense
+char g_corrupt_why[48] = {};  // events that could not be queued (for the log)
 
 // Never drop silently: a lost write shifts the phone's byte stream (every
 // packet after it is garbage until the link is dropped), and a lost
@@ -73,7 +75,10 @@ void post(Ev ev, uint16_t conn, uint16_t n = 0, const uint8_t* d = nullptr) {
   m.ev = ev;
   m.conn = conn;
   m.n = n;
-  if (d && n) memcpy(m.d, d, n > kMaxWrite ? kMaxWrite : n);
+  if (d && n) {
+    if (n > kMaxWrite) m.n = n = kMaxWrite;  // MTU is 247: never larger
+    memcpy(m.d, d, n);
+  }
   if (xQueueSend(g_q, &m, pdMS_TO_TICKS(2000)) != pdTRUE) g_lost = g_lost + 1;
 }
 
@@ -325,6 +330,7 @@ void handle(mesh::node::Node& node, const Msg& m, mesh::route::Millis now) {
       if (ok && !had_hello && g_peers[c->seat].up()) g_hellos = g_hellos + 1;
       if (!ok) {
         g_corrupt++;
+        std::snprintf(g_corrupt_why, sizeof g_corrupt_why, "%s", g_peers[c->seat].error());
         free_seat(node, *c);
         if (c->client) g_client_kill = true;  // the central task closes it
         else drop_conn(m.conn);               // not a mesh phone, or a corrupt stream: it reconnects
@@ -439,9 +445,10 @@ void status(char* out, size_t cap) {
            (unsigned long)g_hellos, (unsigned long)g_disconnects, r, why);
   // Packets on the Bluetooth mesh since boot (in: from phones to the node).
   if (k > 0 && size_t(k) < cap)
-    snprintf(out + k, cap - size_t(k), "; packets in %lu (too big for LoRa, skipped %lu), out %lu; queue %u waiting, lost %lu, corrupt streams %lu",
+    snprintf(out + k, cap - size_t(k), "; packets in %lu (too big for LoRa, skipped %lu), out %lu; queue %u waiting, lost %lu, corrupt streams %lu%s%s%s",
              (unsigned long)pin, (unsigned long)pskip, (unsigned long)pout, unsigned(uxQueueMessagesWaiting(g_q)),
-             (unsigned long)g_lost, (unsigned long)g_corrupt);
+             (unsigned long)g_lost, (unsigned long)g_corrupt, g_corrupt_why[0] ? " (last: " : "",
+             g_corrupt_why, g_corrupt_why[0] ? ")" : "");
 }
 
 int mesh_peers() {

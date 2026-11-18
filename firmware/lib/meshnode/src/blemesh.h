@@ -34,6 +34,8 @@ class Peer {
   uint32_t packets_in() const { return in_n_; }
   uint32_t packets_skipped() const { return skipped_n_; }
   uint32_t packets_out() const { return out_n_; }
+  // Why rx() last returned false ("" = never), for the board log.
+  const char* error() const { return err_; }
   // This side connected (GATT client) and sent the hello itself: the stream
   // starts at once.
   void start(node::Node& node, size_t port, route::Millis now);
@@ -61,6 +63,7 @@ class Peer {
   uint8_t q_[1024] = {};
   size_t q_off_ = 0, q_len_ = 0;
   uint32_t in_n_ = 0, skipped_n_ = 0, out_n_ = 0;
+  char err_[48] = {};
 };
 
 }  // namespace blemesh

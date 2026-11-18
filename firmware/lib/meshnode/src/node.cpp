@@ -284,7 +284,9 @@ void Node::host_rx(size_t port, const uint8_t* b, size_t n, Millis now) {
         // forwarding to a broadcast link); send as is with implicit-ACK retries.
         if (!router_.send(raw, rn, true, now)) stats_.host_packets_rejected++;
         // The other host and the relay get it too.
-        ingest(p, raw, rn, store::Origin::Phone, sink_of(port), h.trusted, now);  // a trusted host's receipts purge
+        // The board's own messenger is Local: kept longest when the store is full.
+        ingest(p, raw, rn, port == kLocalPort ? store::Origin::Local : store::Origin::Phone, sink_of(port), h.trusted,
+               now);  // a trusted host's receipts purge
         break;
       }
       case host::kKindCommand:

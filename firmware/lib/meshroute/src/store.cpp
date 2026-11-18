@@ -33,16 +33,22 @@ int Store::free_slot() const {
 }
 
 int Store::victim(uint32_t now_s, Priority incoming) const {
-  int best = -1;
-  for (size_t i = 0; i < kSlots; i++) {
-    const Slot& s = s_[i];
-    if (!s.used) continue;
-    if (int32_t(s.rec.expires_s - now_s) <= 0) return int(i);  // expired: take it
-    if (s.prio < incoming) continue;  // more valuable than what arrives
-    if (best < 0 || s.prio > s_[best].prio || (s.prio == s_[best].prio && s.rec.seq < s_[best].rec.seq))
-      best = int(i);
+  // The device's own packets (Origin::Local: written on its screen or web
+  // app) go last: forwarded traffic can fill the store in seconds.
+  for (int pass = 0; pass < 2; pass++) {
+    int best = -1;
+    for (size_t i = 0; i < kSlots; i++) {
+      const Slot& s = s_[i];
+      if (!s.used) continue;
+      if (int32_t(s.rec.expires_s - now_s) <= 0) return int(i);  // expired: take it
+      if (pass == 0 && s.rec.origin == uint8_t(Origin::Local)) continue;
+      if (s.prio < incoming) continue;  // more valuable than what arrives
+      if (best < 0 || s.prio > s_[best].prio || (s.prio == s_[best].prio && s.rec.seq < s_[best].rec.seq))
+        best = int(i);
+    }
+    if (best >= 0) return best;
   }
-  return best;
+  return -1;
 }
 
 void Store::save(int i) {

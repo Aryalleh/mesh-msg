@@ -121,6 +121,28 @@ void eviction() {
   CHECK(s->stats().expired == 1 && s->stats().evicted > 0);
 }
 
+// The device's own messages (written on its screen or web app) are not pushed
+// out by traffic it only forwards: a phone that passes on its relay traffic
+// can fill the store in seconds.
+void own_messages_kept() {
+  auto s = std::make_unique<Store>(nullptr, mesh::store::kSlots);
+  uint16_t id = 1;
+  Bytes mine = pkt(mesh::Type::Data, id++, 1);
+  CHECK(put(*s, mine, 10, 0, Origin::Local) == Put::Stored);
+  for (size_t i = 0; i < 3 * mesh::store::kSlots; i++)
+    CHECK(put(*s, pkt(mesh::Type::Data, id++, uint8_t(2 + i % 200)), 10, 0, Origin::Phone) == Put::Stored);
+  CHECK(s->has(key(mine)));
+  // Only own messages left: the oldest of them goes.
+  auto t2 = std::make_unique<Store>(nullptr, mesh::store::kSlots);
+  std::vector<Bytes> own;
+  for (size_t i = 0; i < mesh::store::kSlots; i++) {
+    own.push_back(pkt(mesh::Type::Data, id++, uint8_t(i)));
+    CHECK(put(*t2, own.back(), 10, 0, Origin::Local) == Put::Stored);
+  }
+  CHECK(put(*t2, pkt(mesh::Type::Data, id++, 250), 10, 0, Origin::Local) == Put::Stored);
+  CHECK(!t2->has(key(own[0])) && t2->has(key(own[1])));
+}
+
 void quota() {
   auto s = std::make_unique<Store>(nullptr, 3);
   for (uint16_t i = 0; i < 3; i++) CHECK(put(*s, pkt(mesh::Type::Data, uint16_t(i + 1), 9)) == Put::Stored);
@@ -262,6 +284,7 @@ void fuzz() {
 void run_store() {
   basics();
   eviction();
+  own_messages_kept();
   quota();
   sinks();
   persistence();

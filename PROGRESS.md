@@ -1750,3 +1750,12 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (back-pressure: the write is answered late), counters lost/corrupt/queue in the log, relay
   up/down counts in the relay line. Release v0.1.1-beta26.
 - Released **v0.1.1-beta26** (35a6194).
+- Owner's beta26 log: lost 0 (queue fix works), relay online at the domain, but one corrupt
+  stream (board drop 0x216); afterwards the phone sent almost nothing; board "sent 1" never
+  uploaded (relay up stayed 1). Causes found: (1) Go `Router.PeerDown` kept the has-marks of
+  the peer, so packets lost with a broken link were never resent on reconnect (same session
+  ID) — now forgotten on PeerDown (`TestResendAfterBrokenLink`); (2) the board's 64-slot store
+  turned over in seconds under relay + BLE traffic and evicted its own messages — board store
+  256 slots (`-DMESH_STORE_SLOTS=256`), local-port packets are `Origin::Local` and evicted
+  last (`own_messages_kept` test); (3) BLE log names the corrupt-stream reason
+  (`Peer::error()`). post() clamps writes to 244. Release v0.1.1-beta27.

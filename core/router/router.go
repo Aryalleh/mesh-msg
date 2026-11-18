@@ -667,6 +667,14 @@ func (r *Router) PeerDown(link string, peer PeerID) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.peers[link], peer)
+	// What was handed to this peer's link is not known to have arrived: a
+	// stream that broke (a corrupt Bluetooth stream the board dropped) loses
+	// its last packets. Forget it, so the backlog on the next PeerUp sends
+	// them again; the peer drops what it already has.
+	h := holder(link, peer)
+	for _, m := range r.has {
+		delete(m, h)
+	}
 }
 
 // LinkUp tells the router an Uplink/Broadcast link (re)connected: stored

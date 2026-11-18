@@ -1,5 +1,6 @@
 #include "blemesh.h"
 
+#include <cstdio>
 #include <cstring>
 
 namespace mesh {
@@ -37,7 +38,10 @@ void Peer::start(node::Node& node, size_t port, route::Millis now) {
 
 bool Peer::rx(node::Node& node, size_t port, const uint8_t* b, size_t n, route::Millis now) {
   if (!hello_) {
-    if (n != 1 + kSessionBytes || b[0] != kHelloMagic) return false;
+    if (n != 1 + kSessionBytes || b[0] != kHelloMagic) {
+      std::snprintf(err_, sizeof err_, "no hello (%u bytes, first 0x%02x)", unsigned(n), n ? b[0] : 0);
+      return false;
+    }
     start(node, port, now);
     return true;
   }
@@ -46,7 +50,11 @@ bool Peer::rx(node::Node& node, size_t port, const uint8_t* b, size_t n, route::
       hdr_[hdr_n_++] = b[i];
       if (hdr_n_ < kFrameHeader) continue;
       need_ = uint32_t(hdr_[0]) << 16 | uint32_t(hdr_[1]) << 8 | hdr_[2];
-      if (need_ == 0 || need_ > kMaxFrame) return false;
+      if (need_ == 0 || need_ > kMaxFrame) {
+        std::snprintf(err_, sizeof err_, "frame length %lu after %lu packets", (unsigned long)need_,
+                      (unsigned long)in_n_);
+        return false;
+      }
       got_ = 0;
       skip_ = need_ > kLoRaMTU;  // a photo or voice frame: not for LoRa
       continue;

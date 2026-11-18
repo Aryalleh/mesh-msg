@@ -319,3 +319,23 @@ func TestRelayListBulletin(t *testing.T) {
 		t.Fatalf("a holds %d bulletins", dataCount(t, a.store))
 	}
 }
+
+// A link that breaks loses what was in flight (a phone's Bluetooth stream to
+// a board got corrupted and was dropped). After the peer reconnects, it must
+// get those packets again: "sent on the old link" is not "the peer has it".
+func TestResendAfterBrokenLink(t *testing.T) {
+	n := newNet(t)
+	a, c := n.add("A", "C"), n.add("C", "A")
+	n.bleLinks("A", "C")
+	n.connect("A", "C")
+	if _, err := a.r.SendText(a.id, c.id.Public, "lost in a broken stream", true, false); err != nil {
+		t.Fatal(err)
+	}
+	n.queue = nil // the transmission is lost with the link
+	n.disconnect("A", "C")
+	n.connect("A", "C")
+	n.run()
+	if len(c.inbox) != 1 || c.inbox[0].Text != "lost in a broken stream" {
+		t.Fatalf("C inbox after reconnect: %+v", c.inbox)
+	}
+}
