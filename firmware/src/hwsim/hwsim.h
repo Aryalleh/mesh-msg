@@ -28,6 +28,8 @@ namespace hwsim {
 bool begin();
 // A flushed area from the display driver (LVGL's RGB565, before the panel's byte swap).
 void blit(int x1, int y1, int x2, int y2, const uint16_t* px);
+// The screen turned (Settings → rotation): the copy takes the new size.
+void resize(int w, int h);
 // From Platform::board_command (main loop, node lock held).
 uint8_t command(mesh::node::Node& node, size_t port, uint8_t op, const uint8_t* args, size_t n);
 // Sends changed tiles and speaker frames while the subscribed port has room
@@ -40,6 +42,7 @@ bool active();
 
 inline bool begin() { return false; }
 inline void blit(int, int, int, int, const uint16_t*) {}
+inline void resize(int, int) {}
 inline uint8_t command(mesh::node::Node&, size_t, uint8_t, const uint8_t*, size_t) { return mesh::host::kAckUnknownOp; }
 inline void pump(mesh::node::Node&) {}
 inline bool active() { return false; }

@@ -7,8 +7,9 @@
 //                Latin, symbols; mesh::osk)
 //   network      node status (LoRa, Meshtastic channel, airtime, relay)
 //   web access   the address (and QR code) an iPhone on the same Wi-Fi opens
-//   settings     device password, BLE passkey, LoRa module on/off, sound test, echo test,
-//                brightness, typing language
+//   settings     device password, BLE passkey, LoRa module on/off, screen rotation
+//                (landscape / portrait, either way up), touch calibration, sound test,
+//                echo test, brightness, typing language
 //
 //   call         incoming (answer / decline), calling, talking (mute, hang up):
 //                comes up by itself while a call is live

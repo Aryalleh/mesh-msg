@@ -57,7 +57,8 @@ uint8_t input(const uint8_t* a, size_t n) {
   if (n != mm::kInputSize) return host::kAckBadArgs;
   if (a[0] == mm::kInputTouch) {
     int x = get16(a + 1), y = get16(a + 3);
-    if (x >= mm::kWidth || y >= mm::kHeight || a[5] > 1) return host::kAckBadArgs;
+    int w = g_mirror ? g_mirror->width() : mm::kWidth, h = g_mirror ? g_mirror->height() : mm::kHeight;
+    if (x >= w || y >= h || a[5] > 1) return host::kAckBadArgs;
     ui::remote_touch(x, y, a[5] == 1);
     return host::kAckOk;
   }
@@ -112,6 +113,10 @@ bool begin() {
   return true;
 }
 
+void resize(int w, int h) {
+  if (g_mirror && g_mirror->set_size(w, h)) g_send_info = true;  // the phone takes the new size
+}
+
 void blit(int x1, int y1, int x2, int y2, const uint16_t* px) {
   if (g_mirror) g_mirror->blit(x1, y1, x2, y2, px);
 }
@@ -151,7 +156,7 @@ void pump(mesh::node::Node& node) {
   }
   uint8_t buf[mm::kMaxTile];
   if (g_send_info) {
-    size_t n = mm::Mirror::info(buf, sizeof buf);
+    size_t n = g_mirror->info(buf, sizeof buf);
     if (!node.host_event(port, host::kEvScreen, buf, n)) return;
     g_send_info = false;
   }

@@ -37,7 +37,10 @@ constexpr int kBufLines = 20;
 #endif
 
 constexpr const char* kCalFile = "/touchcal";
-constexpr uint32_t kCalMagic = 0x4d544331;  // "MTC1"
+// MTC2: raw → the panel's own (portrait) pixels, so it holds in any rotation.
+// MTC1 (0.1.1-beta33/34): raw → landscape screen pixels at rotation 90.
+constexpr uint32_t kCalMagic = 0x4d544332, kCalMagicV1 = 0x4d544331;
+constexpr const char* kRotationFile = "/rotation";
 struct CalFile {
   uint32_t magic = kCalMagic;
   mesh::ui::TouchCal cal;
@@ -48,7 +51,18 @@ mesh::ui::TouchCal g_cal;
 volatile int g_cal_step = 3;
 bool g_cal_on = false;
 int g_cal_raw[3][2];
-int g_cal_targets[3][2];
+int g_cal_targets[3][2];  // where the crosses are drawn (screen pixels)
+int g_cal_phys[3][2];     // the same points on the panel (portrait pixels)
+
+// Screen pixels (as LVGL draws at this rotation) → the panel's own pixels.
+void to_panel(lv_display_rotation_t r, int lx, int ly, int* px, int* py) {
+  switch (r) {
+    case LV_DISPLAY_ROTATION_90: *px = ly, *py = kHeight - 1 - lx; break;
+    case LV_DISPLAY_ROTATION_270: *px = kWidth - 1 - ly, *py = lx; break;
+    case LV_DISPLAY_ROTATION_180: *px = kWidth - 1 - lx, *py = kHeight - 1 - ly; break;
+    default: *px = lx, *py = ly; break;
+  }
+}
 uint32_t g_cal_sx = 0, g_cal_sy = 0, g_cal_n = 0;
 
 SPIClass g_spi(HSPI);
@@ -57,6 +71,11 @@ const char* g_error = "";
 lv_indev_t* g_touch = nullptr;
 
 void cs(int pin, bool on) { digitalWrite(pin, on ? LOW : HIGH); }
+
+lv_display_rotation_t rotation_of(int deg) {
+  return deg == 0 ? LV_DISPLAY_ROTATION_0 : deg == 180 ? LV_DISPLAY_ROTATION_180 : deg == 270 ? LV_DISPLAY_ROTATION_270
+                                                                                              : LV_DISPLAY_ROTATION_90;
+}
 
 // The window the driver set (CASET / PASET) for the next pixels: the screen
 // mirror copies them there (hwsim.h).
@@ -129,7 +148,7 @@ void touch_cb(lv_indev_t*, lv_indev_data_t* data) {
       } else {
         mesh::ui::TouchCal c;
         g_cal_on = false;
-        if (mesh::ui::touch_cal_solve(g_cal_raw, g_cal_targets, c)) {
+        if (mesh::ui::touch_cal_solve(g_cal_raw, g_cal_phys, c)) {
           CalFile f;
           f.cal = c;
           board::storage_write(kCalFile, &f, sizeof f);
@@ -146,20 +165,9 @@ void touch_cb(lv_indev_t*, lv_indev_data_t* data) {
   }
   if (z < 400) return;
   if (g_have_cal) {
-    // Calibrated in screen pixels; LVGL wants the panel's own (portrait)
-    // coordinates and rotates them itself (as ui::remote_touch).
-    int lx, ly;
-    mesh::ui::touch_cal_apply(g_cal, rx, ry, &lx, &ly);
-    lv_display_t* d = lv_display_get_default();
-    int w = lv_display_get_horizontal_resolution(d), h = lv_display_get_vertical_resolution(d);
-    lx = constrain(lx, 0, w - 1), ly = constrain(ly, 0, h - 1);
-    int px = lx, py = ly;
-    switch (lv_display_get_rotation(d)) {
-      case LV_DISPLAY_ROTATION_90: px = ly, py = kHeight - 1 - lx; break;
-      case LV_DISPLAY_ROTATION_270: px = kWidth - 1 - ly, py = lx; break;
-      case LV_DISPLAY_ROTATION_180: px = kWidth - 1 - lx, py = kHeight - 1 - ly; break;
-      default: break;
-    }
+    // Calibrated to the panel's own pixels; LVGL turns them for the rotation.
+    int px, py;
+    mesh::ui::touch_cal_apply(g_cal, rx, ry, &px, &py);
     data->point.x = int32_t(constrain(px, 0, kWidth - 1));
     data->point.y = int32_t(constrain(py, 0, kHeight - 1));
     data->state = LV_INDEV_STATE_PRESSED;
@@ -191,15 +199,16 @@ bool begin() {
     g_error = "LVGL display not created";
     return false;
   }
-  // Landscape, as the BlackBerry: 320 × 240. The panel rotates in hardware
-  // (MADCTL), so flushed areas (and the phone's copy) are in landscape too.
-  // LCD_ROTATION 270 if the panel is mounted the other way round.
+  // Landscape by default, as the BlackBerry: 320 × 240; Settings → rotation
+  // turns it (saved in /rotation). The panel rotates in hardware (MADCTL), so
+  // flushed areas (and the phone's copy) follow.
 #ifndef LCD_ROTATION
 #define LCD_ROTATION 90
 #endif
-  lv_display_set_rotation(g_disp, LCD_ROTATION == 270 ? LV_DISPLAY_ROTATION_270
-                                  : LCD_ROTATION == 0 ? LV_DISPLAY_ROTATION_0
-                                                      : LV_DISPLAY_ROTATION_90);
+  uint16_t deg = LCD_ROTATION;
+  board::storage_read(kRotationFile, &deg, sizeof deg);
+  lv_display_set_rotation(g_disp, rotation_of(deg));
+  hwsim::resize(lv_display_get_horizontal_resolution(g_disp), lv_display_get_vertical_resolution(g_disp));
   size_t bytes = size_t(kHeight) * kBufLines * 2;  // rows are up to 320 pixels wide
   // Internal RAM: LVGL draws into these, and PSRAM is several times slower
   // for that. PSRAM only if internal RAM is short.
@@ -224,9 +233,17 @@ bool begin() {
   lv_indev_set_type(g_touch, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(g_touch, touch_cb);
   CalFile f;
-  if (board::storage_read(kCalFile, &f, sizeof f) == sizeof f && f.magic == kCalMagic) {
-    g_cal = f.cal;
-    g_have_cal = true;
+  if (board::storage_read(kCalFile, &f, sizeof f) == sizeof f) {
+    if (f.magic == kCalMagic) {
+      g_cal = f.cal;
+      g_have_cal = true;
+    } else if (f.magic == kCalMagicV1) {
+      // Landscape pixels at rotation 90 (lx, ly) → panel (ly, 319 − lx).
+      const mesh::ui::TouchCal& o = f.cal;
+      g_cal.a = o.d, g_cal.b = o.e, g_cal.c = o.f;
+      g_cal.d = -o.a, g_cal.e = -o.b, g_cal.f = float(kHeight - 1) - o.c;
+      g_have_cal = true;
+    }
   }
 #endif
 #ifdef LCD_BL
@@ -242,6 +259,8 @@ void touch_cal_start() {
   lv_display_t* d = lv_display_get_default();
   mesh::ui::touch_cal_targets(lv_display_get_horizontal_resolution(d), lv_display_get_vertical_resolution(d),
                               g_cal_targets);
+  for (int i = 0; i < 3; i++)
+    to_panel(lv_display_get_rotation(d), g_cal_targets[i][0], g_cal_targets[i][1], &g_cal_phys[i][0], &g_cal_phys[i][1]);
   g_cal_sx = g_cal_sy = g_cal_n = 0;
   g_cal_step = 0;
   g_cal_on = g_touch != nullptr;
@@ -262,6 +281,25 @@ void touch_cal_target(int i, int* x, int* y) {
 
 bool touch_calibrated() { return g_have_cal; }
 
+int rotation() {
+  if (!g_disp) return 0;
+  switch (lv_display_get_rotation(g_disp)) {
+    case LV_DISPLAY_ROTATION_0: return 0;
+    case LV_DISPLAY_ROTATION_180: return 180;
+    case LV_DISPLAY_ROTATION_270: return 270;
+    default: return 90;
+  }
+}
+
+void set_rotation(int deg) {
+  if (!g_disp) return;
+  lv_display_set_rotation(g_disp, rotation_of(deg));
+  uint16_t d = uint16_t(rotation());
+  board::storage_write(kRotationFile, &d, sizeof d);
+  hwsim::resize(lv_display_get_horizontal_resolution(g_disp), lv_display_get_vertical_resolution(g_disp));
+  lv_obj_invalidate(lv_screen_active());
+}
+
 void backlight(uint8_t level) {
 #ifdef LCD_BL
   analogWrite(LCD_BL, level);
@@ -281,6 +319,8 @@ void touch_cal_cancel() {}
 int touch_cal_step() { return -1; }
 void touch_cal_target(int, int* x, int* y) { *x = *y = 0; }
 bool touch_calibrated() { return false; }
+int rotation() { return 0; }
+void set_rotation(int) {}
 
 #endif
 

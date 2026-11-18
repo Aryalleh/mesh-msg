@@ -669,6 +669,21 @@ void show(Screen s) {
                  show(Screen::Settings);
                });
       }
+      {
+        // The screen's rotation: landscape (default), portrait, or either way up.
+        static const char* names[] = {"عمودی / Portrait", "افقی / Landscape", "عمودی وارونه / Portrait, upside down",
+                                      "افقی وارونه / Landscape, upside down"};
+        std::string label = std::string("چرخش صفحه / Rotation: ") + names[(display::rotation() / 90) % 4];
+        button(g_body, label, [](lv_event_t*) {
+          // Next: landscape → portrait → landscape upside down → portrait upside down.
+          static const int order[] = {90, 0, 270, 180};
+          int cur = display::rotation(), next = 90;
+          for (int i = 0; i < 4; i++)
+            if (order[i] == cur) next = order[(i + 1) % 4];
+          display::set_rotation(next);
+          show(Screen::Settings);  // laid out again for the new size
+        });
+      }
       if (display::touch())
         button(g_body, display::touch_calibrated() ? "تنظیم دوبارهٔ لمس / Calibrate touch again" : "تنظیم لمس / Calibrate touch",
                [](lv_event_t*) { show(Screen::TouchCal); });
@@ -985,7 +1000,9 @@ void loop(uint32_t now_ms) {
     const uint8_t* jpeg = nullptr;
     size_t jn = 0;
     if (g_msg->take_video(&jpeg, &jn) && g_screen == Screen::Call && g_video_img) {
-      const lv_image_dsc_t* img = video::decode(jpeg, jn, 320, 240 - 28);
+      lv_display_t* disp = lv_display_get_default();
+      const lv_image_dsc_t* img = video::decode(jpeg, jn, lv_display_get_horizontal_resolution(disp),
+                                                lv_display_get_vertical_resolution(disp) - 28);
       if (img) {
         lv_image_cache_drop(img);
         lv_image_set_src(g_video_img, nullptr);

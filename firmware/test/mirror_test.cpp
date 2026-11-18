@@ -64,7 +64,7 @@ void wire_format() {
   CHECK(Bytes(buf, buf + n) == check::unhex("010010000810080180" "3412"));
   CHECK(m.next(buf, sizeof buf) == 0);
   uint8_t info[mm::kInfoSize];
-  CHECK(mm::Mirror::info(info, sizeof info) == mm::kInfoSize);
+  CHECK(m.info(info, sizeof info) == mm::kInfoSize);
   CHECK(Bytes(info, info + sizeof info) == check::unhex("00014000f01008"));
   // Malformed tiles are refused.
   auto phone = frame();
@@ -74,9 +74,33 @@ void wire_format() {
   CHECK(!mm::Mirror::apply(bad.data(), bad.size(), phone.data()));
 }
 
+// The screen turned to portrait in the board's Settings: 240 × 320, same tiles.
+void portrait() {
+  auto fb = frame();
+  mm::Mirror m(fb.data());
+  CHECK(!m.set_size(200, 320) && !m.set_size(240, 330));
+  CHECK(m.set_size(240, 320) && m.width() == 240 && m.height() == 320);
+  CHECK(m.dirty() == size_t(mm::kTiles));  // everything again
+  uint8_t info[mm::kInfoSize];
+  CHECK(m.info(info, sizeof info) == mm::kInfoSize);
+  CHECK(Bytes(info, info + sizeof info) == check::unhex("0000f001401008"));
+  // The bottom-right corner of a portrait frame lands there on the phone too.
+  uint8_t buf[mm::kMaxTile];
+  while (m.next(buf, sizeof buf)) {
+  }
+  std::vector<uint16_t> px(size_t(16) * 8, 0xBEEF);
+  m.blit(224, 312, 239, 319, px.data());
+  size_t n = m.next(buf, sizeof buf);
+  CHECK(n > 0 && m.next(buf, sizeof buf) == 0);
+  auto phone = std::vector<uint16_t>(size_t(240) * 320);
+  CHECK(mm::Mirror::apply(buf, n, phone.data(), 240, 320) && phone[size_t(319) * 240 + 239] == 0xBEEF);
+  CHECK(!mm::Mirror::apply(buf, n, phone.data()));  // not in a landscape frame (y 312)
+}
+
 }  // namespace
 
 void run_mirror() {
   round_trip();
   wire_format();
+  portrait();
 }

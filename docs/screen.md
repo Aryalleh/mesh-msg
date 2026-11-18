@@ -3,7 +3,8 @@
 **The Screen tab of Mava Board** (`android/flasher/.../screen`, release asset
 `mava-board-<version>-android.apk`, the same app as the flasher; it was the separate Mava Screen app
 until 0.1.1-beta34) shows
-the handheld's 240×320 screen on an Android phone over a USB-OTG cable, live, and works it:
+the handheld's screen (320×240 landscape, or 240×320 when the board's Settings turn it to
+portrait: the info event carries the size) on an Android phone over a USB-OTG cable, live, and works it:
 touch the picture to tap, use the buttons for the handheld's keys (call, menu, arrows, OK,
 back, end, backspace, enter, symbols), and type with the phone's keyboard (each character
 goes to the board as a key press, any language). A Mava board without a screen fitted (a

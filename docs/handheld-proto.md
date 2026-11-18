@@ -152,9 +152,14 @@ through its resistor (5 % parts are fine):
 One key at a time; arrows repeat while held. The board looks for the 10 kΩ pull-up at boot
 (log: `navigation keys … found`); an open pin is ignored. Leave out keys you don't need.
 
+**Screen rotation** — Settings → *Rotation*: landscape (the default, 320 × 240), portrait
+(240 × 320), or either the other way up; saved on the board (`/rotation`, firmware default
+`LCD_ROTATION`). Touch, a touch calibration and the phone's copy of the screen follow it.
+
 **Touch calibration** — Settings → *Calibrate touch*: tap the centre of three yellow
 crosses; the board saves an affine map from the raw XPT2046 readings to screen pixels
-(`/touchcal`), which takes in any mirrored, swapped or rotated panel. Until then the defaults
+(`/touchcal`, in the panel's own pixels, so it holds in every rotation), which takes in any
+mirrored, swapped or rotated panel. Until then the defaults
 fit the red "TFT SPI 240x320 V1.2" module, whose raw axes both run the other way
 (`TOUCH_X_MIN 3880 / MAX 220`, `TOUCH_Y_MIN 3860 / MAX 260` in build_flags).
 

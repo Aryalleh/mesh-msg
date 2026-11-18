@@ -1,5 +1,6 @@
 // Screen mirror (docs/screen.md): the handheld's screen on a phone over the
-// host link. The board keeps a copy of the 320×240 RGB565 frame; LVGL's
+// host link. The board keeps a copy of the 320×240 RGB565 frame (240×320
+// when the board's Settings turn the screen to portrait: set_size); LVGL's
 // flushes are blitted into it and mark 16×8 tiles dirty; the main loop sends
 // dirty tiles as SCREEN events while the host's output buffer has room, so
 // the screen never waits for USB and only what changed is sent.
@@ -22,14 +23,13 @@
 namespace mesh {
 namespace mirror {
 
-// Landscape, as the BlackBerry: 320 × 240 (the panel is rotated in hardware).
+// Landscape by default, as the BlackBerry: 320 × 240 (the panel is rotated in
+// hardware); portrait 240 × 320 holds the same pixels and tiles.
 constexpr int kWidth = 320;
 constexpr int kHeight = 240;
 constexpr int kTileW = 16;
 constexpr int kTileH = 8;
-constexpr int kCols = kWidth / kTileW;   // 20
-constexpr int kRows = kHeight / kTileH;  // 30
-constexpr int kTiles = kCols * kRows;
+constexpr int kTiles = (kWidth / kTileW) * (kHeight / kTileH);  // 600 either way
 
 constexpr uint8_t kInfo = 0;
 constexpr uint8_t kTile = 1;
@@ -49,6 +49,11 @@ class Mirror {
  public:
   // fb: kWidth × kHeight pixels the mirror owns the contents of.
   explicit Mirror(uint16_t* fb);
+  // The screen turned: w × h (multiples of the tile size, w·h = kWidth·kHeight).
+  // Clears the copy; the host needs a new info event and every tile again.
+  bool set_size(int w, int h);
+  int width() const { return w_; }
+  int height() const { return h_; }
 
   // A flushed area, inclusive corners, px row-major (x2 − x1 + 1 per row).
   // Parts outside the screen are clipped.
@@ -61,14 +66,16 @@ class Mirror {
   // Encodes the next dirty tile (event data, starting with kTile) into out;
   // returns its size, 0 if nothing is dirty or cap < kMaxTile.
   size_t next(uint8_t* out, size_t cap);
-  static size_t info(uint8_t* out, size_t cap);
+  size_t info(uint8_t* out, size_t cap) const;
 
-  // Applies one tile event to a frame buffer (the phone side, and tests).
-  static bool apply(const uint8_t* d, size_t n, uint16_t* fb);
+  // Applies one tile event to a w × h frame buffer (the phone side, and tests).
+  static bool apply(const uint8_t* d, size_t n, uint16_t* fb, int w = kWidth, int h = kHeight);
 
  private:
   void set(int t);
+  int cols() const { return w_ / kTileW; }
   uint16_t* fb_;
+  int w_ = kWidth, h_ = kHeight;
   uint8_t dirty_[(kTiles + 7) / 8] = {};
   size_t dirty_count_ = 0;
   int cursor_ = 0;

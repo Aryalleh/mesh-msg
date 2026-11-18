@@ -26,4 +26,10 @@ int touch_cal_step();
 void touch_cal_target(int i, int* x, int* y);
 bool touch_calibrated();  // a saved calibration is in use
 
+// The screen's rotation in degrees: 90 landscape (default), 270 landscape the
+// other way up, 0 portrait, 180 portrait the other way up. Saved; touch, the
+// phone's copy and a calibration follow it.
+int rotation();
+void set_rotation(int deg);
+
 }  // namespace display

@@ -2011,3 +2011,9 @@ links. Chose: quick items in beta3; calls follow in later betas.
   and the ringback tone (ToneGenerator TONE_SUP_RINGTONE); board: "Ringing…" and a 425 Hz
   ringback every 4 s (Sound::Ringback). Older versions ignore op 8. Tests: Go
   TestCallerSeesRinging, C++ codec + manager, TestBoardPeer both directions.
+- Screen rotation in the board's Settings (owner, 2026-11-18): landscape / portrait / either
+  upside down, saved in `/rotation` (`display::set_rotation`, LVGL rotates the panel by
+  MADCTL). The mirror takes a runtime size (`Mirror::set_size`, 240×320 = same 600 tiles,
+  new info event to the phone; host test `portrait()`); touch calibration now maps to the
+  panel's own pixels (MTC2; MTC1 files from beta33/34 converted), so it holds in any rotation;
+  call video decodes to the current screen size.
