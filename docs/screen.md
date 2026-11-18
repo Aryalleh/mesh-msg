@@ -34,7 +34,7 @@ phone (Mava Screen) ── USB-OTG ── board's own USB socket (host link, por
   sends `SCREEN 1` (op 0x0B) and `INPUT` (op 0x0C) commands, the board answers with
   `SCREEN` events (0x86). Trusted ports only (USB, BLE), never the Wi-Fi web port.
 - **Board**: the display driver's flushes are copied into a frame in PSRAM
-  (`firmware/lib/meshui/src/mirror.*`), marking 16×8 tiles dirty. Each pass of the main loop
+  (`firmware/lib/hwsim/src/mirror.*`), marking 16×8 tiles dirty. Each pass of the main loop
   sends dirty tiles while the host's output buffer has room, so the screen never waits for
   USB and only what changed is sent; a flat area costs 11 bytes per tile, a full new frame
   of the violet UI a few tens of kB. A new subscriber gets the whole frame.
@@ -53,3 +53,41 @@ phone (Mava Screen) ── USB-OTG ── board's own USB socket (host link, por
   is on the chip's USB. While a phone is attached the USB log is silent (as with meshd).
 - Needs firmware 0.1.1-beta11 or later; older firmware answers "unknown command".
 - Not tested on real hardware yet.
+
+## Pre-release hardware simulators (0.1.1-beta32)
+
+Mava Screen is a stand-in for hardware that is still being built, so it is a **pre-release
+tool**: everything the phone simulates lives in one place on each side and leaves with v1.
+
+| | Pre-releases (`0.1.1-betaN`) | v1 (`1.0.0`) |
+|---|---|---|
+| Firmware | env `mava_handheld_s3`, `MAVA_HWSIM=1`: `src/hwsim/`, `lib/hwsim/` | env `mava_handheld_s3_v1`: none of it compiled; `SCREEN`, `INPUT`, `AUDIO` answer `unknown op` |
+| Release | `mava-screen-…-android.apk` published | not published |
+
+`scripts/build-flasher.sh` picks the env from the version (a `-` means pre-release); CI builds
+both envs on every push. What stays in v1: the board's own audio (`src/board_audio`,
+`lib/meshaudio`: sounds, microphone meter, echo test), which the WM8960 codec will feed.
+
+**Picture off — keys and keyboard only.** With a display wired to the board, switch off
+*Show the board's screen here*: the phone sends `SCREEN 0` (or never `SCREEN 1`) and stops
+receiving tiles, but `INPUT` keeps working, so the phone stays the handheld's keys and its
+keyboard. A `GET_STATUS` every 20 s keeps the USB port in host mode (the board falls back to
+its text log after 90 s of silence).
+
+**Audio.** *Board sound on this phone's speaker* and *This phone's microphone to the board*:
+
+```
+phone (Mava Screen) ── USB ── board
+   AUDIO 1 | flags ─────────►  start: 1 speaker, 2 microphone (0 = stop)
+   ◄──────── AUDIO 0 | rate | frame       format: 8000 Hz, 160 samples (20 ms)
+   ◄──────── AUDIO 1 | seq | PCM          speaker frames, s16 little-endian, 50 a second
+   AUDIO 2 | seq | PCM ─────►  microphone frames, same format
+```
+
+The board renders its sounds on time into a short queue (`board_audio`), whatever the
+output: the message chime when a message for the board's account opens, a click on every key,
+and Settings → *Sound test*. Microphone frames go to a level meter (Settings, and an `audio`
+line in the board log while audio runs) and, with Settings → *Echo test*, back out of the
+speaker (use headphones: the phone's own speaker next to its microphone howls). Frame layout:
+`firmware/lib/hwsim/src/audiolink.h`; Android: `android/screen/.../BoardAudio.kt`
+(AudioTrack, AudioRecord; microphone permission asked when switched on).

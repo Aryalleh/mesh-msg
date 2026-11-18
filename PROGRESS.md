@@ -1849,3 +1849,30 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (DIO1 stays on GPIO 1, right header). docs/handheld-proto.md §2/§4 updated.
 - Released **v0.1.1-beta31** (manual `build` run #44312557544, tag on `f4317d1`). Next: owner
   wires it and sends the boot log (`screen: ok`).
+
+### 2026-11-18 — Hardware simulators as a removable library; picture off; phone audio
+
+- Owner: the board's display works, so Mava Screen gets "keys and keyboard only"; it needs
+  audio simulators too (owner chose speaker + microphone); all of it as a library that the
+  v1 release drops.
+- Firmware: `src/ui/remote.*` → `src/hwsim/hwsim.*` (facade with inline stubs when
+  `MAVA_HWSIM` is 0), `lib/meshui/src/mirror.*` → `lib/hwsim/src/`. New `lib/hwsim/src/
+  audiolink.*` (AUDIO op 0x0D: stop / start flags / mic frame; event 0x87: format / speaker
+  frame; 8 kHz s16le mono, 160-sample frames). Kept in v1: `lib/meshaudio` (Synth: message
+  chime, key click, test tone; Meter; mix) and `src/board_audio.*` (renders a frame every
+  20 ms into an 8-frame queue while an output is on; mic → meter and optional echo). Sounds:
+  message chime when the board's account opens a new message (client_messenger), click on
+  every key (`ui::on_sound`), Settings → Sound test / Echo test (+ mic level, outputs).
+  `hwsim::active()` also counts an audio subscriber (keeps the USB port in host mode).
+  Boot log says whether the simulators are built in; an `audio` line joins the 10 s block
+  while audio runs.
+- v1 switch: platformio env `mava_handheld_s3_v1` (`build_unflags -DMAVA_HWSIM=1`), built in
+  CI's firmware matrix; `scripts/build-flasher.sh` uses it for versions without "-";
+  android.yml publishes `mava-screen-…apk` only for pre-releases.
+- Mava Screen: switches "Show the board's screen here" (off: no SCREEN 1, session opened
+  with GET_STATUS, keys/typing stay), "Board sound on this phone's speaker" (AudioTrack),
+  "This phone's microphone to the board" (AudioRecord, RECORD_AUDIO asked); GET_STATUS every
+  20 s as keep-alive; AUDIO ack checked ("update the firmware"). `AudioLink` + JVM test with
+  the firmware test's bytes. Docs: screen.md §Pre-release hardware simulators, firmware.md,
+  firmware/README.md. Host tests: `audio_test.cpp` (synth, meter, mix, frames).
+- Next: release (beta32), owner tests picture off, sound test, message chime, echo test.

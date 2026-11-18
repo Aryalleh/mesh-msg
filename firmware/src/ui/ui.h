@@ -7,7 +7,8 @@
 //                Latin, symbols; mesh::osk)
 //   network      node status (LoRa, Meshtastic channel, airtime, relay)
 //   web access   the address (and QR code) an iPhone on the same Wi-Fi opens
-//   settings     device password, BLE passkey, LoRa module on/off, brightness, typing language
+//   settings     device password, BLE passkey, LoRa module on/off, sound test, echo test,
+//                brightness, typing language
 //
 // Phone keys: 📞 call, ⛔ hang up / back to home, Menu = home, Back = back,
 // Vol ± = brightness (volume once audio exists). Persian text is shaped and
@@ -29,7 +30,18 @@ struct Status {
   bool usb = false, ble = false, wifi = false, setup_mode = false;
   uint32_t unix_time = 0;
   int radio = 0;  // LoRa: 1 working, 0 not found, -1 off (the "no LoRa module" setting)
+  int audio_outputs = 0;  // speakers taking sound (the phone in pre-releases, later the codec)
+  int mic_level = 0;      // % of full scale
+  bool echo = false;      // the echo test is on
 };
+
+// Sounds (board_audio.h): kSoundKey on every key, kSoundTest from Settings.
+constexpr uint8_t kSoundMessage = 1, kSoundKey = 2, kSoundTest = 3;
+using SoundFn = void (*)(uint8_t sound);
+void on_sound(SoundFn fn);
+// Settings → echo test: the microphone back to the speaker.
+using EchoFn = void (*)(bool on);
+void on_echo(EchoFn fn);
 
 // Settings → LoRa module: fitted = false skips the radio (saved in the node
 // config). Called from the UI without the node lock; turning it back on
@@ -48,7 +60,7 @@ bool begin(StatusFn status, Messenger& messenger);
 void loop(uint32_t now_ms);
 bool ready();
 
-// Input from a phone or PC showing the screen (remote.h): a touch at screen
+// Input from a phone or PC showing the screen (hwsim.h): a touch at screen
 // coordinates, or a key (keys::Action, code point for Text). False: unknown action.
 void remote_touch(int x, int y, bool pressed);
 bool remote_key(uint8_t action, uint32_t cp);

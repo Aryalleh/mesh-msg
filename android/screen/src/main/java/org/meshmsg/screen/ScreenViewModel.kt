@@ -33,13 +33,27 @@ data class ScreenUi(
     val height: Int = 0,
     val version: Long = 0,
     val phoneKeyboard: Boolean = true, // hide the board's touch keyboard: type with the phone's
+    val picture: Boolean = true, // off: keys and keyboard only (the board's own display shows it)
+    val sound: Boolean = false, // the board's speaker on the phone
+    val mic: Boolean = false, // the phone's microphone to the board
+    val audioError: String? = null,
+    val audioIn: Long = 0, // speaker frames played
+    val audioOut: Long = 0, // microphone frames sent
 )
 
 class ScreenViewModel(app: Application) : AndroidViewModel(app) {
     private val ctx: Context get() = getApplication()
     private val usb = ctx.getSystemService(UsbManager::class.java)
     private val prefs = ctx.getSharedPreferences("screen", Context.MODE_PRIVATE)
-    private val _state = MutableStateFlow(ScreenUi(phoneKeyboard = prefs.getBoolean("phone_keyboard", true)))
+    private val _state = MutableStateFlow(
+        ScreenUi(
+            phoneKeyboard = prefs.getBoolean("phone_keyboard", true),
+            picture = prefs.getBoolean("picture", true),
+            sound = prefs.getBoolean("sound", false),
+            // The microphone needs the permission again after a restart: off until asked.
+        ),
+    )
+    @Volatile private var audio: BoardAudio? = null
     val state: StateFlow<ScreenUi> = _state
     val frame = ScreenFrame()
     @Volatile var session: ScreenSession? = null
@@ -81,6 +95,13 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
                     _state.update { it.copy(width = frame.width, height = frame.height, version = v) }
                 }
                 delay(33)
+            }
+        }
+        // Audio counters, once a second.
+        viewModelScope.launch {
+            while (isActive) {
+                audio?.let { a -> _state.update { it.copy(audioIn = a.framesIn, audioOut = a.framesOut) } }
+                delay(1000)
             }
         }
     }
@@ -125,8 +146,14 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val p = UsbSerial.open(manager, d)
                 port = p
-                val s = ScreenSession(p, frame)
-                s.onStart = { it.option(OPT_TOUCH_KEYBOARD, !_state.value.phoneKeyboard) }
+                val s = ScreenSession(p, frame, picture = _state.value.picture)
+                val a = BoardAudio { args -> s.micFrame(args) }
+                s.onAudio = { d -> AudioLink.speaker(d)?.let(a::play) }
+                s.onStart = {
+                    it.option(OPT_TOUCH_KEYBOARD, !_state.value.phoneKeyboard)
+                    applyAudio(it, a)
+                }
+                audio = a
                 session = s
                 _state.update { it.copy(connected = true, connecting = false) }
                 // Watch for the board's answer while the session runs.
@@ -149,6 +176,8 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(error = e.message ?: e.toString()) }
             } finally {
                 session = null
+                audio?.close()
+                audio = null
                 port?.close()
                 _state.update { it.copy(connected = false, connecting = false) }
             }
@@ -165,6 +194,56 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("phone_keyboard", on).apply()
         _state.update { it.copy(phoneKeyboard = on) }
         session?.option(OPT_TOUCH_KEYBOARD, !on)
+    }
+
+    fun setPicture(on: Boolean) {
+        prefs.edit().putBoolean("picture", on).apply()
+        _state.update { it.copy(picture = on) }
+        session?.picture(on)
+    }
+
+    fun setSound(on: Boolean) {
+        prefs.edit().putBoolean("sound", on).apply()
+        _state.update { it.copy(sound = on) }
+        reapplyAudio()
+    }
+
+    /** Call after RECORD_AUDIO was granted (the activity asks). */
+    fun setMic(on: Boolean) {
+        _state.update { it.copy(mic = on) }
+        reapplyAudio()
+    }
+
+    private fun reapplyAudio() {
+        val s = session ?: return
+        val a = audio ?: return
+        viewModelScope.launch(Dispatchers.IO) { applyAudio(s, a) }
+    }
+
+    // Tells the board what the phone stands in for, starts the phone's side,
+    // and reports a board that does not know AUDIO.
+    private fun applyAudio(s: ScreenSession, a: BoardAudio) {
+        val st = _state.value
+        a.speaker(st.sound)
+        a.mic(st.mic)
+        _state.update { it.copy(audioError = null) }
+        if (!st.sound && !st.mic) {
+            s.audio(speaker = false, mic = false)
+            return
+        }
+        s.audio(st.sound, st.mic)
+        viewModelScope.launch {
+            repeat(30) {
+                delay(100)
+                val ack = s.audioAck ?: return@repeat
+                if (ack != HostLink.ACK_OK) {
+                    a.speaker(false)
+                    a.mic(false)
+                    _state.update { it.copy(audioError = ctx.getString(R.string.err_no_audio)) }
+                }
+                return@launch
+            }
+        }
     }
 
     fun retry() {

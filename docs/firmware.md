@@ -129,7 +129,9 @@ radio retuned live), `GET_IDENTITY`, `RESYNC` (resend everything stored), `REBOO
 `WIPE "WIPE"`, and on boards with Wi-Fi `SET_WIFI` (TLVs: 1 SSID 0–32 bytes, 2 password
 empty or 8–63, 3 relay URL; empty SSID forgets the network) and `HOTSPOT 1|0` (open the setup
 hotspot now / back to normal), and on boards with a screen UI `SCREEN 1|0` and `INPUT` (the
-screen mirrored to the host, docs/screen.md; events `SCREEN`); other nodes answer
+screen mirrored to the host, docs/screen.md; events `SCREEN`) and `AUDIO` (the host as the
+board's speaker and microphone; events `AUDIO`) — these three only in pre-release builds
+(`MAVA_HWSIM`), v1 boards answer them `unknown op`; other nodes answer
 `ACK unknown op`. Events: `STATUS` (36-byte block), `CONFIG`, `IDENTITY`, `ACK`, `LOG`.
 
 Mesh packets from the host are transmitted as is (the host's router has already handled the

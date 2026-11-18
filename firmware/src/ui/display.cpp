@@ -4,7 +4,7 @@
 #include <SPI.h>
 #include <esp_heap_caps.h>
 
-#include "remote.h"
+#include "../hwsim/hwsim.h"
 #include "src/drivers/display/ili9341/lv_ili9341.h"
 
 namespace display {
@@ -34,7 +34,7 @@ lv_indev_t* g_touch = nullptr;
 void cs(int pin, bool on) { digitalWrite(pin, on ? LOW : HIGH); }
 
 // The window the driver set (CASET / PASET) for the next pixels: the screen
-// mirror copies them there (remote.h).
+// mirror copies them there (hwsim.h).
 int g_x1 = 0, g_x2 = 0, g_y1 = 0, g_y2 = 0;
 
 void send_cmd(lv_display_t*, const uint8_t* cmd, size_t cmd_size, const uint8_t* param, size_t param_size) {
@@ -55,7 +55,7 @@ void send_cmd(lv_display_t*, const uint8_t* cmd, size_t cmd_size, const uint8_t*
 
 void send_color(lv_display_t* d, const uint8_t* cmd, size_t cmd_size, uint8_t* param, size_t param_size) {
   if (size_t(g_x2 - g_x1 + 1) * size_t(g_y2 - g_y1 + 1) * 2 == param_size)
-    remote::blit(g_x1, g_y1, g_x2, g_y2, reinterpret_cast<const uint16_t*>(param));
+    hwsim::blit(g_x1, g_y1, g_x2, g_y2, reinterpret_cast<const uint16_t*>(param));
   lv_draw_sw_rgb565_swap(param, param_size / 2);  // the panel wants big-endian RGB565
   send_cmd(d, cmd, cmd_size, param, param_size);
   lv_display_flush_ready(d);

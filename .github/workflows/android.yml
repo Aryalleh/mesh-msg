@@ -250,7 +250,11 @@ jobs:
         run: |
           mkdir -p dist
           cp android/flasher/build/outputs/apk/debug/flasher-debug.apk "dist/mava-board-flasher-${{ needs.version.outputs.name }}-android.apk"
-          cp android/screen/build/outputs/apk/debug/screen-debug.apk "dist/mava-screen-${{ needs.version.outputs.name }}-android.apk"
+          # Mava Screen drives the board's pre-release hardware simulators
+          # (firmware src/hwsim): stable versions (no "-") ship neither.
+          case '${{ needs.version.outputs.name }}' in
+            *-*) cp android/screen/build/outputs/apk/debug/screen-debug.apk "dist/mava-screen-${{ needs.version.outputs.name }}-android.apk" ;;
+          esac
           unzip -l "dist/mava-board-flasher-${{ needs.version.outputs.name }}-android.apk" | grep -q 'assets/board/firmware.bin'
           ls -la dist
 
@@ -329,8 +333,8 @@ jobs:
           **Mava board (Android flasher)**: `mava-board-flasher-…-android.apk` writes the same firmware
           from a phone over a USB-OTG adapter (Install everything / Update firmware only) and shows
           the board's log: hotspot name, device password, BLE passkey; it also sets the board's Wi-Fi.
-          **Mava Screen**: `mava-screen-…-android.apk` shows the handheld's screen on a phone over USB,
-          with touch, the handheld's keys and typing from the phone's keyboard.
+          **Mava Screen** (pre-releases only): `mava-screen-…-android.apk` stands in for the handheld's
+          hardware over USB: its screen (or keys and keyboard only), its speaker and its microphone.
           **Relay server**: `meshmsg-relay-…-linux-amd64.tar.gz`. Run `sudo sh install.sh` inside
           (it asks for your Mava account id for the admin panel at `/admin`). Relays serve the
           signed release manifest at `/v1/release`.

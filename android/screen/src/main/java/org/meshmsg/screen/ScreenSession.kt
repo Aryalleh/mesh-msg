@@ -117,22 +117,56 @@ enum class Key(val code: Int) {
 }
 
 /**
- * One connection to the board: asks for the screen (SCREEN 1), reads its
- * events into [frame] and sends touches and keys (INPUT). [run] blocks until
- * the port fails or [close] is called.
+ * One connection to the board's pre-release hardware simulators
+ * (firmware/src/hwsim): the screen (SCREEN, into [frame]) unless [picture] is
+ * off, touches, keys and typing (INPUT), and the board's speaker and
+ * microphone (AUDIO, [onAudio]). [run] blocks until the port fails or
+ * [close] is called.
  */
-class ScreenSession(private val port: SerialLink, val frame: ScreenFrame, private val log: (String) -> Unit = {}) {
+class ScreenSession(
+    private val port: SerialLink,
+    val frame: ScreenFrame,
+    private var picture: Boolean = true,
+    private val log: (String) -> Unit = {},
+) {
     @Volatile private var closed = false
-    @Volatile var started: Int? = null // the board's ACK status for SCREEN, once it answered
+    @Volatile var started: Int? = null // the board's ACK status for SCREEN (or the first command), once it answered
+        private set
+    @Volatile var audioAck: Int? = null // the board's ACK status for AUDIO start
         private set
     private var req = 0
     private val writeLock = Any()
+    @Volatile private var lastSent = 0L
+
+    /** AUDIO event data (speaker frames, format), on the reading thread. */
+    var onAudio: (ByteArray) -> Unit = {}
 
     private fun send(op: Int, args: ByteArray) {
         synchronized(writeLock) {
             req = (req % 255) + 1
             port.write(HostLink.encode(HostLink.KIND_COMMAND, byteArrayOf(op.toByte(), req.toByte()) + args))
+            lastSent = System.currentTimeMillis()
         }
+    }
+
+    /** The picture on or off; off keeps keys, keyboard and audio (the board's own display works). */
+    fun picture(on: Boolean) {
+        if (closed || on == picture) return
+        picture = on
+        runCatching { send(OP_SCREEN, byteArrayOf(if (on) 1 else 0)) }
+    }
+
+    /** The phone as the board's speaker and / or microphone (both off: stop). */
+    fun audio(speaker: Boolean, mic: Boolean) {
+        if (closed) return
+        audioAck = null
+        runCatching { send(OP_AUDIO, AudioLink.start(speaker, mic)) }
+    }
+
+    /** A microphone frame (AudioLink.mic arguments). */
+    fun micFrame(args: ByteArray) {
+        if (closed) return
+        send(OP_AUDIO, args)
     }
 
     fun touch(x: Int, y: Int, pressed: Boolean) {
@@ -169,11 +203,16 @@ class ScreenSession(private val port: SerialLink, val frame: ScreenFrame, privat
     var onStart: (ScreenSession) -> Unit = {}
 
     fun run() {
-        send(OP_SCREEN, byteArrayOf(1))
+        // Without the picture GET_STATUS opens the session: the board answers
+        // every port, and its answer tells that the firmware runs.
+        if (picture) send(OP_SCREEN, byteArrayOf(1)) else send(OP_GET_STATUS, byteArrayOf())
         onStart(this)
         val buf = ByteArray(16 * 1024)
         val pending = ByteArrayOutputStream()
         while (!closed) {
+            // Something every 20 s: the board goes back to its text log after
+            // 90 s without a word from the host (keys only, nothing typed).
+            if (System.currentTimeMillis() - lastSent > 20_000) runCatching { send(OP_GET_STATUS, byteArrayOf()) }
             val n = try {
                 port.read(buf, 200)
             } catch (e: IOException) {
@@ -192,9 +231,14 @@ class ScreenSession(private val port: SerialLink, val frame: ScreenFrame, privat
                 val p = f.second
                 when (p[0].toInt() and 0xFF) {
                     EV_SCREEN -> frame.apply(p.copyOfRange(2, p.size))
-                    HostLink.EV_ACK -> if (p.size >= 4 && (p[2].toInt() and 0xFF) == OP_SCREEN) {
-                        started = p[3].toInt() and 0xFF
-                        log("board answered SCREEN: ${p[3].toInt() and 0xFF}")
+                    EV_AUDIO -> onAudio(p.copyOfRange(2, p.size))
+                    EV_STATUS -> if (started == null) started = HostLink.ACK_OK // keys-only session: the board is there
+                    HostLink.EV_ACK -> if (p.size >= 4) when (p[2].toInt() and 0xFF) {
+                        OP_SCREEN -> {
+                            started = p[3].toInt() and 0xFF
+                            log("board answered SCREEN: ${p[3].toInt() and 0xFF}")
+                        }
+                        OP_AUDIO -> if (audioAck == null) audioAck = p[3].toInt() and 0xFF
                     }
                 }
             }
@@ -203,13 +247,18 @@ class ScreenSession(private val port: SerialLink, val frame: ScreenFrame, privat
 
     fun close() {
         if (closed) return
+        runCatching { send(OP_AUDIO, AudioLink.start(speaker = false, mic = false)) }
         runCatching { send(OP_SCREEN, byteArrayOf(0)) }
         closed = true
     }
 
     companion object {
+        const val OP_GET_STATUS = 0x02
         const val OP_SCREEN = 0x0B
         const val OP_INPUT = 0x0C
+        const val OP_AUDIO = 0x0D
+        const val EV_STATUS = 0x81
         const val EV_SCREEN = 0x86
+        const val EV_AUDIO = 0x87
     }
 }

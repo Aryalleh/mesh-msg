@@ -21,4 +21,11 @@
     <string name="type_send">Send</string>
     <string name="phone_keyboard">Type with the phone\'s keyboard (hide the board\'s touch keyboard)</string>
     <string name="help">Touch the picture to tap the handheld\'s screen. The buttons are its keys: call, menu, arrows, OK, back, end. Text you type here goes to the board as key presses, in any language your phone\'s keyboard has. One app at a time can use the board\'s USB: close Mava\'s LoRa-over-USB or the flasher first.</string>
+    <string name="picture">Show the board\'s screen here (off: keys and keyboard only, the board\'s own display shows it)</string>
+    <string name="connected_keys">Keys and keyboard of %1$s</string>
+    <string name="sound">Board sound on this phone\'s speaker</string>
+    <string name="mic">This phone\'s microphone to the board</string>
+    <string name="audio_counts">Audio: %1$d frames played, %2$d sent</string>
+    <string name="err_no_audio">The board does not take audio: update it to firmware 0.1.1-beta32 or later (pre-release builds only).</string>
+    <string name="prerelease">Mava Screen is a pre-release tool: the phone stands in for the handheld\'s screen, keys, speaker and microphone while the hardware is being built. Version 1 boards do without it.</string>
 </resources>

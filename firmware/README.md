@@ -47,7 +47,16 @@ src/                 the board layer (Arduino / PlatformIO), nothing that decide
   kbmodule            the keyboard module on I2C: key positions → text and actions
   ui/                 LVGL UI: display (ILI9341 + XPT2046 touch), screens, touch keyboard,
                       Messenger interface (stub: local notes), Vazirmatn font
+  board_audio         sounds rendered on time for the outputs, microphone frames from the
+                      inputs (meter, echo test); kept in every build
+  hwsim/              PRE-RELEASE ONLY (MAVA_HWSIM=1): the phone (Mava Screen) as the
+                      handheld's screen, keys and keyboard, speaker and microphone over USB;
+                      the v1 env (mava_handheld_s3_v1) compiles none of it
 lib/meshui/src/      touch keyboard layouts (Persian, Latin, symbols), host-tested
+lib/meshaudio/src/   sounds (message chime, key click, test tone) as 8 kHz PCM frames,
+                     microphone meter, mixer; host-tested, kept in every build
+lib/hwsim/src/       PRE-RELEASE ONLY: screen mirror tiles and AUDIO frames on the host link,
+                     host-tested
 sim/ui/              the UI on the host: `make uishots` renders every screen to PPM
 sim/                 meshnode-sim: real nodes on a simulated radio, one pty per node
 test/                host tests: spec/test-vectors conformance, edge cases, random-input

@@ -1,5 +1,7 @@
 #include "client_messenger.h"
 
+#include "../board_audio.h"
+
 #include <Arduino.h>
 #include <LittleFS.h>
 
@@ -224,6 +226,7 @@ void client_pump(mesh::node::Node& node, mesh::route::Millis now) {
     g_attached = true;
   }
   // The node → the client: everything it carries (packet frames), events dropped.
+  const uint32_t opened = g_client->stats().opened;
   uint8_t raw[512];
   for (int round = 0; round < 8; round++) {
     size_t m = node.host_tx(kPort, raw, sizeof raw);
@@ -235,6 +238,7 @@ void client_pump(mesh::node::Node& node, mesh::route::Millis now) {
         g_client->on_packet(g_dec.payload(), g_dec.payload_len(), g_unix);
     }
   }
+  if (g_client->stats().opened > opened) audio::play(audio::Sound::Message);  // a new message for us
   // The client → the node: its messages, receipts and announces.
   g_client->tick(g_unix);
   for (auto& p : g_client->take_outgoing()) feed(node, p.data(), p.size(), mesh::host::kKindPacket, now);

@@ -23,10 +23,12 @@ constexpr int kTrackStep = 6;  // trackpad counts per list step
 
 StatusFn g_status_fn = nullptr;
 RadioFn g_radio_fn = nullptr;
+SoundFn g_sound_fn = nullptr;
+EchoFn g_echo_fn = nullptr;
 Messenger* g_msg = nullptr;
 Status g_status;
 bool g_ready = false;
-// Touches from a phone or PC showing the screen (remote.h), in order.
+// Touches from a phone or PC showing the screen (hwsim.h), in order.
 struct RemoteTouch {
   int16_t x, y;
   bool pressed;
@@ -303,6 +305,8 @@ std::string settings_text() {
   const Status& s = g_status;
   return "رمز دستگاه (هات‌اسپات و پنل): " + s.password + "\nبلوتوث: بدون رمز جفت‌شدن" +
          "\nماژول LoRa: " + radio_text(s.radio) +
+         "\nصدا: " + (s.audio_outputs > 0 ? std::to_string(s.audio_outputs) + " خروجی" : std::string("بدون خروجی")) +
+         " · میکروفن " + std::to_string(s.mic_level) + "%" +
          "\n\nتنظیم وای‌فای و رله: کلید setup را روشن کنید و به هات‌اسپات وصل شوید.\nزبان: Alt + Shift\nنور: Vol+ / Vol-";
 }
 
@@ -463,6 +467,15 @@ void show(Screen s) {
                  show(Screen::Settings);
                });
       }
+      if (g_sound_fn)
+        button(g_body, "آزمایش صدا / Sound test", [](lv_event_t*) { g_sound_fn(kSoundTest); });
+      if (g_echo_fn)
+        button(g_body, g_status.echo ? "پژواک میکروفن: خاموش کن / Echo test off" : "پژواک میکروفن (با هدفون) / Echo test",
+               [](lv_event_t*) {
+                 g_echo_fn(!g_status.echo);
+                 if (g_status_fn) g_status = g_status_fn();
+                 show(Screen::Settings);
+               });
       break;
   }
 }
@@ -548,6 +561,7 @@ uint32_t lv_key_of(char32_t cp) {
 
 void on_output(const k::Output& o) {
   wake();
+  if (g_sound_fn && o.action != k::Action::LanguageChanged) g_sound_fn(kSoundKey);
   switch (o.action) {
     case k::Action::Text: g_keys.push_back(lv_key_of(o.cp)); break;
     case k::Action::Backspace: g_keys.push_back(LV_KEY_BACKSPACE); break;
@@ -587,6 +601,8 @@ void on_output(const k::Output& o) {
 }  // namespace
 
 void on_radio(RadioFn fn) { g_radio_fn = fn; }
+void on_sound(SoundFn fn) { g_sound_fn = fn; }
+void on_echo(EchoFn fn) { g_echo_fn = fn; }
 
 bool begin(StatusFn status, Messenger& messenger) {
   g_status_fn = status;

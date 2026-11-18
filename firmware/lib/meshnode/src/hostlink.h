@@ -61,16 +61,19 @@ constexpr uint8_t kOpWipe = 0x08;
 // Boards with Wi-Fi (the Mava board); other nodes answer kAckUnknownOp.
 constexpr uint8_t kOpSetWifi = 0x09;  // args: Wi-Fi TLVs (WifiConfig); saved, applied at once
 constexpr uint8_t kOpHotspot = 0x0A;  // args: [1] open the setup hotspot now, [0] back to normal
-// Boards with a screen (handheld UI): mirror it to the host (docs/screen.md, meshui/mirror.h).
+// Boards with a screen (handheld UI): mirror it to the host (docs/screen.md, hwsim/mirror.h).
 constexpr uint8_t kOpScreen = 0x0B;  // args: [1] start (info, then every tile, then changes), [0] stop
 constexpr uint8_t kOpInput = 0x0C;   // args: a touch or a key (mirror::kInput*)
+// Pre-release builds (MAVA_HWSIM): the host is the board's speaker and microphone (hwsim/audiolink.h).
+constexpr uint8_t kOpAudio = 0x0D;  // args: stop, start (speaker / mic), or a microphone frame
 
 constexpr uint8_t kEvStatus = 0x81;
 constexpr uint8_t kEvConfig = 0x82;
 constexpr uint8_t kEvIdentity = 0x83;
 constexpr uint8_t kEvAck = 0x84;
 constexpr uint8_t kEvLog = 0x85;
-constexpr uint8_t kEvScreen = 0x86;  // data: screen info or a tile (meshui/mirror.h)
+constexpr uint8_t kEvScreen = 0x86;  // data: screen info or a tile (hwsim/mirror.h)
+constexpr uint8_t kEvAudio = 0x87;   // data: the audio format or a speaker frame (hwsim/audiolink.h)
 
 constexpr uint8_t kAckOk = 0;
 constexpr uint8_t kAckBadArgs = 1;

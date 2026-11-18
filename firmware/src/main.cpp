@@ -22,7 +22,9 @@
 #include <cstdio>
 #include <new>
 
+#include "board_audio.h"
 #include "ble.h"
+#include "hwsim/hwsim.h"
 #include "board.h"
 #include "meshtastic.h"
 #include "net.h"
@@ -32,7 +34,6 @@
 #include "ui/client_messenger.h"
 #include "ui/display.h"
 #include "ui/messenger.h"
-#include "ui/remote.h"
 #include "ui/ui.h"
 #include <Wire.h>
 
@@ -174,7 +175,7 @@ struct Board : mesh::node::Platform {
     return net::hotspot(on);
   }
   uint8_t board_command(size_t port, uint8_t op, const uint8_t* a, size_t n) override {
-    return remote::command(*g_node, port, op, a, n);
+    return hwsim::command(*g_node, port, op, a, n);
   }
 };
 
@@ -280,6 +281,9 @@ ui::Status ui_status() {
   st.passkey = g_net.ble_passkey;
   st.radio = g_radio_ok ? 1 : c.radio ? 0 : -1;
   xSemaphoreGive(g_lock);
+  st.mic_level = audio::mic_level();
+  st.echo = audio::echo();
+  st.audio_outputs = audio::outputs();
   st.relay = net::relay_state();
   st.wifi = net::wifi_up();
   st.setup_mode = net::mode() == net::Mode::Setup;
@@ -309,7 +313,7 @@ void on_channel_changed(const net::Settings& s) {
 SET_LOOP_TASK_STACK_SIZE(16 * 1024);
 
 void setup() {
-  // A big USB transmit buffer: the screen on a phone (remote.h) streams tens
+  // A big USB transmit buffer: the screen on a phone (hwsim.h) streams tens
   // of kB per frame; the default 256 bytes held it to a crawl.
   Serial.setTxBufferSize(16384);
   Serial.begin(115200);
@@ -393,14 +397,18 @@ void setup() {
   logf("boot: screen; memory: internal %u kB free, PSRAM %u kB free (%s)",
        unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024), unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
        psramFound() ? "found" : "NOT FOUND: an N16R8 module is needed");
-  bool mirror = remote::begin();
+  bool mirror = hwsim::begin();
   // The handheld's own messenger (lib/meshclient): its user identity and
   // conversations on flash, on host port 6 of the node.
   ui::Messenger* client = ui::client_begin(name);
   ui::on_radio(ui_set_radio);
+  ui::on_sound([](uint8_t sound) { audio::play(audio::Sound(sound)); });
+  ui::on_echo([](bool on) { audio::set_echo(on); });
   g_ui = ui::begin(ui_status, client ? *client : ui::stub_messenger());
   // With or without a screen: a bare board is the account for the browser app.
   g_client_on = client != nullptr;
+  logf("hardware simulators (screen, keys, audio on a phone over USB): %s",
+       MAVA_HWSIM ? "on (pre-release build)" : "off");
   logf("messenger: %s", g_client_on ? (g_ui ? "on (screen and browser)" : "on (browser: http://<board>/app/)") : "off");
   logf("screen: %s%s%s; screen on a phone over USB: %s", g_ui ? "ok" : "none", g_ui ? "" : " — ", g_ui ? "" : display::error(),
        g_ui && mirror ? "yes" : mirror ? "no" : "no (no PSRAM for the frame copy)");
@@ -476,7 +484,7 @@ void loop() {
   // A host that sent one command and left (a flasher's Wi-Fi button): after
   // 90 s of silence the port goes back to the text log. meshd and the apps
   // ask for status every 30 s, so they stay attached.
-  if (node.host_attached(kUsbPort) && now - usb_rx_at > kUsbQuietMs && !remote::active()) {
+  if (node.host_attached(kUsbPort) && now - usb_rx_at > kUsbQuietMs && !hwsim::active()) {
     node.host_detach(kUsbPort);
     logf("USB host quiet for 90 s: back to the text log");
   }
@@ -498,8 +506,9 @@ void loop() {
   // ---- Wi-Fi: setup switch, hotspot panel, NTP ----
   net::loop(now);
 
-  // ---- the screen on a phone / PC (SCREEN command) ----
-  remote::pump(node);
+  // ---- sounds; pre-release simulators: screen, keys, audio on a phone ----
+  audio::loop(uint32_t(now));
+  hwsim::pump(node);
   if (g_client_on) ui::client_pump(node, now);
 
   // ---- timer ----
@@ -526,6 +535,11 @@ void loop() {
          unsigned(sc.used), unsigned(mesh::store::kSlots), unsigned(sc.data), unsigned(sc.own), unsigned(sc.receipts),
          unsigned(sc.announces), unsigned(sc.other), (unsigned long)ss.full, (unsigned long)ss.quota);
     logf("account %s", ui::client_state().c_str());
+    if (audio::outputs() > 0 || audio::mic_frames() > 0) {
+      char au[160];
+      audio::status(au, sizeof au);
+      logf("audio %s", au);
+    }
     char bt[448];
     ble::status(bt, sizeof bt);
     logf("Bluetooth %s", bt);

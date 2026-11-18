@@ -15,12 +15,21 @@ name="mava-board-flasher-$VERSION-linux"
 out="dist/$name"
 rm -rf "$out" && mkdir -p "$out/images" "$out/tools"
 
+# Pre-releases (a "-" in the version: 0.1.1-beta31) and dev builds carry the
+# hardware simulators (src/hwsim: screen, keys, audio on a phone); a stable
+# version (1.0.0) is built without them (env mava_handheld_s3_v1).
+case "$VERSION" in
+  *-* | dev) env=mava_handheld_s3 ;;
+  *) env=mava_handheld_s3_v1 ;;
+esac
+echo "board firmware: env $env"
+
 scripts/build-web.sh > /dev/null
-(cd firmware && pio run -e mava_handheld_s3 > /tmp/mava-pio-board.log 2>&1 || { tail -n 60 /tmp/mava-pio-board.log; exit 1; })
-(cd firmware && pio run -e mava_handheld_s3 -t buildfs > /tmp/mava-pio-fs.log 2>&1 || { tail -n 60 /tmp/mava-pio-fs.log; exit 1; })
+(cd firmware && pio run -e "$env" > /tmp/mava-pio-board.log 2>&1 || { tail -n 60 /tmp/mava-pio-board.log; exit 1; })
+(cd firmware && pio run -e "$env" -t buildfs > /tmp/mava-pio-fs.log 2>&1 || { tail -n 60 /tmp/mava-pio-fs.log; exit 1; })
 (cd firmware/keyboard && pio run > /tmp/mava-pio-kb.log 2>&1 || { tail -n 60 /tmp/mava-pio-kb.log; exit 1; })
 
-b=firmware/.pio/build/mava_handheld_s3
+b="firmware/.pio/build/$env"
 cp "$b/bootloader.bin" "$b/partitions.bin" "$b/firmware.bin" "$b/littlefs.bin" "$out/images/"
 cp "$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin" "$out/images/"
 for kb in matrix bb9900 bb9900tp; do

@@ -1,11 +1,15 @@
 package org.meshmsg.screen
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
@@ -60,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -67,6 +72,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 // Mava design tokens (docs/design.md).
@@ -132,20 +138,50 @@ private fun ScreenApp(s: ScreenUi, vm: ScreenViewModel) {
                 Spacer(Modifier.size(10.dp).background(if (s.connected) Ok else Muted, CircleShape))
             }
             Status(s, vm)
-            BoardScreen(s, vm)
+            if (s.picture) BoardScreen(s, vm)
             if (s.connected) {
                 Keys(vm)
                 TypeBox(vm)
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.phone_keyboard), color = Fg, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                Switch(
-                    checked = s.phoneKeyboard, onCheckedChange = vm::setPhoneKeyboard,
-                    colors = SwitchDefaults.colors(checkedTrackColor = Primary, checkedThumbColor = Color.White),
-                )
-            }
+            SwitchRow(stringResource(R.string.picture), s.picture, vm::setPicture)
+            SwitchRow(stringResource(R.string.phone_keyboard), s.phoneKeyboard, vm::setPhoneKeyboard)
+            AudioSettings(s, vm)
             Text(stringResource(R.string.help), color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+            Text(stringResource(R.string.prerelease), color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
         }
+    }
+}
+
+@Composable
+private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = Fg, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked, onCheckedChange = onChange,
+            colors = SwitchDefaults.colors(checkedTrackColor = Primary, checkedThumbColor = Color.White),
+        )
+    }
+}
+
+/** The phone as the board's speaker and microphone (pre-release simulator). */
+@Composable
+private fun AudioSettings(s: ScreenUi, vm: ScreenViewModel) {
+    val context = LocalContext.current
+    val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) vm.setMic(true)
+    }
+    SwitchRow(stringResource(R.string.sound), s.sound, vm::setSound)
+    SwitchRow(stringResource(R.string.mic), s.mic) { on ->
+        when {
+            !on -> vm.setMic(false)
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> vm.setMic(true)
+            else -> askMic.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+    when {
+        s.audioError != null -> Text(s.audioError, color = Err, fontSize = 13.sp)
+        s.connected && (s.sound || s.mic) ->
+            Text(stringResource(R.string.audio_counts, s.audioIn, s.audioOut), color = Muted, fontSize = 12.sp)
     }
 }
 
@@ -153,6 +189,7 @@ private fun ScreenApp(s: ScreenUi, vm: ScreenViewModel) {
 private fun Status(s: ScreenUi, vm: ScreenViewModel) {
     val text = when {
         s.error != null -> s.error
+        s.connected && !s.picture -> stringResource(R.string.connected_keys, s.device ?: "USB")
         s.connected && s.width == 0 -> stringResource(R.string.waiting)
         s.connected -> stringResource(R.string.connected, s.device ?: "USB")
         s.connecting -> stringResource(R.string.connecting)
