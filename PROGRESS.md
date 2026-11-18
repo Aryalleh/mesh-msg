@@ -2042,3 +2042,6 @@ links. Chose: quick items in beta3; calls follow in later betas.
   Commit 24e1d09 (CI green); release notes for v0.1.1-beta38 ready, release waits for the owner.
 - Board UI (owner): in a chat, the call key moved from the name row into the top bar next to
   Home (shown while connected and no call is live).
+- Released **v0.1.1-beta38** (tag on 483b9a3, pre-release, signed release.json): board menu one
+  item per row in portrait, call buttons and the 10 s code pop-up in the top bar, chat call key
+  in the top bar.
