@@ -1835,4 +1835,5 @@ links. Chose: quick items in beta3; calls follow in later betas.
   up to 100×; NimBLE allocates the reply before handling the write, so it was not taken);
   ignores chunks for a peer that is no longer the current one; `lastDrop` keeps the first
   reason per peer.
-- Release v0.1.1-beta30.
+- On main (`17c1983`, CI and builds green); release v0.1.1-beta30 waits for the owner's go
+  (notes in docs/release-notes/v0.1.1-beta30.*.md; `build` run with `release_tag`).
