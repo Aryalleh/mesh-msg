@@ -21,10 +21,9 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 
 **Owner's board (no LoRa module), Bluetooth messages**: beta29 adds the "No LoRa module"
 setting (screen Settings / Mava Flasher), fixes the hello race behind the restart storm and
-logs messages from phones by destination plus a "store" line. On main (`2ec4074`, `7387d2b`,
-CI and builds green) but **not released yet**: the tag push was refused from this session;
-the owner starts `build` (Actions → Run workflow) with `release_tag` = `v0.1.1-beta29`.
-Then waiting for the owner's log after one phone → board message (2026-11-18 log entry).
+logs messages from phones by destination plus a "store" line. Released as
+**v0.1.1-beta29** (run #44298492913, tag on `c367a26`). Waiting for the owner's log after
+one phone → board message (2026-11-18 log entry).
 
 Needs hardware now, for both open milestones:
 - **M5**: install `android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` on two phones;
@@ -1812,5 +1811,5 @@ links. Chose: quick items in beta3; calls follow in later betas.
   `TestWriteFailureDropsPeer` read `closed` / `h.down` while `Link.Down` (writer goroutine)
   still set them (it removes the peer before closing it). Test now waits for all three
   (atomic flag, host mutex).
-- Release v0.1.1-beta29 pending (tag push refused from this cloud session): notes are in
-  `docs/release-notes/v0.1.1-beta29.*.md`; run `build` with `release_tag=v0.1.1-beta29`.
+- Released **v0.1.1-beta29** (manual `build` run with `release_tag`, the tag push was refused
+  from this session; tag on `c367a26`; mava-board-images-0.1.1-beta29.zip in the signed manifest).
