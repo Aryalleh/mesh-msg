@@ -60,6 +60,9 @@ const (
 	CodecAMRWB = 2
 	CodecVP8   = 16
 	CodecH264  = 17
+	// CodecMJPEG: every video frame a JPEG on its own (calls.md §7b), what
+	// the Mava board decodes; it takes video in and sends none.
+	CodecMJPEG = 20
 )
 
 // Version is the call protocol version this side speaks.

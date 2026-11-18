@@ -3,8 +3,9 @@
 // Opus at 16 kHz in 20 ms frames, signals as content type 7 through the
 // board's messaging client (any path: Bluetooth, the relay, USB). Audio comes
 // and goes in 10 ms frames through board_audio: the phone simulator over USB
-// in pre-releases, the WM8960 codec later. One call at a time; voice only
-// (a video offer is answered with voice).
+// in pre-releases, the WM8960 codec later. One call at a time. Video comes in
+// only (MJPEG, the board has no camera): every call offers or accepts a
+// receive-only video stream, so the other side can show its camera.
 #pragma once
 
 #include <cstddef>
@@ -24,6 +25,8 @@ struct View {
   int path_cls = 0;   // 1 same network … 5 across NAT (connectivity.md §5)
   char reason[32] = {};
   bool missed = false, peer_muted = false, muted = false, video_offered = false;
+  bool video = false;        // the call can carry the other side's camera
+  uint32_t video_frames = 0;
   uint32_t active_ms = 0;  // millis() when it became active
 };
 
@@ -48,6 +51,11 @@ bool live();
 void mic(const int16_t* pcm, size_t n);
 // The far side's voice; false when there is none now (play silence).
 bool speaker(int16_t* out, size_t n);
+
+// ---- video in (UI, main loop) ----
+// The newest whole JPEG since the last call (the far side's camera), or
+// false. The bytes stay valid until the next call.
+bool take_video(const uint8_t** jpeg, size_t* n);
 
 // For the log.
 void status(char* out, size_t cap);

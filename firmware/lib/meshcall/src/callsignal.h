@@ -77,6 +77,9 @@ constexpr uint8_t kEndHangup = 0, kEndNoPath = 1, kEndTimeout = 2, kEndError = 3
 constexpr uint8_t kMediaAudio = 0, kMediaVideo = 1;
 constexpr uint8_t kDirSend = 1, kDirReceive = 2, kDirBoth = 3;
 constexpr uint8_t kCodecOpus = 1, kCodecAmrWb = 2, kCodecVp8 = 16, kCodecH264 = 17;
+// Motion JPEG: every frame a JPEG on its own (calls.md §7b), what a small
+// device like the Mava board can decode.
+constexpr uint8_t kCodecMjpeg = 20;
 constexpr uint8_t kVersion = 1;
 
 struct StreamCap {

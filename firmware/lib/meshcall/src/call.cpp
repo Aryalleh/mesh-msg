@@ -19,6 +19,22 @@ void put32(uint8_t* p, uint32_t v) {
 
 }  // namespace
 
+size_t encode_video_params(const VideoParams& p, uint8_t out[6]) {
+  out[0] = uint8_t(p.width >> 8), out[1] = uint8_t(p.width);
+  out[2] = uint8_t(p.height >> 8), out[3] = uint8_t(p.height);
+  out[4] = p.fps;
+  out[5] = p.camera_on ? 1 : 0;
+  return 6;
+}
+
+VideoParams parse_video_params(const uint8_t* b, size_t n) {
+  VideoParams p;
+  if (n >= 4) p.width = uint16_t(b[0] << 8 | b[1]), p.height = uint16_t(b[2] << 8 | b[3]);
+  if (n >= 5) p.fps = b[4];
+  if (n >= 6) p.camera_on = (b[5] & 1) != 0;
+  return p;
+}
+
 // ---- jitter buffer ----
 
 void Jitter::reset() { *this = Jitter(); }
@@ -119,6 +135,35 @@ Manager::~Manager() {
   if (noise_) noise_->~NoiseKK();
 }
 
+void Manager::set_video(uint8_t* buf, size_t cap, const VideoParams& want, VideoSink sink, void* ctx) {
+  vbuf_ = buf;
+  vcap_ = cap;
+  vwant_ = want;
+  vsink_ = sink;
+  vctx_ = ctx;
+}
+
+void Manager::add_video_cap(Caps& c, uint8_t codec) const {
+  if (c.video() || c.n >= 4) return;
+  StreamCap& v = c.streams[c.n++];
+  v = StreamCap();
+  v.id = kStreamVideo;
+  v.media = kMediaVideo;
+  v.dir = kDirReceive;  // we take video in, never send any
+  v.codecs[0] = codec;
+  v.n_codecs = 1;
+  v.max_kbps = 1500;
+  v.n_params = uint8_t(encode_video_params(vwant_, v.params));
+}
+
+void Manager::video_reset() {
+  vcur_ = vkey_ = vdone_ = vwin_ = false;
+  vbits_ = 0;
+  vgot_ = vcount_ = 0;
+  vseq_ = vctl_seq_ = 0;
+  vstats_ = VideoStats();
+}
+
 void Manager::notify() {
   if (env_.event) env_.event(env_.ctx);
 }
@@ -185,6 +230,8 @@ bool Manager::start(const PublicKey& peer, const Caps& caps, uint32_t now) {
   env_.random(id_, sizeof id_);
   env_.random(key_, sizeof key_);
   ours_ = caps;
+  if (vbuf_) add_video_cap(ours_, kCodecMjpeg);  // the other side may turn its camera on
+  video_reset();
   offer_sent_ = answered_ = answer_sent_ = false;
   start_ms_ = now;
   jitter_.reset();
@@ -210,7 +257,18 @@ bool Manager::answer(const Caps& caps, uint32_t now) {
   ours_.streams[0] = *mine;
   ours_.streams[0].codecs[0] = codec;
   ours_.streams[0].n_codecs = 1;
-  // Video: none yet on the board (MJPEG comes next); the call runs as voice.
+  // Video in, when the caller offered it with a codec we decode (MJPEG): the
+  // stream is receive-only from us; otherwise the call runs as voice.
+  video_reset();
+  if (const StreamCap* tv = offer_.caps.video()) {
+    for (uint8_t i = 0; vbuf_ && i < tv->n_codecs; i++)
+      if (tv->codecs[i] == kCodecMjpeg) {
+        add_video_cap(ours_, kCodecMjpeg);
+        info_.video = true;
+        info_.video_codec = kCodecMjpeg;
+        break;
+      }
+  }
   answered_ = true;
   answer_sent_ = false;
   jitter_.reset();
@@ -261,6 +319,7 @@ void Manager::on_signal(const PublicKey& from, const uint8_t* b, size_t n, uint3
     std::memcpy(key_, s.key, 32);
     offer_ = s;
     info_.video_offered = s.caps.video() != nullptr;
+    if (const StreamCap* v = s.caps.video()) info_.video_call = parse_video_params(v->params, v->n_params).camera_on;
     start_ms_ = now;
     answered_ = false;
     if (env_.allowed && !env_.allowed(env_.ctx, from)) {
@@ -295,6 +354,9 @@ void Manager::on_signal(const PublicKey& from, const uint8_t* b, size_t n, uint3
         return;
       }
       info_.codec = a->codecs[0];
+      if (const StreamCap* v = s.caps.video()) {
+        if (vbuf_ && v->n_codecs && v->codecs[0] == kCodecMjpeg) info_.video = true, info_.video_codec = kCodecMjpeg;
+      }
       remote_offer_ = s.offer;
       set_state(State::Connecting, now);
       connect_end_ = now + kConnectMs;
@@ -392,19 +454,84 @@ void Manager::on_link(const uint8_t* d, size_t n) {
     return;
   last_rx_ = now;
   if (stream == kStreamAudio && len > 0) jitter_.push(seq, ts, p, len, now);
-  // Video (stream 1) and its control (255) are not taken yet: the call is voice.
+  if (stream == kStreamVideo && info_.video) on_video(seq, ts, d[10], p, len, now);
+  // Control (255): keyframe requests and loss reports are for a sender; we send no video.
 }
 
-void Manager::send_frame(uint8_t stream, const uint8_t* p, size_t n, uint32_t now) {
+void Manager::on_video(uint32_t seq, uint32_t ts, uint8_t flags, const uint8_t* p, size_t n, uint32_t now) {
+  if (!vbuf_ || !(flags & kFlagFragmented) || n < kFragHead) return;
+  uint16_t idx = uint16_t(p[0] << 8 | p[1]), cnt = uint16_t(p[2] << 8 | p[3]);
+  if (cnt == 0 || idx >= cnt) return;
+  vstats_.datagrams++;
+  // Loss over the last second for the sender's bitrate (core/call onVideo).
+  if (!vwin_) vwin_ = true, vwin_first_ = vwin_max_ = seq, vwin_got_ = 0, vwin_at_ = now;
+  if (int32_t(seq - vwin_max_) > 0) vwin_max_ = seq;
+  vwin_got_++;
+  if (now - vwin_at_ >= 1000) {
+    uint32_t exp = vwin_max_ - vwin_first_ + 1, pm = exp > vwin_got_ ? (exp - vwin_got_) * 1000 / exp : 0;
+    uint8_t r[4] = {1, kStreamVideo, uint8_t(pm >> 8), uint8_t(pm)};  // kind 1: receiver report
+    send_frame(kStreamControl, r, sizeof r, now);
+    vwin_ = false;
+  }
+  if (vdone_ && int32_t(ts - vlast_done_) <= 0) return;  // part of a frame already shown or given up
+  if (vcur_ && ts != vts_) {
+    if (int32_t(ts - vts_) < 0) return;  // older than the one being put together
+    vstats_.lost++;                      // a newer frame started: the unfinished one is lost
+    vcur_ = false;
+  }
+  if (vcur_ && now - vfirst_ > 800) {  // stuck too long (core/call frameGiveUp)
+    vstats_.lost++;
+    vcur_ = false;
+  }
+  if (!vcur_) {
+    if (cnt > 64 || size_t(cnt - 1) * kMaxFrag >= vcap_) {  // more than we can hold
+      vstats_.too_big++;
+      vdone_ = true, vlast_done_ = ts;
+      return;
+    }
+    vcur_ = true, vkey_ = false, vts_ = ts, vfirst_ = now, vcount_ = cnt, vgot_ = 0, vbits_ = 0, vlast_len_ = 0;
+  }
+  size_t len = n - kFragHead;
+  if (cnt != vcount_ || (idx + 1 < cnt && len != kMaxFrag) || size_t(idx) * kMaxFrag + len > vcap_) return;
+  if (flags & kFlagKeyframe) vkey_ = true;
+  if (vbits_ & (uint64_t(1) << idx)) return;
+  std::memcpy(vbuf_ + size_t(idx) * kMaxFrag, p + kFragHead, len);
+  vbits_ |= uint64_t(1) << idx;
+  vgot_++;
+  if (idx + 1 == cnt) vlast_len_ = uint32_t(len);
+  if (vgot_ < vcount_) return;
+  vcur_ = false;
+  vdone_ = true, vlast_done_ = ts;
+  vstats_.frames++;
+  if (vsink_) vsink_(vctx_, vbuf_, size_t(vcount_ - 1) * kMaxFrag + vlast_len_, ts, vkey_);
+}
+
+bool Manager::send_video(const uint8_t* data, size_t n, bool keyframe, uint32_t now) {
+  if (info_.state != State::Active || !info_.video || !n || n > 64 * kMaxFrag) return false;
+  size_t cnt = (n + kMaxFrag - 1) / kMaxFrag;
+  uint8_t chunk[kFragHead + kMaxFrag];
+  for (size_t i = 0; i < cnt; i++) {
+    size_t len = i + 1 < cnt ? kMaxFrag : n - i * kMaxFrag;
+    chunk[0] = uint8_t(i >> 8), chunk[1] = uint8_t(i), chunk[2] = uint8_t(cnt >> 8), chunk[3] = uint8_t(cnt);
+    std::memcpy(chunk + kFragHead, data + i * kMaxFrag, len);
+    uint8_t f = kFlagFragmented | (keyframe ? kFlagKeyframe : 0) | (i + 1 == cnt ? kFlagEnd : 0);
+    send_frame(kStreamVideo, chunk, kFragHead + len, now, f);
+  }
+  return true;
+}
+
+void Manager::send_frame(uint8_t stream, const uint8_t* p, size_t n, uint32_t now, uint8_t flags) {
   if (!agent_ || !noise_ || !noise_->done()) return;
-  uint8_t b[1 + kFrameHead + kMaxAudio + kTag];
-  if (n > kMaxAudio) return;
+  uint8_t b[1 + kFrameHead + kMaxPayload + kTag];
+  if (1 + kFrameHead + n + kTag > kMaxPayload) return;
   b[0] = kFrameType;
   b[1] = stream;
-  uint32_t seq = ++seq_;
+  // Each stream counts its own: the far side's audio jitter buffer reads gaps
+  // in the audio numbers as lost frames.
+  uint32_t seq = stream == kStreamAudio ? ++seq_ : stream == kStreamVideo ? ++vseq_ : ++vctl_seq_;
   put32(b + 2, seq);
   put32(b + 6, now - t0_);
-  b[10] = 0;
+  b[10] = flags;
   noise_->encrypt(uint64_t(stream) << 32 | seq, b + 1, kFrameHead, p, n, b + 1 + kFrameHead);
   agent_->send(b, 1 + kFrameHead + n + kTag);
 }

@@ -47,6 +47,8 @@ struct Host : mc::Net {
   mc::Addr ip;
   Nat* nat = nullptr;
   bool udp_blocked = false;
+  // Drops chosen datagrams on the way out (tests of loss).
+  std::function<bool(const uint8_t* d, size_t n)> drop;
   // Datagrams for sockets with no bound agent (a call manager owns the agent).
   std::function<void(const mc::Addr&, const uint8_t*, size_t, uint32_t)> rx;
   int open() override;
@@ -161,7 +163,7 @@ inline void Host::close(int s) { w->socks[size_t(s)].open = false; }
 inline uint16_t Host::port(int s) { return w->socks[size_t(s)].port; }
 
 inline bool Host::send(int s, const mc::Addr& to, const uint8_t* d, size_t n) {
-  if (udp_blocked) return true;
+  if (udp_blocked || (drop && drop(d, n))) return true;
   mc::Addr from = ip;
   from.port = w->socks[size_t(s)].port;
   // Behind a NAT and leaving the private network: translate.

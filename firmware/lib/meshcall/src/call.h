@@ -23,6 +23,21 @@ namespace call {
 constexpr uint8_t kStreamAudio = 0, kStreamVideo = 1, kStreamControl = 255;
 constexpr size_t kFrameHead = 1 + 4 + 4 + 1;  // stream | seq | ts | flags
 constexpr size_t kMaxAudio = 256;             // one encoded 20 ms frame
+// Video (core/call video.go): a frame goes out in fragments on stream 1,
+// payload = frag_index(2) | frag_count(2) | data, every fragment but the last
+// kMaxFrag long. Flags as core/call.
+constexpr uint8_t kFlagKeyframe = 0x80, kFlagFragmented = 0x40, kFlagEnd = 0x10;
+constexpr size_t kFragHead = 4;
+constexpr size_t kMaxFrag = kMaxPayload - 1 - kFrameHead - kTag - kFragHead;
+
+// A video stream's params (StreamCap.params): width(2) | height(2) | fps(1) | flags(1, bit 0 camera on).
+struct VideoParams {
+  uint16_t width = 0, height = 0;
+  uint8_t fps = 0;
+  bool camera_on = false;
+};
+size_t encode_video_params(const VideoParams& p, uint8_t out[6]);
+VideoParams parse_video_params(const uint8_t* b, size_t n);
 
 // Adaptive jitter buffer for 20 ms frames (core/call jitter.go): the target
 // delay follows the RFC 3550 inter-arrival jitter between 40 and 200 ms.
@@ -73,7 +88,10 @@ struct Info {
   const char* reason = "";
   bool missed = false;
   bool peer_muted = false;
-  bool video_offered = false;  // the caller offered video (the board answers voice only for now)
+  bool video_offered = false;  // the caller offered video
+  bool video_call = false;     // the caller starts with the camera on
+  bool video = false;          // the call carries video (we take it in; see Manager::set_video)
+  uint8_t video_codec = 0;
   uint32_t active_ms = 0;      // when it became active
 };
 
@@ -115,6 +133,19 @@ class Manager {
   // The call's UDP socket (-1: none): the owner reads it and calls on_datagram.
   int socket() const { return agent_ ? agent_->socket() : -1; }
 
+  // Taking video in (MJPEG; we never send any ourselves): frames are put
+  // together in buf and handed to sink whole. Calls then offer and accept a
+  // receive-only video stream, so the other side can turn its camera on in
+  // any call. Before start / answer.
+  using VideoSink = void (*)(void* ctx, const uint8_t* frame, size_t n, uint32_t ts, bool keyframe);
+  void set_video(uint8_t* buf, size_t cap, const VideoParams& want, VideoSink sink, void* ctx);
+  struct VideoStats {
+    uint32_t frames = 0, lost = 0, datagrams = 0, too_big = 0;
+  };
+  const VideoStats& video_stats() const { return vstats_; }
+  // Sends one video frame (tests, and a device with a camera): fragments as core/call.
+  bool send_video(const uint8_t* data, size_t n, bool keyframe, uint32_t now_ms);
+
   // One encoded 20 ms frame while active.
   bool send_audio(const uint8_t* p, size_t n, uint32_t now_ms);
   // Every 20 ms: Jitter::kFrame / kLost / kEmpty.
@@ -133,8 +164,11 @@ class Manager {
   void start_handshake(uint32_t now);
   void on_link(const uint8_t* d, size_t n);
   static void link_rx(void* ctx, const uint8_t* d, size_t n);
-  void send_frame(uint8_t stream, const uint8_t* p, size_t n, uint32_t now);
+  void send_frame(uint8_t stream, const uint8_t* p, size_t n, uint32_t now, uint8_t flags = 0);
   void notify();
+  void add_video_cap(Caps& c, uint8_t codec) const;
+  void on_video(uint32_t seq, uint32_t ts, uint8_t flags, const uint8_t* p, size_t n, uint32_t now);
+  void video_reset();
 
   Env env_;
   Info info_;
@@ -155,6 +189,19 @@ class Manager {
   uint32_t now_ = 0;
   uint32_t t0_ = 0, last_rx_ = 0, last_keep_ = 0, seq_ = 0;
   Jitter jitter_;
+  // video in
+  uint8_t* vbuf_ = nullptr;
+  size_t vcap_ = 0;
+  VideoParams vwant_;
+  VideoSink vsink_ = nullptr;
+  void* vctx_ = nullptr;
+  bool vcur_ = false, vkey_ = false, vdone_ = false;
+  uint32_t vts_ = 0, vfirst_ = 0, vlast_done_ = 0, vlast_len_ = 0;
+  uint16_t vcount_ = 0, vgot_ = 0;
+  uint64_t vbits_ = 0;
+  bool vwin_ = false;
+  uint32_t vwin_first_ = 0, vwin_max_ = 0, vwin_got_ = 0, vwin_at_ = 0, vseq_ = 0, vctl_seq_ = 0;
+  VideoStats vstats_;
 };
 
 }  // namespace call

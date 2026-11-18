@@ -34,6 +34,7 @@
 #include "radio.h"
 #include "kbmodule.h"
 #include "ui/client_messenger.h"
+#include "ui/video.h"
 #include "ui/display.h"
 #include "ui/messenger.h"
 #include "ui/ui.h"
@@ -574,6 +575,11 @@ void loop() {
       char cs[240];
       calls::status(cs, sizeof cs);
       logf("calls %s", ui::calls_on() ? cs : "off (the call task did not start)");
+      if (calls::live()) {
+        char vs[96];
+        video::status(vs, sizeof vs);
+        logf("call video on the screen: %s", vs);
+      }
     }
     char ck[160];
     wallclock::status(ck, sizeof ck);

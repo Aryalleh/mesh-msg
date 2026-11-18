@@ -168,6 +168,8 @@ data class CallInfo(
     val video: Boolean = false,
     /** The caller started with the camera on. */
     val videoCall: Boolean = false,
+    /** The video codec both sides use (17 H.264, 20 MJPEG for a Mava board), 0 = none. */
+    val videoCodec: Int = 0,
 ) {
     val ended: Boolean get() = state == "ended"
 }
@@ -188,6 +190,7 @@ object Json {
         peerMuted = o.optBoolean("peer_muted"),
         video = o.optBoolean("video"),
         videoCall = o.optBoolean("video_call"),
+        videoCodec = o.optInt("video_codec"),
     )
 
     fun time(s: String): Long = runCatching { Instant.parse(s).toEpochMilli() }.getOrDefault(0L)

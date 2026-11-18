@@ -217,3 +217,25 @@ No change to signaling ops, frame format, encryption or path discovery is needed
   front/back buttons; "Video call" button in chats; a data-use note on metered networks.
 - Not yet: desktop (web UI), VP8 fallback for phones without H.264, simulcast/resolution
   steps (only the bitrate adapts), sending the camera while the app is in the background.
+
+## 7b. MJPEG video for small devices (the Mava board)
+
+- **Codec 20 = MJPEG**: every frame is one baseline JPEG on its own (`orientation(1) |
+  JPEG`, orientation 0: the sender turns the picture upright), sent as a keyframe in the
+  usual fragments. Phones list it after H.264 (`17,20`; only `20` without an H.264 codec),
+  so phones keep H.264 between themselves and use MJPEG with a board.
+- **The board takes video in and sends none.** Its offer and its answer carry a video
+  stream with dir = receive, codec 20, params 320 × 240 at 10 fps, camera off: the phone sees
+  a voice call and can turn its camera on at any time; a phone's video call to the board is
+  answered with the same stream. A video offer without MJPEG is answered as voice.
+- **Phone side** (`CallVideo`, MJPEG): CameraX RGBA frames near 320 × 240, turned upright
+  and scaled to fit 320 × 240, JPEG at 10 fps; the quality (25–80) follows the bitrate from
+  the board's loss reports (frame size against kbps / 8 / fps). JPEGs that come in are drawn
+  on the remote view's Surface.
+- **Board side**: `lib/meshcall` reassembles one frame at a time into a 64 kB buffer (a
+  newer frame or 800 ms ends an unfinished one; bigger frames are dropped), sends a loss
+  report every second on stream 255, and hands whole frames to `src/calls.cpp`, which keeps
+  the newest for the UI (triple buffer). The call screen decodes it with JPEGDEC into a
+  320 × 240 RGB565 image behind the text and buttons; it disappears 2 s after the camera
+  stops. Tests: `test/callmgr_test.cpp` (video in, loss, too big, H.264-only offer) and
+  `TestBoardPeer` (the Go phone code sends frames to the board, both ways round).

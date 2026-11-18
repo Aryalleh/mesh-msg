@@ -27,6 +27,19 @@ struct Dev {
   bool allow = true;
   bool drop_signals = false;
   uint32_t clock_skew = 0;
+  // video in (set_video): the buffer and what the sink got
+  std::vector<uint8_t> vbuf;
+  std::vector<Bytes> frames;
+  void video_in(size_t cap) {
+    vbuf.resize(cap);
+    mc::VideoParams want;
+    want.width = 320, want.height = 240, want.fps = 10;
+    m->set_video(vbuf.data(), vbuf.size(), want,
+                 [](void* ctx, const uint8_t* f, size_t n, uint32_t, bool) {
+                   static_cast<Dev*>(ctx)->frames.push_back(Bytes(f, f + n));
+                 },
+                 this);
+  }
 
   explicit Dev(uint8_t seed) : id(mesh::Identity::from_seed(seed64(seed))) {}
   static const uint8_t* seed64(uint8_t s) {
@@ -368,6 +381,104 @@ void endings() {
   }
 }
 
+Bytes picture(size_t n, uint8_t seed) {
+  Bytes b(n);
+  for (size_t i = 0; i < n; i++) b[i] = uint8_t(i * 7 + seed * 13 + (i >> 8));
+  return b;
+}
+
+// Video: the board takes a camera's frames in (MJPEG, receive-only), whole,
+// in order; a lost fragment loses its frame only; too big is dropped.
+void video() {
+  {
+    Lab lab;
+    Dev board(30), phone(31);
+    lab.add(board, mc::Addr::v4(192, 168, 1, 10, 0));
+    lab.add(phone, mc::Addr::v4(192, 168, 1, 11, 0));
+    board.video_in(64 * 1024);
+    phone.video_in(64 * 1024);  // stands in for a phone that has MJPEG
+    CHECK(phone.m->start(board.id.pub(), voice({mc::kCodecOpus}), lab.w.now));
+    CHECK(lab.until([&] { return board.info().state == mc::State::Ringing; }, 3000));
+    CHECK(board.info().video_offered && !board.info().video_call);
+    CHECK(board.m->answer(voice({mc::kCodecOpus}), lab.w.now));
+    CHECK(lab.until([&] { return active(board) && active(phone); }, 5000));
+    CHECK(board.info().video && board.info().video_codec == mc::kCodecMjpeg && phone.info().video);
+    // Ten frames of ~20 kB (18 fragments each), 100 ms apart, with voice going on.
+    std::vector<Bytes> sent;
+    int k = 0;
+    lab.run(1000, [&](uint32_t now) {
+      if (now % 100 == 0 && k < 10) {
+        sent.push_back(picture(20000 + size_t(k) * 37, uint8_t(k)));
+        CHECK(phone.m->send_video(sent.back().data(), sent.back().size(), true, now));
+        k++;
+      }
+      uint8_t a[3] = {1, 2, 3};
+      phone.m->send_audio(a, 3, now);
+      board.m->send_audio(a, 3, now);
+      uint8_t out[mc::kMaxAudio];
+      size_t n;
+      board.m->pull_audio(out, sizeof out, &n);
+      phone.m->pull_audio(out, sizeof out, &n);
+    });
+    lab.run(200);
+    CHECK(board.frames.size() == 10);
+    for (size_t i = 0; i < board.frames.size() && i < sent.size(); i++) CHECK(board.frames[i] == sent[i]);
+    // The board's loss reports go on their own stream: the phone's audio counts no losses.
+    CHECK(phone.m->jitter().stats().lost == 0 && board.m->jitter().stats().lost == 0);
+    // A lost fragment loses that frame; the next ones come through.
+    int fragment = 0;
+    phone.host.drop = [&](const uint8_t*, size_t n) { return n > 1000 && ++fragment == 5; };
+    board.frames.clear();
+    for (int i = 0; i < 3; i++) {
+      Bytes f = picture(9000, uint8_t(40 + i));
+      phone.m->send_video(f.data(), f.size(), true, lab.w.now);
+      lab.run(100);
+    }
+    phone.host.drop = nullptr;
+    CHECK(board.frames.size() == 2 && board.m->video_stats().lost == 1);
+    // A frame bigger than the board's buffer is dropped, the next one is fine.
+    Bytes big = picture(70000, 9), small = picture(3000, 10);
+    phone.m->send_video(big.data(), big.size(), true, lab.w.now);
+    lab.run(100);
+    phone.m->send_video(small.data(), small.size(), true, lab.w.now);
+    lab.run(100);
+    CHECK(board.m->video_stats().too_big == 1 && board.frames.back() == small);
+    board.m->hangup(lab.w.now);
+  }
+  {  // the board calls: its offer carries receive-only video, so the phone may turn its camera on
+    Lab lab;
+    Dev board(32), phone(33);
+    lab.add(board, mc::Addr::v4(192, 168, 1, 10, 0));
+    lab.add(phone, mc::Addr::v4(192, 168, 1, 11, 0));
+    board.video_in(64 * 1024);
+    phone.video_in(64 * 1024);
+    CHECK(board.m->start(phone.id.pub(), voice({mc::kCodecOpus}), lab.w.now));
+    CHECK(lab.until([&] { return phone.info().state == mc::State::Ringing; }, 3000));
+    CHECK(phone.info().video_offered && !phone.info().video_call);
+    CHECK(phone.m->answer(voice({mc::kCodecOpus}), lab.w.now));
+    CHECK(lab.until([&] { return active(board) && active(phone); }, 5000));
+    CHECK(board.info().video && phone.info().video);
+    Bytes f = picture(15000, 3);
+    CHECK(phone.m->send_video(f.data(), f.size(), true, lab.w.now));
+    lab.run(100);
+    CHECK(board.frames.size() == 1 && board.frames[0] == f);
+  }
+  {  // video in another codec only (H.264): the call runs as voice
+    Lab lab;
+    Dev board(34), phone(35);
+    lab.add(board, mc::Addr::v4(192, 168, 1, 10, 0));
+    lab.add(phone, mc::Addr::v4(192, 168, 1, 11, 0));
+    board.video_in(64 * 1024);
+    CHECK(phone.m->start(board.id.pub(), voice({mc::kCodecOpus}, true), lab.w.now));
+    CHECK(lab.until([&] { return board.info().state == mc::State::Ringing; }, 3000));
+    CHECK(board.m->answer(voice({mc::kCodecOpus}), lab.w.now));
+    CHECK(lab.until([&] { return active(board) && active(phone); }, 5000));
+    CHECK(!board.info().video && !phone.info().video);
+    uint8_t x[10] = {};
+    CHECK(!phone.m->send_video(x, sizeof x, true, lab.w.now));
+  }
+}
+
 void jitter() {
   mc::Jitter j;
   uint8_t out[mc::kMaxAudio];
@@ -421,6 +532,7 @@ void jitter() {
 
 void run_callmgr() {
   jitter();
+  video();
   ring_answer_talk_hangup();
   across_nats();
   symmetric_nat();

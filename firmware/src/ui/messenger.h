@@ -3,6 +3,7 @@
 // §8); the stub keeps local notes (the UI simulator, boards without storage).
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -29,6 +30,7 @@ struct CallView {
   std::string code;    // "123 456": both sides see the same, compare by voice
   std::string reason;  // why it ended
   bool missed = false, muted = false, peer_muted = false, video_offered = false;
+  bool video = false;  // the other side can show its camera in this call
   int path = 0;          // path class: 1 same network … 5 across NAT
   uint32_t seconds = 0;  // talking time
 };
@@ -50,6 +52,11 @@ class Messenger {
   virtual CallView call_view() { return CallView(); }
   // Grows with every change of the call.
   virtual uint32_t call_revision() { return 0; }
+  // The newest JPEG from the other side's camera since the last call, or false.
+  virtual bool take_video(const uint8_t** jpeg, size_t* n) {
+    (void)jpeg, (void)n;
+    return false;
+  }
   // Our contact link (QR code for the apps to add us) and nickname; "" = none.
   virtual std::string my_link() { return ""; }
   virtual std::string my_name() { return ""; }

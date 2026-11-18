@@ -23,12 +23,14 @@ import (
 // firmware/build/callpeer by `make -C firmware callpeer`) as a child
 // process: signals go over its stdin/stdout, media over loopback UDP.
 type boardPeer struct {
-	pub    identity.Public
-	in     io.WriteCloser
-	mu     sync.Mutex
-	states chan []string // state|name|reason|code|codec|class
-	rx     atomic.Int64
-	muted  atomic.Bool
+	pub     identity.Public
+	in      io.WriteCloser
+	mu      sync.Mutex
+	states  chan []string // state|name|reason|code|codec|class
+	rx      atomic.Int64
+	muted   atomic.Bool
+	videoMu sync.Mutex
+	video   []string // "<bytes> <fnv-1a hex>" per frame the board took in
 }
 
 func (b *boardPeer) cmd(s string) {
@@ -104,6 +106,10 @@ func startBoard(t *testing.T, bin string) (*boardPeer, *phone) {
 				b.rx.Store(int64(n))
 			case l == "muted":
 				b.muted.Store(true)
+			case strings.HasPrefix(l, "video "):
+				b.videoMu.Lock()
+				b.video = append(b.video, l[6:])
+				b.videoMu.Unlock()
 			}
 		}
 	}()
@@ -131,8 +137,53 @@ func talkToBoard(t *testing.T, c *Call, b *boardPeer) {
 	}
 }
 
+func fnv32(b []byte) uint32 {
+	h := uint32(2166136261)
+	for _, c := range b {
+		h = (h ^ uint32(c)) * 16777619
+	}
+	return h
+}
+
+// sendPictures sends n "JPEG" frames from the phone and checks that the
+// board took each one in whole.
+func sendPictures(t *testing.T, c *Call, b *boardPeer, n int) {
+	t.Helper()
+	var want []string
+	for i := 0; i < n; i++ {
+		f := make([]byte, 15000+i*997)
+		for j := range f {
+			f[j] = byte(j*7 + i*13 + j>>8)
+		}
+		if err := c.SendVideo(f, true); err != nil {
+			t.Fatal(err)
+		}
+		want = append(want, fmt.Sprintf("%d %08x", len(f), fnv32(f)))
+		time.Sleep(100 * time.Millisecond)
+	}
+	time.Sleep(300 * time.Millisecond)
+	b.videoMu.Lock()
+	got := append([]string(nil), b.video...)
+	b.videoMu.Unlock()
+	if len(got) != n {
+		t.Fatalf("board took %d video frames, want %d", len(got), n)
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("frame %d: board %q, phone %q", i, got[i], want[i])
+		}
+	}
+}
+
+// withMJPEG is a phone's offer or answer with video it can send as MJPEG.
+func withMJPEG(c Caps, cameraOn bool) Caps {
+	c.Streams = append(c.Streams, VideoCap([]byte{CodecH264, CodecMJPEG}, VideoParams{Width: 640, Height: 480, FPS: 20, CameraOn: cameraOn}))
+	return c
+}
+
 // TestBoardPeer: a Go phone and the board's C++ call manager call each
-// other, agree on the code, talk and hang up.
+// other, agree on the code, talk and hang up; the phone's camera shows on
+// the board (MJPEG, receive-only on the board).
 func TestBoardPeer(t *testing.T) {
 	bin := os.Getenv("MAVA_CALLPEER")
 	if bin == "" {
@@ -167,6 +218,43 @@ func TestBoardPeer(t *testing.T) {
 		if e := b.wait(t, "ended"); e[2] != "hung up" {
 			t.Fatalf("board ended: %q", e[2])
 		}
+	})
+	t.Run("video call to the board", func(t *testing.T) {
+		b, p := startBoard(t, bin)
+		c, err := p.m.Start(b.pub, withMJPEG(voice(CodecOpus), true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b.wait(t, "ringing")
+		b.cmd("answer")
+		ba := b.wait(t, "active")
+		pa := waitState(t, p, StateActive)
+		if !pa.Video || pa.VideoCodec != CodecMJPEG || ba[6] != strconv.Itoa(CodecMJPEG) {
+			t.Fatalf("video: phone %v codec %d, board %s", pa.Video, pa.VideoCodec, ba[6])
+		}
+		sendPictures(t, c, b, 8)
+		c.Hangup()
+		b.wait(t, "ended")
+	})
+	t.Run("board calls, phone turns its camera on", func(t *testing.T) {
+		b, p := startBoard(t, bin)
+		b.cmd("call")
+		ring := waitState(t, p, StateRinging)
+		if ring.VideoCall {
+			t.Fatal("the board's call shows as a video call")
+		}
+		c := p.m.Get(ring.ID)
+		if err := c.Answer(withMJPEG(voice(CodecOpus), false)); err != nil {
+			t.Fatal(err)
+		}
+		b.wait(t, "active")
+		pa := waitState(t, p, StateActive)
+		if !pa.Video || pa.VideoCodec != CodecMJPEG {
+			t.Fatalf("video: %v codec %d", pa.Video, pa.VideoCodec)
+		}
+		sendPictures(t, c, b, 5)
+		b.cmd("hangup")
+		waitState(t, p, StateEnded)
 	})
 	t.Run("board calls phone", func(t *testing.T) {
 		b, p := startBoard(t, bin)

@@ -1,6 +1,11 @@
 package org.meshmsg.app.data
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.RectF
 import android.media.Image
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
@@ -20,6 +25,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,8 +43,13 @@ data class RemoteVideo(val active: Boolean = false, val width: Int = 0, val heig
  * orientation(1) | Annex-B access unit, SPS/PPS in front of every keyframe.
  * The core asks for keyframes and sets the bitrate (CallVideoNeeds).
  * Receive: core → H.264 decoder → the remote view's Surface.
+ *
+ * With a Mava board ([codec] MJPEG, calls.md §7b) every frame is a JPEG of
+ * at most 320 × 240, already upright, about 10 a second, its quality
+ * following the bitrate; JPEGs that come in are drawn on the Surface.
  */
-class CallVideo(private val context: Context, private val core: Core, private val id: String) {
+class CallVideo(private val context: Context, private val core: Core, private val id: String, codec: Int = H264_CODEC) {
+    private val mjpeg = codec == MJPEG_CODEC
     private val _remote = MutableStateFlow(RemoteVideo())
     val remote: StateFlow<RemoteVideo> = _remote
     private val _camera = MutableStateFlow(false)
@@ -102,13 +113,14 @@ class CallVideo(private val context: Context, private val core: Core, private va
                 val p = f.get()
                 provider = p
                 p.unbindAll()
+                val want = if (mjpeg) Size(MJPEG_W, MJPEG_H) else Size(640, 480)
                 val sel = ResolutionSelector.Builder()
-                    .setResolutionStrategy(ResolutionStrategy(Size(640, 480), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER))
+                    .setResolutionStrategy(ResolutionStrategy(want, ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER))
                     .build()
                 val analysis = ImageAnalysis.Builder()
                     .setResolutionSelector(sel)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                    .setOutputImageFormat(if (mjpeg) ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888 else ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                     .build()
                 analysis.setAnalyzer(camExec, ::onFrame)
                 val cam = if (_front.value) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
@@ -130,6 +142,10 @@ class CallVideo(private val context: Context, private val core: Core, private va
     private fun onFrame(img: ImageProxy) {
         img.use {
             if (!running || !_camera.value) return
+            if (mjpeg) {
+                sendJpeg(img)
+                return
+            }
             val now = System.nanoTime()
             if (now - lastFrameNs < FRAME_NS) return
             lastFrameNs = now
@@ -157,6 +173,64 @@ class CallVideo(private val context: Context, private val core: Core, private va
                 drain(e, img.imageInfo.rotationDegrees)
             }.onFailure { Log.w(TAG, "encode: $it"); releaseEncoder() }
         }
+    }
+
+    // MJPEG: quality follows the core's bitrate (the receiver's loss reports).
+    private var jpegQuality = 60
+
+    private fun sendJpeg(img: ImageProxy) {
+        val now = System.nanoTime()
+        if (now - lastFrameNs < MJPEG_FRAME_NS) return
+        lastFrameNs = now
+        runCatching {
+            val src = img.toBitmap()
+            val rot = img.imageInfo.rotationDegrees
+            val turned = rot % 180 != 0
+            val w = if (turned) src.height else src.width
+            val h = if (turned) src.width else src.height
+            val scale = minOf(MJPEG_W.toFloat() / w, MJPEG_H.toFloat() / h, 1f)
+            val m = Matrix().apply {
+                postRotate(rot.toFloat())
+                postScale(scale, scale)
+            }
+            val bmp = Bitmap.createBitmap(src, 0, 0, src.width, src.height, m, true)
+            val out = ByteArrayOutputStream(16 * 1024)
+            out.write(0) // orientation: already upright
+            bmp.compress(Bitmap.CompressFormat.JPEG, jpegQuality, out)
+            if (bmp !== src) bmp.recycle()
+            src.recycle()
+            val data = out.toByteArray()
+            val kbps = runCatching { core.callVideoNeeds(id).toInt() }.getOrDefault(0) shr 1
+            if (kbps > 0) {
+                val target = kbps * 1000 / 8 / MJPEG_FPS
+                if (data.size > target * 11 / 10 && jpegQuality > 25) jpegQuality -= 5
+                else if (data.size < target * 7 / 10 && jpegQuality < 80) jpegQuality += 5
+            }
+            core.sendCallVideo(id, data, true) // every JPEG stands alone
+        }.onFailure { Log.w(TAG, "jpeg: $it") }
+    }
+
+    /** One JPEG on the remote view (MJPEG from the other side). */
+    private fun drawJpeg(jpeg: ByteArray, s: Surface): Boolean {
+        val bmp = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size) ?: return false
+        val c = runCatching { s.lockCanvas(null) }.getOrNull() ?: return false
+        try {
+            c.drawColor(Color.BLACK)
+            val scale = minOf(c.width.toFloat() / bmp.width, c.height.toFloat() / bmp.height)
+            val dw = bmp.width * scale
+            val dh = bmp.height * scale
+            val l = (c.width - dw) / 2
+            val t = (c.height - dh) / 2
+            c.drawBitmap(bmp, null, RectF(l, t, l + dw, t + dh), null)
+        } finally {
+            s.unlockCanvasAndPost(c)
+        }
+        val r = _remote.value
+        if (!r.active || r.width != bmp.width || r.height != bmp.height || r.rotation != 0) {
+            _remote.value = RemoteVideo(active = true, width = bmp.width, height = bmp.height, rotation = 0)
+        }
+        bmp.recycle()
+        return true
     }
 
     private fun startEncoder(size: Size) {
@@ -232,6 +306,10 @@ class CallVideo(private val context: Context, private val core: Core, private va
                 val rotation = (b[5].toInt() and 3) * 90
                 val au = b.copyOfRange(6, b.size)
                 val s = surface
+                if (mjpeg) {
+                    if (s != null && s.isValid && runCatching { drawJpeg(au, s) }.getOrDefault(false)) lastShown = now
+                    continue
+                }
                 if (dec != null && decSurface !== s) { // the view changed: start over at the next keyframe
                     runCatching { dec.stop(); dec.release() }
                     dec = null
@@ -299,13 +377,23 @@ class CallVideo(private val context: Context, private val core: Core, private va
         private const val FRAME_NS = 1_000_000_000L / FPS - 5_000_000L
         private const val START_KBPS = 500
         const val H264_CODEC = 17
+        /** Motion JPEG (calls.md §7b): what a Mava board shows. */
+        const val MJPEG_CODEC = 20
+        private const val MJPEG_W = 320
+        private const val MJPEG_H = 240
+        private const val MJPEG_FPS = 10
+        private const val MJPEG_FRAME_NS = 1_000_000_000L / MJPEG_FPS - 5_000_000L
 
-        /** Video codecs this phone can both encode and decode ("" = none: voice only). */
+        /**
+         * Video codecs this phone can both encode and decode, best first: H.264
+         * when the phone has it in hardware, then MJPEG (any phone: a board
+         * takes only that). Never empty.
+         */
         fun codecs(): String {
             val list = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
             val enc = list.any { it.isEncoder && MediaFormat.MIMETYPE_VIDEO_AVC in it.supportedTypes }
             val dec = list.any { !it.isEncoder && MediaFormat.MIMETYPE_VIDEO_AVC in it.supportedTypes }
-            return if (enc && dec) "$H264_CODEC" else ""
+            return if (enc && dec) "$H264_CODEC,$MJPEG_CODEC" else "$MJPEG_CODEC"
         }
 
         /** Copies a camera frame into the encoder's input image (any plane layout). */

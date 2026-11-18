@@ -103,6 +103,7 @@ class ClientMessenger final : public Messenger {
   bool answer() override { return calls::answer(); }
   void set_muted(bool m) override { calls::set_muted(m); }
   uint32_t call_revision() override { return calls::revision(); }
+  bool take_video(const uint8_t** jpeg, size_t* n) override { return calls::take_video(jpeg, n); }
   CallView call_view() override {
     calls::View v = calls::view();
     CallView c;
@@ -121,6 +122,7 @@ class ClientMessenger final : public Messenger {
     c.muted = v.muted;
     c.peer_muted = v.peer_muted;
     c.video_offered = v.video_offered;
+    c.video = v.video;
     c.path = v.path_cls;
     if (v.state == mesh::call::State::Active) c.seconds = (millis() - v.active_ms) / 1000;
     for (const auto& k : g_client->contacts())

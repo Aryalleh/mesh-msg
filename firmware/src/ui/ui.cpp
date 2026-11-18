@@ -11,6 +11,7 @@
 #include "kbmodule.h"
 #include "ladder.h"
 #include "osk.h"
+#include "video.h"
 
 LV_FONT_DECLARE(mava_font_16);  // Vazirmatn 16 px (fonts/mava_font_16.c, OFL)
 
@@ -68,6 +69,8 @@ Screen g_call_back = Screen::Home;  // where to return
 uint32_t g_call_rev = 0;
 CallView::State g_call_state = CallView::State::None;
 lv_obj_t* g_call_info = nullptr;
+lv_obj_t* g_video_img = nullptr;  // the far side's camera, behind the call screen
+uint32_t g_video_at = 0;          // when its last frame came
 uint32_t g_ring_at = 0, g_call_close_at = 0, g_call_info_at = 0;
 // Touch calibration: the cross (on the top layer, in screen pixels).
 lv_obj_t* g_cross[2] = {nullptr, nullptr};
@@ -299,7 +302,7 @@ void clear() {
   lv_group_remove_all_objs(g_group);
   lv_obj_t* scr = lv_screen_active();
   lv_obj_clean(scr);
-  g_info = g_messages = g_input = g_osk = g_call_info = nullptr;
+  g_info = g_messages = g_input = g_osk = g_call_info = g_video_img = nullptr;
   lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_all(scr, 0, 0);
   lv_obj_set_style_pad_gap(scr, 0, 0);
@@ -420,6 +423,7 @@ std::string call_text(const CallView& c) {
       t = d;
       if (!c.code.empty()) t += "   کد / code " + c.code;
       t += c.path == 1 ? "\nهمین شبکه / same network" : c.path >= 2 ? "\nمستقیم از اینترنت / direct over the internet" : "";
+      if (c.video) t += "  " LV_SYMBOL_VIDEO;
       if (c.muted) t += "\nمیکروفن خاموش / muted";
       if (c.peer_muted) t += "\nطرف مقابل بی‌صدا کرده / they muted";
       break;
@@ -597,11 +601,28 @@ void show(Screen s) {
       CallView c = g_msg->call_view();
       g_call_state = c.state;
       lv_obj_set_flex_align(g_body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      if (c.video && c.state == CallView::State::Active) {
+        // The other side's camera fills the screen behind the text and buttons
+        // once frames come (loop() decodes them).
+        lv_obj_remove_flag(g_body, LV_OBJ_FLAG_SCROLLABLE);
+        g_video_img = lv_image_create(g_body);
+        lv_obj_add_flag(g_video_img, LV_OBJ_FLAG_FLOATING);
+        lv_obj_add_flag(g_video_img, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(g_video_img, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_align(g_video_img, LV_ALIGN_CENTER, 0, 0);
+        g_video_at = 0;
+      }
       lv_obj_t* who = label(g_body, LV_SYMBOL_CALL "  " + c.peer);
       lv_obj_set_style_text_color(who, col::primary_hi(), 0);
       lv_obj_set_style_text_align(who, LV_TEXT_ALIGN_CENTER, 0);
       g_call_info = label(g_body, call_text(c));
       lv_obj_set_style_text_align(g_call_info, LV_TEXT_ALIGN_CENTER, 0);
+      if (g_video_img) {  // over a picture: text on a dark band
+        for (lv_obj_t* l : {who, g_call_info}) {
+          lv_obj_set_style_bg_opa(l, LV_OPA_60, 0);
+          lv_obj_set_style_bg_color(l, lv_color_black(), 0);
+        }
+      }
       using S = CallView::State;
       if (c.state == S::Ringing) {
         lv_obj_t* a = button(g_body, LV_SYMBOL_CALL "  پاسخ / Answer", [](lv_event_t*) {
@@ -953,6 +974,26 @@ void loop(uint32_t now_ms) {
   if (g_call_state == CallView::State::Ringing && g_ring_at && int32_t(now_ms - g_ring_at) >= 0) {
     if (g_sound_fn) g_sound_fn(kSoundRing);
     g_ring_at = now_ms + 3000;
+  }
+  {
+    const uint8_t* jpeg = nullptr;
+    size_t jn = 0;
+    if (g_msg->take_video(&jpeg, &jn) && g_screen == Screen::Call && g_video_img) {
+      const lv_image_dsc_t* img = video::decode(jpeg, jn, 320, 240 - 28);
+      if (img) {
+        lv_image_cache_drop(img);
+        lv_image_set_src(g_video_img, nullptr);
+        lv_image_set_src(g_video_img, img);
+        lv_obj_remove_flag(g_video_img, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_background(g_video_img);
+        lv_obj_invalidate(g_video_img);
+        g_video_at = now_ms;
+      }
+    }
+    if (g_video_img && g_video_at && now_ms - g_video_at > 2000) {  // the camera went off
+      lv_obj_add_flag(g_video_img, LV_OBJ_FLAG_HIDDEN);
+      g_video_at = 0;
+    }
   }
   if (g_screen == Screen::Call && g_call_info && now_ms - g_call_info_at >= 500) {
     g_call_info_at = now_ms;

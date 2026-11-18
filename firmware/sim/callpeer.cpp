@@ -4,8 +4,9 @@
 // media over loopback UDP). Lines, one per message:
 //
 //   in:  peer <pub hex> | call | answer | hangup | mute 0|1 | sig <hex>
-//   out: id <pub hex> | sig <hex> | state|<state>|<reason>|<code>|<codec>|<class>
+//   out: id <pub hex> | sig <hex> | state|<state>|<reason>|<code>|<codec>|<class>|<video codec>
 //        | rx <frames> (audio from the other side, every 25 frames)
+//        | video <bytes> <fnv-1a 32 hex> (each video frame taken in, MJPEG receive-only)
 //
 // While a call is active it sends one "board" + seq audio frame every 20 ms.
 #include <arpa/inet.h>
@@ -116,8 +117,8 @@ mc::Caps voice(std::initializer_list<uint8_t> codecs) {
 void on_event(void*) {
   const mc::Info& in = g->m->info();
   char line[160];
-  std::snprintf(line, sizeof line, "state|%s|%s|%s|%u|%d", mc::state_name(in.state), in.reason, in.code,
-                unsigned(in.codec), in.path.cls);
+  std::snprintf(line, sizeof line, "state|%s|%s|%s|%u|%d|%u", mc::state_name(in.state), in.reason, in.code,
+                unsigned(in.codec), in.path.cls, unsigned(in.video ? in.video_codec : 0));
   say(line);
   if (in.peer_muted) say("muted");
 }
@@ -146,6 +147,18 @@ int main() {
   env.random = urandom;
   mc::Manager m(env);
   p.m = &m;
+  static uint8_t vbuf[64 * 1024];
+  mc::VideoParams want;
+  want.width = 320, want.height = 240, want.fps = 10;
+  m.set_video(vbuf, sizeof vbuf, want,
+              [](void*, const uint8_t* f, size_t n, uint32_t, bool) {
+                uint32_t h = 2166136261u;
+                for (size_t i = 0; i < n; i++) h = (h ^ f[i]) * 16777619u;
+                char l[64];
+                std::snprintf(l, sizeof l, "video %zu %08x", n, h);
+                say(l);
+              },
+              nullptr);
   uint8_t pub[mesh::kPublicSize];
   std::memcpy(pub, p.id.pub().x, 32);
   std::memcpy(pub + 32, p.id.pub().ed, 32);

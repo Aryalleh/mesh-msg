@@ -17,7 +17,10 @@ namespace {
 
 constexpr int kWidth = 240, kHeight = 320;
 constexpr uint32_t kLcdHz = 40000000, kTouchHz = 2000000;
-constexpr int kBufLines = 40;
+// Two buffers of 20 rows in internal RAM: 2 × 12.5 kB. Rendering into PSRAM
+// made the screen visibly slow (beta33); 40-row buffers in internal RAM left
+// TLS without memory before its buffers moved to PSRAM (board::tls_memory_in_psram).
+constexpr int kBufLines = 20;
 
 // Raw XPT2046 readings at the screen edges (portrait x 0 and 239, y 0 and
 // 319), used until Settings → Calibrate touch saves a calibration. On the
@@ -198,13 +201,11 @@ bool begin() {
                                   : LCD_ROTATION == 0 ? LV_DISPLAY_ROTATION_0
                                                       : LV_DISPLAY_ROTATION_90);
   size_t bytes = size_t(kHeight) * kBufLines * 2;  // rows are up to 320 pixels wide
-  // The panel is fed by the CPU (SPI writeBytes), so any memory works: PSRAM.
-  // Internal RAM is what Wi-Fi, Bluetooth and TLS need: two 25 kB buffers
-  // there left the relay's TLS handshake failing with "SSL - Memory
-  // allocation failed" (owner, 2026-11-18).
+  // Internal RAM: LVGL draws into these, and PSRAM is several times slower
+  // for that. PSRAM only if internal RAM is short.
   auto alloc = [](size_t n) {
-    void* p = heap_caps_malloc(n, MALLOC_CAP_SPIRAM);
-    return p ? p : heap_caps_malloc(n, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    void* p = heap_caps_malloc(n, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    return p ? p : heap_caps_malloc(n, MALLOC_CAP_SPIRAM);
   };
   void* a = alloc(bytes);
   void* b = alloc(bytes);

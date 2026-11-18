@@ -6,6 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.meshmsg.app.data.CallVideo
 import org.meshmsg.app.data.Delivery
 import org.meshmsg.app.data.GroupKind
 import org.meshmsg.app.data.Json
@@ -167,5 +168,10 @@ class JsonTest {
         assertEquals(true, c.peerMuted)
         assertEquals(false, c.ended)
         assertEquals(true, Json.call(JSONObject("""{"id":"c2","state":"ended","missed":true}""")).missed)
+        // A call with a Mava board: video in MJPEG (codec 20), the board shows the phone's camera.
+        val v = Json.call(JSONObject("""{"id":"c3","state":"active","video":true,"video_codec":20}"""))
+        assertEquals(true, v.video)
+        assertEquals(CallVideo.MJPEG_CODEC, v.videoCodec)
+        assertEquals(0, c.videoCodec)
     }
 }

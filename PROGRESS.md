@@ -1981,3 +1981,14 @@ links. Chose: quick items in beta3; calls follow in later betas.
   the boot log shows the pin's voltage. Touch-only use (owner): the top bar has Back and
   Home buttons (and 📞 back to a live call) when no keyboard module is present; its text
   is shortened (battery, LoRa, Wi-Fi + relay ✓/↻, BLE, USB).
+- Board video, receive-only (owner, 2026-11-18): codec 20 = MJPEG (Go `CodecMJPEG`, C++
+  `kCodecMjpeg`, calls.md §7b). lib/meshcall: `set_video` (reassembly buffer + sink), offer and
+  answer carry a receive-only MJPEG stream (320×240, 10 fps, camera off), reassembly one frame
+  at a time, loss reports on stream 255 with their own sequence numbers (audio sequence no
+  longer shared: the far side counted control frames as lost audio), `send_video` for tests.
+  Host tests (video in, lost fragment, too big, H.264-only offer → voice) and TestBoardPeer
+  (Go phone sends 8 and 5 frames, all whole, both call directions). Board: triple buffer to
+  the UI, JPEGDEC (bitbank2/JPEGDEC ^1.8.4) into a 320×240 RGB565 image behind the call
+  screen. Android: `codecs()` = `17,20` (or `20`), CallInfo.videoCodec, MJPEG send (RGBA →
+  upright, fit 320×240, quality follows kbps) and receive (JPEG on the Surface). Owner: beta33
+  screen slow → draw buffers back in internal RAM, 2 × 20 rows (TLS now in PSRAM).

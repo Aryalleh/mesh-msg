@@ -180,8 +180,8 @@ class MainActivity : ComponentActivity() {
         // Video: the camera runs only while this screen is in front.
         val backend by vm.backend.collectAsStateWithLifecycle()
         val core = backend?.core
-        val video = remember(c.id, c.video && c.state == "active", core) {
-            if (c.video && c.state == "active" && core != null) org.meshmsg.app.data.CallVideo(applicationContext, core, c.id) else null
+        val video = remember(c.id, c.video && c.state == "active", c.videoCodec, core) {
+            if (c.video && c.state == "active" && core != null) org.meshmsg.app.data.CallVideo(applicationContext, core, c.id, c.videoCodec) else null
         }
         DisposableEffect(video) { onDispose { video?.release() } }
         val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current

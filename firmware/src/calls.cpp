@@ -78,6 +78,35 @@ struct Ring {
 
 Ring g_mic, g_speaker;
 
+// ---- video in: reassembly buffer (the manager's) and a triple buffer to
+// the UI, which decodes the newest frame when it can (frames may be skipped).
+constexpr size_t kVideoMax = 64 * 1024;
+uint8_t* g_vreasm = nullptr;
+struct VideoSlot {
+  uint8_t* d = nullptr;
+  size_t n = 0;
+};
+VideoSlot g_vslot[3];
+int g_vw = 0, g_vready = 1, g_vr = 2;  // writing, newest whole, being read
+bool g_vfresh = false;
+portMUX_TYPE g_vmux = portMUX_INITIALIZER_UNLOCKED;
+volatile uint32_t g_vframes = 0;
+
+// The call task: one whole frame = orientation(1) | JPEG.
+void on_video_frame(void*, const uint8_t* f, size_t n, uint32_t, bool) {
+  if (n < 3 || n - 1 > kVideoMax) return;
+  VideoSlot& w = g_vslot[g_vw];
+  std::memcpy(w.d, f + 1, n - 1);
+  w.n = n - 1;
+  taskENTER_CRITICAL(&g_vmux);
+  int t = g_vready;
+  g_vready = g_vw;
+  g_vw = t;
+  g_vfresh = true;
+  taskEXIT_CRITICAL(&g_vmux);
+  g_vframes = g_vframes + 1;
+}
+
 // ---- UDP over lwIP: one IPv4 socket on every interface ----
 class LwipNet final : public mc::Net {
  public:
@@ -177,6 +206,8 @@ void update_view() {
   v.peer_muted = in.peer_muted;
   v.muted = g_muted;
   v.video_offered = in.video_offered;
+  v.video = in.video;
+  v.video_frames = g_vframes;
   v.active_ms = in.active_ms;
   taskENTER_CRITICAL(&g_view_mux);
   g_view = v;
@@ -346,6 +377,8 @@ bool begin(const mesh::Identity& self) {
   g_self = &self;
   g_mic.buf = static_cast<int16_t*>(heap_caps_malloc(kRing * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   g_speaker.buf = static_cast<int16_t*>(heap_caps_malloc(kRing * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  g_vreasm = static_cast<uint8_t*>(heap_caps_malloc(kVideoMax, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  for (VideoSlot& v : g_vslot) v.d = static_cast<uint8_t*>(heap_caps_malloc(kVideoMax, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   g_cmds = xQueueCreateWithCaps(8, sizeof(Cmd), MALLOC_CAP_SPIRAM);
   g_out = xQueueCreateWithCaps(8, sizeof(Out), MALLOC_CAP_SPIRAM);
   if (!g_mic.buf || !g_speaker.buf || !g_cmds || !g_out) return false;
@@ -368,6 +401,12 @@ bool begin(const mesh::Identity& self) {
   void* mem = heap_caps_malloc(sizeof(mc::Manager), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   if (!mem) return false;
   g_mgr = new (mem) mc::Manager(env);
+  if (g_vreasm && g_vslot[0].d && g_vslot[1].d && g_vslot[2].d) {
+    // What the board shows: 320 × 240 at about 10 frames a second.
+    mc::VideoParams want;
+    want.width = 320, want.height = 240, want.fps = 10;
+    g_mgr->set_video(g_vreasm, kVideoMax, want, on_video_frame, nullptr);
+  }
   // Above the main loop (priority 1) on the same core: 20 ms audio steps
   // must not wait for a screen redraw. It sleeps in select() in between.
   return xTaskCreatePinnedToCore(task, "mava-call", 16384, nullptr, 2, nullptr, 1) == pdPASS;
@@ -445,6 +484,23 @@ void mic(const int16_t* pcm, size_t n) {
   if (g_live && g_mic.buf) g_mic.push(pcm, n, kMicMax);
 }
 
+bool take_video(const uint8_t** jpeg, size_t* n) {
+  if (!g_live) return false;
+  taskENTER_CRITICAL(&g_vmux);
+  bool fresh = g_vfresh;
+  if (fresh) {
+    int t = g_vr;
+    g_vr = g_vready;
+    g_vready = t;
+    g_vfresh = false;
+  }
+  taskEXIT_CRITICAL(&g_vmux);
+  if (!fresh) return false;
+  *jpeg = g_vslot[g_vr].d;
+  *n = g_vslot[g_vr].n;
+  return *n > 0;
+}
+
 bool speaker(int16_t* out, size_t n) {
   if (!g_live || !g_speaker.buf) return false;
   if (!g_speaker.playing) {
@@ -460,9 +516,11 @@ void status(char* out, size_t cap) {
   unsigned long late = g_mgr ? g_mgr->jitter().stats().late : 0, delay = g_mgr ? g_mgr->jitter().delay_ms() : 0;
   snprintf(out, cap,
            "%s (path class %d), calls %lu, last ended: %s; audio frames out %lu, in %lu, concealed %lu, late %lu, "
-           "jitter buffer %lu ms; STUN reflectors %s",
+           "jitter buffer %lu ms; video %s, frames in %lu (lost %lu, too big %lu); STUN reflectors %s",
            mc::state_name(v.state), v.path_cls, (unsigned long)g_calls, g_last[0] ? g_last : "-",
            (unsigned long)g_frames_out, (unsigned long)g_frames_in, (unsigned long)g_plc, late, delay,
+           v.video ? "on" : "off", (unsigned long)(g_mgr ? g_mgr->video_stats().frames : 0),
+           (unsigned long)(g_mgr ? g_mgr->video_stats().lost : 0), (unsigned long)(g_mgr ? g_mgr->video_stats().too_big : 0),
            g_resolved ? "on the relay host" : "none yet");
 }
 
