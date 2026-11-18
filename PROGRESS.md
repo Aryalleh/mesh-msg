@@ -2039,3 +2039,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   bar shows who and the talking time, and the other side's video takes the whole screen
   under it (the status text hides while frames come). Ringing keeps Answer / Decline in the
   middle of the screen.
+  Commit 24e1d09 (CI green); release notes for v0.1.1-beta38 ready, release waits for the owner.
