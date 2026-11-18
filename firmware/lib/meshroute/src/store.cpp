@@ -32,7 +32,21 @@ int Store::free_slot() const {
   return -1;
 }
 
+size_t Store::receipts() const {
+  size_t n = 0;
+  for (const auto& s : s_)
+    if (s.used && s.type == Type::Receipt) n++;
+  return n;
+}
+
 int Store::victim(uint32_t now_s, Priority incoming) const {
+  // RECEIPTs outrank everything, but only while they hold at most a quarter
+  // of the store (kReceiptMax). A gateway phone passes on a steady stream of
+  // them; with no cap they filled every slot and the store refused every
+  // message (owner's log 2026-11-18: "receipts 256", all DATA refused).
+  // Beyond the cap they rank like SUMMARY: below DATA, above ANNOUNCE.
+  const bool too_many = receipts() > kReceiptMax;
+  auto prio = [&](const Slot& s) { return too_many && s.type == Type::Receipt ? Priority::Summary : s.prio; };
   // The device's own packets (Origin::Local: written on its screen or web
   // app) go last: forwarded traffic can fill the store in seconds.
   for (int pass = 0; pass < 2; pass++) {
@@ -42,13 +56,26 @@ int Store::victim(uint32_t now_s, Priority incoming) const {
       if (!s.used) continue;
       if (int32_t(s.rec.expires_s - now_s) <= 0) return int(i);  // expired: take it
       if (pass == 0 && s.rec.origin == uint8_t(Origin::Local)) continue;
-      if (s.prio < incoming) continue;  // more valuable than what arrives
-      if (best < 0 || s.prio > s_[best].prio || (s.prio == s_[best].prio && s.rec.seq < s_[best].rec.seq))
+      if (prio(s) < incoming) continue;  // more valuable than what arrives
+      if (best < 0 || prio(s) > prio(s_[best]) || (prio(s) == prio(s_[best]) && s.rec.seq < s_[best].rec.seq))
         best = int(i);
     }
     if (best >= 0) return best;
   }
   return -1;
+}
+
+size_t Store::shed_receipts() {
+  size_t dropped = 0;
+  while (receipts() > kReceiptMax) {
+    int oldest = -1;
+    for (size_t i = 0; i < kSlots; i++)
+      if (s_[i].used && s_[i].type == Type::Receipt && (oldest < 0 || s_[i].rec.seq < s_[oldest].rec.seq))
+        oldest = int(i);
+    drop(oldest);
+    dropped++;
+  }
+  return dropped;
 }
 
 void Store::save(int i) {

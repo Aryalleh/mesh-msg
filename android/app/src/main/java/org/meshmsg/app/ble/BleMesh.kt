@@ -63,6 +63,8 @@ class BleMesh(
         val queue = ArrayDeque<ByteArray>()
         var queued = 0
         var busy = false
+        var inflight: ByteArray? = null // the chunk being written, kept for a retry
+        var retries = 0
         var mtu = BleProto.DEFAULT_MTU
         var up = false
         abstract fun write(b: ByteArray): Boolean
@@ -186,7 +188,9 @@ class BleMesh(
 
     private fun drop(p: Peer, why: String = "closed") {
         droppedAt[p.id] = SystemClock.elapsedRealtime()
-        if (running) lastDrop = why
+        // The first reason only: what follows a drop (late chunks, the link
+        // closing) would hide why it went.
+        if (running && p.up) lastDrop = why
         if (peers.remove(p.id) === p && p.up) runCatching { core.peerDown(BleProto.LINK_NAME, p.id) }
         p.up = false
         serverPeers.values.remove(p)
@@ -195,6 +199,10 @@ class BleMesh(
     }
 
     private fun received(p: Peer, value: ByteArray) {
+        // Notifications already posted when the peer was dropped: the core
+        // forgot it ("chunk from unknown peer"), and once it is back under the
+        // same session ID they would land in the NEW stream. Ignore them.
+        if (!p.up || peers[p.id] !== p) return
         // An error means the chunk stream is corrupt: reconnect from scratch.
         runCatching { core.receive(BleProto.LINK_NAME, p.id, value) }.onFailure { drop(p, "bad stream: ${it.message}") }
     }
@@ -204,6 +212,8 @@ class BleMesh(
         val next = p.queue.removeFirstOrNull() ?: return
         p.queued -= next.size
         p.busy = true
+        p.inflight = next
+        p.retries = 0
         if (!p.write(next)) drop(p, "write refused")
     }
 
@@ -286,7 +296,21 @@ class BleMesh(
 
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             handler.post {
-                if (status != BluetoothGatt.GATT_SUCCESS) return@post fail(gatt, "write failed (status $status)")
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    // "Insufficient resources" (ATT 0x11, e.g. the board's buffers
+                    // full of notifications) and congestion pass: the peer did not
+                    // take the chunk, so the same one again keeps the stream whole.
+                    val p = peer
+                    val chunk = p?.inflight
+                    if (p != null && chunk != null && p.up && status in RETRY_STATUSES && p.retries < WRITE_RETRIES) {
+                        p.retries++
+                        handler.postDelayed({
+                            if (p.up && peers[p.id] === p && !write(gatt, chunk)) drop(p, "write refused")
+                        }, WRITE_RETRY_MS)
+                        return@post
+                    }
+                    return@post fail(gatt, "write failed (status $status${if (p != null && p.retries > 0) ", ${p.retries} retries" else ""})")
+                }
                 val p = peer
                 if (p == null && helloSent) {
                     // The hello was accepted: the link is up.
@@ -304,6 +328,7 @@ class BleMesh(
                     peerUp(np)
                 } else if (p != null) {
                     p.busy = false
+                    p.inflight = null
                     pump(p)
                 }
             }
@@ -443,6 +468,10 @@ class BleMesh(
         const val TAG = "BleMesh"
         const val CONNECT_TIMEOUT_MS = 20_000L
         const val RECONNECT_AFTER_DROP_MS = 5_000L
+        // GATT write statuses worth retrying: ATT 0x11 insufficient resources, Android's congestion.
+        val RETRY_STATUSES = setOf(0x11, BluetoothGatt.GATT_CONNECTION_CONGESTED)
+        const val WRITE_RETRIES = 100
+        const val WRITE_RETRY_MS = 20L
         const val SAVER_SCAN_MS = 10_000L
         const val SAVER_PERIOD_MS = 180_000L
         val SCAN_TOKEN = Any()

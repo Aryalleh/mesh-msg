@@ -216,6 +216,10 @@ void restore_store(mesh::node::Node& node, Millis now) {
       board::storage_remove(p);
   }
   if (restored) logf("restored %u stored packets", unsigned(restored));
+  // Stores from before beta30 could be all receipts (they outranked messages
+  // with no cap): every message was refused. Keep the newest quarter.
+  size_t shed = node.shed_receipts();
+  if (shed) logf("dropped %u old receipts (more than a quarter of the store)", unsigned(shed));
 }
 
 void describe(const char* what, const uint8_t* raw, size_t n, uint32_t from, int snr) {

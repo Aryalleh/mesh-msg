@@ -19,11 +19,11 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 
 ## Next step
 
-**Owner's board (no LoRa module), Bluetooth messages**: beta29 adds the "No LoRa module"
-setting (screen Settings / Mava Flasher), fixes the hello race behind the restart storm and
-logs messages from phones by destination plus a "store" line. Released as
-**v0.1.1-beta29** (run #44298492913, tag on `c367a26`). Waiting for the owner's log after
-one phone → board message (2026-11-18 log entry).
+**Owner's board (no LoRa module), Bluetooth messages**: beta29 log showed the store full of
+receipts (`receipts 256`, every DATA refused, incl. 10 from the relay) and the phone dropping
+the link on "status 17" (ATT insufficient resources). beta30 caps receipts and keeps NimBLE
+buffers for the phones' writes (see the 2026-11-18 log). Waiting for the owner's beta30 log
+after one phone → board message.
 
 Needs hardware now, for both open milestones:
 - **M5**: install `android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` on two phones;
@@ -1813,3 +1813,26 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (atomic flag, host mutex).
 - Released **v0.1.1-beta29** (manual `build` run with `release_tag`, the tag push was refused
   from this session; tag on `c367a26`; mava-board-images-0.1.1-beta29.zip in the signed manifest).
+
+### 2026-11-18 — Store full of receipts refused all messages; NimBLE buffers ("status 17")
+
+- Owner's beta29 log: `store 256/256: messages 0 (own 1), receipts 256 … refused 11 (full of
+  more urgent)` with `relay … down 10`: RECEIPT outranked everything, a gateway phone's relay
+  traffic filled all 256 slots with them (restored at every boot with a fresh TTL), and every
+  DATA, incl. the phone's message through the relay, was refused before reaching the
+  messenger. `Store::victim`: receipts beyond `kReceiptMax` (kSlots/4) rank like SUMMARY
+  (below DATA, above ANNOUNCE); `Store::shed_receipts` / `Node::shed_receipts` after
+  `restore_store` drops the oldest beyond the cap (logged). Test `receipts_capped`.
+  Not changed: restored records get a full TTL at every boot (no wall clock in the record).
+- Phone's "Last disconnect: bad stream: meshcore: chunk from unknown peer "0069538d"" (the
+  board's session) + "status 17": a GATT write answered ATT 0x11 insufficient resources —
+  the board pumped notifications (4 per loop) until NimBLE's 12-block msys pool was empty,
+  so the reply to the phone's next write could not be allocated. Then notifications already
+  posted for the dropped peer reached `core.receive` after `peerDown` and overwrote the
+  reason. Board: `pool_ok()` (≥ 8 free `os_msys_num_free()`) before each notification,
+  pool 20 blocks (`CONFIG_BT_NIMBLE_MSYS1_BLOCK_COUNT`), Bluetooth line shows buffers and
+  waits. Android `BleMesh`: retries a write refused with 0x11 / congested (same chunk, 20 ms,
+  up to 100×; NimBLE allocates the reply before handling the write, so it was not taken);
+  ignores chunks for a peer that is no longer the current one; `lastDrop` keeps the first
+  reason per peer.
+- Release v0.1.1-beta30.

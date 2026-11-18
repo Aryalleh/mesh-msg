@@ -14,6 +14,14 @@
 
 #include "blemesh.h"
 
+// The host's buffer pool (msys mbufs): notifications waiting for the radio and
+// the replies to the phones' writes come from the same few blocks.
+#ifdef USING_NIMBLE_ARDUINO_HEADERS
+#include "nimble/porting/nimble/include/os/os_mbuf.h"
+#else
+#include "os/os_mbuf.h"
+#endif
+
 namespace ble {
 namespace {
 
@@ -63,6 +71,7 @@ volatile uint32_t g_connects = 0, g_disconnects = 0, g_hellos = 0;
 volatile int g_last_reason = 0;
 
 volatile uint32_t g_lost = 0;
+uint32_t g_pool_waits = 0;  // notifications held back for lack of free buffers (pool_ok)
 uint32_t g_corrupt = 0;  // phones dropped for a stream that made no sense
 uint32_t g_restarts = 0;  // a phone said hello again on its connection (new session)
 char g_corrupt_why[48] = {};  // events that could not be queued (for the log)
@@ -375,10 +384,25 @@ void handle(mesh::node::Node& node, const Msg& m, mesh::route::Millis now) {
 }
 
 // Notifies up to kNotifiesPerLoop pieces; false when the stack is busy.
+// Notifications queue in NimBLE's buffer pool until the radio sends them (a
+// few per connection event). Pumped as fast as the loop runs, a resync of the
+// store filled the whole pool, and NimBLE answered the phone's next write
+// with ATT error 0x11 "insufficient resources" (owner's beta29 phone: "status
+// 17"): the phone dropped the link, reconnected, the board resent the store,
+// and so on. So notifications stop while fewer than kPoolReserve blocks are
+// free: the replies to the phones' writes always find one.
+constexpr int kPoolReserve = 8;
+
+bool pool_ok() { return os_msys_num_free() >= kPoolReserve; }
+
 template <typename Next>
 void pump(NimBLECharacteristic* chr, uint16_t h, size_t chunk, Pending& p, Next next) {
   if (chunk > sizeof p.d) chunk = sizeof p.d;
   for (int i = 0; i < kNotifiesPerLoop; i++) {
+    if (!pool_ok()) {
+      g_pool_waits = g_pool_waits + 1;
+      return;  // same bytes next loop
+    }
     if (p.n == 0) p.n = next(p.d, chunk);
     if (p.n == 0) return;
     if (!chr->notify(p.d, p.n, h)) return;  // stack busy: same bytes next loop
@@ -489,9 +513,10 @@ void status(char* out, size_t cap) {
            (unsigned long)g_hellos, (unsigned long)g_disconnects, r, why);
   // Packets on the Bluetooth mesh since boot (in: from phones to the node).
   if (k > 0 && size_t(k) < cap)
-    snprintf(out + k, cap - size_t(k), "; packets in %lu (messages %lu%s%s%s; too big for LoRa, skipped %lu), out %lu; queue %u waiting, lost %lu, restarted %lu, corrupt streams %lu%s%s%s",
-             (unsigned long)pin, (unsigned long)pdata, dk ? ": for " : "", dests, "", (unsigned long)pskip,
-             (unsigned long)pout, unsigned(uxQueueMessagesWaiting(g_q)),
+    snprintf(out + k, cap - size_t(k), "; packets in %lu (messages %lu%s%s; too big for LoRa, skipped %lu), out %lu (buffers %d/%d free, waited %lu); queue %u waiting, lost %lu, restarted %lu, corrupt streams %lu%s%s%s",
+             (unsigned long)pin, (unsigned long)pdata, dk ? ": for " : "", dests, (unsigned long)pskip,
+             (unsigned long)pout, os_msys_num_free(), os_msys_count(), (unsigned long)g_pool_waits,
+             unsigned(uxQueueMessagesWaiting(g_q)),
              (unsigned long)g_lost, (unsigned long)g_restarts, (unsigned long)g_corrupt, g_corrupt_why[0] ? " (last: " : "",
              g_corrupt_why, g_corrupt_why[0] ? ")" : "");
 }

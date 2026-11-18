@@ -147,6 +147,42 @@ void own_messages_kept() {
   CHECK(!t2->has(key(own[0])) && t2->has(key(own[1])));
 }
 
+// A gateway phone passes on a stream of receipts: they must not crowd out
+// messages (owner's log 2026-11-18: a store of 256 receipts refused all DATA).
+void receipts_capped() {
+  auto s = std::make_unique<Store>(nullptr, mesh::store::kSlots);
+  uint16_t id = 1;
+  std::vector<Bytes> rcs;
+  for (size_t i = 0; i < mesh::store::kSlots; i++) {
+    rcs.push_back(pkt(mesh::Type::Receipt, id++));
+    CHECK(put(*s, rcs.back(), 10) == Put::Stored);
+  }
+  CHECK(s->census().receipts == mesh::store::kSlots);
+  // DATA now evicts the oldest receipts, down to the cap...
+  for (size_t i = 0; i < mesh::store::kSlots; i++)
+    CHECK(put(*s, pkt(mesh::Type::Data, id++, uint8_t(i % 200)), 10) == Put::Stored);
+  CHECK(!s->has(key(rcs[0])) && s->has(key(rcs.back())));
+  mesh::store::Census c = s->census();
+  CHECK(c.receipts == mesh::store::kReceiptMax && c.data == mesh::store::kSlots - mesh::store::kReceiptMax);
+  CHECK(s->stats().full == 0);
+  // ...then the oldest DATA, as before.
+  CHECK(put(*s, pkt(mesh::Type::Data, id++, 201), 10) == Put::Stored);
+  CHECK(s->census().receipts == mesh::store::kReceiptMax);
+  // A receipt over the cap pushes out a receipt, not a message; an announce
+  // still displaces nothing valuable.
+  CHECK(put(*s, pkt(mesh::Type::Receipt, id++), 10) == Put::Stored);
+  CHECK(put(*s, pkt(mesh::Type::Receipt, id++), 10) == Put::Stored);
+  c = s->census();
+  CHECK(c.receipts == mesh::store::kReceiptMax + 1 && c.data == mesh::store::kSlots - mesh::store::kReceiptMax - 1);
+  CHECK(put(*s, pkt(mesh::Type::Announce, id++), 10) == Put::Rejected);
+
+  // A store restored full of receipts sheds the oldest beyond the cap.
+  auto t = std::make_unique<Store>(nullptr, mesh::store::kSlots);
+  for (size_t i = 0; i < mesh::store::kSlots; i++) CHECK(put(*t, pkt(mesh::Type::Receipt, id++), 10) == Put::Stored);
+  CHECK(t->shed_receipts() == mesh::store::kSlots - mesh::store::kReceiptMax);
+  CHECK(t->census().receipts == mesh::store::kReceiptMax && t->shed_receipts() == 0);
+}
+
 void quota() {
   auto s = std::make_unique<Store>(nullptr, 3);
   for (uint16_t i = 0; i < 3; i++) CHECK(put(*s, pkt(mesh::Type::Data, uint16_t(i + 1), 9)) == Put::Stored);
@@ -289,6 +325,7 @@ void run_store() {
   basics();
   eviction();
   own_messages_kept();
+  receipts_capped();
   quota();
   sinks();
   persistence();

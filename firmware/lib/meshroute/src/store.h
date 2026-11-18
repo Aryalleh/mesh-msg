@@ -28,6 +28,8 @@ using route::Priority;
 #define MESH_STORE_SLOTS 64
 #endif
 constexpr size_t kSlots = MESH_STORE_SLOTS;
+// RECEIPTs keep their top rank only up to this many (Store::victim).
+constexpr size_t kReceiptMax = kSlots / 4 ? kSlots / 4 : 1;
 
 enum Sink : uint8_t {
   kSinkPhone = 1 << 0,   // host port 0 (USB)
@@ -94,7 +96,8 @@ class Store {
 
   // put stores raw (an encoded packet, no link header). When full, expired
   // items go first, then the least valuable: oldest ANNOUNCE / SUMMARY, then
-  // oldest DATA; RECEIPTs (small, they free everyone's queues) go last.
+  // oldest DATA; RECEIPTs (small, they free everyone's queues) go last while
+  // there are at most kReceiptMax of them, beyond that before DATA.
   // `sinks` marks sinks that already have it (e.g. kSinkUplink for a packet
   // that came from the uplink).
   Put put(const uint8_t* raw, size_t n, Origin origin, uint8_t sinks, uint32_t now_s, uint32_t ttl_s);
@@ -118,6 +121,9 @@ class Store {
   bool restore(size_t slot, const Record& r, uint32_t now_s, uint32_t ttl_s);
 
   size_t size() const;
+  // Drops the oldest RECEIPTs beyond kReceiptMax (after a restore: a store
+  // that filled up with them before the cap); returns how many.
+  size_t shed_receipts();
   Census census() const;  // own: Origin::Local (the device's own messenger)
   const Stats& stats() const { return stats_; }
 
@@ -132,6 +138,7 @@ class Store {
   };
   int find(const Key& k) const;
   int victim(uint32_t now_s, Priority incoming) const;
+  size_t receipts() const;
   int free_slot() const;
   void drop(int i);
   void save(int i);

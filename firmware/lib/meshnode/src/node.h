@@ -158,6 +158,8 @@ class Node {
 
   // Restores a stored record read back from flash at boot.
   bool restore(size_t slot, const store::Record& r, Millis now);
+  // After restoring: old RECEIPTs beyond the store's cap go (store::kReceiptMax).
+  size_t shed_receipts() { return store_.shed_receipts(); }
 
   // apply_config validates, saves and applies a new config (as SET_CONFIG).
   bool apply_config(const host::NodeConfig& c, Millis now);
