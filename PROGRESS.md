@@ -1907,7 +1907,7 @@ links. Chose: quick items in beta3; calls follow in later betas.
   Monocypher's ChaCha20 + Poly1305), Noise_KK_25519_ChaChaPoly_SHA256, call code. Host test
   `call_test.cpp` matches every vector; Go tests `core/call/vectors_test.go`,
   `core/direct/vectors_test.go` pin the same file on the Go side.
-- Step 2: `lib/meshcall/src/signal.*` (Caps, Signal, direct Offer/Candidate encoding; decode
+- Step 2: `lib/meshcall/src/callsignal.*` (was signal.*, renamed: it hid the system <signal.h>) (Caps, Signal, direct Offer/Candidate encoding; decode
   → encode equals the Go bytes for OFFER/ANSWER/END/CONTROL; unknown ops ignored, trailing
   bytes allowed) and `direct.*` (one-socket port of core/direct: STUN binding to the relays'
   reflectors, NAT type as `reflect`, HMAC probes with roles, triggered peer-reflexive checks,

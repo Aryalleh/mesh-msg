@@ -8,7 +8,7 @@
 #include "check.h"
 #include "identity.h"
 #include "json.h"
-#include "signal.h"
+#include "callsignal.h"
 
 namespace mc = mesh::call;
 using check::Bytes;

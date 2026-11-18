@@ -15,7 +15,7 @@
 #include "callcrypto.h"
 #include "direct.h"
 #include "identity.h"
-#include "signal.h"
+#include "callsignal.h"
 
 namespace mesh {
 namespace call {

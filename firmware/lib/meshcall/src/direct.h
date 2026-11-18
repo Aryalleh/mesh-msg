@@ -14,7 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "signal.h"
+#include "callsignal.h"
 
 namespace mesh {
 namespace call {
