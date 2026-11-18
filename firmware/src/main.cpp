@@ -27,6 +27,7 @@
 #include "hwsim/hwsim.h"
 #include "board.h"
 #include "wallclock.h"
+#include "calls.h"
 #include "meshtastic.h"
 #include "net.h"
 #include "node.h"
@@ -561,6 +562,11 @@ void loop() {
          unsigned(sc.used), unsigned(mesh::store::kSlots), unsigned(sc.data), unsigned(sc.own), unsigned(sc.receipts),
          unsigned(sc.announces), unsigned(sc.other), (unsigned long)ss.full, (unsigned long)ss.quota);
     logf("account %s", ui::client_state().c_str());
+    if (g_client_on) {
+      char cs[240];
+      calls::status(cs, sizeof cs);
+      logf("calls %s", ui::calls_on() ? cs : "off (the call task did not start)");
+    }
     char ck[160];
     wallclock::status(ck, sizeof ck);
     logf("clock: %s", ck);

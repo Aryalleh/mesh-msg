@@ -432,14 +432,15 @@ void Client::on_data(const Packet& p, uint32_t now) {
       stats_.unreadable++;
       return;
     }
-    stats_.opened++;
     if (o.content_type == e2e::kCall) {
+      stats_.calls_in++;
       // Not a message, and a stranger's call does not make them a contact.
       int known = contact_of(o.from);
       if (known >= 0) contacts_[size_t(known)].knows_me = true;
       if (on_call_) on_call_(o.from, known >= 0, o.content, o.len);
-    } else if (!on_message(p, o, now)) {
-      return;  // no room for a new contact: not delivered
+    } else {
+      stats_.opened++;
+      if (!on_message(p, o, now)) return;  // no room for a new contact: not delivered
     }
   }
   // The signed receipt: the sender's tick turns, and nodes holding the message purge it.

@@ -102,6 +102,19 @@ candidates = n(1) | n × (kind(1) | family(1) | addr | port(2) | priority(4))
 - **Desktop** (later): `meshd` handles signaling and the path; audio in the web UI through
   WebAudio over the local socket.
 
+- **The Mava board** (firmware, voice; video with MJPEG next): `firmware/lib/meshcall` is
+  the same protocol in C++ — signals, core/direct's agent (STUN on the relay host's UDP
+  3478/3479, NAT type, probes, hole punching, port prediction for symmetric NATs, the sealed
+  link), Noise KK, frames and the jitter buffer — host-tested on a simulated network with
+  NATs and against the Go code (`TestBoardPeer`, `make -C firmware callpeer`). `src/calls.cpp`
+  runs it in its own task with a UDP socket on Wi-Fi (or the board's hotspot) and Opus at
+  16 kHz in 20 ms frames (libopus, fixed point); signals travel as content type 7 through the
+  board's messaging client (any path: Bluetooth, the relay, USB). The board offers and
+  accepts Opus only, so a phone without Opus (Android before 10) can't call it. Audio:
+  the WM8960 codec, and before it the Mava Screen app over USB (screen.md "Audio"). Calls
+  from saved contacts only; a call needs Wi-Fi and the board's clock (OFFER expiry).
+  Screen: incoming (📞 answer, ⛔ decline), calling, talking (code, path, mute, hang up).
+
 ## 4a. Code structure (built for more streams)
 
 ```

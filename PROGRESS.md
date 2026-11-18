@@ -1949,3 +1949,13 @@ links. Chose: quick items in beta3; calls follow in later betas.
   module: nine buttons as a resistor ladder on GPIO 2 (`NAV_KEYS_PIN`, lib/meshkeys
   ladder.*, host-tested with 5 % parts and 3.25–3.35 V), found at boot by its pull-up.
   Wiring in handheld-proto.md §4.
+- Step 4 (board calls, integration): `src/calls.*` runs lib/meshcall's manager in its own
+  task (core 1, priority 2) with a UDP socket on Wi-Fi or the hotspot (lwIP), STUN
+  reflectors on the relay host (`net::relay_host()`, 3478/3479), Opus 16 kHz / 20 ms
+  (codec-opus pinned in lib_deps, fixed point; Opus only), sample rings to and from
+  board_audio. The client hands content type 7 to it (`set_call_handler`, `send_call` with
+  PRIORITY; strangers are not made contacts; `calls_in` counted apart, so no message chime).
+  Board audio is now 16 kHz in 10 ms frames (160 samples, under the 512-byte host-link
+  payload); ring and busy sounds. UI: call screen (incoming: answer / decline; calling;
+  talking: code, path, mute, hang up), 📞 in a chat calls, ⛔ hangs up, rings every 3 s.
+  Mava Screen: 16 kHz, VOICE_COMMUNICATION + echo canceller + noise suppressor.

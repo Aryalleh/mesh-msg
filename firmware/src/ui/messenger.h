@@ -20,6 +20,19 @@ struct Message {
   bool delivered = false;  // mine: a signed receipt came back
 };
 
+// The call in progress (or the one that just ended), for the call screen.
+struct CallView {
+  enum class State : uint8_t { None, Outgoing, Ringing, Connecting, Active, Ended };
+  State state = State::None;
+  bool incoming = false;
+  std::string peer;    // contact name
+  std::string code;    // "123 456": both sides see the same, compare by voice
+  std::string reason;  // why it ended
+  bool missed = false, muted = false, peer_muted = false, video_offered = false;
+  int path = 0;          // path class: 1 same network … 5 across NAT
+  uint32_t seconds = 0;  // talking time
+};
+
 class Messenger {
  public:
   virtual ~Messenger() = default;
@@ -28,8 +41,15 @@ class Messenger {
   virtual std::vector<Contact> contacts() = 0;
   virtual std::vector<Message> messages(const std::string& contact) = 0;
   virtual bool send(const std::string& contact, const std::string& text, uint32_t now) = 0;
+  // Calls a contact; false + why (shown to the user) if it can't start.
   virtual bool call(const std::string& contact) = 0;
+  virtual std::string call_error() { return ""; }
   virtual void hang_up() = 0;
+  virtual bool answer() { return false; }
+  virtual void set_muted(bool) {}
+  virtual CallView call_view() { return CallView(); }
+  // Grows with every change of the call.
+  virtual uint32_t call_revision() { return 0; }
   // Our contact link (QR code for the apps to add us) and nickname; "" = none.
   virtual std::string my_link() { return ""; }
   virtual std::string my_name() { return ""; }

@@ -59,9 +59,15 @@ bool g_enc_pressed = false;
 uint8_t g_brightness = 200;
 bool g_asleep = false;
 
-enum class Screen : uint8_t { Home, Chats, Chat, Network, Web, Settings, MyContact };
+enum class Screen : uint8_t { Home, Chats, Chat, Network, Web, Settings, MyContact, Call };
 Screen g_screen = Screen::Home;
 std::string g_chat;  // contact id of the open chat
+// The call screen: shown while a call is live, then a moment after it ends.
+Screen g_call_back = Screen::Home;  // where to return
+uint32_t g_call_rev = 0;
+CallView::State g_call_state = CallView::State::None;
+lv_obj_t* g_call_info = nullptr;
+uint32_t g_ring_at = 0, g_call_close_at = 0, g_call_info_at = 0;
 
 // Widgets of the current screen that are refreshed.
 lv_obj_t* g_bar = nullptr;       // status bar label
@@ -262,7 +268,7 @@ void clear() {
   lv_group_remove_all_objs(g_group);
   lv_obj_t* scr = lv_screen_active();
   lv_obj_clean(scr);
-  g_info = g_messages = g_input = g_osk = nullptr;
+  g_info = g_messages = g_input = g_osk = g_call_info = nullptr;
   lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_all(scr, 0, 0);
   lv_obj_set_style_pad_gap(scr, 0, 0);
@@ -345,6 +351,31 @@ void send_input() {
   } else {
     toast("ارسال نشد / not sent");
   }
+}
+
+std::string call_text(const CallView& c) {
+  using S = CallView::State;
+  std::string t;
+  switch (c.state) {
+    case S::Outgoing: t = "در حال تماس… / Calling…"; break;
+    case S::Ringing: t = c.video_offered ? "تماس تصویری (با صدا پاسخ می‌دهد) / Video call (answered with voice)"
+                                        : "تماس ورودی / Incoming call"; break;
+    case S::Connecting: t = "در حال وصل شدن… / Connecting…"; break;
+    case S::Active: {
+      char d[16];
+      snprintf(d, sizeof d, "%02lu:%02lu", (unsigned long)(c.seconds / 60), (unsigned long)(c.seconds % 60));
+      t = d;
+      if (!c.code.empty()) t += "   کد / code " + c.code;
+      t += c.path == 1 ? "\nهمین شبکه / same network" : c.path >= 2 ? "\nمستقیم از اینترنت / direct over the internet" : "";
+      if (c.muted) t += "\nمیکروفن خاموش / muted";
+      if (c.peer_muted) t += "\nطرف مقابل بی‌صدا کرده / they muted";
+      break;
+    }
+    case S::Ended: t = (c.missed ? "تماس از دست رفته / Missed call" : "پایان تماس / Call ended") +
+                       (c.reason.empty() ? std::string() : " · " + c.reason); break;
+    case S::None: break;
+  }
+  return t;
 }
 
 void open_chat(lv_event_t* e) {
@@ -461,6 +492,38 @@ void show(Screen s) {
       label(g_body, "در برنامهٔ Mava: افزودن مخاطب ← اسکن کد");
       break;
     }
+    case Screen::Call: {
+      CallView c = g_msg->call_view();
+      g_call_state = c.state;
+      lv_obj_set_flex_align(g_body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      lv_obj_t* who = label(g_body, LV_SYMBOL_CALL "  " + c.peer);
+      lv_obj_set_style_text_color(who, col::primary_hi(), 0);
+      lv_obj_set_style_text_align(who, LV_TEXT_ALIGN_CENTER, 0);
+      g_call_info = label(g_body, call_text(c));
+      lv_obj_set_style_text_align(g_call_info, LV_TEXT_ALIGN_CENTER, 0);
+      using S = CallView::State;
+      if (c.state == S::Ringing) {
+        lv_obj_t* a = button(g_body, LV_SYMBOL_CALL "  پاسخ / Answer", [](lv_event_t*) {
+          if (!g_msg->answer()) toast("پاسخ ممکن نشد / could not answer");
+        });
+        lv_obj_set_style_bg_color(a, lv_color_hex(0x15803D), 0);
+        lv_group_focus_obj(a);
+        button(g_body, LV_SYMBOL_CLOSE "  رد / Decline", [](lv_event_t*) { g_msg->hang_up(); });
+      } else if (c.state == S::Active) {
+        button(g_body, c.muted ? LV_SYMBOL_AUDIO "  روشن کردن میکروفن / Unmute" : LV_SYMBOL_MUTE "  بی‌صدا / Mute",
+               [](lv_event_t*) { g_msg->set_muted(!g_msg->call_view().muted); });
+        lv_obj_t* h = button(g_body, LV_SYMBOL_CLOSE "  قطع / Hang up", [](lv_event_t*) { g_msg->hang_up(); });
+        lv_obj_set_style_bg_color(h, lv_color_hex(0xB91C1C), 0);
+      } else if (c.state != S::Ended && c.state != S::None) {
+        lv_obj_t* h = button(g_body, LV_SYMBOL_CLOSE "  قطع / Hang up", [](lv_event_t*) { g_msg->hang_up(); });
+        lv_obj_set_style_bg_color(h, lv_color_hex(0xB91C1C), 0);
+        lv_group_focus_obj(h);
+      }
+      if (c.state == S::Active || c.state == S::Connecting)
+        label(g_body, g_status.audio_outputs > 0 ? "" : "بلندگو نیست: در Mava Screen صدا و میکروفن را روشن کنید / "
+                                                         "no speaker: turn on sound and microphone in Mava Screen");
+      break;
+    }
     case Screen::Settings:
       title("تنظیمات / Settings");
       g_info = label(g_body, settings_text());
@@ -491,6 +554,9 @@ void show(Screen s) {
 
 void back() {
   switch (g_screen) {
+    case Screen::Call:  // a live call stays on screen; End hangs up
+      if (g_call_state == CallView::State::Ended || g_call_state == CallView::State::None) show(g_call_back);
+      break;
     case Screen::Chat: show(Screen::Chats); break;
     case Screen::MyContact: show(Screen::Chats); break;
     case Screen::Home: break;
@@ -582,13 +648,33 @@ void on_output(const k::Output& o) {
     case k::Action::Right: g_keys.push_back(LV_KEY_RIGHT); break;
     case k::Action::Back: back(); break;
     case k::Action::Menu: show(Screen::Home); break;
-    case k::Action::End:
-      g_msg->hang_up();
-      show(Screen::Home);
+    case k::Action::End: {
+      CallView::State st = g_msg->call_view().state;
+      if (st != CallView::State::None && st != CallView::State::Ended) {
+        g_msg->hang_up();  // also declines a ringing call
+      } else {
+        show(Screen::Home);
+      }
       break;
-    case k::Action::Call:
-      if (g_screen == Screen::Chat && !g_msg->call(g_chat)) toast("تماس هنوز ممکن نیست / calls need the client");
+    }
+    case k::Action::Call: {
+      CallView::State st = g_msg->call_view().state;
+      if (st == CallView::State::Ringing) {
+        if (!g_msg->answer()) toast("پاسخ ممکن نشد / could not answer");
+      } else if (st != CallView::State::None && st != CallView::State::Ended) {
+        if (g_screen != Screen::Call) show(Screen::Call);  // back to the call
+      } else if (g_screen == Screen::Chat) {
+        if (g_msg->call(g_chat)) {
+          g_call_back = Screen::Chat;
+        } else {
+          std::string why = g_msg->call_error();
+          toast(why.empty() ? "تماس ممکن نیست / calls are not possible here" : why.c_str());
+        }
+      } else {
+        toast("برای تماس یک گفتگو را باز کنید / open a chat to call");
+      }
       break;
+    }
     case k::Action::VolUp:
     case k::Action::VolDown:
       g_brightness = uint8_t(constrain(int(g_brightness) + (o.action == k::Action::VolUp ? 25 : -25), 20, 255));
@@ -712,6 +798,41 @@ bool remote_key(uint8_t action, uint32_t cp) {
 
 void loop(uint32_t now_ms) {
   if (!g_ready) return;
+  // A call: its screen comes up (and wakes the display), follows its state,
+  // rings while it rings, and goes away a moment after the end.
+  uint32_t crev = g_msg->call_revision();
+  if (crev != g_call_rev) {
+    g_call_rev = crev;
+    CallView c = g_msg->call_view();
+    using S = CallView::State;
+    bool live = c.state != S::None && c.state != S::Ended;
+    if (live && g_screen != Screen::Call) {
+      if (g_screen != Screen::Call) g_call_back = g_screen == Screen::Chat ? Screen::Chat : g_screen;
+      wake();
+      show(Screen::Call);
+    } else if (g_screen == Screen::Call && c.state != g_call_state) {
+      show(Screen::Call);
+    }
+    if (c.state == S::Ringing) g_ring_at = now_ms;  // ring now
+    if (c.state == S::Ended && g_screen == Screen::Call) {
+      g_call_close_at = now_ms + 2500;
+      if (g_sound_fn) g_sound_fn(kSoundBusy);
+    }
+    if (c.state == S::Ended && c.missed && g_screen != Screen::Call) toast(("تماس از دست رفته / Missed call: " + c.peer).c_str());
+  }
+  if (g_call_state == CallView::State::Ringing && g_ring_at && int32_t(now_ms - g_ring_at) >= 0) {
+    if (g_sound_fn) g_sound_fn(kSoundRing);
+    g_ring_at = now_ms + 3000;
+  }
+  if (g_screen == Screen::Call && g_call_info && now_ms - g_call_info_at >= 500) {
+    g_call_info_at = now_ms;
+    lv_label_set_text(g_call_info, call_text(g_msg->call_view()).c_str());
+  }
+  if (g_call_close_at && int32_t(now_ms - g_call_close_at) >= 0) {
+    g_call_close_at = 0;
+    if (g_screen == Screen::Call && g_call_state == CallView::State::Ended) show(g_call_back);
+  }
+
   // New messages, receipts or people: redraw what shows them.
   static uint32_t seen_rev = 0;
   uint32_t rev = g_msg->revision();

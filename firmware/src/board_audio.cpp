@@ -3,14 +3,16 @@
 #include <cstdio>
 #include <cstring>
 
+#include "calls.h"
+
 namespace audio {
 namespace {
 
 namespace ma = mesh::audio;
 
-// A few frames of queue: an output a little late loses nothing, one that
-// stopped taking loses the oldest.
-constexpr size_t kQueue = 8;
+// A few frames of queue (160 ms): an output a little late loses nothing, one
+// that stopped taking loses the oldest.
+constexpr size_t kQueue = 16;
 
 struct Ring {
   int16_t f[kQueue][ma::kFrame];
@@ -61,6 +63,7 @@ void loop(uint32_t now_ms) {
     if (g_synth.render(f, ma::kFrame)) g_sound_frames++;
     int16_t e[ma::kFrame];
     if (g_echo.pop(e)) ma::mix(f, e, ma::kFrame);
+    if (calls::speaker(e, ma::kFrame)) ma::mix(f, e, ma::kFrame);  // the far side of a call
     g_out.push(f);
     g_next += ma::kFrameMs;
   }
@@ -82,6 +85,7 @@ bool take(int16_t out[ma::kFrame]) {
 
 void mic(const int16_t* pcm, size_t n) {
   g_meter.add(pcm, n);
+  calls::mic(pcm, n);
   if (!g_echo_on || n != ma::kFrame) return;
   g_echo.push(pcm);
 }

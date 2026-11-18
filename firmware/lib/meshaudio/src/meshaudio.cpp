@@ -38,6 +38,17 @@ void Synth::play(Sound s) {
       notes_[count_++] = {0, 100, 0};
       notes_[count_++] = {660, 400, 12000};
       break;
+    case Sound::Ring:  // two short bursts of a two-tone trill
+      notes_[count_++] = {880, 400, 10000};
+      notes_[count_++] = {0, 200, 0};
+      notes_[count_++] = {1100, 400, 10000};
+      break;
+    case Sound::Busy:
+      notes_[count_++] = {480, 150, 9000};
+      notes_[count_++] = {0, 100, 0};
+      notes_[count_++] = {480, 150, 9000};
+      notes_[count_++] = {0, 100, 0};
+      break;
     case Sound::None:
       break;
   }

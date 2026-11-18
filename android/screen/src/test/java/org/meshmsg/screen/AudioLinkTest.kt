@@ -10,9 +10,10 @@ class AudioLinkTest {
 
     @Test
     fun matchesTheFirmware() {
-        // Same bytes as firmware/test/audio_test.cpp link(): 8000 Hz, 160 samples per frame.
-        assertEquals(8000 to 160, AudioLink.format(hex("001f4000a0")))
-        assertNull(AudioLink.format(hex("011f4000a0")))
+        // Same bytes as firmware/test/audio_test.cpp link(): 16000 Hz, 160 samples per frame (10 ms).
+        assertEquals(16000 to 160, AudioLink.format(hex("003e8000a0")))
+        assertEquals(AudioLink.RATE to AudioLink.FRAME, AudioLink.format(hex("003e8000a0")))
+        assertNull(AudioLink.format(hex("013e8000a0")))
         assertArrayEquals(hex("0103"), AudioLink.start(speaker = true, mic = true))
         assertArrayEquals(hex("0101"), AudioLink.start(speaker = true, mic = false))
         assertArrayEquals(hex("0102"), AudioLink.start(speaker = false, mic = true))

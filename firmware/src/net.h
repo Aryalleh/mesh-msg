@@ -90,6 +90,9 @@ const char* relay_state();  // short text for logs and the panel
 // Packets sent up to the relay and taken from it since boot.
 uint32_t relay_up();
 uint32_t relay_in();
+// The relay host in use (name or IP address; "" = none yet): calls ask its
+// STUN reflectors (UDP 3478 / 3479) for the board's public address. Any task.
+std::string relay_host();
 // The address a browser on the same network opens ("" = no network).
 const char* web_url();
 

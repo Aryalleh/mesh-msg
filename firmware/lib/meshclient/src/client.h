@@ -94,9 +94,9 @@ class Client {
   int find(const std::string& id) const;
   // Since start, for the board log: DATA packets (or fragments) addressed to
   // us, messages opened, messages we could not open (not for this key, or
-  // from someone we can't read yet), and messages sent.
+  // from someone we can't read yet), messages sent, call signals received.
   struct Stats {
-    uint32_t data_in = 0, opened = 0, unreadable = 0, sent = 0, receipts_in = 0;
+    uint32_t data_in = 0, opened = 0, unreadable = 0, sent = 0, receipts_in = 0, calls_in = 0;
   };
   const Stats& stats() const { return stats_; }
   // Messages heard for other accounts, newest first (16 hex digits of the

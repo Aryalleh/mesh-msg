@@ -10,7 +10,10 @@
 //   settings     device password, BLE passkey, LoRa module on/off, sound test, echo test,
 //                brightness, typing language
 //
-// Phone keys: 📞 call, ⛔ hang up / back to home, Menu = home, Back = back,
+//   call         incoming (answer / decline), calling, talking (mute, hang up):
+//                comes up by itself while a call is live
+//
+// Phone keys: 📞 call (in a chat) / answer, ⛔ hang up or decline / back to home, Menu = home, Back = back,
 // Vol ± = brightness (volume once audio exists). Persian text is shaped and
 // laid out right-to-left by LVGL (LV_USE_ARABIC_PERSIAN_CHARS, LV_USE_BIDI).
 #pragma once
@@ -36,7 +39,7 @@ struct Status {
 };
 
 // Sounds (board_audio.h): kSoundKey on every key, kSoundTest from Settings.
-constexpr uint8_t kSoundMessage = 1, kSoundKey = 2, kSoundTest = 3;
+constexpr uint8_t kSoundMessage = 1, kSoundKey = 2, kSoundTest = 3, kSoundRing = 4, kSoundBusy = 5;
 using SoundFn = void (*)(uint8_t sound);
 void on_sound(SoundFn fn);
 // Settings → echo test: the microphone back to the speaker.

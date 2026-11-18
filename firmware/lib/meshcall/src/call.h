@@ -95,6 +95,8 @@ struct Env {
 class Manager {
  public:
   explicit Manager(const Env& env) : env_(env) {}
+  // The path configuration for the next call (reflectors change with the relay).
+  void set_direct(const AgentConfig& c) { env_.direct = c; }
   ~Manager();
   Manager(const Manager&) = delete;
   Manager& operator=(const Manager&) = delete;

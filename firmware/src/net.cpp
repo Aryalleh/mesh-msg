@@ -613,6 +613,26 @@ int g_pow_bits = -1;
 constexpr const char* kDefaultRelay = "https://eu-1.mfadem.ir";
 constexpr const char* kDefaultRelayIp = "http://87.106.5.192";
 String g_base;
+// g_base's host for other tasks (calls): copied under a lock.
+portMUX_TYPE g_host_mux = portMUX_INITIALIZER_UNLOCKED;
+char g_host[64] = {};
+
+String host_of(const String& base) {
+  String host = base.substring(base.indexOf("//") + 2);
+  int cut = host.indexOf('/');
+  if (cut >= 0) host = host.substring(0, cut);
+  cut = host.indexOf(':');
+  if (cut >= 0) host = host.substring(0, cut);
+  return host;
+}
+
+void set_base(const String& base) {
+  g_base = base;
+  String h = host_of(base);
+  taskENTER_CRITICAL(&g_host_mux);
+  snprintf(g_host, sizeof g_host, "%s", h.c_str());
+  taskEXIT_CRITICAL(&g_host_mux);
+}
 int g_fails = 0;  // gateway calls failed in a row: look for the relay again after a few
 // Why the relay is not reachable, for the log and the panel (two buffers, so a
 // reader never sees one half-written).
@@ -750,11 +770,7 @@ bool begin_http(HTTPClient& http, WiFiClientSecure& tls, WiFiClient& plain, cons
 
 // Asks one relay address for /v1/info; on failure why holds the reason.
 bool probe(const String& base, String& why) {
-  String host = base.substring(base.indexOf("//") + 2);
-  int cut = host.indexOf('/');
-  if (cut >= 0) host = host.substring(0, cut);
-  cut = host.indexOf(':');
-  if (cut >= 0) host = host.substring(0, cut);
+  String host = host_of(base);
   IPAddress ip;
   if (!WiFi.hostByName(host.c_str(), ip)) {
     why = host + ": name lookup failed";
@@ -798,12 +814,12 @@ bool fetch_info() {
   String first = String(g_s->relay_url), why1, why2;
   set_detail("connecting", first);
   if (probe(first, why1)) {
-    g_base = first;
+    set_base(first);
     return true;
   }
   if (first == kDefaultRelay) set_detail("connecting", why1 + "; trying " + String(kDefaultRelayIp));
   if (first == kDefaultRelay && probe(kDefaultRelayIp, why2)) {
-    g_base = kDefaultRelayIp;
+    set_base(kDefaultRelayIp);
     return true;
   }
   set_detail("unreachable", why2.length() ? why1 + "; " + why2 : why1);
@@ -1066,6 +1082,15 @@ bool wifi_up() { return g_wifi_up; }
 const char* relay_state() { return const_cast<const char*>(g_relay_state); }
 uint32_t relay_up() { return g_relay_up; }
 uint32_t relay_in() { return g_relay_in; }
+
+std::string relay_host() {
+  char h[64];
+  taskENTER_CRITICAL(&g_host_mux);
+  std::memcpy(h, g_host, sizeof h);
+  taskEXIT_CRITICAL(&g_host_mux);
+  if (!h[0] && g_s) return host_of(String(g_s->relay_url)).c_str();
+  return h;
+}
 
 const char* web_url() {
   static char url[40];

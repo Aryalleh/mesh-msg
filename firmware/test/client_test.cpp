@@ -154,6 +154,7 @@ void call_signals() {
   size_t msgs = b.messages(0).size();
   b.on_packet(out[0].data(), out[0].size(), T + 1);
   CHECK(gb.n == 1 && gb.contact && std::memcmp(gb.from.x, a.pub().x, 32) == 0);
+  CHECK(b.stats().calls_in == 1 && b.stats().opened == 1);  // the "hi" only: no message chime for a call signal
   CHECK(gb.sig == std::vector<uint8_t>(sig, sig + sizeof sig));
   CHECK(b.messages(0).size() == msgs);
   CHECK(b.take_outgoing().size() == 1);  // the receipt

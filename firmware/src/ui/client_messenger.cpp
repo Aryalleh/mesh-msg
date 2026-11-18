@@ -5,12 +5,16 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 
+#include <cstring>
+#include <ctime>
 #include <memory>
 
 #include "board.h"
+#include "../calls.h"
 #include "client.h"
 #include "hostlink.h"
 #include "net.h"
+#include "../wallclock.h"
 
 namespace ui {
 namespace {
@@ -46,7 +50,12 @@ mesh::host::Decoder g_dec;
 bool g_attached = false;
 uint32_t g_unix = 0;  // the node's clock, for sending from the UI
 
+bool g_calls_on = false;
+
 class ClientMessenger final : public Messenger {
+ private:
+  std::string error_;
+
  public:
   bool connected() const override { return true; }
   std::vector<Contact> contacts() override {
@@ -73,8 +82,58 @@ class ClientMessenger final : public Messenger {
     int i = g_client->find(id);
     return i >= 0 && g_client->send_text(size_t(i), text, now ? now : g_unix);
   }
-  bool call(const std::string&) override { return false; }
-  void hang_up() override {}
+  bool call(const std::string& id) override {
+    int i = g_client->find(id);
+    error_.clear();
+    if (i < 0) {
+      error_ = "مخاطب پیدا نشد / no such contact";
+    } else if (!g_calls_on) {
+      error_ = "تماس روی این برد راه نیفتاد / calls did not start on this board";
+    } else if (!net::wifi_up() && net::mode() != net::Mode::Setup) {
+      error_ = "تماس به وای‌فای نیاز دارد / calls need Wi-Fi";
+    } else if (!wallclock::trusted()) {
+      error_ = "ساعت برد هنوز تنظیم نشده / the board's clock is not set yet";
+    } else if (!calls::start(g_client->contacts()[size_t(i)].pub)) {
+      error_ = "الان در تماس هستید / already in a call";
+    }
+    return error_.empty();
+  }
+  std::string call_error() override { return error_; }
+  void hang_up() override { calls::hangup(); }
+  bool answer() override { return calls::answer(); }
+  void set_muted(bool m) override { calls::set_muted(m); }
+  uint32_t call_revision() override { return calls::revision(); }
+  CallView call_view() override {
+    calls::View v = calls::view();
+    CallView c;
+    switch (v.state) {
+      case mesh::call::State::Idle: c.state = CallView::State::None; break;
+      case mesh::call::State::Outgoing: c.state = CallView::State::Outgoing; break;
+      case mesh::call::State::Ringing: c.state = CallView::State::Ringing; break;
+      case mesh::call::State::Connecting: c.state = CallView::State::Connecting; break;
+      case mesh::call::State::Active: c.state = CallView::State::Active; break;
+      case mesh::call::State::Ended: c.state = CallView::State::Ended; break;
+    }
+    c.incoming = v.incoming;
+    c.code = v.code;
+    c.reason = v.reason;
+    c.missed = v.missed;
+    c.muted = v.muted;
+    c.peer_muted = v.peer_muted;
+    c.video_offered = v.video_offered;
+    c.path = v.path_cls;
+    if (v.state == mesh::call::State::Active) c.seconds = (millis() - v.active_ms) / 1000;
+    for (const auto& k : g_client->contacts())
+      if (std::memcmp(k.pub.x, v.peer.x, 32) == 0) c.peer = k.label();
+    if (c.peer.empty()) {
+      uint8_t h[16];
+      v.peer.hash(h);
+      char hx[17];
+      for (int j = 0; j < 8; j++) snprintf(hx + 2 * j, 3, "%02x", h[j]);
+      c.peer = hx;
+    }
+    return c;
+  }
   std::string my_link() override { return g_client->link(); }
   std::string my_name() override { return g_client->name(); }
   uint32_t revision() override { return g_client->revision(); }
@@ -177,13 +236,16 @@ void feed(mesh::node::Node& node, const uint8_t* payload, size_t n, uint8_t kind
 
 }  // namespace
 
+bool calls_on() { return g_calls_on; }
+
 std::string client_state() {
   if (!g_client) return "off";
   const auto& s = g_client->stats();
-  char n[160];
-  snprintf(n, sizeof n, "; messages for it %lu (opened %lu, unreadable %lu), sent %lu, delivered %lu, contacts %u",
+  char n[200];
+  snprintf(n, sizeof n,
+           "; messages for it %lu (opened %lu, unreadable %lu), sent %lu, delivered %lu, call signals %lu, contacts %u",
            (unsigned long)s.data_in, (unsigned long)s.opened, (unsigned long)s.unreadable, (unsigned long)s.sent,
-           (unsigned long)s.receipts_in, unsigned(g_client->contacts().size()));
+           (unsigned long)s.receipts_in, (unsigned long)s.calls_in, unsigned(g_client->contacts().size()));
   std::string others;
   for (const auto& d : g_client->other_dests()) {
     char x[40];
@@ -203,6 +265,11 @@ Messenger* client_begin(const char* name) {
   }
   g_client.reset(new mc::Client(seed, g_flash, [](uint8_t* b, size_t n) { board::random_bytes(b, n); }));
   memset(seed, 0, sizeof seed);
+  // Calls (calls.h): signals in through the client, out through client_pump.
+  g_calls_on = calls::begin(g_client->identity());
+  g_client->set_call_handler([](const mesh::PublicKey& from, bool contact, const uint8_t* sig, size_t n) {
+    calls::on_signal(from, contact, sig, n);
+  });
   if (g_client->name().empty()) g_client->set_name(name);
   net::set_account(&g_account);  // the browser app uses this same account
   return &g_messenger;
@@ -239,6 +306,14 @@ void client_pump(mesh::node::Node& node, mesh::route::Millis now) {
     }
   }
   if (g_client->stats().opened > opened) audio::play(audio::Sound::Message);  // a new message for us
+  // The call task's signals (content type 7, PRIORITY) → the client.
+  {
+    mesh::PublicKey to;
+    static uint8_t sig[mesh::call::kMaxSignal];
+    size_t n = 0;
+    uint32_t t = g_unix ? g_unix : uint32_t(time(nullptr));
+    while (calls::take_signal(to, sig, sizeof sig, &n)) g_client->send_call(to, sig, n, t);
+  }
   // The client → the node: its messages, receipts and announces.
   g_client->tick(g_unix);
   for (auto& p : g_client->take_outgoing()) feed(node, p.data(), p.size(), mesh::host::kKindPacket, now);

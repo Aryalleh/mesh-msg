@@ -1,6 +1,7 @@
 // The board's sounds and microphone, apart from any hardware (docs/screen.md
 // "Audio"): a synth renders the UI's sounds (message chime, key click, test
-// tone) as 8 kHz mono signed 16-bit PCM in 20 ms frames, a meter follows the
+// tone, ring) as 16 kHz mono signed 16-bit PCM in 10 ms frames (calls use
+// 16 kHz; 10 ms keeps a frame under the host link's 512 bytes), a meter follows the
 // microphone. Whatever carries the frames — the WM8960 codec over I2S, or
 // the pre-release phone simulator (hwsim) — uses this format.
 // Pure C++, no heap, no Arduino: host-tested.
@@ -12,11 +13,13 @@
 namespace mesh {
 namespace audio {
 
-constexpr int kRate = 8000;     // samples per second
+constexpr int kRate = 16000;    // samples per second
 constexpr size_t kFrame = 160;  // samples per frame
-constexpr uint32_t kFrameMs = 20;
+constexpr uint32_t kFrameMs = 10;
 
-enum class Sound : uint8_t { None = 0, Message = 1, Key = 2, Test = 3 };
+// Ring: an incoming call (played again every 3 s while it rings); Busy: the
+// call ended (three short low notes).
+enum class Sound : uint8_t { None = 0, Message = 1, Key = 2, Test = 3, Ring = 4, Busy = 5 };
 
 class Synth {
  public:

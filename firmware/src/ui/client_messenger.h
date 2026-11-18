@@ -18,5 +18,7 @@ Messenger* client_begin(const char* name);
 void client_pump(mesh::node::Node& node, mesh::route::Millis now);
 // For the log: on / waiting for the clock.
 std::string client_state();
+// The call task started (calls.h).
+bool calls_on();
 
 }  // namespace ui

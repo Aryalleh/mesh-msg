@@ -79,14 +79,17 @@ its text log after 90 s of silence).
 ```
 phone (Mava Screen) ── USB ── board
    AUDIO 1 | flags ─────────►  start: 1 speaker, 2 microphone (0 = stop)
-   ◄──────── AUDIO 0 | rate | frame       format: 8000 Hz, 160 samples (20 ms)
-   ◄──────── AUDIO 1 | seq | PCM          speaker frames, s16 little-endian, 50 a second
+   ◄──────── AUDIO 0 | rate | frame       format: 16000 Hz, 160 samples (10 ms)
+   ◄──────── AUDIO 1 | seq | PCM          speaker frames, s16 little-endian, 100 a second
    AUDIO 2 | seq | PCM ─────►  microphone frames, same format
 ```
 
 The board renders its sounds on time into a short queue (`board_audio`), whatever the
 output: the message chime when a message for the board's account opens, a click on every key,
-and Settings → *Sound test*. Microphone frames go to a level meter (Settings, and an `audio`
+the ring of an incoming call, and Settings → *Sound test*; during a call the far side's voice
+is mixed in and the microphone goes to the call (16 kHz, as the WM8960 will run). With both
+switches on, Mava Screen is the board's speakerphone: it records with `VOICE_COMMUNICATION`
+and the phone's echo canceller and noise suppressor where it has them. Microphone frames go to a level meter (Settings, and an `audio`
 line in the board log while audio runs) and, with Settings → *Echo test*, back out of the
 speaker (use headphones: the phone's own speaker next to its microphone howls). Frame layout:
 `firmware/lib/hwsim/src/audiolink.h`; Android: `android/screen/.../BoardAudio.kt`

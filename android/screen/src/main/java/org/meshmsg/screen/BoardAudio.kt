@@ -6,12 +6,14 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.NoiseSuppressor
 import kotlin.concurrent.thread
 
 /**
  * AUDIO over the host link (firmware/lib/hwsim/src/audiolink.h), a pre-release
- * hardware simulator: 8 kHz mono signed 16-bit little-endian PCM in 20 ms
- * frames (160 samples).
+ * hardware simulator: 16 kHz mono signed 16-bit little-endian PCM in 10 ms
+ * frames (160 samples), the board's call audio and its sounds.
  *   command: stop 0 | start 1 flags | mic 2 seq(u16 BE) pcm
  *   event:   format 0 rate(u16 BE) frame(u16 BE) | speaker 1 seq(u16 BE) pcm
  */
@@ -23,7 +25,7 @@ object AudioLink {
     const val SPEAKER = 1
     const val FLAG_SPEAKER = 1
     const val FLAG_MIC = 2
-    const val RATE = 8000
+    const val RATE = 16000
     const val FRAME = 160
     const val HEADER = 3
 
@@ -56,7 +58,10 @@ object AudioLink {
 
 /**
  * The phone as the board's speaker (AudioTrack) and microphone (AudioRecord).
- * [sendMic] gets ready AUDIO mic arguments, 50 times a second.
+ * [sendMic] gets ready AUDIO mic arguments, 100 times a second. Both are set
+ * up for voice: the board's calls play on this speaker and take this
+ * microphone, so the phone's echo canceller keeps the far side from hearing
+ * itself.
  */
 class BoardAudio(private val sendMic: (ByteArray) -> Unit) {
     private var track: AudioTrack? = null
@@ -77,12 +82,12 @@ class BoardAudio(private val sendMic: (ByteArray) -> Unit) {
         }
         val min = AudioTrack.getMinBufferSize(AudioLink.RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
         track = AudioTrack.Builder()
-            .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+            .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             .setAudioFormat(
                 AudioFormat.Builder().setSampleRate(AudioLink.RATE).setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build(),
             )
-            .setBufferSizeInBytes(maxOf(min, AudioLink.FRAME * 2 * 10)) // ~200 ms against USB jitter
+            .setBufferSizeInBytes(maxOf(min, AudioLink.FRAME * 2 * 16)) // ~160 ms against USB jitter
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
             .also { it.play() }
@@ -110,15 +115,19 @@ class BoardAudio(private val sendMic: (ByteArray) -> Unit) {
         recorder = thread(name = "board-mic") {
             val frameBytes = AudioLink.FRAME * 2
             val min = AudioRecord.getMinBufferSize(AudioLink.RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+            // VOICE_COMMUNICATION: the platform's echo canceller and noise
+            // suppression where the phone has them.
             val rec = runCatching {
-                AudioRecord(MediaRecorder.AudioSource.MIC, AudioLink.RATE, AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT, maxOf(min, frameBytes * 4))
+                AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, AudioLink.RATE, AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT, maxOf(min, frameBytes * 8))
             }.getOrNull()
             if (rec == null || rec.state != AudioRecord.STATE_INITIALIZED) {
                 rec?.release()
                 recording = false
                 return@thread
             }
+            val aec = if (AcousticEchoCanceler.isAvailable()) runCatching { AcousticEchoCanceler.create(rec.audioSessionId)?.apply { enabled = true } }.getOrNull() else null
+            val ns = if (NoiseSuppressor.isAvailable()) runCatching { NoiseSuppressor.create(rec.audioSessionId)?.apply { enabled = true } }.getOrNull() else null
             val buf = ByteArray(frameBytes)
             var seq = 0
             rec.startRecording()
@@ -138,6 +147,8 @@ class BoardAudio(private val sendMic: (ByteArray) -> Unit) {
                 }
             } finally {
                 runCatching { rec.stop() }
+                aec?.release()
+                ns?.release()
                 rec.release()
             }
         }

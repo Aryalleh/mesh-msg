@@ -1,6 +1,7 @@
 // The board's audio (docs/screen.md "Audio"), kept in every build: sounds
-// rendered on time into a short queue that the outputs take 20 ms frames
-// from, and microphone frames from the inputs (meter, echo test). Outputs
+// and a call's far side rendered on time into a short queue that the outputs
+// take 10 ms frames from, and microphone frames from the inputs (meter, echo
+// test, a call). Outputs
 // and inputs: the pre-release phone simulator (hwsim) now, the WM8960 codec
 // later. Main loop only (no lock of its own).
 #pragma once
@@ -15,7 +16,7 @@ namespace audio {
 using mesh::audio::Sound;
 
 void play(Sound s);
-// Renders a frame every 20 ms while an output is on (catches up after a stall).
+// Renders a frame every 10 ms while an output is on (catches up after a stall).
 void loop(uint32_t now_ms);
 
 // Outputs say when they take frames; take() hands out the next one.

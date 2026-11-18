@@ -30,12 +30,12 @@ void synth() {
   ma::Synth s;
   int16_t f[ma::kFrame];
   CHECK(!s.busy() && !s.render(f, ma::kFrame) && f[0] == 0 && f[ma::kFrame - 1] == 0);
-  // Message chime: 90 + 30 + 140 ms = 13 frames, 12 of them with sound; below full scale.
+  // Message chime: 90 + 30 + 140 ms = 26 frames of 10 ms, 23 of them with sound; below full scale.
   s.play(ma::Sound::Message);
   CHECK(s.busy() && s.playing() == ma::Sound::Message);
   int32_t peak = 0;
   size_t sounding = frames_of(s, &peak);
-  CHECK(sounding >= 11 && sounding <= 13 && peak > 8000 && peak <= 9000 && !s.busy());
+  CHECK(sounding >= 22 && sounding <= 26 && peak > 8000 && peak <= 9000 && !s.busy());
   // Fades in: the first samples are quiet (no click).
   s.play(ma::Sound::Test);
   CHECK(s.render(f, ma::kFrame));
@@ -45,10 +45,15 @@ void synth() {
   CHECK(s.playing() == ma::Sound::Test);
   s.play(ma::Sound::Message);
   CHECK(s.playing() == ma::Sound::Message);
-  // A key click alone: one frame of 15 ms.
+  // A key click alone: 15 ms, two frames.
   ma::Synth k;
   k.play(ma::Sound::Key);
-  CHECK(frames_of(k) == 1);
+  CHECK(frames_of(k) == 2);
+  // The ring: 1 s, sound in 0.8 s of it.
+  ma::Synth r;
+  r.play(ma::Sound::Ring);
+  size_t ring = frames_of(r);
+  CHECK(ring >= 78 && ring <= 82);
 }
 
 void meter_and_mix() {
@@ -67,7 +72,7 @@ void meter_and_mix() {
 void link() {
   uint8_t buf[hw::kAudioHeader + 2 * ma::kFrame];
   CHECK(hw::encode_format(buf, sizeof buf) == 5);
-  CHECK((check::Bytes(buf, buf + 5) == check::Bytes{0, 0x1f, 0x40, 0x00, 0xa0}));  // 8000 Hz, 160 samples
+  CHECK((check::Bytes(buf, buf + 5) == check::Bytes{0, 0x3e, 0x80, 0x00, 0xa0}));  // 16000 Hz, 160 samples
   int16_t pcm[ma::kFrame];
   for (size_t i = 0; i < ma::kFrame; i++) pcm[i] = int16_t(int(i) * 300 - 24000);
   size_t n = hw::encode_speaker(0x1234, pcm, ma::kFrame, buf, sizeof buf);

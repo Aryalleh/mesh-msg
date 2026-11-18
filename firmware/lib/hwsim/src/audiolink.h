@@ -1,6 +1,6 @@
 // The phone as the board's speaker and microphone over the host link
 // (docs/screen.md "Audio"), a pre-release hardware simulator (MAVA_HWSIM):
-// 8 kHz mono signed 16-bit PCM in 20 ms frames (mesh::audio).
+// 16 kHz mono signed 16-bit PCM in 10 ms frames (mesh::audio).
 //
 // AUDIO command arguments (host::kOpAudio):
 //   stop:  0
