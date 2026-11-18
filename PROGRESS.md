@@ -1759,3 +1759,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   256 slots (`-DMESH_STORE_SLOTS=256`), local-port packets are `Origin::Local` and evicted
   last (`own_messages_kept` test); (3) BLE log names the corrupt-stream reason
   (`Peer::error()`). post() clamps writes to 244. Release v0.1.1-beta27.
+- Released **v0.1.1-beta27** (9f73e6c).
