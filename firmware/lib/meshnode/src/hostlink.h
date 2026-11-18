@@ -111,8 +111,12 @@ constexpr uint8_t kTagFreqHz = 4;
 constexpr uint8_t kTagTxDBm = 5;
 constexpr uint8_t kTagName = 6;
 constexpr uint8_t kTagAnnounceMin = 7;
+// u8: 1 = a LoRa module is fitted (default), 0 = none: the board skips the
+// radio (no probe at boot, nothing sent to the air). Encoded only when 0, so
+// a default config encodes as before.
+constexpr uint8_t kTagRadio = 8;
 constexpr size_t kMaxNameLen = 32;
-constexpr size_t kMaxConfigTLV = 3 * 3 + 6 + 3 + 2 + kMaxNameLen + 4;
+constexpr size_t kMaxConfigTLV = 3 * 3 + 6 + 3 + 2 + kMaxNameLen + 4 + 3;
 
 struct NodeConfig {
   uint8_t role = kRoleClient;
@@ -122,6 +126,7 @@ struct NodeConfig {
   int8_t tx_dbm = 14;
   char name[kMaxNameLen + 1] = {};
   uint16_t announce_min = 30;
+  uint8_t radio = 1;  // kTagRadio
 
   bool valid() const;
   uint32_t channel_hz() const;  // freq_hz or the region default

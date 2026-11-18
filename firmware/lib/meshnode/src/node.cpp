@@ -470,7 +470,7 @@ bool Node::host_event(size_t port, uint8_t ev, const uint8_t* data, size_t n) {
 bool Node::apply_config(const host::NodeConfig& c, Millis now) {
   if (!c.valid()) return false;
   bool radio = c.region != cfg_.region || c.preset != cfg_.preset || c.channel_hz() != cfg_.channel_hz() ||
-               c.tx_dbm != cfg_.tx_dbm;
+               c.tx_dbm != cfg_.tx_dbm || c.radio != cfg_.radio;
   bool modulation = c.region != cfg_.region || c.preset != cfg_.preset;
   cfg_ = c;
   platform_.save_config(cfg_);

@@ -5,7 +5,8 @@ import java.io.IOException
 
 /**
  * The node host link (docs/firmware.md "Host link framing"), just enough to
- * send the board commands over USB: the Wi-Fi settings and the setup hotspot.
+ * send the board commands over USB: the Wi-Fi settings, the setup hotspot and
+ * the LoRa module setting.
  *   COBS( kind | len(2 BE) | payload | crc16(2 BE) ) 0x00, CRC-16/CCITT-FALSE
  *   command payload: op | req | args; the node answers ACK: op | status
  * The same bytes as core/hostlink (Go) and firmware/lib/meshnode (C++).
@@ -13,6 +14,7 @@ import java.io.IOException
 object HostLink {
     const val KIND_COMMAND = 1
     const val KIND_EVENT = 2
+    const val OP_SET_CONFIG = 0x04
     const val OP_SET_WIFI = 0x09
     const val OP_HOTSPOT = 0x0A
     const val EV_ACK = 0x84
@@ -23,6 +25,8 @@ object HostLink {
     const val TAG_SSID = 1
     const val TAG_PASSWORD = 2
     const val TAG_RELAY = 3
+    /** SET_CONFIG tag: 1 a LoRa module is fitted (default), 0 none (the board skips the radio). */
+    const val TAG_CONFIG_RADIO = 8
 
     fun crc16(b: ByteArray, off: Int = 0, len: Int = b.size): Int {
         var crc = 0xFFFF
@@ -118,6 +122,9 @@ object HostLink {
         put(TAG_RELAY, relay, 95, "the relay address")
         return out.toByteArray()
     }
+
+    /** SET_CONFIG arguments that change only the LoRa module setting (a partial config). */
+    fun radioTlv(fitted: Boolean): ByteArray = byteArrayOf(TAG_CONFIG_RADIO.toByte(), 1, if (fitted) 1 else 0)
 }
 
 /**

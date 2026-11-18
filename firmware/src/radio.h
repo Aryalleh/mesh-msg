@@ -14,6 +14,8 @@ namespace radio {
 
 bool begin(const mesh::host::NodeConfig& cfg);      // false: no radio found
 bool configure(const mesh::host::NodeConfig& cfg);  // retune live
+bool ready();                                       // begin() found the chip
+void off();  // the "no LoRa module" setting: chip (if any) to sleep, nothing more sent
 
 // Non-blocking transmit; tx_done() becomes true when it is over.
 bool transmit(const uint8_t* frame, size_t n);

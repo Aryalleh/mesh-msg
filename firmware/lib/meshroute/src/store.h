@@ -78,6 +78,12 @@ struct Item {
 
 struct Stats {
   uint32_t stored = 0, dup = 0, evicted = 0, expired = 0, deleted = 0, quota = 0;
+  uint32_t full = 0;  // refused: every slot held something at least as valuable
+};
+
+// What the store holds, by kind (for the board log).
+struct Census {
+  size_t used = 0, data = 0, own = 0, receipts = 0, announces = 0, other = 0;
 };
 
 class Store {
@@ -112,6 +118,7 @@ class Store {
   bool restore(size_t slot, const Record& r, uint32_t now_s, uint32_t ttl_s);
 
   size_t size() const;
+  Census census() const;  // own: Origin::Local (the device's own messenger)
   const Stats& stats() const { return stats_; }
 
  private:

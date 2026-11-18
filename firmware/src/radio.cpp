@@ -72,6 +72,15 @@ bool configure(const mesh::host::NodeConfig& cfg) {
   return apply(cfg, false);
 }
 
+bool ready() { return g_ok; }
+
+void off() {
+  if (g_ok) g_radio.sleep();
+  g_ok = false;
+  g_txing = false;
+  g_irq = false;
+}
+
 bool transmit(const uint8_t* frame, size_t n) {
   if (!g_ok || g_txing || n == 0 || n > mesh::meshtastic::kRadioMax) return false;
   g_irq = false;

@@ -246,6 +246,31 @@ void commands() {
   h.drain(n);
   CHECK(r.board.saves == 2 && r.board.radios == 1);
   h.events(host::kEvAck);
+  // "No LoRa module" (the flasher and the screen): saved, the radio told; a
+  // default config still encodes without the tag (vectors unchanged).
+  CHECK(n.config().radio == 1);
+  uint8_t enc0[host::kMaxConfigTLV];
+  size_t e0 = n.config().encode_tlv(enc0, sizeof enc0);
+  CHECK(e0 == 3 * 3 + 6 + 3 + 2 + std::strlen(n.config().name) + 4);
+  h.cmd(n, host::kOpSetConfig, 16, {host::kTagRadio, 1, 2}, 1000);  // only 0 or 1
+  h.drain(n);
+  acks = h.events(host::kEvAck);
+  CHECK(acks.size() == 1 && acks[0][3] == host::kAckBadArgs && r.board.saves == 2);
+  h.cmd(n, host::kOpSetConfig, 17, {host::kTagRadio, 1, 0}, 1000);
+  h.drain(n);
+  acks = h.events(host::kEvAck);
+  CHECK(acks.size() == 1 && acks[0][3] == host::kAckOk);
+  CHECK(r.board.saves == 3 && r.board.radios == 2 && r.board.radio.radio == 0 && r.board.saved.radio == 0);
+  uint8_t ct[host::kMaxConfigTLV];
+  size_t en = n.config().encode_tlv(ct, sizeof ct);
+  CHECK(en >= 3 && ct[en - 3] == host::kTagRadio && ct[en - 2] == 1 && ct[en - 1] == 0);
+  host::NodeConfig back;
+  CHECK(back.apply_tlv(ct, en) && back.radio == 0 && back == n.config());
+  h.cmd(n, host::kOpSetConfig, 18, {host::kTagRadio, 1, 1}, 1000);
+  h.drain(n);
+  h.events(host::kEvAck);
+  CHECK(r.board.radios == 3 && n.config().radio == 1);
+  CHECK(n.config().encode_tlv(ct, sizeof ct) == e0);
 
   h.cmd(n, host::kOpGetIdentity, 12, {}, 1000);
   h.drain(n);
@@ -692,6 +717,16 @@ void ble_mesh_restart() {
   // packet length starts with 0x4D: that would be over 5 MB).
   uint8_t other[] = {mesh::blemesh::kHelloMagic, 1, 2, 3, 4};
   CHECK(a.rx(n, pa, other, sizeof other, 1000) && a.restarts() == restarts + 2);
+  // Messages from the phone are counted by destination for the log
+  // (newest first), across restarts.
+  CHECK(a.data_in() == 2);
+  Bytes d3 = data_packet(0x53, 0xd1);
+  Bytes s3 = mesh_frames({d3});
+  CHECK(a.rx(n, pa, s3.data(), s3.size(), 1000));
+  mesh::blemesh::Peer::DataDest dd[mesh::blemesh::Peer::kDataDests];
+  size_t dn = a.data_dests(dd);
+  CHECK(a.data_in() == 3 && dn == 2);
+  CHECK(dd[0].dest[0] == 0xd1 && dd[0].n == 1 && dd[1].dest[0] == 0xd0 && dd[1].n == 2);
 }
 
 // The board as a relay between all layers: a packet from a Bluetooth phone

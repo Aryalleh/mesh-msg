@@ -123,7 +123,8 @@ command / event payload: op(1) | req(1) | data        (req echoed in the reply)
 COBS removes zero bytes, so `0x00` delimits frames and a receiver resynchronises after
 noise or a mid-stream start. Commands: `HELLO [unix_time]` (status reply, then the stored
 backlog streams), `GET_STATUS`, `GET_CONFIG`, `SET_CONFIG` (TLVs: role, region, preset,
-frequency, power, name, announce interval — validated against the region plan, persisted,
+frequency, power, name, announce interval, 8 LoRa module: 1 fitted (default, not encoded) /
+0 none, the board then skips the radio — validated against the region plan, persisted,
 radio retuned live), `GET_IDENTITY`, `RESYNC` (resend everything stored), `REBOOT`,
 `WIPE "WIPE"`, and on boards with Wi-Fi `SET_WIFI` (TLVs: 1 SSID 0–32 bytes, 2 password
 empty or 8–63, 3 relay URL; empty SSID forgets the network) and `HOTSPOT 1|0` (open the setup

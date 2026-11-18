@@ -49,4 +49,10 @@
     <string name="fw_newest">%1$s is the newest firmware.</string>
     <string name="fw_downloaded">Downloaded firmware %1$s (signature and SHA-256 checked). Flash it with the buttons below.</string>
     <string name="fw_failed">Could not check GitHub: %1$s. The firmware shown is used.</string>
+    <string name="radio_title">LoRa module</string>
+    <string name="radio_desc">Without a LoRa module (SX1262) fitted, tell the board so: it then skips the radio at boot (looking for a missing module holds Bluetooth up for 10–20 s) and sends nothing to the air. Over this USB cable; firmware 0.1.1-beta29 on. Also on the board\'s screen: Settings.</string>
+    <string name="radio_off">No LoRa module</string>
+    <string name="radio_on">LoRa module fitted</string>
+    <string name="radio_saved_off">Saved: the board skips the radio from now on.</string>
+    <string name="radio_saved_on">Saved: the board looks for the LoRa module now (the board log shows if it was found).</string>
 </resources>

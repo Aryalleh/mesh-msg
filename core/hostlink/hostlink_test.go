@@ -136,6 +136,24 @@ func TestConfigTLV(t *testing.T) {
 	if err := d.ApplyTLV([]byte{99, 1, 0}); err != nil {
 		t.Fatal("unknown tag must be skipped")
 	}
+	// No LoRa module: encoded only when set, so default configs (and the
+	// spec vectors) are unchanged; 0 or 1 only.
+	if bytes.Contains(DefaultNodeConfig().EncodeTLV(), []byte{TagRadio, 1}) {
+		t.Fatal("radio tag in a default config")
+	}
+	if err := d.ApplyTLV([]byte{TagRadio, 1, 0}); err != nil || !d.NoRadio {
+		t.Fatalf("radio off: %v", err)
+	}
+	var e NodeConfig = DefaultNodeConfig()
+	if err := e.ApplyTLV(d.EncodeTLV()); err != nil || e != d {
+		t.Fatalf("radio round trip %+v %v", e, err)
+	}
+	if err := d.ApplyTLV([]byte{TagRadio, 1, 2}); err == nil || !d.NoRadio {
+		t.Fatal("radio 2 accepted")
+	}
+	if err := d.ApplyTLV([]byte{TagRadio, 1, 1}); err != nil || d.NoRadio {
+		t.Fatal("radio on")
+	}
 	for _, r := range Regions {
 		if r.FreqHz < r.MinHz || r.FreqHz > r.MaxHz {
 			t.Errorf("%s default outside its range", r.Name)

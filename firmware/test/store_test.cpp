@@ -103,6 +103,9 @@ void eviction() {
   for (auto& b : data) CHECK(put(*s, b, 10) == Put::Stored);
   for (auto& b : anns) CHECK(put(*s, b, 10) == Put::Stored);
   CHECK(s->size() == mesh::store::kSlots);
+  const mesh::store::Census c0 = s->census();
+  CHECK(c0.used == mesh::store::kSlots && c0.receipts == rcs.size() && c0.data == data.size() &&
+        c0.announces == anns.size() && c0.own == 0 && c0.other == 0);
 
   // New data evicts announces first (oldest first)...
   CHECK(put(*s, pkt(mesh::Type::Data, id++, 200), 10) == Put::Stored);
@@ -114,6 +117,7 @@ void eviction() {
   CHECK(!s->has(key(data[0])) && s->has(key(data[1])));
   // An announce cannot displace data; a receipt can.
   CHECK(put(*s, pkt(mesh::Type::Announce, id++), 10) == Put::Rejected);
+  CHECK(s->stats().full == 1 && s->stats().quota == 0);
   CHECK(put(*s, pkt(mesh::Type::Receipt, id++), 10) == Put::Stored);
   for (auto& b : rcs) CHECK(s->has(key(b)));
   // Expired items go before anything valuable.

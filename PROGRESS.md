@@ -19,6 +19,11 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 
 ## Next step
 
+**Owner's board (no LoRa module), Bluetooth messages**: beta29 adds the "No LoRa module"
+setting (screen Settings / Mava Flasher), fixes the hello race behind the restart storm and
+logs messages from phones by destination plus a "store" line. Waiting for the owner's log
+after one phone → board message (see the 2026-11-18 log entry).
+
 Needs hardware now, for both open milestones:
 - **M5**: install `android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` on two phones;
   bring up `BleMesh` (advertise / scan / GATT both ways), then the exit scenario on real
@@ -1770,3 +1775,34 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (`lastDrop`, shown as "Last disconnect" on the Network screen). The phone's first drop
   reason is still unknown: that line will show it. Release v0.1.1-beta28.
 - Released **v0.1.1-beta28** (c784fd9).
+
+### 2026-11-18 — No-LoRa-module setting; Bluetooth restart storm; message/store diagnostics
+
+- Owner's board has no SX1262: RadioLib's `findChip` retries 10× (each ≥ 1 s of failed
+  `standby`, up to 2 s with BUSY floating high), so boot sat 10–20 s at `boot: radio` holding
+  the node lock; Bluetooth writes only queued meanwhile. New node config TLV `kTagRadio` (8):
+  1 fitted (default, **not encoded**, so vectors and old configs are unchanged), 0 none →
+  `radio::begin` skipped at boot, `apply_radio` puts the chip (if any) to sleep; turning it
+  back on probes live. Set from the board's screen (Settings → LoRa module button, via
+  `ui::on_radio`) and from Mava Flasher (new "LoRa module" panel: `SET_CONFIG` with the
+  partial TLV, `HostLink.radioTlv`). Go `hostlink`: `TagRadio`, `NodeConfig.NoRadio`
+  (skipped-unknown before, so old meshd is fine). Log/screen: radio "ok" / "off (no LoRa
+  module)" / "NOT FOUND".
+- Owner's beta28 log: one connection (`connects 1, drops 0`) but `hellos 28, restarted 27` in
+  a minute, `out` +~1300 per 10 s (each restart = RESYNC of the 256-slot store), then quiet.
+  Race: NimBLE answers the phone's hello write as soon as `onWrite` returns, the main loop
+  handles it later; notifications of the old stream sent in between start the phone's new
+  stream mid-packet → bad stream → reconnect → hello → loop. `ble.cpp`: a hello-shaped
+  mesh write bumps `g_hold[conn]` in NimBLE's task before the answer; the main loop sends
+  nothing on that connection until it has handled the queued hello(s).
+- Same log: `messages for it 0` and no "other accounts" at all while `packets in` reached
+  1439 — unknown whether the phone's DATA never crossed or the store refused it (the store
+  was full from boot: `restored 256`; a store full of receipts refuses DATA, uncounted until
+  now). Added: `blemesh::Peer` counts DATA from the phone and its last 3 destinations
+  (Bluetooth line "messages N: for 5cf3738e… ×k"); `store::Stats::full` (refused, nothing
+  less valuable to evict) and `Store::census()`; a 10 s "store" line (messages/own/receipts/
+  announces/other, refused full + per-destination). Tests: `commands` (radio TLV via
+  SET_CONFIG), `ble_mesh_restart` (DATA counts), store `eviction` (census, full).
+- Next: owner flashes beta29, sets "No LoRa module", sends the log with the new Bluetooth /
+  store / account lines after sending one message from the phone, plus the phone's
+  "Last disconnect".

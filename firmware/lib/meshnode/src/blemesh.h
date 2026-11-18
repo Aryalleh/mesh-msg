@@ -39,6 +39,16 @@ class Peer {
   // Times the phone said hello again on this connection (a new session):
   // the caller drops bytes it still had queued for the old stream.
   uint32_t restarts() const { return restarts_; }
+  // DATA from the phone (a message, counted once: unfragmented or its first
+  // fragment) and the last few destinations it was for, newest first: shows
+  // in the board log whether a phone's message reached the board at all.
+  struct DataDest {
+    uint8_t dest[4];
+    uint32_t n;
+  };
+  static constexpr size_t kDataDests = 3;
+  uint32_t data_in() const { return data_n_; }
+  size_t data_dests(DataDest out[kDataDests]) const;
   // This side connected (GATT client) and sent the hello itself: the stream
   // starts at once.
   void start(node::Node& node, size_t port, route::Millis now);
@@ -66,6 +76,9 @@ class Peer {
   uint8_t q_[1024] = {};
   size_t q_off_ = 0, q_len_ = 0;
   uint32_t in_n_ = 0, skipped_n_ = 0, out_n_ = 0;
+  uint32_t data_n_ = 0;
+  DataDest dests_[kDataDests] = {};
+  size_t dests_n_ = 0;
   char err_[48] = {};
   uint8_t session_[kSessionBytes] = {};
   uint32_t restarts_ = 0;

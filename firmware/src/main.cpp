@@ -51,6 +51,11 @@ mesh::meshtastic::Backend g_mt;
 net::Settings g_net;
 SemaphoreHandle_t g_lock = nullptr;
 bool g_radio_ok = false;
+
+// For the log and the screen: "ok", "off" (the no-LoRa-module setting) or "NOT FOUND".
+const char* radio_state(const mesh::host::NodeConfig& c) {
+  return g_radio_ok ? "ok" : !c.radio ? "off (no LoRa module)" : "NOT FOUND";
+}
 Millis g_led_off = 0;
 char g_line[512];
 
@@ -138,8 +143,20 @@ struct Board : mesh::node::Platform {
          (unsigned long)c.channel_hz(), c.tx_dbm, c.role);
   }
   void apply_radio(const mesh::host::NodeConfig& c) override {
-    g_radio_ok = radio::configure(c);
-    logf("radio retuned: %lu Hz %d dBm (%s)", (unsigned long)c.channel_hz(), c.tx_dbm, g_radio_ok ? "ok" : "FAILED");
+    if (!c.radio) {
+      radio::off();
+      g_radio_ok = false;
+      logf("radio off: no LoRa module (setting)");
+      return;
+    }
+    if (radio::ready()) {
+      g_radio_ok = radio::configure(c);
+      logf("radio retuned: %lu Hz %d dBm (%s)", (unsigned long)c.channel_hz(), c.tx_dbm, g_radio_ok ? "ok" : "FAILED");
+    } else {
+      logf("radio on: looking for the %s (takes up to 20 s without one)", radio::chip_name());
+      g_radio_ok = radio::begin(c);
+      logf("%s: %s", radio::chip_name(), g_radio_ok ? "ok" : "NOT FOUND");
+    }
   }
   void wipe() override {
     logf("wipe: erasing identity, config, Wi-Fi settings and store");
@@ -257,12 +274,23 @@ ui::Status ui_status() {
   st.unix_time = node.unix_time(now);
   st.password = g_net.password;
   st.passkey = g_net.ble_passkey;
+  st.radio = g_radio_ok ? 1 : c.radio ? 0 : -1;
   xSemaphoreGive(g_lock);
   st.relay = net::relay_state();
   st.wifi = net::wifi_up();
   st.setup_mode = net::mode() == net::Mode::Setup;
   st.web_url = net::web_url();
   return st;
+}
+
+// Settings → LoRa module on the screen: the same config field the flasher
+// sets over USB (SET_CONFIG, kTagRadio), saved and applied at once.
+void ui_set_radio(bool fitted) {
+  xSemaphoreTake(g_lock, portMAX_DELAY);
+  mesh::host::NodeConfig c = g_node->config();
+  c.radio = fitted ? 1 : 0;
+  g_node->apply_config(c, board::now_ms());
+  xSemaphoreGive(g_lock);
 }
 
 void on_channel_changed(const net::Settings& s) {
@@ -329,16 +357,18 @@ void setup() {
   bool ble_ok = ble::begin(name, pk.ed);
   node.set_port_trusted(ble::kPort, false);  // no pairing over Bluetooth: packets and status only
   {
-    char bt[320];
+    char bt[448];
     ble::status(bt, sizeof bt);
     logf("BLE %s as %s (no pairing; phones' mesh + host link): %s", ble_ok ? "ok" : "FAILED", name, bt);
   }
 
   logf("boot: radio");
   g_mt.begin(mesh::meshtastic::Backend::node_id_for(node.pub().x), board::random32(), channel_of(g_net));
-  g_radio_ok = radio::begin(cfg);
+  // With the "no LoRa module" setting the probe is skipped: without a chip
+  // RadioLib retries for 10–20 s, and Bluetooth waits for the boot to finish.
+  g_radio_ok = cfg.radio ? radio::begin(cfg) : false;
   logf("%s: %s, %s %lu Hz %d dBm, Meshtastic !%08lx channel %s (hash %u)", radio::chip_name(),
-       g_radio_ok ? "ok" : "NOT FOUND", mesh::host::kRegions[cfg.region].name, (unsigned long)cfg.channel_hz(),
+       radio_state(cfg), mesh::host::kRegions[cfg.region].name, (unsigned long)cfg.channel_hz(),
        cfg.tx_dbm, (unsigned long)g_mt.node_id(), g_net.channel, g_mt.channel_hash());
   logf("identity ed25519 %02x%02x%02x%02x%02x%02x%02x%02x…", pk.ed[0], pk.ed[1], pk.ed[2], pk.ed[3], pk.ed[4], pk.ed[5],
        pk.ed[6], pk.ed[7]);
@@ -363,6 +393,7 @@ void setup() {
   // The handheld's own messenger (lib/meshclient): its user identity and
   // conversations on flash, on host port 6 of the node.
   ui::Messenger* client = ui::client_begin(name);
+  ui::on_radio(ui_set_radio);
   g_ui = ui::begin(ui_status, client ? *client : ui::stub_messenger());
   // With or without a screen: a bare board is the account for the browser app.
   g_client_on = client != nullptr;
@@ -482,11 +513,16 @@ void loop() {
                        : g_net.wifi_ssid[0]            ? "joining"
                                                        : "off";
     logf("hotspot %s, device password: %s; Wi-Fi %s %s; radio %s", net::ap_name(), g_net.password, wifi,
-         net::web_url(), g_radio_ok ? "ok" : "NOT FOUND");
+         net::web_url(), radio_state(node.config()));
     logf("relay %s; packets up %lu, down %lu", net::relay_state(), (unsigned long)net::relay_up(),
          (unsigned long)net::relay_in());
+    const mesh::store::Census sc = node.store().census();
+    const mesh::store::Stats& ss = node.store().stats();
+    logf("store %u/%u: messages %u (own %u), receipts %u, announces %u, other %u; refused %lu (full of more urgent) + %lu (per-destination limit)",
+         unsigned(sc.used), unsigned(mesh::store::kSlots), unsigned(sc.data), unsigned(sc.own), unsigned(sc.receipts),
+         unsigned(sc.announces), unsigned(sc.other), (unsigned long)ss.full, (unsigned long)ss.quota);
     logf("account %s", ui::client_state().c_str());
-    char bt[320];
+    char bt[448];
     ble::status(bt, sizeof bt);
     logf("Bluetooth %s", bt);
   }

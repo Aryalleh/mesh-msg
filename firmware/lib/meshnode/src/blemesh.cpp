@@ -22,7 +22,29 @@ void Peer::command(node::Node& node, size_t port, uint8_t op, route::Millis now)
   node.host_rx(port, f, e, now);
 }
 
+size_t Peer::data_dests(DataDest out[kDataDests]) const {
+  for (size_t i = 0; i < dests_n_; i++) out[i] = dests_[i];
+  return dests_n_;
+}
+
 void Peer::packet(node::Node& node, size_t port, route::Millis now) {
+  Packet p;
+  if (decode(in_, need_, p) == Err::Ok && p.type == Type::Data && (!p.fragmented() || p.frag_index == 0)) {
+    data_n_++;
+    size_t i = 0;
+    while (i < dests_n_ && std::memcmp(dests_[i].dest, p.dest, 4) != 0) i++;
+    DataDest d{};
+    if (i < dests_n_) {
+      d = dests_[i];
+    } else {
+      std::memcpy(d.dest, p.dest, 4);
+      if (dests_n_ < kDataDests) dests_n_++;
+      i = dests_n_ - 1;  // the oldest falls off when full
+    }
+    d.n++;
+    for (; i > 0; i--) dests_[i] = dests_[i - 1];
+    dests_[0] = d;
+  }
   uint8_t f[host::kMaxEncoded];
   size_t e = host::encode(host::kKindPacket, in_, need_, f, sizeof f);
   if (e) node.host_rx(port, f, e, now);

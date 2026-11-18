@@ -81,7 +81,10 @@ Put Store::put(const uint8_t* raw, size_t n, Origin origin, uint8_t sinks, uint3
   int i = free_slot();
   if (i < 0) {
     i = victim(now_s, tmp.prio);
-    if (i < 0) return Put::Rejected;
+    if (i < 0) {
+      stats_.full++;
+      return Put::Rejected;
+    }
     if (int32_t(s_[i].rec.expires_s - now_s) <= 0)
       stats_.expired++;
     else
@@ -198,6 +201,22 @@ bool Store::restore(size_t slot, const Record& r, uint32_t now_s, uint32_t ttl_s
   s_[slot] = tmp;
   if (r.seq >= seq_) seq_ = r.seq + 1;
   return true;
+}
+
+Census Store::census() const {
+  Census c;
+  for (const auto& s : s_) {
+    if (!s.used) continue;
+    c.used++;
+    if (s.rec.origin == uint8_t(Origin::Local)) c.own++;
+    switch (s.type) {
+      case Type::Data: c.data++; break;
+      case Type::Receipt: c.receipts++; break;
+      case Type::Announce: c.announces++; break;
+      default: c.other++; break;
+    }
+  }
+  return c;
 }
 
 size_t Store::size() const {

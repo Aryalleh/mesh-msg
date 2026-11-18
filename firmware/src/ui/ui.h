@@ -7,7 +7,7 @@
 //                Latin, symbols; mesh::osk)
 //   network      node status (LoRa, Meshtastic channel, airtime, relay)
 //   web access   the address (and QR code) an iPhone on the same Wi-Fi opens
-//   settings     device password, BLE passkey, brightness, typing language
+//   settings     device password, BLE passkey, LoRa module on/off, brightness, typing language
 //
 // Phone keys: 📞 call, ⛔ hang up / back to home, Menu = home, Back = back,
 // Vol ± = brightness (volume once audio exists). Persian text is shaped and
@@ -28,7 +28,14 @@ struct Status {
   uint32_t air_used_s = 0, air_budget_s = 0;
   bool usb = false, ble = false, wifi = false, setup_mode = false;
   uint32_t unix_time = 0;
+  int radio = 0;  // LoRa: 1 working, 0 not found, -1 off (the "no LoRa module" setting)
 };
+
+// Settings → LoRa module: fitted = false skips the radio (saved in the node
+// config). Called from the UI without the node lock; turning it back on
+// probes for the chip (up to 20 s without one).
+using RadioFn = void (*)(bool fitted);
+void on_radio(RadioFn fn);
 
 // Called by the UI about once a second (from ui::loop, outside the node
 // lock: the function takes the lock itself).

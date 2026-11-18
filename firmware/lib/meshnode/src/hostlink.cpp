@@ -153,6 +153,7 @@ bool NodeConfig::valid() const {
   const RegionInfo& r = kRegions[region];
   if (freq_hz != 0 && (freq_hz < r.min_hz || freq_hz > r.max_hz)) return false;
   if (tx_dbm > r.max_dbm || tx_dbm < -9) return false;
+  if (radio > 1) return false;
   return std::strlen(name) <= kMaxNameLen;
 }
 
@@ -160,7 +161,7 @@ uint32_t NodeConfig::channel_hz() const { return freq_hz ? freq_hz : kRegions[re
 
 size_t NodeConfig::encode_tlv(uint8_t* out, size_t cap) const {
   size_t nl = std::strlen(name);
-  size_t need = 3 * 3 + 6 + 3 + 2 + nl + 4;
+  size_t need = 3 * 3 + 6 + 3 + 2 + nl + 4 + (radio == 1 ? 0 : 3);
   if (cap < need) return 0;
   uint8_t* p = out;
   *p++ = kTagRole, *p++ = 1, *p++ = role;
@@ -176,6 +177,7 @@ size_t NodeConfig::encode_tlv(uint8_t* out, size_t cap) const {
   *p++ = kTagAnnounceMin, *p++ = 2;
   put16(p, announce_min);
   p += 2;
+  if (radio != 1) *p++ = kTagRadio, *p++ = 1, *p++ = radio;
   return size_t(p - out);
 }
 
@@ -219,6 +221,10 @@ bool NodeConfig::apply_tlv(const uint8_t* b, size_t n) {
         if (!need(2)) return false;
         c.announce_min = uint16_t(v[0] << 8 | v[1]);
         break;
+      case kTagRadio:
+        if (!need(1)) return false;
+        c.radio = v[0];
+        break;
       default:
         break;  // unknown tags are skipped
     }
@@ -230,7 +236,7 @@ bool NodeConfig::apply_tlv(const uint8_t* b, size_t n) {
 
 bool NodeConfig::operator==(const NodeConfig& o) const {
   return role == o.role && region == o.region && preset == o.preset && freq_hz == o.freq_hz && tx_dbm == o.tx_dbm &&
-         announce_min == o.announce_min && std::strcmp(name, o.name) == 0;
+         announce_min == o.announce_min && radio == o.radio && std::strcmp(name, o.name) == 0;
 }
 
 void Status::encode(uint8_t out[kStatusSize]) const {

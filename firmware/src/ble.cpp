@@ -8,6 +8,7 @@
 #include <freertos/stream_buffer.h>
 #include <freertos/task.h>
 
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 
@@ -71,7 +72,7 @@ char g_corrupt_why[48] = {};  // events that could not be queued (for the log)
 // subscribe or disconnect leaves a connection half dead. When the queue is
 // full this waits (in NimBLE's task: the phone's write is answered late, so
 // it slows down) for the main loop to catch up.
-void post(Ev ev, uint16_t conn, uint16_t n = 0, const uint8_t* d = nullptr) {
+bool post(Ev ev, uint16_t conn, uint16_t n = 0, const uint8_t* d = nullptr) {
   Msg m;
   m.ev = ev;
   m.conn = conn;
@@ -80,7 +81,27 @@ void post(Ev ev, uint16_t conn, uint16_t n = 0, const uint8_t* d = nullptr) {
     if (n > kMaxWrite) m.n = n = kMaxWrite;  // MTU is 247: never larger
     memcpy(m.d, d, n);
   }
-  if (xQueueSend(g_q, &m, pdMS_TO_TICKS(2000)) != pdTRUE) g_lost = g_lost + 1;
+  if (xQueueSend(g_q, &m, pdMS_TO_TICKS(2000)) == pdTRUE) return true;
+  g_lost = g_lost + 1;
+  return false;
+}
+
+// A phone's hello, seen here in NimBLE's task: the write is answered as soon
+// as onWrite returns, and from then on the phone reads our notifications as
+// its NEW stream. Old-stream bytes the main loop notified before it handled
+// the hello would start that stream mid-packet: the phone calls it a bad
+// stream, reconnects, says hello again (a restart storm: owner's log
+// 2026-11-18, 27 restarts in a minute, each one re-sending the whole store).
+// So notifications on that connection wait until the main loop has handled
+// every hello queued for it. Indexed by connection handle (small numbers).
+constexpr size_t kHoldSlots = 16;
+std::atomic<uint8_t> g_hold[kHoldSlots];
+bool hello_shaped(const uint8_t* d, size_t n) { return n == 1 + mesh::blemesh::kSessionBytes && d[0] == mesh::blemesh::kHelloMagic; }
+std::atomic<uint8_t>& hold(uint16_t conn) { return g_hold[conn % kHoldSlots]; }
+void unhold(uint16_t conn) {
+  uint8_t v = hold(conn).load();
+  while (v > 0 && !hold(conn).compare_exchange_weak(v, uint8_t(v - 1))) {
+  }
 }
 
 class Server : public NimBLEServerCallbacks {
@@ -106,7 +127,11 @@ class Rx : public NimBLECharacteristicCallbacks {
   explicit Rx(Ev ev) : ev_(ev) {}
   void onWrite(NimBLECharacteristic* c, NimBLEConnInfo& info) override {
     const NimBLEAttValue& v = c->getValue();
-    if (v.size()) post(ev_, info.getConnHandle(), uint16_t(v.size()), v.data());
+    if (!v.size()) return;
+    const uint16_t h = info.getConnHandle();
+    const bool held = ev_ == Ev::MeshWrite && hello_shaped(v.data(), v.size());
+    if (held) hold(h)++;  // before the write is answered (see g_hold)
+    if (!post(ev_, h, uint16_t(v.size()), v.data()) && held) unhold(h);
   }
 
  private:
@@ -248,6 +273,7 @@ void handle(mesh::node::Node& node, const Msg& m, mesh::route::Millis now) {
   Conn* c = find(m.conn);
   switch (m.ev) {
     case Ev::Connect:
+      hold(m.conn) = 0;  // a handle from an old connection, reused
       if (!c) {
         for (auto& x : g_conns)
           if (!x.used) {
@@ -260,6 +286,7 @@ void handle(mesh::node::Node& node, const Msg& m, mesh::route::Millis now) {
       }
       return;
     case Ev::Disconnect:
+      hold(m.conn) = 0;
       if (!c) return;
       free_seat(node, *c);
       if (g_host_conn >= 0 && &g_conns[g_host_conn] == c) {
@@ -439,11 +466,21 @@ void status(char* out, size_t cap) {
                     : hci == 0x08 ? " (out of range)"
                     : hci == 0x3E ? " (connection failed)"
                                   : "";
-  uint32_t pin = 0, pskip = 0, pout = 0;
+  uint32_t pin = 0, pskip = 0, pout = 0, pdata = 0;
+  char dests[96] = {};
+  size_t dk = 0;
   for (const auto& p : g_peers) {
     pin += p.packets_in();
     pskip += p.packets_skipped();
     pout += p.packets_out();
+    pdata += p.data_in();
+    mesh::blemesh::Peer::DataDest d[mesh::blemesh::Peer::kDataDests];
+    size_t dn = p.data_dests(d);
+    for (size_t i = 0; i < dn && dk + 24 < sizeof dests; i++) {
+      int w = snprintf(dests + dk, sizeof dests - dk, "%s%02x%02x%02x%02x… ×%lu", dk ? ", " : "", d[i].dest[0], d[i].dest[1],
+                       d[i].dest[2], d[i].dest[3], (unsigned long)d[i].n);
+      if (w > 0) dk += size_t(w);
+    }
   }
   int k = snprintf(out, cap, "%s %s, advertising %s, links %d, connects %lu, hellos %lu, drops %lu, last drop 0x%x%s",
            NimBLEDevice::getAddress().toString().c_str(),
@@ -452,8 +489,9 @@ void status(char* out, size_t cap) {
            (unsigned long)g_hellos, (unsigned long)g_disconnects, r, why);
   // Packets on the Bluetooth mesh since boot (in: from phones to the node).
   if (k > 0 && size_t(k) < cap)
-    snprintf(out + k, cap - size_t(k), "; packets in %lu (too big for LoRa, skipped %lu), out %lu; queue %u waiting, lost %lu, restarted %lu, corrupt streams %lu%s%s%s",
-             (unsigned long)pin, (unsigned long)pskip, (unsigned long)pout, unsigned(uxQueueMessagesWaiting(g_q)),
+    snprintf(out + k, cap - size_t(k), "; packets in %lu (messages %lu%s%s%s; too big for LoRa, skipped %lu), out %lu; queue %u waiting, lost %lu, restarted %lu, corrupt streams %lu%s%s%s",
+             (unsigned long)pin, (unsigned long)pdata, dk ? ": for " : "", dests, "", (unsigned long)pskip,
+             (unsigned long)pout, unsigned(uxQueueMessagesWaiting(g_q)),
              (unsigned long)g_lost, (unsigned long)g_restarts, (unsigned long)g_corrupt, g_corrupt_why[0] ? " (last: " : "",
              g_corrupt_why, g_corrupt_why[0] ? ")" : "");
 }
@@ -466,7 +504,10 @@ int mesh_peers() {
 
 void loop(mesh::node::Node& node, mesh::route::Millis now) {
   Msg m;
-  while (g_q && xQueueReceive(g_q, &m, 0) == pdTRUE) handle(node, m, now);
+  while (g_q && xQueueReceive(g_q, &m, 0) == pdTRUE) {
+    handle(node, m, now);
+    if (m.ev == Ev::MeshWrite && hello_shaped(m.d, m.n)) unhold(m.conn);
+  }
 
   // Host link → its phone.
   if (g_host_conn >= 0) {
@@ -492,6 +533,7 @@ void loop(mesh::node::Node& node, mesh::route::Millis now) {
       }
       continue;
     }
+    if (hold(c.handle).load()) continue;  // a hello waits in the queue: nothing of the old stream
     pump(g_mesh_tx, c.handle, c.mtu > 3 ? size_t(c.mtu) - 3 : 20, g_seat_pending[c.seat],
          [&](uint8_t* out, size_t cap) { return p.tx(node, port, out, cap); });
   }

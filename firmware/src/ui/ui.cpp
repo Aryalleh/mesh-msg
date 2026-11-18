@@ -22,6 +22,7 @@ constexpr uint32_t kSleepMs = 60000;
 constexpr int kTrackStep = 6;  // trackpad counts per list step
 
 StatusFn g_status_fn = nullptr;
+RadioFn g_radio_fn = nullptr;
 Messenger* g_msg = nullptr;
 Status g_status;
 bool g_ready = false;
@@ -283,12 +284,16 @@ void title(const char* t) {
   lv_obj_set_style_text_color(l, col::primary_hi(), 0);
 }
 
+const char* radio_text(int radio) {
+  return radio > 0 ? "وصل / ok" : radio < 0 ? "خاموش، ماژول وصل نیست / off (no module)" : "پیدا نشد / NOT FOUND";
+}
+
 std::string network_text() {
   const Status& s = g_status;
   char f[24];
   snprintf(f, sizeof f, "%.3f MHz", s.freq_hz / 1e6);
-  return "نام: " + s.name + "\nشناسه: " + s.id + "\nMeshtastic: " + s.meshtastic_id + "\nLoRa: " + s.region + " " +
-         f + " " + std::to_string(s.tx_dbm) + " dBm\nکانال: " + s.channel + "\nهمسایه‌ها: " +
+  return "نام: " + s.name + "\nشناسه: " + s.id + "\nMeshtastic: " + s.meshtastic_id + "\nLoRa: " + radio_text(s.radio) +
+         "\n" + s.region + " " + f + " " + std::to_string(s.tx_dbm) + " dBm\nکانال: " + s.channel + "\nهمسایه‌ها: " +
          std::to_string(s.neighbours) + "   ذخیره: " + std::to_string(s.stored) + "\nزمان پخش: " +
          std::to_string(s.air_used_s) + " / " + std::to_string(s.air_budget_s) + " s\nرله: " + s.relay +
          "\nUSB: " + (s.usb ? "وصل" : "—") + "   BLE: " + (s.ble ? "وصل" : "—");
@@ -297,6 +302,7 @@ std::string network_text() {
 std::string settings_text() {
   const Status& s = g_status;
   return "رمز دستگاه (هات‌اسپات و پنل): " + s.password + "\nبلوتوث: بدون رمز جفت‌شدن" +
+         "\nماژول LoRa: " + radio_text(s.radio) +
          "\n\nتنظیم وای‌فای و رله: کلید setup را روشن کنید و به هات‌اسپات وصل شوید.\nزبان: Alt + Shift\nنور: Vol+ / Vol-";
 }
 
@@ -445,6 +451,18 @@ void show(Screen s) {
     case Screen::Settings:
       title("تنظیمات / Settings");
       g_info = label(g_body, settings_text());
+      if (g_radio_fn) {
+        // Without a LoRa module the board skips the radio: no probe at boot
+        // (it holds Bluetooth up to 20 s), nothing queued for the air.
+        bool off = g_status.radio < 0;
+        button(g_body, off ? "ماژول LoRa وصل است: روشن کن / LoRa module fitted" : "ماژول LoRa وصل نیست: خاموش کن / No LoRa module",
+               [](lv_event_t*) {
+                 g_radio_fn(g_status.radio < 0);
+                 if (g_status_fn) g_status = g_status_fn();
+                 toast(g_status.radio > 0 ? "LoRa: ok" : g_status.radio < 0 ? "LoRa: خاموش / off" : "LoRa: پیدا نشد / NOT FOUND");
+                 show(Screen::Settings);
+               });
+      }
       break;
   }
 }
@@ -567,6 +585,8 @@ void on_output(const k::Output& o) {
 }
 
 }  // namespace
+
+void on_radio(RadioFn fn) { g_radio_fn = fn; }
 
 bool begin(StatusFn status, Messenger& messenger) {
   g_status_fn = status;

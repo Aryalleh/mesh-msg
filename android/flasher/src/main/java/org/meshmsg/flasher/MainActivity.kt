@@ -197,6 +197,8 @@ private fun FlasherScreen(s: UiState, vm: FlasherViewModel) {
 
             WifiPanel(s, vm)
 
+            RadioPanel(s, vm)
+
             Panel {
                 Text(stringResource(R.string.board_log), color = PrimaryHi, fontWeight = FontWeight.Bold)
                 Text(stringResource(R.string.board_log_desc), color = Muted, fontSize = 13.sp)
@@ -295,6 +297,27 @@ private fun WifiPanel(s: UiState, vm: FlasherViewModel) {
             ) { Text(stringResource(R.string.hotspot_off), color = if (enabled) Fg else Muted, fontSize = 13.sp) }
         }
         s.wifiMessage?.let { (ok, text) -> Text(text, color = if (ok) Ok else Err, fontSize = 13.sp) }
+    }
+}
+
+/** The LoRa module setting: a board without the SX1262 skips the radio. */
+@Composable
+private fun RadioPanel(s: UiState, vm: FlasherViewModel) {
+    val enabled = s.device != null && !s.busy && !s.wifiBusy
+    Panel {
+        Text(stringResource(R.string.radio_title), color = PrimaryHi, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.radio_desc), color = Muted, fontSize = 13.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { vm.setRadio(false) }, enabled = enabled, shape = Chamfer, border = BorderStroke(1.dp, Border),
+                modifier = Modifier.weight(1f),
+            ) { Text(stringResource(R.string.radio_off), color = if (enabled) Fg else Muted, fontSize = 13.sp) }
+            OutlinedButton(
+                onClick = { vm.setRadio(true) }, enabled = enabled, shape = Chamfer, border = BorderStroke(1.dp, Border),
+                modifier = Modifier.weight(1f),
+            ) { Text(stringResource(R.string.radio_on), color = if (enabled) Fg else Muted, fontSize = 13.sp) }
+        }
+        s.radioMessage?.let { (ok, text) -> Text(text, color = if (ok) Ok else Err, fontSize = 13.sp) }
     }
 }
 

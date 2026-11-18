@@ -192,6 +192,7 @@ const (
 	TagTxDBm       byte = 5 // i8
 	TagName        byte = 6 // UTF-8, ≤ 32 bytes
 	TagAnnounceMin byte = 7 // u16 BE, minutes between own announces (0 = off)
+	TagRadio       byte = 8 // u8: 1 a LoRa module is fitted (default, not encoded), 0 none (the board skips the radio)
 )
 
 // MaxNameLen bounds TagName.
@@ -206,6 +207,7 @@ type NodeConfig struct {
 	TxDBm       int8
 	Name        string
 	AnnounceMin uint16
+	NoRadio     bool // TagRadio 0: no LoRa module fitted
 }
 
 // DefaultNodeConfig is what a freshly flashed node uses.
@@ -248,6 +250,9 @@ func (c NodeConfig) EncodeTLV() []byte {
 	b = append(b, c.Name...)
 	b = append(b, TagAnnounceMin, 2)
 	b = binary.BigEndian.AppendUint16(b, c.AnnounceMin)
+	if c.NoRadio {
+		b = append(b, TagRadio, 1, 0)
+	}
 	return b
 }
 
@@ -261,7 +266,7 @@ func (c *NodeConfig) ApplyTLV(b []byte) error {
 		}
 		tag, v := b[0], b[2:2+int(b[1])]
 		b = b[2+int(b[1]):]
-		want := map[byte]int{TagRole: 1, TagRegion: 1, TagPreset: 1, TagFreqHz: 4, TagTxDBm: 1, TagAnnounceMin: 2}
+		want := map[byte]int{TagRole: 1, TagRegion: 1, TagPreset: 1, TagFreqHz: 4, TagTxDBm: 1, TagAnnounceMin: 2, TagRadio: 1}
 		if w, ok := want[tag]; ok && len(v) != w {
 			return fmt.Errorf("hostlink: tag %d length %d", tag, len(v))
 		}
@@ -280,6 +285,11 @@ func (c *NodeConfig) ApplyTLV(b []byte) error {
 			n.Name = string(v)
 		case TagAnnounceMin:
 			n.AnnounceMin = binary.BigEndian.Uint16(v)
+		case TagRadio:
+			if v[0] > 1 {
+				return fmt.Errorf("hostlink: radio %d (0 or 1)", v[0])
+			}
+			n.NoRadio = v[0] == 0
 		}
 	}
 	if err := n.Validate(); err != nil {

@@ -47,6 +47,7 @@ data class UiState(
     val hotspot: Pair<String, String>? = null,
     val wifiBusy: Boolean = false,
     val wifiMessage: Pair<Boolean, String>? = null, // ok?, text
+    val radioMessage: Pair<Boolean, String>? = null, // ok?, text
     val log: List<String> = emptyList(),
 )
 
@@ -305,17 +306,27 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
         boardCommand(HostLink.OP_SET_WIFI, args) { ctx.getString(R.string.wifi_saved, ssid.trim()) }
     }
 
+    /**
+     * The LoRa module setting (firmware 0.1.1-beta29+): without a module the
+     * board skips the radio (no 10–20 s probe at boot that holds Bluetooth up).
+     */
+    fun setRadio(fitted: Boolean) {
+        boardCommand(HostLink.OP_SET_CONFIG, HostLink.radioTlv(fitted), radio = true) {
+            ctx.getString(if (fitted) R.string.radio_saved_on else R.string.radio_saved_off)
+        }
+    }
+
     fun hotspot(on: Boolean) {
         boardCommand(HostLink.OP_HOTSPOT, byteArrayOf(if (on) 1 else 0)) {
             ctx.getString(if (on) R.string.hotspot_opened else R.string.hotspot_normal)
         }
     }
 
-    private fun boardCommand(op: Int, args: ByteArray, okText: () -> String) {
+    private fun boardCommand(op: Int, args: ByteArray, radio: Boolean = false, okText: () -> String) {
         val st = _state.value
         if (st.busy || st.wifiBusy) return
         stopMonitor()
-        _state.update { it.copy(wifiBusy = true, wifiMessage = null) }
+        _state.update { if (radio) it.copy(wifiBusy = true, radioMessage = null) else it.copy(wifiBusy = true, wifiMessage = null) }
         viewModelScope.launch(Dispatchers.IO) {
             monitor?.join()
             var port: UsbSerial? = null
@@ -335,7 +346,7 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
                 port?.close()
             }
             log((if (result.first) "ok: " else "error: ") + result.second)
-            _state.update { it.copy(wifiBusy = false, wifiMessage = result) }
+            _state.update { if (radio) it.copy(wifiBusy = false, radioMessage = result) else it.copy(wifiBusy = false, wifiMessage = result) }
         }
     }
 

@@ -30,6 +30,13 @@ class HostLinkTest {
     }
 
     @Test
+    fun radioSettingIsAPartialConfig() {
+        // firmware/lib/meshnode/src/hostlink.h kTagRadio: 0 = no LoRa module.
+        assertArrayEquals(byteArrayOf(8, 1, 0), HostLink.radioTlv(false))
+        assertArrayEquals(byteArrayOf(8, 1, 1), HostLink.radioTlv(true))
+    }
+
+    @Test
     fun wifiArgumentsAsTheFirmwareReadsThem() {
         // Same bytes as firmware/test/node_test.cpp wifi_commands and core/node's test.
         assertArrayEquals("\u0001\u0004home\u0002\u0008secret12".toByteArray(), HostLink.wifiTlv("home", "secret12", null))

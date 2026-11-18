@@ -49,4 +49,10 @@
     <string name="fw_newest">%1$s تازه‌ترین فرم‌ور است.</string>
     <string name="fw_downloaded">فرم‌ور %1$s دریافت شد (امضا و SHA-256 بررسی شد). با دکمه‌های پایین آن را فلش کنید.</string>
     <string name="fw_failed">بررسی گیت‌هاب نشد: %1$s. همین فرم‌ور نشان‌داده‌شده به کار می‌رود.</string>
+    <string name="radio_title">ماژول LoRa</string>
+    <string name="radio_desc">اگر ماژول LoRa (SX1262) روی برد نیست، به برد بگویید: برد دیگر موقع روشن‌شدن دنبال رادیو نمی‌گردد (گشتن دنبال ماژولی که نیست ۱۰ تا ۲۰ ثانیه بلوتوث را معطل می‌کند) و چیزی روی هوا نمی‌فرستد. از همین کابل USB؛ از فرم‌ور 0.1.1-beta29 به بعد. روی صفحهٔ خود برد هم هست: تنظیمات.</string>
+    <string name="radio_off">ماژول LoRa وصل نیست</string>
+    <string name="radio_on">ماژول LoRa وصل است</string>
+    <string name="radio_saved_off">ذخیره شد: برد از این به بعد سراغ رادیو نمی‌رود.</string>
+    <string name="radio_saved_on">ذخیره شد: برد الان دنبال ماژول LoRa می‌گردد (لاگ برد نشان می‌دهد پیدا شد یا نه).</string>
 </resources>
