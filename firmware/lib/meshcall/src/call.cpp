@@ -37,7 +37,17 @@ VideoParams parse_video_params(const uint8_t* b, size_t n) {
 
 // ---- jitter buffer ----
 
-void Jitter::reset() { *this = Jitter(); }
+// In place: `*this = Jitter()` built an 8.6 kB temporary on the stack, which
+// overflowed the board's call task (beta36).
+void Jitter::reset() {
+  for (auto& sl : slots_) sl.used = false;
+  next_ = 0;
+  started_ = playing_ = have_last_ = false;
+  target_ = 3;
+  jitter_ = 0;
+  last_ts_ = last_at_ = 0;
+  stats_ = Stats();
+}
 
 Jitter::Slot* Jitter::find(uint32_t seq) {
   for (auto& s : slots_)

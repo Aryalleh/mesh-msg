@@ -2027,3 +2027,9 @@ links. Chose: quick items in beta3; calls follow in later betas.
   16 kB TX / 8 kB RX only in the simulator build (4 kB / 2 kB plain). Every 10 s the log
   shows internal RAM free, its lowest point and the largest block.
 - Released **v0.1.1-beta36** (owner asked; tag on `6b78333`): LVGL heap in PSRAM, one draw buffer, memory line in the log. Waiting for the owner's log (the `memory:` lines) on hardware.
+- Owner on beta36: "Stack canary watchpoint triggered (mava-call)": `Jitter::reset()` was
+  `*this = Jitter()`, an 8.6 kB temporary (32 slots × 264 B) on the call task's stack, which
+  beta36 had cut to 10 kB (the backtrace's 8656-byte frame, memset of 0x21b0). Reset in place;
+  call task back to 16 kB, its stack high-water mark in the `calls` log line; host build:
+  `-Wstack-usage=4096` (with -Werror) on every library object, so a frame over 4 kB fails
+  the build (checked: the old reset is caught at -O1/-Os/-O2). Notes for beta37 written.

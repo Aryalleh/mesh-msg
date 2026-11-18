@@ -19,6 +19,11 @@ TEST_CXX := $(wildcard test/*.cpp)
 OBJS := $(LIB_C:%.c=$(BUILD)/%.o) $(LIB_CXX:%.cpp=$(BUILD)/%.o) $(TEST_CXX:%.cpp=$(BUILD)/%.o)
 HDRS := $(wildcard lib/meshproto/src/*.h lib/meshroute/src/*.h lib/meshnode/src/*.h lib/meshtastic/src/*.h lib/meshkeys/src/*.h lib/meshui/src/*.h lib/meshclient/src/*.h lib/hwsim/src/*.h lib/meshaudio/src/*.h lib/meshcall/src/*.h test/*.h)
 
+# The libraries run on the board in tasks with 6–16 kB of stack: no function
+# may take more than 4 kB of it (Jitter::reset's 8.6 kB temporary overflowed
+# the call task in beta36). The tests themselves may.
+$(LIB_CXX:%.cpp=$(BUILD)/%.o): CXXFLAGS += -Wstack-usage=4096
+
 .PHONY: test sim callpeer clean
 test: $(BUILD)/host_tests
 	./$(BUILD)/host_tests ../spec/test-vectors/vectors.json

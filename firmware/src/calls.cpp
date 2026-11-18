@@ -188,6 +188,7 @@ uint8_t g_codec_for = 0;  // the call the codec state belongs to (reset per call
 uint32_t g_next_frame = 0;
 // Counters for the log.
 uint32_t g_frames_out = 0, g_frames_in = 0, g_plc = 0, g_calls = 0;
+TaskHandle_t g_task = nullptr;
 char g_last[48] = "";
 
 uint32_t ms() { return millis(); }
@@ -410,9 +411,9 @@ bool begin(const mesh::Identity& self) {
   }
   // Above the main loop (priority 1) on the same core: 20 ms audio steps
   // must not wait for a screen redraw. It sleeps in select() in between.
-  // 10 kB of stack (internal RAM): Opus keeps its scratch on the heap, the
-  // largest frames here are ~3 kB.
-  return xTaskCreatePinnedToCore(task, "mava-call", 10240, nullptr, 2, nullptr, 1) == pdPASS;
+  // 16 kB of stack (internal RAM): the radio path and Opus' fixed-point
+  // functions nest deep; 10 kB overflowed (beta36). The log shows what is left.
+  return xTaskCreatePinnedToCore(task, "mava-call", 16384, nullptr, 2, &g_task, 1) == pdPASS;
 }
 
 namespace {
@@ -519,12 +520,14 @@ void status(char* out, size_t cap) {
   unsigned long late = g_mgr ? g_mgr->jitter().stats().late : 0, delay = g_mgr ? g_mgr->jitter().delay_ms() : 0;
   snprintf(out, cap,
            "%s (path class %d), calls %lu, last ended: %s; audio frames out %lu, in %lu, concealed %lu, late %lu, "
-           "jitter buffer %lu ms; video %s, frames in %lu (lost %lu, too big %lu); STUN reflectors %s",
+           "jitter buffer %lu ms; video %s, frames in %lu (lost %lu, too big %lu); STUN reflectors %s; "
+           "task stack left %lu bytes at its lowest",
            mc::state_name(v.state), v.path_cls, (unsigned long)g_calls, g_last[0] ? g_last : "-",
            (unsigned long)g_frames_out, (unsigned long)g_frames_in, (unsigned long)g_plc, late, delay,
            v.video ? "on" : "off", (unsigned long)(g_mgr ? g_mgr->video_stats().frames : 0),
            (unsigned long)(g_mgr ? g_mgr->video_stats().lost : 0), (unsigned long)(g_mgr ? g_mgr->video_stats().too_big : 0),
-           g_resolved ? "on the relay host" : "none yet");
+           g_resolved ? "on the relay host" : "none yet",
+           (unsigned long)(g_task ? uxTaskGetStackHighWaterMark(g_task) : 0));
 }
 
 }  // namespace calls
