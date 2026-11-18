@@ -2032,4 +2032,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   beta36 had cut to 10 kB (the backtrace's 8656-byte frame, memset of 0x21b0). Reset in place;
   call task back to 16 kB, its stack high-water mark in the `calls` log line; host build:
   `-Wstack-usage=4096` (with -Werror) on every library object, so a frame over 4 kB fails
-  the build (checked: the old reset is caught at -O1/-Os/-O2). Notes for beta37 written.
+  the build (checked: the old reset is caught at -O1/-Os/-O2). Released **v0.1.1-beta37** (owner asked; tag on `8a6c31f`).
