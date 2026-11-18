@@ -1898,3 +1898,14 @@ links. Chose: quick items in beta3; calls follow in later betas.
   Monocypher's ChaCha20 + Poly1305), Noise_KK_25519_ChaChaPoly_SHA256, call code. Host test
   `call_test.cpp` matches every vector; Go tests `core/call/vectors_test.go`,
   `core/direct/vectors_test.go` pin the same file on the Go side.
+- Step 2: `lib/meshcall/src/signal.*` (Caps, Signal, direct Offer/Candidate encoding; decode
+  → encode equals the Go bytes for OFFER/ANSWER/END/CONTROL; unknown ops ignored, trailing
+  bytes allowed) and `direct.*` (one-socket port of core/direct: STUN binding to the relays'
+  reflectors, NAT type as `reflect`, HMAC probes with roles, triggered peer-reflexive checks,
+  symmetric-sequential port prediction, choice by class then RTT after a 400 ms settle, link
+  = "MDD" datagrams sealed per direction, 64-packet replay window, follows the peer's new
+  address, keepalive 15 s, closes after 45 s of silence). Probe bytes = Go's. Test network
+  (`test/direct_test.cpp`): NATs with endpoint-independent mapping and port-restricted
+  filtering, a STUN reflector: same LAN → class 1, two NATs → class 4 (hole punched),
+  symmetric sequential → predicted (class 5), UDP blocked → "a network on the way blocks UDP",
+  replayed datagram dropped, keepalives hold a quiet link, silence closes it.

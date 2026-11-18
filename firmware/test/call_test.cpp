@@ -8,6 +8,7 @@
 #include "check.h"
 #include "identity.h"
 #include "json.h"
+#include "signal.h"
 
 namespace mc = mesh::call;
 using check::Bytes;
@@ -87,6 +88,48 @@ void noise_vectors() {
   CHECK(!r2.read(bad.data(), bad.size()));
 }
 
+void signal_vectors() {
+  for (const char* k : {"signal_offer", "signal_answer", "signal_end", "signal_control"}) {
+    Bytes b = hexv(k);
+    mc::Signal s;
+    CHECK(mc::decode_signal(b.data(), b.size(), s) == mc::Decoded::Ok);
+    uint8_t out[mc::kMaxSignal];
+    size_t n = mc::encode_signal(s, out, sizeof out);
+    CHECKC(Bytes(out, out + n) == b, k);
+  }
+  Bytes b = hexv("signal_offer");
+  mc::Signal s;
+  CHECK(mc::decode_signal(b.data(), b.size(), s) == mc::Decoded::Ok);
+  CHECK(s.op == mc::Op::Offer && s.expires == 1700000045 && s.caps.n == 1 && s.caps.audio() != nullptr);
+  CHECK(s.caps.audio()->n_codecs == 2 && s.caps.audio()->codecs[0] == mc::kCodecOpus && s.caps.audio()->max_kbps == 24);
+  CHECK(Bytes(s.key, s.key + 32) == hexv("path_key"));
+  CHECK(s.offer.nat.type == mc::NatType::Indep && s.offer.n == 3);
+  CHECK(s.offer.cand[0].kind == mc::Kind::Host && s.offer.cand[0].addr.same(mc::Addr::v4(192, 168, 1, 20, 40000)));
+  CHECK(s.offer.cand[1].kind == mc::Kind::Reflexive && s.offer.cand[1].priority == 100u << 24);
+  CHECK(s.offer.cand[2].addr.family == 6 && s.offer.cand[2].addr.port == 40002);
+  CHECK(s.offer.nat.last.same(mc::Addr::v4(203, 0, 113, 9, 51000)));
+  Bytes a = hexv("signal_answer");
+  CHECK(mc::decode_signal(a.data(), a.size(), s) == mc::Decoded::Ok);
+  CHECK(s.op == mc::Op::Answer && s.offer.nat.type == mc::NatType::SymSeq && s.offer.nat.step == -2 && s.offer.n == 1);
+  // Unknown ops are ignored, short ones refused, trailing bytes allowed.
+  Bytes u = hexv("signal_end");
+  u[16] = 99;
+  CHECK(mc::decode_signal(u.data(), u.size(), s) == mc::Decoded::UnknownOp);
+  Bytes e = hexv("signal_end");
+  CHECK(mc::decode_signal(e.data(), 17, s) == mc::Decoded::Short);
+  e.push_back(0x77);
+  CHECK(mc::decode_signal(e.data(), e.size(), s) == mc::Decoded::Ok && s.reason == mc::kEndNoPath);
+  // A video stream we do not take is kept apart from audio; codec choice follows the caller.
+  const uint8_t pref[] = {mc::kCodecOpus, mc::kCodecAmrWb}, have[] = {mc::kCodecAmrWb, mc::kCodecOpus};
+  CHECK(mc::pick_codec(pref, 2, have, 2) == mc::kCodecOpus);
+  const uint8_t only[] = {mc::kCodecAmrWb};
+  const uint8_t opus[] = {mc::kCodecOpus};
+  CHECK(mc::pick_codec(only, 1, opus, 1) == 0);
+  CHECK(mc::pair_class(mc::Kind::Host, mc::Kind::Host, mc::Addr::v4(10, 0, 0, 2, 1)) == 1);
+  CHECK(mc::pair_class(mc::Kind::Reflexive, mc::Kind::Reflexive, mc::Addr::v4(203, 0, 113, 2, 1)) == 4);
+  CHECK(mc::pair_class(mc::Kind::PeerRefl, mc::Kind::Host, mc::Addr::v4(203, 0, 113, 2, 1)) == 3);
+}
+
 }  // namespace
 
 void run_call(const std::string& dir) {
@@ -100,4 +143,5 @@ void run_call(const std::string& dir) {
   g_v = json::parse(ss.str());
   crypto_vectors();
   noise_vectors();
+  signal_vectors();
 }
