@@ -2045,3 +2045,8 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Released **v0.1.1-beta38** (tag on 483b9a3, pre-release, signed release.json): board menu one
   item per row in portrait, call buttons and the 10 s code pop-up in the top bar, chat call key
   in the top bar.
+- Owner: the call video on the board looks generally blue. Board decode checked (JPEGDEC
+  RGB565, C and S3 SIMD paths map Cr→red, Cb→blue) and the phone side (CameraX RGBA →
+  Bitmap → JPEG) is RGB too, so the likely cause is the panel's red/blue order (we create it
+  BGR). Added Settings → red/green/blue swatches + "Swap red and blue" (saved in /colors,
+  LV_LCD_FLAG_BGR or not, switched live with lv_lcd_generic_mipi_set_address_mode).

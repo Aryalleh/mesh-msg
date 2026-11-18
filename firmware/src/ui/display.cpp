@@ -42,6 +42,8 @@ constexpr const char* kCalFile = "/touchcal";
 // MTC1 (0.1.1-beta33/34): raw → landscape screen pixels at rotation 90.
 constexpr uint32_t kCalMagic = 0x4d544332, kCalMagicV1 = 0x4d544331;
 constexpr const char* kRotationFile = "/rotation";
+constexpr const char* kColorsFile = "/colors";  // 1 byte: 1 = RGB panel (red/blue swapped from the default)
+bool g_rgb = false;
 struct CalFile {
   uint32_t magic = kCalMagic;
   mesh::ui::TouchCal cal;
@@ -195,7 +197,10 @@ bool begin() {
   delay(120);
 #endif
   g_spi.begin(LCD_SCK, LCD_MISO, LCD_MOSI, -1);
-  g_disp = lv_ili9341_create(kWidth, kHeight, LV_LCD_FLAG_BGR, send_cmd, send_color);
+  uint8_t rgb = 0;
+  board::storage_read(kColorsFile, &rgb, sizeof rgb);
+  g_rgb = rgb == 1;
+  g_disp = lv_ili9341_create(kWidth, kHeight, g_rgb ? LV_LCD_FLAG_NONE : LV_LCD_FLAG_BGR, send_cmd, send_color);
   if (!g_disp) {
     g_error = "LVGL display not created";
     return false;
@@ -300,6 +305,18 @@ void set_rotation(int deg) {
   lv_obj_invalidate(lv_screen_active());
 }
 
+bool colors_swapped() { return g_rgb; }
+
+void set_colors_swapped(bool swapped) {
+  if (!g_disp) return;
+  g_rgb = swapped;
+  // Mirroring and swap as at creation; the rotation is applied again on top.
+  lv_lcd_generic_mipi_set_address_mode(g_disp, false, false, false, !g_rgb);
+  uint8_t v = g_rgb ? 1 : 0;
+  board::storage_write(kColorsFile, &v, sizeof v);
+  lv_obj_invalidate(lv_screen_active());
+}
+
 void backlight(uint8_t level) {
 #ifdef LCD_BL
   analogWrite(LCD_BL, level);
@@ -321,6 +338,8 @@ void touch_cal_target(int, int* x, int* y) { *x = *y = 0; }
 bool touch_calibrated() { return false; }
 int rotation() { return 0; }
 void set_rotation(int) {}
+bool colors_swapped() { return false; }
+void set_colors_swapped(bool) {}
 
 #endif
 

@@ -156,6 +156,12 @@ One key at a time; arrows repeat while held. The board looks for the 10 kΩ pull
 (240 × 320), or either the other way up; saved on the board (`/rotation`, firmware default
 `LCD_ROTATION`). Touch, a touch calibration and the phone's copy of the screen follow it.
 
+**Red/blue order** — ILI9341 modules differ: most take BGR (the firmware default), some RGB,
+and on the wrong one red shows as blue, the UI's red Hang up key looks blue and a call's
+camera picture looks blue. Settings shows red, green and blue swatches and a *Swap red and
+blue* key; the choice is saved (`/colors`) and changes only the panel (MADCTL), not the
+phone's copy of the screen.
+
 **Touch calibration** — Settings → *Calibrate touch*: tap the centre of three yellow
 crosses; the board saves an affine map from the raw XPT2046 readings to screen pixels
 (`/touchcal`, in the panel's own pixels, so it holds in every rotation), which takes in any

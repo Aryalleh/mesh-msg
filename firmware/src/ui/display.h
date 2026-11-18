@@ -32,4 +32,10 @@ bool touch_calibrated();  // a saved calibration is in use
 int rotation();
 void set_rotation(int deg);
 
+// The panel's red/blue order. ILI9341 modules differ: most want BGR (the
+// default), some RGB; on the wrong one red shows as blue (and a camera picture
+// looks blue). Saved; only the panel changes, not the phone's copy.
+bool colors_swapped();
+void set_colors_swapped(bool swapped);
+
 }  // namespace display

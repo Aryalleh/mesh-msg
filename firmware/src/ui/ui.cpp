@@ -711,6 +711,38 @@ void show(Screen s) {
           show(Screen::Settings);  // laid out again for the new size
         });
       }
+      {
+        // Colours: three swatches to check by eye. If "red" looks blue, this
+        // panel wants the other red/blue order (and so does a call's video).
+        lv_obj_t* row = lv_obj_create(g_body);
+        lv_obj_remove_style_all(row);
+        lv_obj_set_size(row, lv_pct(100), LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        static const struct {
+          uint32_t rgb;
+          const char* name;
+        } swatches[] = {{0xFF0000, "قرمز / red"}, {0x00FF00, "سبز / green"}, {0x0000FF, "آبی / blue"}};
+        for (const auto& sw : swatches) {
+          lv_obj_t* b = lv_obj_create(row);
+          lv_obj_remove_style_all(b);
+          lv_obj_set_size(b, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+          lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+          lv_obj_set_style_bg_color(b, lv_color_hex(sw.rgb), 0);
+          lv_obj_set_style_radius(b, 4, 0);
+          lv_obj_set_style_pad_all(b, 4, 0);
+          lv_obj_t* l = lv_label_create(b);
+          lv_label_set_text(l, sw.name);
+          lv_obj_set_style_text_color(l, sw.rgb == 0x00FF00 ? lv_color_black() : lv_color_white(), 0);
+        }
+        button(g_body,
+               display::colors_swapped() ? "رنگ‌ها: ترتیب RGB (برگرداندن) / Colors: RGB order (switch back)"
+                                         : "قرمز آبی دیده می‌شود؟ جابه‌جا کن / Red looks blue? Swap red and blue",
+               [](lv_event_t*) {
+                 display::set_colors_swapped(!display::colors_swapped());
+                 show(Screen::Settings);
+               });
+      }
       if (display::touch())
         button(g_body, display::touch_calibrated() ? "تنظیم دوبارهٔ لمس / Calibrate touch again" : "تنظیم لمس / Calibrate touch",
                [](lv_event_t*) { show(Screen::TouchCal); });
