@@ -16,4 +16,14 @@ lv_indev_t* touch();
 void backlight(uint8_t level);  // 0 = off
 const char* error();            // why begin() failed ("" if it didn't)
 
+// Touch calibration (Settings): while it runs, touches don't reach LVGL;
+// the user taps three crosses (touch_cal_target, screen pixels). step():
+// 0–2 the cross to tap, 3 done (saved, in use from now on), -1 the taps made
+// no usable map (start again).
+void touch_cal_start();
+void touch_cal_cancel();
+int touch_cal_step();
+void touch_cal_target(int i, int* x, int* y);
+bool touch_calibrated();  // a saved calibration is in use
+
 }  // namespace display

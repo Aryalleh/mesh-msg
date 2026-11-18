@@ -1964,3 +1964,9 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Released **v0.1.1-beta32** (owner asked; workflow_dispatch, tag on `82787a8`): board voice
   calls, TLS memory in PSRAM, clock (NTP / relay Date before HTTPS, RTC module), touch fix,
   navigation keys on GPIO 2, Mava Screen 16 kHz audio. Not yet run on hardware.
+- Owner on beta32: touch now mirrored top to bottom (left-right right), and "no calls" in
+  the firmware (calls were only on the 📞 key; with touch alone there was no way to start
+  one). Both raw touch axes now flipped by default (`TOUCH_Y_MIN 3860 / MAX 260` too), and
+  Settings → Calibrate touch (lib/meshui touchcal.*: three crosses → affine map, any
+  mirroring / swap / rotation, host-tested; saved in `/touchcal`; touches don't reach LVGL
+  while calibrating). Chats on the board have a 📞 Call button. Notes for beta33 written.

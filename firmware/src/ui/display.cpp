@@ -5,6 +5,8 @@
 #include <esp_heap_caps.h>
 
 #include "../hwsim/hwsim.h"
+#include "board.h"
+#include "touchcal.h"
 #include "src/drivers/display/ili9341/lv_ili9341.h"
 
 namespace display {
@@ -18,18 +20,33 @@ constexpr uint32_t kLcdHz = 40000000, kTouchHz = 2000000;
 constexpr int kBufLines = 40;
 
 // Raw XPT2046 readings at the screen edges (portrait x 0 and 239, y 0 and
-// 319). On the owner's panel ("TFT SPI 240x320 V1.2") raw X falls as portrait
-// x grows: with MIN < MAX, touches came out mirrored top to bottom in
-// landscape (2026-11-18). A panel the other way round: swap the pair in
-// build_flags (-DTOUCH_X_MIN=220 -DTOUCH_X_MAX=3880).
+// 319), used until Settings → Calibrate touch saves a calibration. On the
+// owner's panel ("TFT SPI 240x320 V1.2") both raw axes run the other way:
+// touches came out mirrored through the middle (2026-11-18), and with only X
+// turned, mirrored top to bottom.
 #ifndef TOUCH_X_MIN
 #define TOUCH_X_MIN 3880
 #define TOUCH_X_MAX 220
 #endif
 #ifndef TOUCH_Y_MIN
-#define TOUCH_Y_MIN 260
-#define TOUCH_Y_MAX 3860
+#define TOUCH_Y_MIN 3860
+#define TOUCH_Y_MAX 260
 #endif
+
+constexpr const char* kCalFile = "/touchcal";
+constexpr uint32_t kCalMagic = 0x4d544331;  // "MTC1"
+struct CalFile {
+  uint32_t magic = kCalMagic;
+  mesh::ui::TouchCal cal;
+};
+bool g_have_cal = false;
+mesh::ui::TouchCal g_cal;
+// Calibration in progress: the raw readings of each cross.
+volatile int g_cal_step = 3;
+bool g_cal_on = false;
+int g_cal_raw[3][2];
+int g_cal_targets[3][2];
+uint32_t g_cal_sx = 0, g_cal_sy = 0, g_cal_n = 0;
 
 SPIClass g_spi(HSPI);
 lv_display_t* g_disp = nullptr;
@@ -74,24 +91,79 @@ uint16_t touch_read(uint8_t cmd) {
 
 void touch_cb(lv_indev_t*, lv_indev_data_t* data) {
   data->state = LV_INDEV_STATE_RELEASED;
-#ifdef TOUCH_IRQ
-  if (digitalRead(TOUCH_IRQ) == HIGH) return;  // not touched
-#endif
-  g_spi.beginTransaction(SPISettings(kTouchHz, MSBFIRST, SPI_MODE0));
-  cs(TOUCH_CS, true);
-  uint16_t z1 = touch_read(0xB1), z2 = touch_read(0xC1);
-  int z = int(z1) + 4095 - int(z2);
+  int z = 0;
   uint32_t sx = 0, sy = 0;
-  for (int i = 0; i < 4; i++) {
-    sx += touch_read(0xD1);
-    sy += touch_read(0x91);
+  bool down = true;
+#ifdef TOUCH_IRQ
+  down = digitalRead(TOUCH_IRQ) == LOW;  // PENIRQ: low while touched
+#endif
+  if (down) {
+    g_spi.beginTransaction(SPISettings(kTouchHz, MSBFIRST, SPI_MODE0));
+    cs(TOUCH_CS, true);
+    uint16_t z1 = touch_read(0xB1), z2 = touch_read(0xC1);
+    z = int(z1) + 4095 - int(z2);
+    for (int i = 0; i < 4; i++) {
+      sx += touch_read(0xD1);
+      sy += touch_read(0x91);
+    }
+    touch_read(0xD0);  // power down, keep PENIRQ on
+    cs(TOUCH_CS, false);
+    g_spi.endTransaction();
   }
-  touch_read(0xD0);  // power down, keep PENIRQ on
-  cs(TOUCH_CS, false);
-  g_spi.endTransaction();
+  int rx = int(sx / 4), ry = int(sy / 4);
+  if (g_cal_on) {  // calibrating: collect the cross's readings, LVGL sees nothing
+    if (z >= 400) {
+      if (g_cal_n < 1000) g_cal_n++;
+      if (g_cal_n > 2) g_cal_sx += uint32_t(rx), g_cal_sy += uint32_t(ry);  // skip the first, still settling
+      return;
+    }
+    if (g_cal_n > 5) {  // released after a steady press: the next cross
+      int k = g_cal_step;
+      g_cal_raw[k][0] = int(g_cal_sx / (g_cal_n - 2));
+      g_cal_raw[k][1] = int(g_cal_sy / (g_cal_n - 2));
+      if (k < 2) {
+        g_cal_step = k + 1;
+      } else {
+        mesh::ui::TouchCal c;
+        g_cal_on = false;
+        if (mesh::ui::touch_cal_solve(g_cal_raw, g_cal_targets, c)) {
+          CalFile f;
+          f.cal = c;
+          board::storage_write(kCalFile, &f, sizeof f);
+          g_cal = c;
+          g_have_cal = true;
+          g_cal_step = 3;
+        } else {
+          g_cal_step = -1;
+        }
+      }
+    }
+    g_cal_sx = g_cal_sy = g_cal_n = 0;
+    return;
+  }
   if (z < 400) return;
-  long x = map(long(sx / 4), TOUCH_X_MIN, TOUCH_X_MAX, 0, kWidth - 1);
-  long y = map(long(sy / 4), TOUCH_Y_MIN, TOUCH_Y_MAX, 0, kHeight - 1);
+  if (g_have_cal) {
+    // Calibrated in screen pixels; LVGL wants the panel's own (portrait)
+    // coordinates and rotates them itself (as ui::remote_touch).
+    int lx, ly;
+    mesh::ui::touch_cal_apply(g_cal, rx, ry, &lx, &ly);
+    lv_display_t* d = lv_display_get_default();
+    int w = lv_display_get_horizontal_resolution(d), h = lv_display_get_vertical_resolution(d);
+    lx = constrain(lx, 0, w - 1), ly = constrain(ly, 0, h - 1);
+    int px = lx, py = ly;
+    switch (lv_display_get_rotation(d)) {
+      case LV_DISPLAY_ROTATION_90: px = ly, py = kHeight - 1 - lx; break;
+      case LV_DISPLAY_ROTATION_270: px = kWidth - 1 - ly, py = lx; break;
+      case LV_DISPLAY_ROTATION_180: px = kWidth - 1 - lx, py = kHeight - 1 - ly; break;
+      default: break;
+    }
+    data->point.x = int32_t(constrain(px, 0, kWidth - 1));
+    data->point.y = int32_t(constrain(py, 0, kHeight - 1));
+    data->state = LV_INDEV_STATE_PRESSED;
+    return;
+  }
+  long x = map(long(rx), TOUCH_X_MIN, TOUCH_X_MAX, 0, kWidth - 1);
+  long y = map(long(ry), TOUCH_Y_MIN, TOUCH_Y_MAX, 0, kHeight - 1);
   data->point.x = int32_t(constrain(x, 0, kWidth - 1));
   data->point.y = int32_t(constrain(y, 0, kHeight - 1));
   data->state = LV_INDEV_STATE_PRESSED;
@@ -150,6 +222,11 @@ bool begin() {
   g_touch = lv_indev_create();
   lv_indev_set_type(g_touch, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(g_touch, touch_cb);
+  CalFile f;
+  if (board::storage_read(kCalFile, &f, sizeof f) == sizeof f && f.magic == kCalMagic) {
+    g_cal = f.cal;
+    g_have_cal = true;
+  }
 #endif
 #ifdef LCD_BL
   analogWrite(LCD_BL, 0);
@@ -159,6 +236,30 @@ bool begin() {
 
 lv_indev_t* touch() { return g_touch; }
 const char* error() { return g_error; }
+
+void touch_cal_start() {
+  lv_display_t* d = lv_display_get_default();
+  mesh::ui::touch_cal_targets(lv_display_get_horizontal_resolution(d), lv_display_get_vertical_resolution(d),
+                              g_cal_targets);
+  g_cal_sx = g_cal_sy = g_cal_n = 0;
+  g_cal_step = 0;
+  g_cal_on = g_touch != nullptr;
+  if (!g_cal_on) g_cal_step = -1;
+}
+
+void touch_cal_cancel() {
+  g_cal_on = false;
+  g_cal_step = 3;
+}
+
+int touch_cal_step() { return g_cal_step; }
+
+void touch_cal_target(int i, int* x, int* y) {
+  *x = g_cal_targets[i < 0 ? 0 : i > 2 ? 2 : i][0];
+  *y = g_cal_targets[i < 0 ? 0 : i > 2 ? 2 : i][1];
+}
+
+bool touch_calibrated() { return g_have_cal; }
 
 void backlight(uint8_t level) {
 #ifdef LCD_BL
@@ -174,6 +275,11 @@ bool begin() { return false; }
 const char* error() { return "this build has no screen"; }
 lv_indev_t* touch() { return nullptr; }
 void backlight(uint8_t) {}
+void touch_cal_start() {}
+void touch_cal_cancel() {}
+int touch_cal_step() { return -1; }
+void touch_cal_target(int, int* x, int* y) { *x = *y = 0; }
+bool touch_calibrated() { return false; }
 
 #endif
 

@@ -152,9 +152,11 @@ through its resistor (5 % parts are fine):
 One key at a time; arrows repeat while held. The board looks for the 10 kΩ pull-up at boot
 (log: `navigation keys … found`); an open pin is ignored. Leave out keys you don't need.
 
-**Touch calibration** — `TOUCH_X_MIN/MAX`, `TOUCH_Y_MIN/MAX` (raw XPT2046 readings at the
-portrait edges). The defaults fit the red "TFT SPI 240x320 V1.2" module, whose X runs from
-3880 down to 220; a panel whose touches come out mirrored needs the pair swapped.
+**Touch calibration** — Settings → *Calibrate touch*: tap the centre of three yellow
+crosses; the board saves an affine map from the raw XPT2046 readings to screen pixels
+(`/touchcal`), which takes in any mirrored, swapped or rotated panel. Until then the defaults
+fit the red "TFT SPI 240x320 V1.2" module, whose raw axes both run the other way
+(`TOUCH_X_MIN 3880 / MAX 220`, `TOUCH_Y_MIN 3860 / MAX 260` in build_flags).
 
 **Vibration** — motor between 3.3 V and the AO3400 drain, 1N4148 across the motor, gate ←
 GPIO 38 through 100 Ω, 100 k to GND.

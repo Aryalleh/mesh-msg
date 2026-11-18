@@ -59,7 +59,7 @@ bool g_enc_pressed = false;
 uint8_t g_brightness = 200;
 bool g_asleep = false;
 
-enum class Screen : uint8_t { Home, Chats, Chat, Network, Web, Settings, MyContact, Call };
+enum class Screen : uint8_t { Home, Chats, Chat, Network, Web, Settings, MyContact, Call, TouchCal };
 Screen g_screen = Screen::Home;
 std::string g_chat;  // contact id of the open chat
 // The call screen: shown while a call is live, then a moment after it ends.
@@ -68,6 +68,9 @@ uint32_t g_call_rev = 0;
 CallView::State g_call_state = CallView::State::None;
 lv_obj_t* g_call_info = nullptr;
 uint32_t g_ring_at = 0, g_call_close_at = 0, g_call_info_at = 0;
+// Touch calibration: the cross (on the top layer, in screen pixels).
+lv_obj_t* g_cross[2] = {nullptr, nullptr};
+int g_cal_shown = -2;
 
 // Widgets of the current screen that are refreshed.
 lv_obj_t* g_bar = nullptr;       // status bar label
@@ -265,6 +268,8 @@ void osk_create(lv_obj_t* parent) {
 // ---- screens ----
 
 void clear() {
+  for (lv_obj_t*& c : g_cross)
+    if (c) lv_obj_delete(c), c = nullptr;
   lv_group_remove_all_objs(g_group);
   lv_obj_t* scr = lv_screen_active();
   lv_obj_clean(scr);
@@ -378,12 +383,39 @@ std::string call_text(const CallView& c) {
   return t;
 }
 
+// The calibration cross at screen pixel (x, y).
+void place_cross(int x, int y) {
+  for (int i = 0; i < 2; i++) {
+    if (!g_cross[i]) {
+      g_cross[i] = lv_obj_create(lv_layer_top());
+      lv_obj_remove_style_all(g_cross[i]);
+      lv_obj_set_style_bg_opa(g_cross[i], LV_OPA_COVER, 0);
+      lv_obj_set_style_bg_color(g_cross[i], lv_color_hex(0xFFD400), 0);
+      lv_obj_remove_flag(g_cross[i], LV_OBJ_FLAG_CLICKABLE);
+    }
+  }
+  lv_obj_set_size(g_cross[0], 25, 3);
+  lv_obj_set_pos(g_cross[0], x - 12, y - 1);
+  lv_obj_set_size(g_cross[1], 3, 25);
+  lv_obj_set_pos(g_cross[1], x - 1, y - 12);
+}
+
+void call_contact(const std::string& id) {
+  if (g_msg->call(id)) {
+    g_call_back = Screen::Chat;
+    return;
+  }
+  std::string why = g_msg->call_error();
+  toast(why.empty() ? "تماس ممکن نیست / calls are not possible here" : why.c_str());
+}
+
 void open_chat(lv_event_t* e) {
   g_chat = *static_cast<std::string*>(lv_event_get_user_data(e));
   show(Screen::Chat);
 }
 
 void show(Screen s) {
+  if (g_screen == Screen::TouchCal && s != Screen::TouchCal) display::touch_cal_cancel();
   g_screen = s;
   clear();
   static std::vector<std::string> ids;  // user data of the chat buttons
@@ -430,6 +462,27 @@ void show(Screen s) {
     }
     case Screen::Chat: {
       lv_obj_set_style_pad_all(g_body, 2, 0);
+      {
+        // Who, and a call button (touch; 📞 on a keyboard does the same).
+        lv_obj_t* row = lv_obj_create(g_body);
+        lv_obj_remove_style_all(row);
+        lv_obj_set_size(row, lv_pct(100), LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_gap(row, 6, 0);
+        std::string who = g_chat;
+        for (const Contact& c : g_msg->contacts())
+          if (c.id == g_chat) who = c.name;
+        lv_obj_t* name = label(row, who);
+        lv_obj_set_width(name, LV_SIZE_CONTENT);
+        lv_obj_set_flex_grow(name, 1);
+        lv_obj_set_style_text_color(name, col::primary_hi(), 0);
+        if (g_msg->connected()) {
+          lv_obj_t* b = button(row, LV_SYMBOL_CALL "  تماس / Call", [](lv_event_t*) { call_contact(g_chat); });
+          lv_obj_set_width(b, LV_SIZE_CONTENT);
+          lv_obj_set_style_bg_color(b, lv_color_hex(0x15803D), 0);
+        }
+      }
       g_messages = lv_obj_create(g_body);
       lv_obj_set_width(g_messages, lv_pct(100));
       lv_obj_set_flex_grow(g_messages, 1);
@@ -524,6 +577,14 @@ void show(Screen s) {
                                                          "no speaker: turn on sound and microphone in Mava Screen");
       break;
     }
+    case Screen::TouchCal: {
+      title("تنظیم لمس / Touch calibration");
+      label(g_body, "مرکز هر + زرد را با نوک قلم یا ناخن بزنید و بردارید (سه بار).\n"
+                    "Tap the centre of each yellow + and lift (three times). Back cancels.");
+      display::touch_cal_start();
+      g_cal_shown = -2;  // loop() places the first cross
+      break;
+    }
     case Screen::Settings:
       title("تنظیمات / Settings");
       g_info = label(g_body, settings_text());
@@ -539,6 +600,9 @@ void show(Screen s) {
                  show(Screen::Settings);
                });
       }
+      if (display::touch())
+        button(g_body, display::touch_calibrated() ? "تنظیم دوبارهٔ لمس / Calibrate touch again" : "تنظیم لمس / Calibrate touch",
+               [](lv_event_t*) { show(Screen::TouchCal); });
       if (g_sound_fn)
         button(g_body, "آزمایش صدا / Sound test", [](lv_event_t*) { g_sound_fn(kSoundTest); });
       if (g_echo_fn)
@@ -554,6 +618,7 @@ void show(Screen s) {
 
 void back() {
   switch (g_screen) {
+    case Screen::TouchCal: show(Screen::Settings); break;
     case Screen::Call:  // a live call stays on screen; End hangs up
       if (g_call_state == CallView::State::Ended || g_call_state == CallView::State::None) show(g_call_back);
       break;
@@ -664,12 +729,7 @@ void on_output(const k::Output& o) {
       } else if (st != CallView::State::None && st != CallView::State::Ended) {
         if (g_screen != Screen::Call) show(Screen::Call);  // back to the call
       } else if (g_screen == Screen::Chat) {
-        if (g_msg->call(g_chat)) {
-          g_call_back = Screen::Chat;
-        } else {
-          std::string why = g_msg->call_error();
-          toast(why.empty() ? "تماس ممکن نیست / calls are not possible here" : why.c_str());
-        }
+        call_contact(g_chat);
       } else {
         toast("برای تماس یک گفتگو را باز کنید / open a chat to call");
       }
@@ -831,6 +891,26 @@ void loop(uint32_t now_ms) {
   if (g_call_close_at && int32_t(now_ms - g_call_close_at) >= 0) {
     g_call_close_at = 0;
     if (g_screen == Screen::Call && g_call_state == CallView::State::Ended) show(g_call_back);
+  }
+
+  if (g_screen == Screen::TouchCal) {
+    int step = display::touch_cal_step();
+    if (step != g_cal_shown) {
+      g_cal_shown = step;
+      if (step >= 0 && step <= 2) {
+        int x, y;
+        display::touch_cal_target(step, &x, &y);
+        place_cross(x, y);
+        if (step > 0 && g_sound_fn) g_sound_fn(kSoundKey);
+      } else if (step == 3) {
+        show(Screen::Settings);
+        toast("لمس تنظیم شد / Touch calibrated");
+      } else {
+        toast("دوباره امتحان کنید / Try again: tap each + exactly");
+        display::touch_cal_start();
+        g_cal_shown = -2;
+      }
+    }
   }
 
   // New messages, receipts or people: redraw what shows them.
