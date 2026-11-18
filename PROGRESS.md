@@ -28,7 +28,8 @@ code and the board's manager call each other over loopback UDP). Next: board int
 call screens and keys, reflectors from the relays) done too (step 4, CI builds both envs).
 Next: the owner tries calls on hardware; then video (MJPEG; the phone's camera stands in for
 the board's over USB). beta32 notes cover all of it (calls, the 2026-11-18 fixes, Mava
-Screen); **released as v0.1.1-beta32** (tag on `82787a8`).
+Screen); **released as v0.1.1-beta32** (tag on `82787a8`); touch fix,
+calibration and the chat call button in **v0.1.1-beta33** (tag on `b63eb37`).
 
 **Owner's board (no LoRa module), Bluetooth messages**: beta29 log showed the store full of
 receipts (`receipts 256`, every DATA refused, incl. 10 from the relay) and the phone dropping
@@ -1970,3 +1971,5 @@ links. Chose: quick items in beta3; calls follow in later betas.
   Settings → Calibrate touch (lib/meshui touchcal.*: three crosses → affine map, any
   mirroring / swap / rotation, host-tested; saved in `/touchcal`; touches don't reach LVGL
   while calibrating). Chats on the board have a 📞 Call button. Notes for beta33 written.
+- Released **v0.1.1-beta33** (owner asked; tag on `b63eb37`): touch both axes, Settings →
+  Calibrate touch, 📞 Call button in the board's chats. Not yet run on hardware.
