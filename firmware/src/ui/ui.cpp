@@ -69,7 +69,9 @@ Screen g_call_back = Screen::Home;  // where to return
 uint32_t g_call_rev = 0;
 CallView::State g_call_state = CallView::State::None;
 lv_obj_t* g_call_info = nullptr;
-lv_obj_t* g_video_img = nullptr;  // the far side's camera, behind the call screen
+lv_obj_t* g_video_img = nullptr;  // the far side's camera, filling the call screen
+lv_obj_t* g_mute_btn = nullptr;   // in the top bar during a call
+lv_obj_t* g_call_hint = nullptr;  // "no speaker" note, hidden under the video
 uint32_t g_video_at = 0;          // when its last frame came
 uint32_t g_ring_at = 0, g_call_close_at = 0, g_call_info_at = 0, g_ringback_at = 0;
 // Touch calibration: the cross (on the top layer, in screen pixels).
@@ -182,14 +184,19 @@ lv_obj_t* button(lv_obj_t* parent, const std::string& text, lv_event_cb_t cb, vo
   return b;
 }
 
-void toast(const char* text) {
+void toast(const char* text, uint32_t ms = 2500) {
   lv_obj_t* m = lv_msgbox_create(nullptr);
   lv_msgbox_add_text(m, text);
   lv_obj_t* close = lv_msgbox_add_close_button(m);
   (void)close;
   lv_timer_t* t = lv_timer_create([](lv_timer_t* tm) { lv_msgbox_close(static_cast<lv_obj_t*>(lv_timer_get_user_data(tm))); },
-                                  2500, m);
+                                  ms, m);
   lv_timer_set_repeat_count(t, 1);
+}
+
+bool portrait() {
+  lv_display_t* d = lv_display_get_default();
+  return lv_display_get_horizontal_resolution(d) < lv_display_get_vertical_resolution(d);
 }
 
 // Short: with the touch-only buttons the bar has ~200 px for this.
@@ -302,7 +309,7 @@ void clear() {
   lv_group_remove_all_objs(g_group);
   lv_obj_t* scr = lv_screen_active();
   lv_obj_clean(scr);
-  g_info = g_messages = g_input = g_osk = g_call_info = g_video_img = nullptr;
+  g_info = g_messages = g_input = g_osk = g_call_info = g_video_img = g_mute_btn = g_call_hint = nullptr;
   lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_all(scr, 0, 0);
   lv_obj_set_style_pad_gap(scr, 0, 0);
@@ -323,17 +330,37 @@ void clear() {
   lv_obj_set_style_border_side(bar, LV_BORDER_SIDE_BOTTOM, 0);
   lv_obj_remove_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
   // Without a keyboard module, Back and Home (and the way back to a call)
-  // are touch buttons here, where the connection details were.
+  // are touch buttons here, where the connection details were. On the call
+  // screen the call's own buttons (mute, the code, hang up) are here too, so
+  // the other side's video has the rest of the screen.
+  CallView cv = g_msg ? g_msg->call_view() : CallView();
+  using CS = CallView::State;
+  bool live = cv.state != CS::None && cv.state != CS::Ended;
+  bool on_call = g_screen == Screen::Call && live;
   if (!kbmodule::present()) {
-    if (g_screen != Screen::Home) {
-      bar_button(bar, LV_SYMBOL_LEFT, [](lv_event_t*) { back(); });
-      bar_button(bar, LV_SYMBOL_HOME, [](lv_event_t*) { go_home(); });
-    }
-    CallView::State cs = g_msg ? g_msg->call_view().state : CallView::State::None;
-    if (g_screen != Screen::Call && cs != CallView::State::None && cs != CallView::State::Ended) {
+    if (g_screen != Screen::Home && !on_call) bar_button(bar, LV_SYMBOL_LEFT, [](lv_event_t*) { back(); });
+    if (g_screen != Screen::Home) bar_button(bar, LV_SYMBOL_HOME, [](lv_event_t*) { go_home(); });
+    if (g_screen != Screen::Call && live) {
       lv_obj_t* c = bar_button(bar, LV_SYMBOL_CALL, [](lv_event_t*) { show(Screen::Call); });
       lv_obj_set_style_bg_color(c, lv_color_hex(0x15803D), 0);
     }
+  }
+  if (on_call && cv.state != CS::Ringing) {
+    if (cv.state == CS::Active) {
+      g_mute_btn = bar_button(bar, cv.muted ? LV_SYMBOL_MUTE : LV_SYMBOL_AUDIO,
+                              [](lv_event_t*) { g_msg->set_muted(!g_msg->call_view().muted); });
+      if (cv.muted) lv_obj_set_style_bg_color(g_mute_btn, lv_color_hex(0xC2410C), 0);
+      // The code to compare by voice, on demand (it closes after 10 s).
+      bar_button(bar, LV_SYMBOL_EYE_OPEN, [](lv_event_t*) {
+        CallView c = g_msg->call_view();
+        std::string t = "کد تماس / Call code\n\n" + (c.code.empty() ? std::string("—") : c.code) +
+                        "\n\nبا طرف مقابل مقایسه کنید: اگر یکی است، کسی در میان نیست.\n"
+                        "Compare it with the other side: if it matches, nobody is in between.";
+        toast(t.c_str(), 10000);
+      });
+    }
+    lv_obj_t* h = bar_button(bar, LV_SYMBOL_CLOSE, [](lv_event_t*) { g_msg->hang_up(); });
+    lv_obj_set_style_bg_color(h, lv_color_hex(0xB91C1C), 0);
   }
   g_bar = lv_label_create(bar);
   lv_obj_set_flex_grow(g_bar, 1);
@@ -418,11 +445,7 @@ std::string call_text(const CallView& c) {
                                         : "تماس ورودی / Incoming call"; break;
     case S::Connecting: t = "در حال وصل شدن… / Connecting…"; break;
     case S::Active: {
-      char d[16];
-      snprintf(d, sizeof d, "%02lu:%02lu", (unsigned long)(c.seconds / 60), (unsigned long)(c.seconds % 60));
-      t = d;
-      if (!c.code.empty()) t += "   کد / code " + c.code;
-      t += c.path == 1 ? "\nهمین شبکه / same network" : c.path >= 2 ? "\nمستقیم از اینترنت / direct over the internet" : "";
+      t = c.path == 1 ? "همین شبکه / same network" : c.path >= 2 ? "مستقیم از اینترنت / direct over the internet" : "";
       if (c.video) t += "  " LV_SYMBOL_VIDEO;
       if (c.muted) t += "\nمیکروفن خاموش / muted";
       if (c.peer_muted) t += "\nطرف مقابل بی‌صدا کرده / they muted";
@@ -450,6 +473,17 @@ void place_cross(int x, int y) {
   lv_obj_set_pos(g_cross[0], x - 12, y - 1);
   lv_obj_set_size(g_cross[1], 3, 25);
   lv_obj_set_pos(g_cross[1], x - 1, y - 12);
+}
+
+// The top bar on the call screen: who, and the talking time.
+std::string call_bar_text(const CallView& c) {
+  std::string t = c.peer;
+  if (c.state == CallView::State::Active) {
+    char d[16];
+    snprintf(d, sizeof d, "  %02lu:%02lu", (unsigned long)(c.seconds / 60), (unsigned long)(c.seconds % 60));
+    t += d;
+  }
+  return t;
 }
 
 void call_contact(const std::string& id) {
@@ -481,7 +515,7 @@ void show(Screen s) {
         lv_obj_set_style_base_dir(w, LV_BASE_DIR_LTR, 0);
       }
       {
-        // Landscape: the four buttons in two columns under the wordmark.
+        // The four buttons under the wordmark (two columns in landscape).
         lv_obj_t* grid = lv_obj_create(g_body);
         lv_obj_remove_style_all(grid);
         lv_obj_set_size(grid, lv_pct(100), LV_SIZE_CONTENT);
@@ -493,8 +527,9 @@ void show(Screen s) {
       button(g_home_grid, LV_SYMBOL_GPS "  شبکه / Network", [](lv_event_t*) { show(Screen::Network); });
       button(g_home_grid, LV_SYMBOL_WIFI "  مرورگر / Web", [](lv_event_t*) { show(Screen::Web); });
       button(g_home_grid, LV_SYMBOL_SETTINGS "  تنظیمات / Settings", [](lv_event_t*) { show(Screen::Settings); });
+      // Landscape: two columns; portrait (a phone in the hand): one per row.
       for (uint32_t i = 0; i < lv_obj_get_child_count(g_home_grid); i++)
-        lv_obj_set_width(lv_obj_get_child(g_home_grid, int32_t(i)), lv_pct(48));
+        lv_obj_set_width(lv_obj_get_child(g_home_grid, int32_t(i)), portrait() ? lv_pct(100) : lv_pct(48));
       break;
     case Screen::Chats: {
       title("گفتگوها");
@@ -600,10 +635,13 @@ void show(Screen s) {
     case Screen::Call: {
       CallView c = g_msg->call_view();
       g_call_state = c.state;
-      lv_obj_set_flex_align(g_body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-      if (c.video && c.state == CallView::State::Active) {
-        // The other side's camera fills the screen behind the text and buttons
-        // once frames come (loop() decodes them).
+      using S = CallView::State;
+      lv_obj_set_flex_align(g_body, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      lv_label_set_text(g_bar, call_bar_text(c).c_str());
+      if (c.video && c.state == S::Active) {
+        // The other side's camera fills the screen under the top bar once
+        // frames come (loop() decodes them); the text below hides meanwhile.
+        lv_obj_set_style_pad_all(g_body, 0, 0);
         lv_obj_remove_flag(g_body, LV_OBJ_FLAG_SCROLLABLE);
         g_video_img = lv_image_create(g_body);
         lv_obj_add_flag(g_video_img, LV_OBJ_FLAG_FLOATING);
@@ -612,18 +650,13 @@ void show(Screen s) {
         lv_obj_align(g_video_img, LV_ALIGN_CENTER, 0, 0);
         g_video_at = 0;
       }
-      lv_obj_t* who = label(g_body, LV_SYMBOL_CALL "  " + c.peer);
-      lv_obj_set_style_text_color(who, col::primary_hi(), 0);
-      lv_obj_set_style_text_align(who, LV_TEXT_ALIGN_CENTER, 0);
+      if (c.state != S::Active) {
+        lv_obj_t* who = label(g_body, LV_SYMBOL_CALL "  " + c.peer);
+        lv_obj_set_style_text_color(who, col::primary_hi(), 0);
+        lv_obj_set_style_text_align(who, LV_TEXT_ALIGN_CENTER, 0);
+      }
       g_call_info = label(g_body, call_text(c));
       lv_obj_set_style_text_align(g_call_info, LV_TEXT_ALIGN_CENTER, 0);
-      if (g_video_img) {  // over a picture: text on a dark band
-        for (lv_obj_t* l : {who, g_call_info}) {
-          lv_obj_set_style_bg_opa(l, LV_OPA_60, 0);
-          lv_obj_set_style_bg_color(l, lv_color_black(), 0);
-        }
-      }
-      using S = CallView::State;
       if (c.state == S::Ringing) {
         lv_obj_t* a = button(g_body, LV_SYMBOL_CALL "  پاسخ / Answer", [](lv_event_t*) {
           if (!g_msg->answer()) toast("پاسخ ممکن نشد / could not answer");
@@ -631,19 +664,11 @@ void show(Screen s) {
         lv_obj_set_style_bg_color(a, lv_color_hex(0x15803D), 0);
         lv_group_focus_obj(a);
         button(g_body, LV_SYMBOL_CLOSE "  رد / Decline", [](lv_event_t*) { g_msg->hang_up(); });
-      } else if (c.state == S::Active) {
-        button(g_body, c.muted ? LV_SYMBOL_AUDIO "  روشن کردن میکروفن / Unmute" : LV_SYMBOL_MUTE "  بی‌صدا / Mute",
-               [](lv_event_t*) { g_msg->set_muted(!g_msg->call_view().muted); });
-        lv_obj_t* h = button(g_body, LV_SYMBOL_CLOSE "  قطع / Hang up", [](lv_event_t*) { g_msg->hang_up(); });
-        lv_obj_set_style_bg_color(h, lv_color_hex(0xB91C1C), 0);
-      } else if (c.state != S::Ended && c.state != S::None) {
-        lv_obj_t* h = button(g_body, LV_SYMBOL_CLOSE "  قطع / Hang up", [](lv_event_t*) { g_msg->hang_up(); });
-        lv_obj_set_style_bg_color(h, lv_color_hex(0xB91C1C), 0);
-        lv_group_focus_obj(h);
       }
-      if (c.state == S::Active || c.state == S::Connecting)
-        label(g_body, g_status.audio_outputs > 0 ? "" : "بلندگو نیست: در Mava Screen صدا و میکروفن را روشن کنید / "
-                                                         "no speaker: turn on sound and microphone in Mava Screen");
+      // Mute, the code and hang up are in the top bar (clear()).
+      if ((c.state == S::Active || c.state == S::Connecting) && g_status.audio_outputs <= 0)
+        g_call_hint = label(g_body, "بلندگو نیست: در زبانهٔ صفحهٔ برد Mava صدا و میکروفن را روشن کنید / "
+                                    "no speaker: turn on sound and microphone in Mava Board's Screen tab");
       break;
     }
     case Screen::TouchCal: {
@@ -833,7 +858,7 @@ void on_output(const k::Output& o) {
       }
       break;
     case k::Action::LanguageChanged:
-      if (g_bar) lv_label_set_text(g_bar, bar_text().c_str());
+      if (g_bar && g_screen != Screen::Call) lv_label_set_text(g_bar, bar_text().c_str());
       break;
     default: break;
   }
@@ -1010,17 +1035,30 @@ void loop(uint32_t now_ms) {
         lv_obj_remove_flag(g_video_img, LV_OBJ_FLAG_HIDDEN);
         lv_obj_move_background(g_video_img);
         lv_obj_invalidate(g_video_img);
+        if (!g_video_at)  // the whole screen for the picture
+          for (lv_obj_t* o : {g_call_info, g_call_hint})
+            if (o) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
         g_video_at = now_ms;
       }
     }
     if (g_video_img && g_video_at && now_ms - g_video_at > 2000) {  // the camera went off
       lv_obj_add_flag(g_video_img, LV_OBJ_FLAG_HIDDEN);
+      for (lv_obj_t* o : {g_call_info, g_call_hint})
+        if (o) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
       g_video_at = 0;
     }
   }
   if (g_screen == Screen::Call && g_call_info && now_ms - g_call_info_at >= 500) {
     g_call_info_at = now_ms;
-    lv_label_set_text(g_call_info, call_text(g_msg->call_view()).c_str());
+    CallView cv = g_msg->call_view();
+    lv_label_set_text(g_call_info, call_text(cv).c_str());
+    if (g_bar) lv_label_set_text(g_bar, call_bar_text(cv).c_str());
+    if (g_mute_btn) {
+      lv_obj_t* l = lv_obj_get_child(g_mute_btn, 0);
+      if (l) lv_label_set_text(l, cv.muted ? LV_SYMBOL_MUTE : LV_SYMBOL_AUDIO);
+      if (cv.muted) lv_obj_set_style_bg_color(g_mute_btn, lv_color_hex(0xC2410C), 0);
+      else lv_obj_remove_local_style_prop(g_mute_btn, LV_STYLE_BG_COLOR, 0);
+    }
   }
   if (g_call_close_at && int32_t(now_ms - g_call_close_at) >= 0) {
     g_call_close_at = 0;
@@ -1083,7 +1121,7 @@ void loop(uint32_t now_ms) {
   if (now_ms - last_status >= 1000 && g_status_fn) {
     last_status = now_ms;
     g_status = g_status_fn();
-    if (g_bar) lv_label_set_text(g_bar, bar_text().c_str());
+    if (g_bar && g_screen != Screen::Call) lv_label_set_text(g_bar, bar_text().c_str());
     if (g_info && g_screen == Screen::Network) lv_label_set_text(g_info, network_text().c_str());
   }
   if (!g_asleep && lv_display_get_inactive_time(nullptr) > kSleepMs) {

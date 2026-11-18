@@ -2033,3 +2033,9 @@ links. Chose: quick items in beta3; calls follow in later betas.
   call task back to 16 kB, its stack high-water mark in the `calls` log line; host build:
   `-Wstack-usage=4096` (with -Werror) on every library object, so a frame over 4 kB fails
   the build (checked: the old reset is caught at -O1/-Os/-O2). Released **v0.1.1-beta37** (owner asked; tag on `8a6c31f`).
+- Board UI (owner, 2026-11-18): home menu one button per row in portrait (two columns in
+  landscape). Call screen: mute, a code key (👁, the code in a pop-up that closes after 10 s)
+  and hang up sit in the top bar next to Home (Back is left out while a call is live), the
+  bar shows who and the talking time, and the other side's video takes the whole screen
+  under it (the status text hides while frames come). Ringing keeps Answer / Decline in the
+  middle of the screen.
