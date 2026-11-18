@@ -27,6 +27,7 @@ constexpr int kTrackStep = 6;  // trackpad counts per list step
 #ifdef NAV_KEYS_PIN
 mesh::keys::Ladder g_nav;
 bool g_nav_on = false;
+uint32_t g_nav_boot_mv = 0;
 uint32_t g_nav_at = 0;
 #endif
 
@@ -188,16 +189,22 @@ void toast(const char* text) {
   lv_timer_set_repeat_count(t, 1);
 }
 
+// Short: with the touch-only buttons the bar has ~200 px for this.
 std::string bar_text() {
   const Status& s = g_status;
   std::string t;
-  if (s.battery_pct >= 0) t += std::string(LV_SYMBOL_BATTERY_FULL " ") + std::to_string(s.battery_pct) + "%  ";
-  t += "LoRa " + std::to_string(s.neighbours) + "  ";
-  if (s.setup_mode) t += LV_SYMBOL_SETTINGS " setup  ";
-  else if (s.wifi) t += std::string(LV_SYMBOL_WIFI " ") + s.relay + "  ";
+  if (s.battery_pct >= 0) t += std::string(LV_SYMBOL_BATTERY_FULL) + std::to_string(s.battery_pct) + "% ";
+  if (s.radio > 0) t += "LoRa " + std::to_string(s.neighbours) + " ";
+  if (s.setup_mode) {
+    t += LV_SYMBOL_SETTINGS " setup ";
+  } else if (s.wifi) {
+    // The relay: online or not (the full text is on the Network screen).
+    bool online = s.relay.rfind("online", 0) == 0;
+    t += std::string(LV_SYMBOL_WIFI) + (online ? " " LV_SYMBOL_OK " " : " " LV_SYMBOL_REFRESH " ");
+  }
   if (s.ble) t += LV_SYMBOL_BLUETOOTH " ";
   if (s.usb) t += LV_SYMBOL_USB " ";
-  if (kbmodule::present()) t += kbmodule::layout().persian() ? " فا" : " EN";
+  if (kbmodule::present()) t += kbmodule::layout().persian() ? "فا" : "EN";
   return t;
 }
 
@@ -267,6 +274,25 @@ void osk_create(lv_obj_t* parent) {
 
 // ---- screens ----
 
+void back();
+void go_home();
+
+// A small touch button in the top bar (not in the key group: keys keep
+// moving through the screen's own items).
+lv_obj_t* bar_button(lv_obj_t* bar, const char* sym, lv_event_cb_t cb) {
+  lv_obj_t* b = lv_button_create(bar);
+  lv_obj_set_size(b, 40, 26);
+  lv_obj_add_style(b, &g_st_btn, 0);
+  lv_obj_add_style(b, &g_st_btn_pressed, LV_STATE_PRESSED);
+  lv_obj_set_style_pad_all(b, 0, 0);
+  lv_obj_remove_flag(b, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+  lv_obj_t* l = lv_label_create(b);
+  lv_label_set_text(l, sym);
+  lv_obj_center(l);
+  lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, nullptr);
+  return b;
+}
+
 void clear() {
   for (lv_obj_t*& c : g_cross)
     if (c) lv_obj_delete(c), c = nullptr;
@@ -280,15 +306,37 @@ void clear() {
   lv_obj_set_style_bg_color(scr, col::bg(), 0);
   lv_obj_set_style_bg_grad_color(scr, lv_color_hex(0x1A1033), 0);
   lv_obj_set_style_bg_grad_dir(scr, LV_GRAD_DIR_VER, 0);
-  g_bar = lv_label_create(scr);
-  lv_obj_set_width(g_bar, lv_pct(100));
-  lv_obj_set_style_pad_all(g_bar, 3, 0);
-  lv_obj_set_style_bg_opa(g_bar, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(g_bar, col::surface(), 0);
+  lv_obj_t* bar = lv_obj_create(scr);
+  lv_obj_remove_style_all(bar);
+  lv_obj_set_size(bar, lv_pct(100), LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(bar, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(bar, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_all(bar, 2, 0);
+  lv_obj_set_style_pad_gap(bar, 4, 0);
+  lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(bar, col::surface(), 0);
+  lv_obj_set_style_border_color(bar, col::accent(), 0);
+  lv_obj_set_style_border_width(bar, 1, 0);
+  lv_obj_set_style_border_side(bar, LV_BORDER_SIDE_BOTTOM, 0);
+  lv_obj_remove_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
+  // Without a keyboard module, Back and Home (and the way back to a call)
+  // are touch buttons here, where the connection details were.
+  if (!kbmodule::present()) {
+    if (g_screen != Screen::Home) {
+      bar_button(bar, LV_SYMBOL_LEFT, [](lv_event_t*) { back(); });
+      bar_button(bar, LV_SYMBOL_HOME, [](lv_event_t*) { go_home(); });
+    }
+    CallView::State cs = g_msg ? g_msg->call_view().state : CallView::State::None;
+    if (g_screen != Screen::Call && cs != CallView::State::None && cs != CallView::State::Ended) {
+      lv_obj_t* c = bar_button(bar, LV_SYMBOL_CALL, [](lv_event_t*) { show(Screen::Call); });
+      lv_obj_set_style_bg_color(c, lv_color_hex(0x15803D), 0);
+    }
+  }
+  g_bar = lv_label_create(bar);
+  lv_obj_set_flex_grow(g_bar, 1);
   lv_obj_set_style_text_color(g_bar, col::primary_hi(), 0);
-  lv_obj_set_style_border_color(g_bar, col::accent(), 0);
-  lv_obj_set_style_border_width(g_bar, 1, 0);
-  lv_obj_set_style_border_side(g_bar, LV_BORDER_SIDE_BOTTOM, 0);
+  lv_obj_set_style_text_align(g_bar, LV_TEXT_ALIGN_RIGHT, 0);
+  lv_label_set_long_mode(g_bar, LV_LABEL_LONG_CLIP);
   lv_label_set_text(g_bar, bar_text().c_str());
   g_body = lv_obj_create(scr);
   lv_obj_set_width(g_body, lv_pct(100));
@@ -616,6 +664,8 @@ void show(Screen s) {
   }
 }
 
+void go_home() { show(Screen::Home); }
+
 void back() {
   switch (g_screen) {
     case Screen::TouchCal: show(Screen::Settings); break;
@@ -789,10 +839,18 @@ bool begin(StatusFn status, Messenger& messenger) {
 #ifdef NAV_KEYS_PIN
   // Fitted when its 10 k pull-up holds the pin high: a pin left open floats
   // and would press keys at random.
-  g_nav_on = true;  // Arduino's default attenuation reads 0–3.1 V
-  for (int i = 0; i < 20 && g_nav_on; i++) {
-    g_nav_on = analogReadMilliVolts(NAV_KEYS_PIN) >= 2900;
-    delay(5);
+  // Steady near the top (Arduino's default attenuation reads 0–3.1 V): an
+  // open pin wanders, and a floating pin must never press keys.
+  {
+    uint32_t lo = 4000, hi = 0;
+    for (int i = 0; i < 20; i++) {
+      uint32_t mv = analogReadMilliVolts(NAV_KEYS_PIN);
+      lo = mv < lo ? mv : lo;
+      hi = mv > hi ? mv : hi;
+      delay(5);
+    }
+    g_nav_on = lo >= 2900 && hi - lo < 150;
+    g_nav_boot_mv = lo;
   }
 #endif
   if (g_status_fn) g_status = g_status_fn();
@@ -809,6 +867,14 @@ bool nav_keys() {
   return g_nav_on;
 #else
   return false;
+#endif
+}
+
+uint32_t nav_keys_mv() {
+#ifdef NAV_KEYS_PIN
+  return g_nav_boot_mv;
+#else
+  return 0;
 #endif
 }
 
@@ -879,6 +945,10 @@ void loop(uint32_t now_ms) {
       if (g_sound_fn) g_sound_fn(kSoundBusy);
     }
     if (c.state == S::Ended && c.missed && g_screen != Screen::Call) toast(("تماس از دست رفته / Missed call: " + c.peer).c_str());
+    // The top bar's way back to the call comes and goes with it.
+    if (!live && g_screen != Screen::Call && g_screen != Screen::Chat && g_screen != Screen::TouchCal &&
+        !kbmodule::present())
+      show(g_screen);
   }
   if (g_call_state == CallView::State::Ringing && g_ring_at && int32_t(now_ms - g_ring_at) >= 0) {
     if (g_sound_fn) g_sound_fn(kSoundRing);

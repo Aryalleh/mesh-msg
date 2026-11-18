@@ -64,6 +64,7 @@ void loop(uint32_t now_ms);
 bool ready();
 // The navigation keys on NAV_KEYS_PIN were found at boot (lib/meshkeys ladder.h).
 bool nav_keys();
+uint32_t nav_keys_mv();  // the pin's lowest reading at boot, for the log
 
 // Input from a phone or PC showing the screen (hwsim.h): a touch at screen
 // coordinates, or a key (keys::Action, code point for Text). False: unknown action.

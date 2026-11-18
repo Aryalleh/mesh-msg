@@ -318,6 +318,10 @@ void setup() {
   // A big USB transmit buffer: the screen on a phone (hwsim.h) streams tens
   // of kB per frame; the default 256 bytes held it to a crawl.
   Serial.setTxBufferSize(16384);
+  // And a big receive buffer: the phone's microphone over USB is ~33 kB/s
+  // (Mava Screen, 16 kHz); the default 256 bytes overflowed during a screen
+  // redraw and took key presses down with the audio (owner, beta33).
+  Serial.setRxBufferSize(8192);
   Serial.begin(115200);
   Serial.setTimeout(0);
   board::init();
@@ -426,8 +430,9 @@ void setup() {
   logf("screen: %s%s%s; screen on a phone over USB: %s", g_ui ? "ok" : "none", g_ui ? "" : " — ", g_ui ? "" : display::error(),
        g_ui && mirror ? "yes" : mirror ? "no" : "no (no PSRAM for the frame copy)");
 #ifdef NAV_KEYS_PIN
-  logf("navigation keys (resistor ladder on GPIO %d): %s", NAV_KEYS_PIN,
-       !g_ui ? "no screen" : ui::nav_keys() ? "found" : "none (the pin is not pulled up)");
+  logf("navigation keys (resistor ladder on GPIO %d): %s (%lu mV at boot)", NAV_KEYS_PIN,
+       !g_ui ? "no screen" : ui::nav_keys() ? "found" : "none (the pin is not held at 3.3 V)",
+       (unsigned long)ui::nav_keys_mv());
 #endif
   logf("memory after the screen: internal %u kB free (largest block %u kB), PSRAM %u kB free",
        unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
@@ -494,9 +499,12 @@ void loop() {
     logf("USB host detached");
   }
   static Millis usb_rx_at = 0;
-  int avail = Serial.available();
-  if (avail > 0) {
+  // Everything that came in, not one 512-byte chunk per pass.
+  for (int round = 0; round < 32; round++) {
+    int avail = Serial.available();
+    if (avail <= 0) break;
     size_t n = Serial.readBytes(reinterpret_cast<char*>(buf), size_t(avail) < sizeof buf ? size_t(avail) : sizeof buf);
+    if (!n) break;
     bool was = node.host_attached(kUsbPort);
     node.host_rx(kUsbPort, buf, n, now);
     usb_rx_at = now;

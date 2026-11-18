@@ -1973,3 +1973,11 @@ links. Chose: quick items in beta3; calls follow in later betas.
   while calibrating). Chats on the board have a 📞 Call button. Notes for beta33 written.
 - Released **v0.1.1-beta33** (owner asked; tag on `b63eb37`): touch both axes, Settings →
   Calibrate touch, 📞 Call button in the board's chats. Not yet run on hardware.
+- Owner on beta33: Mava Screen's keys and audio no longer work. Likely cause: the USB
+  receive buffer (HWCDC default 256 B) overflowed while the phone streams its microphone
+  (16 kHz ≈ 33 kB/s) during a screen redraw, dropping commands (keys, AUDIO start) with
+  the audio. Now `Serial.setRxBufferSize(8192)` and the main loop drains USB fully each pass.
+  Navigation-key detection also needs a steady reading (an open GPIO 2 never presses keys);
+  the boot log shows the pin's voltage. Touch-only use (owner): the top bar has Back and
+  Home buttons (and 📞 back to a live call) when no keyboard module is present; its text
+  is shortened (battery, LoRa, Wi-Fi + relay ✓/↻, BLE, USB).
