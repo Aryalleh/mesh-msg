@@ -1847,4 +1847,5 @@ links. Chose: quick items in beta3; calls follow in later betas.
   The audio pins (not used by code yet) and keyboard INT moved to the freed right header:
   I2S MCLK/BCLK/LRCK/DIN/DOUT 39/40/41/42/45, KB_INT 21 (RTC pin). Radio pins unchanged
   (DIO1 stays on GPIO 1, right header). docs/handheld-proto.md §2/§4 updated.
-- Next: owner wires it and sends the boot log (`screen: ok`). Release v0.1.1-beta31.
+- Released **v0.1.1-beta31** (manual `build` run #44312557544, tag on `f4317d1`). Next: owner
+  wires it and sends the boot log (`screen: ok`).
