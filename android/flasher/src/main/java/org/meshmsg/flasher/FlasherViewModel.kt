@@ -49,6 +49,10 @@ data class UiState(
     val wifiMessage: Pair<Boolean, String>? = null, // ok?, text
     val radioMessage: Pair<Boolean, String>? = null, // ok?, text
     val log: List<String> = emptyList(),
+    /** The images carry a second firmware without the phone simulators (variants.txt). */
+    val hasPlain: Boolean = false,
+    /** Write that one: faster, for a board with its own display and keys. */
+    val plain: Boolean = false,
 )
 
 sealed interface Outcome {
@@ -61,6 +65,9 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
     private val usb = ctx.getSystemService(UsbManager::class.java)
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state
+    private val prefs = ctx.getSharedPreferences("flasher", Context.MODE_PRIVATE)
+    // Where the current images come from: a file by name, null if missing.
+    @Volatile private var source: (String) -> ByteArray? = ::readAsset
     @Volatile private var images: List<BoardImage>? = loadImages()
     private val remote = RemoteFirmware(java.io.File(ctx.filesDir, "board"))
     @Volatile private var permissionLatch = CountDownLatch(1)
@@ -79,6 +86,8 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
                 usbHost = ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST),
                 imagesVersion = if (images.isNullOrEmpty()) null else readAsset("VERSION")?.toString(Charsets.UTF_8)?.trim() ?: "?",
                 imagesFrom = "apk",
+                hasPlain = readAsset(PLAIN) != null,
+                plain = prefs.getBoolean("plain", false),
             )
         }
         useDownloaded()
@@ -121,8 +130,18 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
         if (cur != null && Versions.compare(newest.name, cur) <= 0) return
         loadFrom(newest)?.let { list ->
             images = list
-            _state.update { it.copy(imagesVersion = newest.name, imagesFrom = "github") }
+            source = fileSource(newest)
+            _state.update { it.copy(imagesVersion = newest.name, imagesFrom = "github", hasPlain = java.io.File(newest, PLAIN).isFile) }
         }
+    }
+
+    private fun fileSource(dir: java.io.File): (String) -> ByteArray? =
+        { name -> java.io.File(dir, name).takeIf { it.isFile }?.readBytes() }
+
+    /** With a firmware without the phone simulators or not (if the images carry one). */
+    fun setPlain(on: Boolean) {
+        prefs.edit().putBoolean("plain", on).apply()
+        _state.update { it.copy(plain = on) }
     }
 
     private fun loadFrom(dir: java.io.File): List<BoardImage>? = runCatching {
@@ -150,9 +169,15 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 val dir = remote.fetch(r) { p -> _state.update { it.copy(fwProgress = p) } }
                 val list = loadFrom(dir) ?: throw IOException("downloaded firmware is incomplete")
-                if (!_state.value.busy) images = list
+                if (!_state.value.busy) {
+                    images = list
+                    source = fileSource(dir)
+                }
                 _state.update {
-                    it.copy(imagesVersion = r.version, imagesFrom = "github", fwMessage = true to ctx.getString(R.string.fw_downloaded, r.version))
+                    it.copy(
+                        imagesVersion = r.version, imagesFrom = "github", hasPlain = java.io.File(dir, PLAIN).isFile,
+                        fwMessage = true to ctx.getString(R.string.fw_downloaded, r.version),
+                    )
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(fwMessage = false to ctx.getString(R.string.fw_failed, e.message ?: e.toString())) }
@@ -211,7 +236,15 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun flash(mode: Mode) {
-        val list = images ?: return
+        val all = images ?: return
+        // The firmware without the simulators in place of firmware.bin, when chosen.
+        val src = source
+        val list = if (_state.value.plain && _state.value.hasPlain) {
+            all.map { im ->
+                if (im.part != BoardImage.Part.App) im
+                else BoardImage(im.offset, PLAIN, im.part) { src(PLAIN) ?: throw IOException("missing $PLAIN") }
+            }
+        } else all
         if (_state.value.busy) return
         stopMonitor()
         _state.update { it.copy(busy = true, outcome = null, progress = 0f, phase = "", log = emptyList(), hotspot = null) }
@@ -355,6 +388,8 @@ class FlasherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private companion object {
+        /** The firmware without the phone simulators (scripts/build-flasher.sh). */
+        const val PLAIN = "firmware-plain.bin"
         const val ACTION_PERMISSION = "org.meshmsg.flasher.USB_PERMISSION"
         val HOTSPOT = Regex("hotspot (Mava-[0-9A-Fa-f]{4}), device password: (\\S+)")
     }

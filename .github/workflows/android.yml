@@ -286,7 +286,7 @@ jobs:
         run: |
           ver='${{ needs.version.outputs.name }}'
           mkdir -p bi && tar -xf dist/board-images.tar -C bi
-          (cd bi/board-images && zip -q -X "$GITHUB_WORKSPACE/dist/mava-board-images-$ver.zip" images.txt VERSION *.bin)
+          (cd bi/board-images && zip -q -X "$GITHUB_WORKSPACE/dist/mava-board-images-$ver.zip" images.txt VERSION *.bin $(ls variants.txt 2>/dev/null))
           rm -f dist/board-images.tar
           unzip -l "dist/mava-board-images-$ver.zip"
 

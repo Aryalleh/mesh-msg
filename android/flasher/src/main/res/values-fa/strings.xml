@@ -55,4 +55,7 @@
     <string name="radio_on">ماژول LoRa وصل است</string>
     <string name="radio_saved_off">ذخیره شد: برد از این به بعد سراغ رادیو نمی‌رود.</string>
     <string name="radio_saved_on">ذخیره شد: برد الان دنبال ماژول LoRa می‌گردد (لاگ برد نشان می‌دهد پیدا شد یا نه).</string>
+    <string name="sims_title">شبیه‌سازهای گوشی (صفحهٔ Mava)</string>
+    <string name="sims_on">روشن: صفحهٔ Mava می‌تواند از راه USB صفحه، کلیدها، بلندگو و میکروفن برد باشد.</string>
+    <string name="sims_off">خاموش: فرم‌ور بدون آن‌ها، سریع‌تر. برای بردی با نمایشگر و کلیدهای خودش؛ صفحهٔ Mava کاری نمی‌کند.</string>
 </resources>

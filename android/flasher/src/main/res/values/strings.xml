@@ -55,4 +55,7 @@
     <string name="radio_on">LoRa module fitted</string>
     <string name="radio_saved_off">Saved: the board skips the radio from now on.</string>
     <string name="radio_saved_on">Saved: the board looks for the LoRa module now (the board log shows if it was found).</string>
+    <string name="sims_title">Phone simulators (Mava Screen)</string>
+    <string name="sims_on">On: Mava Screen can be the board\'s screen, keys, speaker and microphone over USB.</string>
+    <string name="sims_off">Off: the firmware without them, faster. For a board with its own display and keys; Mava Screen does nothing.</string>
 </resources>

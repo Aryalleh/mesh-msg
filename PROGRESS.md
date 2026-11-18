@@ -1992,3 +1992,8 @@ links. Chose: quick items in beta3; calls follow in later betas.
   screen. Android: `codecs()` = `17,20` (or `20`), CallInfo.videoCodec, MJPEG send (RGBA →
   upright, fit 320×240, quality follows kbps) and receive (JPEG on the Surface). Owner: beta33
   screen slow → draw buffers back in internal RAM, 2 × 20 rows (TLS now in PSRAM).
+- Two firmwares per pre-release (owner, 2026-11-18): `scripts/build-flasher.sh` also builds
+  env `mava_handheld_s3_v1` as `firmware-plain.bin` (no phone simulators), the images get
+  `variants.txt`, the release zip carries both. Mava Flasher: switch *Phone simulators (Mava
+  Screen)* (remembered; writes firmware-plain.bin at 0x10000 when off; older flashers keep
+  writing firmware.bin). Linux: `mava-flash board|firmware --plain`. flashing.md.

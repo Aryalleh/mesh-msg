@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
@@ -161,6 +162,15 @@ private fun FlasherScreen(s: UiState, vm: FlasherViewModel) {
 
             if (s.imagesVersion != null) {
                 val enabled = s.device != null && !s.busy && !s.monitoring
+                if (s.hasPlain) {
+                    Panel {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.sims_title), color = PrimaryHi, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            Switch(checked = !s.plain, onCheckedChange = { vm.setPlain(!it) }, enabled = !s.busy)
+                        }
+                        Text(stringResource(if (s.plain) R.string.sims_off else R.string.sims_on), color = Muted, fontSize = 13.sp)
+                    }
+                }
                 Panel {
                     Button(
                         onClick = { confirm = true }, enabled = enabled, shape = Chamfer,

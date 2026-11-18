@@ -20,6 +20,7 @@ cd mava-board-flasher-*-linux
 | `./mava-flash board` | firmware and the web client (file system) |
 | `./mava-flash board --erase` | erases everything first: **new identity, device password back to `12345678`**. Needed once on boards flashed before 0.1.1-beta7 (new partition table). |
 | `./mava-flash firmware` | firmware only (keeps identity, settings, stored messages) |
+| `--plain` (with `board` or `firmware`) | pre-releases: the firmware **without the phone simulators** (`firmware-plain.bin`) |
 | `./mava-flash web` | web client file system only — it also holds identity and settings, so they are replaced |
 | `./mava-flash keyboard matrix` / `bb9900` / `bb9900tp` | the keyboard module (Raspberry Pi Pico) of version A / B / C: hold **BOOTSEL** while plugging the Pico in |
 | `./mava-flash log` | the board's USB log |
@@ -55,6 +56,13 @@ script uses it when the bundled one does not run.
 
 If the board does not answer: hold **BOOT**, press and release **RESET**, release BOOT
 (download mode), and run the command again.
+
+**Two firmwares in pre-releases.** `firmware.bin` carries the phone simulators: Mava Screen
+can be the board's screen, keys, speaker and microphone over USB. `firmware-plain.bin` is
+the same firmware without them (env `mava_handheld_s3_v1`, as version 1 will be): less work
+in every loop, for a board with its own display and keys; Mava Screen then gets "unknown"
+and does nothing. The Linux flasher takes `--plain`; Mava Flasher has a switch, *Phone
+simulators (Mava Screen)*, remembered between runs. Stable versions carry only the plain one.
 
 ## Android
 

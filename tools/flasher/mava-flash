@@ -12,6 +12,9 @@
 #   ./mava-flash info             chip, flash size, MAC
 #
 # Options: --port /dev/ttyACM0   --dry-run (print the commands)   --baud 921600
+#          --plain   (board, firmware) the firmware without the phone simulators
+#                    (Mava Screen's screen, keys and audio over USB): faster, for a
+#                    board with its own display and keys; pre-releases only
 #
 # Everything needed is in this folder: images/ (built by the release), tools/esptool
 # (Espressif's standalone esptool for x86-64; on other machines `pip install esptool`).
@@ -23,6 +26,7 @@ PORT=""
 BAUD=921600
 DRY=0
 ERASE=0
+APP=firmware.bin
 VIOLET=$'\e[38;5;141m'; CYAN=$'\e[38;5;51m'; RED=$'\e[38;5;204m'; DIM=$'\e[2m'; OFF=$'\e[0m'
 [ -t 1 ] || { VIOLET=""; CYAN=""; RED=""; DIM=""; OFF=""; }
 
@@ -70,7 +74,7 @@ esp() { esptool --chip esp32s3 --port "$PORT" --baud "$BAUD" --before default_re
 flash_args() { echo "-z --flash_mode dio --flash_freq 80m --flash_size 16MB"; }
 
 cmd_board() {
-  for f in bootloader.bin partitions.bin boot_app0.bin firmware.bin littlefs.bin; do need "$f"; done
+  for f in bootloader.bin partitions.bin boot_app0.bin "$APP" littlefs.bin; do need "$f"; done
   find_port
   if [ "$ERASE" = 1 ]; then
     say "erasing the whole flash (identity, settings, stored messages)"
@@ -80,17 +84,17 @@ cmd_board() {
   # shellcheck disable=SC2046
   run esp write_flash $(flash_args) \
     0x0 "$IMG/bootloader.bin" 0x8000 "$IMG/partitions.bin" 0xe000 "$IMG/boot_app0.bin" \
-    0x10000 "$IMG/firmware.bin" 0x810000 "$IMG/littlefs.bin"
-  ok "done. Watch it start: $0 log"
+    0x10000 "$IMG/$APP" 0x810000 "$IMG/littlefs.bin"
+  ok "done ($APP). Watch it start: $0 log"
 }
 
 cmd_firmware() {
-  for f in bootloader.bin partitions.bin boot_app0.bin firmware.bin; do need "$f"; done
+  for f in bootloader.bin partitions.bin boot_app0.bin "$APP"; do need "$f"; done
   find_port
   # shellcheck disable=SC2046
   run esp write_flash $(flash_args) \
-    0x0 "$IMG/bootloader.bin" 0x8000 "$IMG/partitions.bin" 0xe000 "$IMG/boot_app0.bin" 0x10000 "$IMG/firmware.bin"
-  ok "firmware written"
+    0x0 "$IMG/bootloader.bin" 0x8000 "$IMG/partitions.bin" 0xe000 "$IMG/boot_app0.bin" 0x10000 "$IMG/$APP"
+  ok "firmware written ($APP)"
 }
 
 cmd_web() {
@@ -137,6 +141,7 @@ while [ $# -gt 0 ]; do
     --baud) BAUD="$2"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     --erase) ERASE=1; shift ;;
+    --plain) APP=firmware-plain.bin; shift ;;
     -h | --help) usage 0 ;;
     *) args+=("$1"); shift ;;
   esac

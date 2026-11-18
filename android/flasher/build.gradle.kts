@@ -12,7 +12,7 @@ val boardImages = (findProperty("boardImages") as String?)?.let { file(it) }
     ?: rootProject.file("../dist/board-images")
 val boardAssets = layout.buildDirectory.dir("generated/boardAssets")
 val copyBoardImages by tasks.registering(Sync::class) {
-    from(boardImages) { include("images.txt", "VERSION", "*.bin") }
+    from(boardImages) { include("images.txt", "variants.txt", "VERSION", "*.bin") }
     into(boardAssets.map { it.dir("board") })
 }
 
