@@ -5,6 +5,9 @@
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <!-- The newest firmware from GitHub releases (signed release.json). -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The Screen tab: the phone's microphone for the board (pre-release audio simulator). -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="false"
@@ -15,12 +18,13 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- A board plugged in: Android offers to open the flasher, with USB access. -->
+            <!-- A board plugged in: Android offers to open Mava Board, with USB access. -->
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>

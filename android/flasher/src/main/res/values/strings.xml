@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Mava Flasher</string>
+    <string name="app_name">Mava Board</string>
     <string name="title">Board flasher</string>
     <string name="images_version">Firmware %1$s</string>
     <string name="no_images">No firmware yet: connect to the internet and tap "Check GitHub for newer firmware".</string>
@@ -55,7 +55,37 @@
     <string name="radio_on">LoRa module fitted</string>
     <string name="radio_saved_off">Saved: the board skips the radio from now on.</string>
     <string name="radio_saved_on">Saved: the board looks for the LoRa module now (the board log shows if it was found).</string>
-    <string name="sims_title">Phone simulators (Mava Screen)</string>
-    <string name="sims_on">On: Mava Screen can be the board\'s screen, keys, speaker and microphone over USB.</string>
-    <string name="sims_off">Off: the firmware without them, faster. For a board with its own display and keys; Mava Screen does nothing.</string>
+    <string name="sims_title">Phone simulators (Screen tab)</string>
+    <string name="sims_on">On: the Screen tab can be the board\'s screen, keys, speaker and microphone over USB.</string>
+    <string name="sims_off">Off: the firmware without them, faster. For a board with its own display and keys; the Screen tab does nothing.</string>
+    <!-- The Screen tab (pre-release simulators, docs/screen.md) -->
+    <string name="scr_title">Handheld screen</string>
+    <string name="scr_no_board">No board on USB. Connect it with a USB-OTG adapter and a data cable, to the board\'s own USB socket.</string>
+    <string name="scr_board_found">Board: %1$s</string>
+    <string name="scr_connected">Showing the screen of %1$s</string>
+    <string name="scr_connecting">Connecting…</string>
+    <string name="scr_waiting">Connected, waiting for the screen…</string>
+    <string name="scr_allow_usb">Allow USB access</string>
+    <string name="scr_connect">Show screen</string>
+    <string name="scr_disconnect">Disconnect</string>
+    <string name="scr_retry">Try again</string>
+    <string name="scr_err_no_screen">This board has no screen UI, or its firmware is older than 0.1.1-beta11: update it in the Flash tab.</string>
+    <string name="scr_err_refused">The board refused to share its screen.</string>
+    <string name="scr_err_no_answer">The board does not answer: is the Mava firmware running? (Flash tab → Board log)</string>
+    <string name="scr_key_menu">Menu</string>
+    <string name="scr_key_back">Back</string>
+    <string name="scr_key_ok">OK</string>
+    <string name="scr_type_hint">Type on the board</string>
+    <string name="scr_type_send">Send</string>
+    <string name="scr_phone_keyboard">Type with the phone\'s keyboard (hide the board\'s touch keyboard)</string>
+    <string name="scr_help">Touch the picture to tap the handheld\'s screen. The buttons are its keys: call, menu, arrows, OK, back, end. Text you type here goes to the board as key presses, in any language your phone\'s keyboard has. The Flash tab and this one take turns with the board\'s USB; close Mava\'s LoRa-over-USB first.</string>
+    <string name="scr_picture">Show the board\'s screen here (off: keys and keyboard only, the board\'s own display shows it)</string>
+    <string name="scr_connected_keys">Keys and keyboard of %1$s</string>
+    <string name="scr_sound">Board sound on this phone\'s speaker</string>
+    <string name="scr_mic">This phone\'s microphone to the board</string>
+    <string name="scr_audio_counts">Audio: %1$d frames played, %2$d sent</string>
+    <string name="scr_err_no_audio">The board does not take audio: update it to firmware 0.1.1-beta32 or later (pre-release builds only).</string>
+    <string name="scr_prerelease">The Screen tab is a pre-release tool: the phone stands in for the handheld\'s screen, keys, speaker and microphone while the hardware is being built. Version 1 boards do without it.</string>
+    <string name="tab_flash">Flash &amp; set up</string>
+    <string name="tab_screen">Screen, keys, sound</string>
 </resources>

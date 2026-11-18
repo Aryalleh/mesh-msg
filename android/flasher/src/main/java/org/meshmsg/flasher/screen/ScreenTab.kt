@@ -1,17 +1,10 @@
-package org.meshmsg.screen
+package org.meshmsg.flasher.screen
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.os.Bundle
-import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -29,9 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CutCornerShape
@@ -40,7 +31,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -48,9 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,26 +47,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.meshmsg.flasher.R
 
 // Mava design tokens (docs/design.md).
 private val Bg = Color(0xFF0B0A14)
-private val S1 = Color(0xFF15122A)
-private val S2 = Color(0xFF1E1A3A)
 private val Border = Color(0xFF3B2A6B)
 private val Fg = Color(0xFFECE8FF)
 private val Muted = Color(0xFFA9A2CF)
@@ -91,50 +75,21 @@ private val CallGreen = Color(0xFF16A34A)
 private val EndRed = Color(0xFFDC2626)
 private val Chamfer = CutCornerShape(8.dp)
 
-private val Colors = darkColorScheme(
-    background = Bg, surface = S1, surfaceVariant = S2, onBackground = Fg, onSurface = Fg,
-    onSurfaceVariant = Muted, primary = Primary, onPrimary = Color.White, secondary = PrimaryHi,
-    tertiary = Accent, outline = Border, error = Err,
-)
-
-class MainActivity : ComponentActivity() {
-    private val vm: ScreenViewModel by viewModels()
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            MaterialTheme(colorScheme = Colors) {
-                val s by vm.state.collectAsStateWithLifecycle()
-                LaunchedEffect(s.connected) {
-                    if (s.connected) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                    else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                }
-                ScreenApp(s, vm)
-            }
-        }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        vm.refresh()
-    }
-}
-
+/**
+ * The Screen tab: the board's pre-release hardware simulators over USB — its
+ * screen (or keys and keyboard only), speaker and microphone (docs/screen.md).
+ * The app's activity hosts it next to the flasher; one of the two uses the
+ * board's USB at a time.
+ */
 @Composable
-private fun ScreenApp(s: ScreenUi, vm: ScreenViewModel) {
+fun ScreenTab(s: ScreenUi, vm: ScreenViewModel) {
     Surface(Modifier.fillMaxSize(), color = Bg) {
         Column(
-            Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
+            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "MAVA", fontSize = 22.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp,
-                    style = MaterialTheme.typography.headlineSmall.copy(brush = Brush.linearGradient(listOf(PrimaryHi, Accent))),
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.title), color = Fg, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.scr_title), color = Fg, fontSize = 16.sp, modifier = Modifier.weight(1f))
                 Spacer(Modifier.size(10.dp).background(if (s.connected) Ok else Muted, CircleShape))
             }
             Status(s, vm)
@@ -143,11 +98,11 @@ private fun ScreenApp(s: ScreenUi, vm: ScreenViewModel) {
                 Keys(vm)
                 TypeBox(vm)
             }
-            SwitchRow(stringResource(R.string.picture), s.picture, vm::setPicture)
-            SwitchRow(stringResource(R.string.phone_keyboard), s.phoneKeyboard, vm::setPhoneKeyboard)
+            SwitchRow(stringResource(R.string.scr_picture), s.picture, vm::setPicture)
+            SwitchRow(stringResource(R.string.scr_phone_keyboard), s.phoneKeyboard, vm::setPhoneKeyboard)
             AudioSettings(s, vm)
-            Text(stringResource(R.string.help), color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
-            Text(stringResource(R.string.prerelease), color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+            Text(stringResource(R.string.scr_help), color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+            Text(stringResource(R.string.scr_prerelease), color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
         }
     }
 }
@@ -170,8 +125,8 @@ private fun AudioSettings(s: ScreenUi, vm: ScreenViewModel) {
     val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) vm.setMic(true)
     }
-    SwitchRow(stringResource(R.string.sound), s.sound, vm::setSound)
-    SwitchRow(stringResource(R.string.mic), s.mic) { on ->
+    SwitchRow(stringResource(R.string.scr_sound), s.sound, vm::setSound)
+    SwitchRow(stringResource(R.string.scr_mic), s.mic) { on ->
         when {
             !on -> vm.setMic(false)
             ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> vm.setMic(true)
@@ -181,7 +136,7 @@ private fun AudioSettings(s: ScreenUi, vm: ScreenViewModel) {
     when {
         s.audioError != null -> Text(s.audioError, color = Err, fontSize = 13.sp)
         s.connected && (s.sound || s.mic) ->
-            Text(stringResource(R.string.audio_counts, s.audioIn, s.audioOut), color = Muted, fontSize = 12.sp)
+            Text(stringResource(R.string.scr_audio_counts, s.audioIn, s.audioOut), color = Muted, fontSize = 12.sp)
     }
 }
 
@@ -189,22 +144,22 @@ private fun AudioSettings(s: ScreenUi, vm: ScreenViewModel) {
 private fun Status(s: ScreenUi, vm: ScreenViewModel) {
     val text = when {
         s.error != null -> s.error
-        s.connected && !s.picture -> stringResource(R.string.connected_keys, s.device ?: "USB")
-        s.connected && s.width == 0 -> stringResource(R.string.waiting)
-        s.connected -> stringResource(R.string.connected, s.device ?: "USB")
-        s.connecting -> stringResource(R.string.connecting)
-        s.device == null -> stringResource(R.string.no_board)
-        !s.permitted -> stringResource(R.string.board_found, s.device)
-        else -> stringResource(R.string.board_found, s.device)
+        s.connected && !s.picture -> stringResource(R.string.scr_connected_keys, s.device ?: "USB")
+        s.connected && s.width == 0 -> stringResource(R.string.scr_waiting)
+        s.connected -> stringResource(R.string.scr_connected, s.device ?: "USB")
+        s.connecting -> stringResource(R.string.scr_connecting)
+        s.device == null -> stringResource(R.string.scr_no_board)
+        !s.permitted -> stringResource(R.string.scr_board_found, s.device)
+        else -> stringResource(R.string.scr_board_found, s.device)
     }
     Text(text, color = if (s.error != null) Err else if (s.connected) Ok else Muted, fontSize = 13.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         when {
             s.device != null && !s.permitted ->
-                SmallButton(stringResource(R.string.allow_usb), Modifier) { vm.requestPermission() }
-            s.error != null -> SmallButton(stringResource(R.string.retry), Modifier) { vm.retry() }
-            s.connected -> SmallButton(stringResource(R.string.disconnect), Modifier) { vm.disconnect() }
-            s.device != null && !s.connecting -> SmallButton(stringResource(R.string.connect), Modifier) { vm.connect() }
+                SmallButton(stringResource(R.string.scr_allow_usb), Modifier) { vm.requestPermission() }
+            s.error != null -> SmallButton(stringResource(R.string.scr_retry), Modifier) { vm.retry() }
+            s.connected -> SmallButton(stringResource(R.string.scr_disconnect), Modifier) { vm.disconnect() }
+            s.device != null && !s.connecting -> SmallButton(stringResource(R.string.scr_connect), Modifier) { vm.connect() }
         }
     }
 }
@@ -268,14 +223,14 @@ private fun Keys(vm: ScreenViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             KeyButton("📞", CallGreen) { k(Key.Call) }
-            KeyButton(stringResource(R.string.key_menu)) { k(Key.Menu) }
+            KeyButton(stringResource(R.string.scr_key_menu)) { k(Key.Menu) }
             KeyButton("▲") { k(Key.Up) }
-            KeyButton(stringResource(R.string.key_back)) { k(Key.Back) }
+            KeyButton(stringResource(R.string.scr_key_back)) { k(Key.Back) }
             KeyButton("⏻", EndRed) { k(Key.End) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             KeyButton("◀") { k(Key.Left) }
-            KeyButton(stringResource(R.string.key_ok), Primary) { k(Key.Ok) }
+            KeyButton(stringResource(R.string.scr_key_ok), Primary) { k(Key.Ok) }
             KeyButton("▶") { k(Key.Right) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -322,7 +277,7 @@ private fun TypeBox(vm: ScreenViewModel) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = text, onValueChange = { text = it }, singleLine = true, modifier = Modifier.weight(1f),
-            label = { Text(stringResource(R.string.type_hint)) }, shape = Chamfer,
+            label = { Text(stringResource(R.string.scr_type_hint)) }, shape = Chamfer,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { send() }),
             colors = OutlinedTextFieldDefaults.colors(
@@ -331,7 +286,7 @@ private fun TypeBox(vm: ScreenViewModel) {
             ),
         )
         Button(onClick = send, shape = Chamfer, colors = ButtonDefaults.buttonColors(containerColor = Primary)) {
-            Text(stringResource(R.string.type_send))
+            Text(stringResource(R.string.scr_type_send))
         }
     }
 }

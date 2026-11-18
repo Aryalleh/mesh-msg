@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-// The board over USB, shared by the flasher and Mava Screen: USB serial
+// The board over USB, for Mava Board (android/flasher: flasher and Screen tab): USB serial
 // drivers (ESP32-S3 USB, CP210x, CH340) and the node host link framing.
 android {
     namespace = "org.meshmsg.boardlink"

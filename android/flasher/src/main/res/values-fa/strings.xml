@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">فلشر Mava</string>
+    <string name="app_name">برد Mava</string>
     <string name="title">فلشر برد</string>
     <string name="images_version">فرم‌ور %1$s</string>
     <string name="no_images">هنوز فرم‌وری نیست: به اینترنت وصل شوید و «بررسی فرم‌ور تازه‌تر در گیت‌هاب» را بزنید.</string>
@@ -55,7 +55,37 @@
     <string name="radio_on">ماژول LoRa وصل است</string>
     <string name="radio_saved_off">ذخیره شد: برد از این به بعد سراغ رادیو نمی‌رود.</string>
     <string name="radio_saved_on">ذخیره شد: برد الان دنبال ماژول LoRa می‌گردد (لاگ برد نشان می‌دهد پیدا شد یا نه).</string>
-    <string name="sims_title">شبیه‌سازهای گوشی (صفحهٔ Mava)</string>
-    <string name="sims_on">روشن: صفحهٔ Mava می‌تواند از راه USB صفحه، کلیدها، بلندگو و میکروفن برد باشد.</string>
-    <string name="sims_off">خاموش: فرم‌ور بدون آن‌ها، سریع‌تر. برای بردی با نمایشگر و کلیدهای خودش؛ صفحهٔ Mava کاری نمی‌کند.</string>
+    <string name="sims_title">شبیه‌سازهای گوشی (زبانهٔ صفحه)</string>
+    <string name="sims_on">روشن: زبانهٔ «صفحه، کلیدها، صدا» می‌تواند از راه USB صفحه، کلیدها، بلندگو و میکروفن برد باشد.</string>
+    <string name="sims_off">خاموش: فرم‌ور بدون آن‌ها، سریع‌تر. برای بردی با نمایشگر و کلیدهای خودش؛ زبانهٔ صفحه کاری نمی‌کند.</string>
+    <!-- The Screen tab (pre-release simulators, docs/screen.md) -->
+    <string name="scr_title">صفحهٔ دستگاه دستی</string>
+    <string name="scr_no_board">بردی روی USB نیست. برد را با تبدیل USB-OTG و کابل دیتا به سوکت USB خود برد وصل کنید.</string>
+    <string name="scr_board_found">برد: %1$s</string>
+    <string name="scr_connected">نمایش صفحهٔ %1$s</string>
+    <string name="scr_connecting">در حال اتصال…</string>
+    <string name="scr_waiting">وصل شد، منتظر صفحه…</string>
+    <string name="scr_allow_usb">اجازهٔ دسترسی USB</string>
+    <string name="scr_connect">نمایش صفحه</string>
+    <string name="scr_disconnect">قطع اتصال</string>
+    <string name="scr_retry">دوباره امتحان کنید</string>
+    <string name="scr_err_no_screen">این برد رابط صفحه ندارد یا فرم‌ورش قدیمی‌تر از 0.1.1-beta11 است: در زبانهٔ «فلش و تنظیم» به‌روزش کنید.</string>
+    <string name="scr_err_refused">برد اشتراک صفحه را نپذیرفت.</string>
+    <string name="scr_err_no_answer">برد جواب نمی‌دهد: فرم‌ور Mava اجرا می‌شود؟ (زبانهٔ فلش ← لاگ برد)</string>
+    <string name="scr_key_menu">منو</string>
+    <string name="scr_key_back">برگشت</string>
+    <string name="scr_key_ok">تأیید</string>
+    <string name="scr_type_hint">روی برد تایپ کنید</string>
+    <string name="scr_type_send">ارسال</string>
+    <string name="scr_phone_keyboard">تایپ با کیبورد گوشی (کیبورد لمسی برد پنهان شود)</string>
+    <string name="scr_help">برای زدن روی صفحهٔ دستگاه، روی تصویر بزنید. دکمه‌ها کلیدهای دستگاه‌اند: تماس، منو، جهت‌ها، تأیید، برگشت، پایان. متنی که اینجا تایپ می‌کنید به‌صورت کلید به برد می‌رود، با هر زبانی که کیبورد گوشی دارد. این زبانه و زبانهٔ فلش به نوبت از USB برد استفاده می‌کنند؛ اول LoRa از راه USB در Mava را ببندید.</string>
+    <string name="scr_picture">نمایش صفحهٔ برد در اینجا (خاموش: فقط کلیدها و کیبورد؛ صفحهٔ خود برد نشان می‌دهد)</string>
+    <string name="scr_connected_keys">کلیدها و کیبورد %1$s</string>
+    <string name="scr_sound">صدای برد از بلندگوی این گوشی</string>
+    <string name="scr_mic">میکروفن این گوشی برای برد</string>
+    <string name="scr_audio_counts">صدا: %1$d قاب پخش شد، %2$d فرستاده شد</string>
+    <string name="scr_err_no_audio">برد صدا نمی‌پذیرد: فرم‌ور آن را به 0.1.1-beta32 یا بالاتر به‌روز کنید (فقط نسخه‌های پیش‌انتشار).</string>
+    <string name="scr_prerelease">این زبانه ابزار پیش‌انتشار است: تا سخت‌افزار آماده شود، گوشی جای صفحه، کلیدها، بلندگو و میکروفن دستی را می‌گیرد. بردهای نسخهٔ ۱ بدون آن کار می‌کنند.</string>
+    <string name="tab_flash">فلش و تنظیم</string>
+    <string name="tab_screen">صفحه، کلیدها، صدا</string>
 </resources>

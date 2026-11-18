@@ -1,6 +1,8 @@
-# The handheld's screen on a phone (Mava Screen)
+# The handheld's screen on a phone (Mava Board → Screen tab)
 
-**Mava Screen** (`android/screen`, release asset `mava-screen-<version>-android.apk`) shows
+**The Screen tab of Mava Board** (`android/flasher/.../screen`, release asset
+`mava-board-<version>-android.apk`, the same app as the flasher; it was the separate Mava Screen app
+until 0.1.1-beta34) shows
 the handheld's 240×320 screen on an Android phone over a USB-OTG cable, live, and works it:
 touch the picture to tap, use the buttons for the handheld's keys (call, menu, arrows, OK,
 back, end, backspace, enter, symbols), and type with the phone's keyboard (each character
@@ -8,7 +10,7 @@ goes to the board as a key press, any language). A Mava board without a screen f
 bare ESP32-S3 dev board) runs the same UI, so the phone is its screen.
 
 ```
-phone (Mava Screen) ── USB-OTG ── board's own USB socket (host link, port 0)
+phone (the Screen tab) ── USB-OTG ── board's own USB socket (host link, port 0)
    SCREEN 1  ───────────────────►  start: info, then every tile, then what changes
    ◄─────────────── SCREEN events  16×8 tiles, run-length or raw RGB565
    INPUT touch / key ───────────►  fed to LVGL like the touch panel / keyboard module
@@ -25,7 +27,7 @@ phone (Mava Screen) ── USB-OTG ── board's own USB socket (host link, por
   the node's per-port output is 8 kB and up to 64 tiles are queued per pass.
 - **Keyboards:** one firmware for all of them: the Pico keyboard module (own matrix, BlackBerry
   9900 keyboard, 9900 keyboard + trackpad, detected), the touch keyboard, and the phone's
-  keyboard through Mava Screen. Mava Screen's switch *Type with the phone's keyboard* (on by
+  keyboard through the Screen tab. Its switch *Type with the phone's keyboard* (on by
   default) sends INPUT option `2 | 1 | 0` and the board hides its touch keyboard.
 
 ## How it works
@@ -56,13 +58,13 @@ phone (Mava Screen) ── USB-OTG ── board's own USB socket (host link, por
 
 ## Pre-release hardware simulators (0.1.1-beta32)
 
-Mava Screen is a stand-in for hardware that is still being built, so it is a **pre-release
+The Screen tab is a stand-in for hardware that is still being built, so it is a **pre-release
 tool**: everything the phone simulates lives in one place on each side and leaves with v1.
 
 | | Pre-releases (`0.1.1-betaN`) | v1 (`1.0.0`) |
 |---|---|---|
 | Firmware | env `mava_handheld_s3`, `MAVA_HWSIM=1`: `src/hwsim/`, `lib/hwsim/` | env `mava_handheld_s3_v1`: none of it compiled; `SCREEN`, `INPUT`, `AUDIO` answer `unknown op` |
-| Release | `mava-screen-…-android.apk` published | not published |
+| Release | Mava Board shows the Screen tab | Mava Board without the Screen tab |
 
 `scripts/build-flasher.sh` picks the env from the version (a `-` means pre-release); CI builds
 both envs on every push. What stays in v1: the board's own audio (`src/board_audio`,
@@ -77,7 +79,7 @@ its text log after 90 s of silence).
 **Audio.** *Board sound on this phone's speaker* and *This phone's microphone to the board*:
 
 ```
-phone (Mava Screen) ── USB ── board
+phone (the Screen tab) ── USB ── board
    AUDIO 1 | flags ─────────►  start: 1 speaker, 2 microphone (0 = stop)
    ◄──────── AUDIO 0 | rate | frame       format: 16000 Hz, 160 samples (10 ms)
    ◄──────── AUDIO 1 | seq | PCM          speaker frames, s16 little-endian, 100 a second
@@ -88,9 +90,9 @@ The board renders its sounds on time into a short queue (`board_audio`), whateve
 output: the message chime when a message for the board's account opens, a click on every key,
 the ring of an incoming call, and Settings → *Sound test*; during a call the far side's voice
 is mixed in and the microphone goes to the call (16 kHz, as the WM8960 will run). With both
-switches on, Mava Screen is the board's speakerphone: it records with `VOICE_COMMUNICATION`
+switches on, the Screen tab is the board's speakerphone: it records with `VOICE_COMMUNICATION`
 and the phone's echo canceller and noise suppressor where it has them. Microphone frames go to a level meter (Settings, and an `audio`
 line in the board log while audio runs) and, with Settings → *Echo test*, back out of the
 speaker (use headphones: the phone's own speaker next to its microphone howls). Frame layout:
-`firmware/lib/hwsim/src/audiolink.h`; Android: `android/screen/.../BoardAudio.kt`
+`firmware/lib/hwsim/src/audiolink.h`; Android: `android/flasher/.../screen/BoardAudio.kt`
 (AudioTrack, AudioRecord; microphone permission asked when switched on).

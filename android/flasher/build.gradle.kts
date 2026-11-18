@@ -4,8 +4,10 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// Mava board flasher for Android (docs/flashing.md): writes the board images over
-// USB-OTG. The images come from the board build (scripts/build-flasher.sh writes
+// Mava Board for Android: the board flasher (docs/flashing.md: writes the board
+// images over USB-OTG, sets Wi-Fi and LoRa) and, in pre-releases, the Screen tab
+// (docs/screen.md: the board's screen, keys, speaker and microphone over USB).
+// The images come from the board build (scripts/build-flasher.sh writes
 // dist/board-images/); pass -PboardImages=<dir>. Without them the app builds and
 // tells the user this copy carries no firmware.
 val boardImages = (findProperty("boardImages") as String?)?.let { file(it) }
@@ -27,6 +29,9 @@ android {
         versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = (findProperty("versionName") as String?) ?: "0.1.0-dev"
         androidResources.localeFilters += listOf("en", "fa")
+        // The Screen tab drives the firmware's pre-release hardware simulators:
+        // pre-releases ("-" in the version) and dev builds only, as the firmware.
+        buildConfigField("boolean", "SIMULATORS", (versionName?.contains('-') ?: true).toString())
     }
     sourceSets["main"].assets.srcDir(boardAssets)
 
@@ -51,7 +56,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     lint {
         abortOnError = true
         warningsAsErrors = false

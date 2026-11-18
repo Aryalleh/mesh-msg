@@ -1,4 +1,4 @@
-package org.meshmsg.screen
+package org.meshmsg.flasher.screen
 
 import android.app.Application
 import android.app.PendingIntent
@@ -22,6 +22,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.meshmsg.boardlink.HostLink
 import org.meshmsg.boardlink.UsbSerial
+import org.meshmsg.flasher.R
 
 data class ScreenUi(
     val device: String? = null,
@@ -59,13 +60,16 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile var session: ScreenSession? = null
         private set
     private var job: Job? = null
-    private var autoConnect = true
+    // Connects by itself only while the Screen tab is open (the flasher tab
+    // uses the same USB port).
+    @Volatile private var autoConnect = false
+    @Volatile private var active = false
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, intent: Intent) {
             refresh()
             if (intent.action == UsbManager.ACTION_USB_DEVICE_DETACHED) disconnect()
-            if (intent.action == ACTION_PERMISSION && intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) connect()
+            if (active && intent.action == ACTION_PERMISSION && intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) connect()
         }
     }
 
@@ -132,6 +136,7 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun connect() {
+        if (!active) return
         val manager = usb ?: return
         if (job?.isActive == true) return
         val d = UsbSerial.find(manager) ?: return
@@ -163,13 +168,13 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
                         val st = s.started ?: continue
                         if (st != HostLink.ACK_OK) {
                             _state.update {
-                                it.copy(error = ctx.getString(if (st == HostLink.ACK_UNKNOWN_OP) R.string.err_no_screen else R.string.err_refused))
+                                it.copy(error = ctx.getString(if (st == HostLink.ACK_UNKNOWN_OP) R.string.scr_err_no_screen else R.string.scr_err_refused))
                             }
                             s.close()
                         }
                         return@launch
                     }
-                    if (s.started == null) _state.update { it.copy(error = ctx.getString(R.string.err_no_answer)) }
+                    if (s.started == null) _state.update { it.copy(error = ctx.getString(R.string.scr_err_no_answer)) }
                 }
                 s.run()
             } catch (e: Exception) {
@@ -188,6 +193,17 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
         autoConnect = false
         session?.close()
         job?.cancel()
+    }
+
+    /** The Screen tab is shown (connect when the board is there) or left (let go of USB). */
+    fun setActive(on: Boolean) {
+        active = on
+        if (on) {
+            autoConnect = true
+            _state.update { it.copy(error = null) }
+        } else {
+            disconnect()
+        }
     }
 
     fun setPhoneKeyboard(on: Boolean) {
@@ -239,7 +255,7 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
                 if (ack != HostLink.ACK_OK) {
                     a.speaker(false)
                     a.mic(false)
-                    _state.update { it.copy(audioError = ctx.getString(R.string.err_no_audio)) }
+                    _state.update { it.copy(audioError = ctx.getString(R.string.scr_err_no_audio)) }
                 }
                 return@launch
             }
@@ -253,6 +269,6 @@ class ScreenViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val OPT_TOUCH_KEYBOARD = 1
-        const val ACTION_PERMISSION = "org.meshmsg.screen.USB_PERMISSION"
+        const val ACTION_PERMISSION = "org.meshmsg.flasher.screen.USB_PERMISSION"
     }
 }

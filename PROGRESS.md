@@ -1997,3 +1997,11 @@ links. Chose: quick items in beta3; calls follow in later betas.
   `variants.txt`, the release zip carries both. Mava Flasher: switch *Phone simulators (Mava
   Screen)* (remembered; writes firmware-plain.bin at 0x10000 when off; older flashers keep
   writing firmware.bin). Linux: `mava-flash board|firmware --plain`. flashing.md.
+- One Android app for the board (owner, 2026-11-18): Mava Screen merged into the flasher
+  module as **Mava Board** (applicationId stays org.meshmsg.flasher, so Mava Flasher updates in
+  place; uninstall Mava Screen). Tabs *Flash & set up* and *Screen, keys, sound* (the second
+  only when `BuildConfig.SIMULATORS`: a "-" in the version, as the firmware's simulators);
+  opening one lets go of the board's USB in the other (`ScreenViewModel.setActive`). Screen
+  code in `android/flasher/.../screen`, strings prefixed `scr_`, RECORD_AUDIO in the manifest;
+  `android/screen` removed. Release asset `mava-board-<ver>-android.apk` (no more
+  mava-board-flasher-…-android.apk / mava-screen-…). Docs updated.

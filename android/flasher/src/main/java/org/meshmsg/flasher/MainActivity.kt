@@ -40,12 +40,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,6 +62,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.meshmsg.flasher.screen.ScreenTab
+import org.meshmsg.flasher.screen.ScreenViewModel
 
 // Mava design tokens (docs/design.md).
 private val Bg = Color(0xFF0B0A14)
@@ -80,8 +85,16 @@ private val Colors = darkColorScheme(
 )
 private val Chamfer = CutCornerShape(10.dp)
 
+/**
+ * Mava Board: one app for the board over USB-OTG. The Flash tab writes the
+ * firmware and sets Wi-Fi and LoRa; the Screen tab (pre-releases only: the
+ * firmware's hardware simulators) is the board's screen, keys, speaker and
+ * microphone. The two take turns with the USB port: opening one lets go of
+ * the other.
+ */
 class MainActivity : ComponentActivity() {
     private val vm: FlasherViewModel by viewModels()
+    private val screenVm: ScreenViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,12 +102,36 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = Colors) {
                 val s by vm.state.collectAsStateWithLifecycle()
-                LaunchedEffect(s.busy || s.monitoring) {
-                    // The screen must stay on while writing: a sleeping phone can cut USB.
-                    if (s.busy || s.monitoring) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                val sc by screenVm.state.collectAsStateWithLifecycle()
+                var tab by rememberSaveable { mutableIntStateOf(0) }
+                val screenTab = BuildConfig.SIMULATORS && tab == 1
+                LaunchedEffect(screenTab) {
+                    if (screenTab) vm.stopMonitor()
+                    screenVm.setActive(screenTab)
+                }
+                LaunchedEffect(s.busy || s.monitoring || sc.connected) {
+                    // The screen must stay on while writing (a sleeping phone can cut USB)
+                    // and while it shows the board.
+                    if (s.busy || s.monitoring || sc.connected) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 }
-                FlasherScreen(s, vm)
+                Surface(Modifier.fillMaxSize(), color = Bg) {
+                    Column(Modifier.safeDrawingPadding()) {
+                        if (BuildConfig.SIMULATORS) {
+                            TabRow(selectedTabIndex = tab, containerColor = S1, contentColor = PrimaryHi) {
+                                Tab(
+                                    selected = tab == 0, onClick = { tab = 0 }, enabled = !s.busy,
+                                    text = { Text(stringResource(R.string.tab_flash)) },
+                                )
+                                Tab(
+                                    selected = tab == 1, onClick = { tab = 1 }, enabled = !s.busy,
+                                    text = { Text(stringResource(R.string.tab_screen)) },
+                                )
+                            }
+                        }
+                        if (screenTab) ScreenTab(sc, screenVm) else FlasherScreen(s, vm)
+                    }
+                }
             }
         }
     }
@@ -102,11 +139,13 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         vm.refresh()
+        screenVm.refresh()
     }
 
     override fun onResume() {
         super.onResume()
         vm.refresh()
+        screenVm.refresh()
     }
 }
 

@@ -1,7 +1,7 @@
 # Flashing the Mava board (Linux, Android)
 
 Two flashers write the same images: `mava-board-flasher-<version>-linux.tar.gz` on a
-computer, and `mava-board-flasher-<version>-android.apk` on a phone ([below](#android)).
+computer, and the Mava Board app (`mava-board-<version>-android.apk`) on a phone ([below](#android)).
 
 ## Linux
 
@@ -57,21 +57,22 @@ script uses it when the bundled one does not run.
 If the board does not answer: hold **BOOT**, press and release **RESET**, release BOOT
 (download mode), and run the command again.
 
-**Two firmwares in pre-releases.** `firmware.bin` carries the phone simulators: Mava Screen
-can be the board's screen, keys, speaker and microphone over USB. `firmware-plain.bin` is
+**Two firmwares in pre-releases.** `firmware.bin` carries the phone simulators: Mava Board's
+Screen tab can be the board's screen, keys, speaker and microphone over USB. `firmware-plain.bin` is
 the same firmware without them (env `mava_handheld_s3_v1`, as version 1 will be): less work
-in every loop, for a board with its own display and keys; Mava Screen then gets "unknown"
-and does nothing. The Linux flasher takes `--plain`; Mava Flasher has a switch, *Phone
-simulators (Mava Screen)*, remembered between runs. Stable versions carry only the plain one.
+in every loop, for a board with its own display and keys; the Screen tab then gets "unknown"
+and does nothing. The Linux flasher takes `--plain`; Mava Board has a switch, *Phone
+simulators (Screen tab)*, remembered between runs. Stable versions carry only the plain one.
 
 ## Android
 
-`mava-board-flasher-<version>-android.apk` (Android 8+) carries the board firmware and
+`mava-board-<version>-android.apk` (Mava Board, Android 8+; it replaces Mava Flasher and Mava
+Screen) carries the board firmware and
 writes it from the phone, no computer needed:
 
 1. Install the APK (allow installs from your browser or file manager once).
 2. Connect the board with a **USB-OTG adapter** and a **data cable**. Android asks whether
-   to open *Mava Flasher*: yes (tick "always" to skip the question next time). Or open the
+   to open *Mava Board*: yes (tick "always" to skip the question next time). Or open the
    app and tap **Allow USB access**.
 3. **Install everything** the first time: firmware and web client; the board gets a new
    identity, the device password goes back to `12345678` and its settings start over (same as

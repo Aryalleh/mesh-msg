@@ -1,4 +1,4 @@
-package org.meshmsg.screen
+package org.meshmsg.flasher.screen
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals

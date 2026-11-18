@@ -191,9 +191,9 @@ jobs:
           name: board-images
           path: images/
 
-  # The Mava board's Android tools: the flasher (android/flasher: the same
-  # images, written over USB-OTG from a phone) and Mava Screen (android/screen:
-  # the handheld's screen on the phone over USB).
+  # The Mava board's Android app, Mava Board (android/flasher): the flasher (the
+  # same images, written over USB-OTG from a phone) and, in pre-releases, the
+  # Screen tab (the handheld's screen, keys and audio on the phone over USB).
   flasher-android:
     needs: [version, board]
     runs-on: ubuntu-24.04
@@ -236,8 +236,7 @@ jobs:
           ./gradlew --no-daemon -PversionName='${{ needs.version.outputs.name }}' -PversionCode='${{ needs.version.outputs.code }}' \
             -PboardImages="$GITHUB_WORKSPACE/imgs/board-images" \
             :boardlink:lintDebug :boardlink:testDebugUnitTest \
-            :flasher:lintDebug :flasher:testDebugUnitTest :flasher:assembleDebug \
-            :screen:lintDebug :screen:testDebugUnitTest :screen:assembleDebug 2>&1 | tee ../gradle.log
+            :flasher:lintDebug :flasher:testDebugUnitTest :flasher:assembleDebug 2>&1 | tee ../gradle.log
 
       - name: Report build errors
         if: failure()
@@ -249,13 +248,11 @@ jobs:
       - name: Collect APKs
         run: |
           mkdir -p dist
-          cp android/flasher/build/outputs/apk/debug/flasher-debug.apk "dist/mava-board-flasher-${{ needs.version.outputs.name }}-android.apk"
-          # Mava Screen drives the board's pre-release hardware simulators
-          # (firmware src/hwsim): stable versions (no "-") ship neither.
-          case '${{ needs.version.outputs.name }}' in
-            *-*) cp android/screen/build/outputs/apk/debug/screen-debug.apk "dist/mava-screen-${{ needs.version.outputs.name }}-android.apk" ;;
-          esac
-          unzip -l "dist/mava-board-flasher-${{ needs.version.outputs.name }}-android.apk" | grep -q 'assets/board/firmware.bin'
+          # Mava Board (flasher + Screen tab; the tab only in pre-releases, as the
+          # firmware's hardware simulators it drives).
+          cp android/flasher/build/outputs/apk/debug/flasher-debug.apk "dist/mava-board-${{ needs.version.outputs.name }}-android.apk"
+          unzip -l "dist/mava-board-${{ needs.version.outputs.name }}-android.apk" | grep -q 'assets/board/firmware.bin'
+
           ls -la dist
 
       - uses: actions/upload-artifact@v4
@@ -279,7 +276,7 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # The board images as one zip: Mava Flasher (Android) downloads the
+      # The board images as one zip: Mava Board (Android) downloads the
       # newest one itself (checked against the SHA-256 in the signed
       # release.json), so a new firmware needs no new flasher APK.
       - name: Board images for the flasher's download
@@ -330,11 +327,12 @@ jobs:
           **Mava board (Linux flasher)**: `mava-board-flasher-…-linux.tar.gz` holds the ESP32-S3
           firmware, the web client for iPhones and the keyboard-module images, with esptool.
           `./mava-flash board --erase` the first time, then `./mava-flash board`; see README.md inside.
-          **Mava board (Android flasher)**: `mava-board-flasher-…-android.apk` writes the same firmware
-          from a phone over a USB-OTG adapter (Install everything / Update firmware only) and shows
-          the board's log: hotspot name, device password, BLE passkey; it also sets the board's Wi-Fi.
-          **Mava Screen** (pre-releases only): `mava-screen-…-android.apk` stands in for the handheld's
-          hardware over USB: its screen (or keys and keyboard only), its speaker and its microphone.
+          **Mava Board (Android)**: `mava-board-…-android.apk` writes the same firmware from a phone
+          over a USB-OTG adapter (Install everything / Update firmware only, with or without the
+          phone simulators), shows the board's log (hotspot name, device password, BLE passkey) and
+          sets its Wi-Fi and LoRa. In pre-releases its Screen tab stands in for the handheld's
+          hardware over USB: its screen (or keys and keyboard only), speaker and microphone.
+          It replaces Mava Flasher and Mava Screen (uninstall Mava Screen).
           **Relay server**: `meshmsg-relay-…-linux-amd64.tar.gz`. Run `sudo sh install.sh` inside
           (it asks for your Mava account id for the admin panel at `/admin`). Relays serve the
           signed release manifest at `/v1/release`.

@@ -1,4 +1,4 @@
-package org.meshmsg.screen
+package org.meshmsg.flasher.screen
 
 import org.meshmsg.boardlink.HostLink
 import org.meshmsg.boardlink.SerialLink

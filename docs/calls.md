@@ -111,7 +111,7 @@ candidates = n(1) | n × (kind(1) | family(1) | addr | port(2) | priority(4))
   16 kHz in 20 ms frames (libopus, fixed point); signals travel as content type 7 through the
   board's messaging client (any path: Bluetooth, the relay, USB). The board offers and
   accepts Opus only, so a phone without Opus (Android before 10) can't call it. Audio:
-  the WM8960 codec, and before it the Mava Screen app over USB (screen.md "Audio"). Calls
+  the WM8960 codec, and before it the Screen tab of the Mava Board app over USB (screen.md "Audio"). Calls
   from saved contacts only; a call needs Wi-Fi and the board's clock (OFFER expiry).
   Screen: incoming (📞 answer, ⛔ decline), calling, talking (code, path, mute, hang up).
 

@@ -49,7 +49,7 @@ src/                 the board layer (Arduino / PlatformIO), nothing that decide
                       Messenger interface (stub: local notes), Vazirmatn font
   board_audio         sounds rendered on time for the outputs, microphone frames from the
                       inputs (meter, echo test); kept in every build
-  hwsim/              PRE-RELEASE ONLY (MAVA_HWSIM=1): the phone (Mava Screen) as the
+  hwsim/              PRE-RELEASE ONLY (MAVA_HWSIM=1): the phone (Mava Board's Screen tab) as the
                       handheld's screen, keys and keyboard, speaker and microphone over USB;
                       the v1 env (mava_handheld_s3_v1) compiles none of it
 lib/meshui/src/      touch keyboard layouts (Persian, Latin, symbols), host-tested

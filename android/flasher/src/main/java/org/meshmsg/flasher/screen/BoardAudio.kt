@@ -1,4 +1,4 @@
-package org.meshmsg.screen
+package org.meshmsg.flasher.screen
 
 import android.annotation.SuppressLint
 import android.media.AudioAttributes
