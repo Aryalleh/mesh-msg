@@ -31,6 +31,7 @@ struct CallView {
   std::string reason;  // why it ended
   bool missed = false, muted = false, peer_muted = false, video_offered = false;
   bool video = false;  // the other side can show its camera in this call
+  bool peer_ringing = false;  // calling out, and their phone rings
   int path = 0;          // path class: 1 same network … 5 across NAT
   uint32_t seconds = 0;  // talking time
 };

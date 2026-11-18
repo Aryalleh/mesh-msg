@@ -71,7 +71,7 @@ CallView::State g_call_state = CallView::State::None;
 lv_obj_t* g_call_info = nullptr;
 lv_obj_t* g_video_img = nullptr;  // the far side's camera, behind the call screen
 uint32_t g_video_at = 0;          // when its last frame came
-uint32_t g_ring_at = 0, g_call_close_at = 0, g_call_info_at = 0;
+uint32_t g_ring_at = 0, g_call_close_at = 0, g_call_info_at = 0, g_ringback_at = 0;
 // Touch calibration: the cross (on the top layer, in screen pixels).
 lv_obj_t* g_cross[2] = {nullptr, nullptr};
 int g_cal_shown = -2;
@@ -413,7 +413,7 @@ std::string call_text(const CallView& c) {
   using S = CallView::State;
   std::string t;
   switch (c.state) {
-    case S::Outgoing: t = "در حال تماس… / Calling…"; break;
+    case S::Outgoing: t = c.peer_ringing ? "زنگ می‌خورد… / Ringing…" : "در حال تماس… / Calling…"; break;
     case S::Ringing: t = c.video_offered ? "تماس تصویری (با صدا پاسخ می‌دهد) / Video call (answered with voice)"
                                         : "تماس ورودی / Incoming call"; break;
     case S::Connecting: t = "در حال وصل شدن… / Connecting…"; break;
@@ -970,6 +970,12 @@ void loop(uint32_t now_ms) {
     if (!live && g_screen != Screen::Call && g_screen != Screen::Chat && g_screen != Screen::TouchCal &&
         !kbmodule::present())
       show(g_screen);
+  }
+  // Calling out: the ringback tone once their phone rings (every 4 s, as phones).
+  if (g_call_state == CallView::State::Outgoing && g_screen == Screen::Call && now_ms - g_ringback_at >= 4000 &&
+      g_msg->call_view().peer_ringing) {
+    g_ringback_at = now_ms;
+    if (g_sound_fn) g_sound_fn(kSoundRingback);
   }
   if (g_call_state == CallView::State::Ringing && g_ring_at && int32_t(now_ms - g_ring_at) >= 0) {
     if (g_sound_fn) g_sound_fn(kSoundRing);

@@ -69,6 +69,34 @@ func voice(codecs ...byte) Caps {
 	return Caps{Version: Version, Streams: []StreamCap{{ID: 0, Media: MediaAudio, Dir: DirBoth, Codecs: codecs, MaxKbps: 24}}}
 }
 
+// The caller sees "Ringing" once the callee's device rings (op 8), not before.
+func TestCallerSeesRinging(t *testing.T) {
+	a, b := twoPhones(t)
+	if _, err := a.m.Start(b.id.Public, voice(CodecOpus)); err != nil {
+		t.Fatal(err)
+	}
+	first := waitState(t, a, StateOutgoing)
+	if first.PeerRinging {
+		t.Fatal("ringing before the callee had the offer")
+	}
+	ring := waitState(t, b, StateRinging)
+	deadline := time.After(5 * time.Second)
+	for {
+		select {
+		case in := <-a.events:
+			if in.State == StateOutgoing && in.PeerRinging {
+				b.m.Get(ring.ID).Reject()
+				if e := waitState(t, a, StateEnded); e.PeerRinging || e.Reason != "declined" {
+					t.Fatalf("ended %+v", e)
+				}
+				return
+			}
+		case <-deadline:
+			t.Fatal("the caller never saw the callee ring")
+		}
+	}
+}
+
 func TestCallRingAnswerTalkHangup(t *testing.T) {
 	a, b := twoPhones(t)
 	ca, err := a.m.Start(b.id.Public, voice(CodecOpus, CodecAMRWB))

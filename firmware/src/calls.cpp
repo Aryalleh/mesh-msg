@@ -207,6 +207,7 @@ void update_view() {
   v.muted = g_muted;
   v.video_offered = in.video_offered;
   v.video = in.video;
+  v.peer_ringing = in.peer_ringing && in.state == mc::State::Outgoing;
   v.video_frames = g_vframes;
   v.active_ms = in.active_ms;
   taskENTER_CRITICAL(&g_view_mux);

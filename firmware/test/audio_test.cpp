@@ -54,6 +54,11 @@ void synth() {
   r.play(ma::Sound::Ring);
   size_t ring = frames_of(r);
   CHECK(ring >= 78 && ring <= 82);
+  // The ringback: one second of 425 Hz.
+  ma::Synth rb;
+  rb.play(ma::Sound::Ringback);
+  size_t back = frames_of(rb);
+  CHECK(back >= 99 && back <= 101);
 }
 
 void meter_and_mix() {

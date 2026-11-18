@@ -70,7 +70,18 @@ bool decode_offer(const uint8_t* b, size_t n, Offer& o, size_t* used);
 
 // ---- signals (core/call) ----
 
-enum class Op : uint8_t { Offer = 0, Answer = 1, Candidates = 2, Reject = 3, End = 4, Cancel = 5, Update = 6, Control = 7 };
+// Ringing (8): the callee's device got the OFFER and rings; no body.
+enum class Op : uint8_t {
+  Offer = 0,
+  Answer = 1,
+  Candidates = 2,
+  Reject = 3,
+  End = 4,
+  Cancel = 5,
+  Update = 6,
+  Control = 7,
+  Ringing = 8
+};
 
 constexpr uint8_t kRejectDeclined = 0, kRejectBusy = 1, kRejectNotContact = 2;
 constexpr uint8_t kEndHangup = 0, kEndNoPath = 1, kEndTimeout = 2, kEndError = 3;

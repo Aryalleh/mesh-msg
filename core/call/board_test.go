@@ -196,6 +196,9 @@ func TestBoardPeer(t *testing.T) {
 			t.Fatal(err)
 		}
 		b.wait(t, "ringing")
+		// The board tells the phone it rings (op 8).
+		for in := waitState(t, p, StateOutgoing); !in.PeerRinging; in = waitState(t, p, StateOutgoing) {
+		}
 		b.cmd("answer")
 		ba := b.wait(t, "active")
 		pa := waitState(t, p, StateActive)
@@ -262,6 +265,9 @@ func TestBoardPeer(t *testing.T) {
 		ring := waitState(t, p, StateRinging)
 		if !ring.Incoming {
 			t.Fatalf("ring %+v", ring)
+		}
+		// The phone tells the board it rings.
+		for f := b.wait(t, "outgoing"); f[7] != "1"; f = b.wait(t, "outgoing") {
 		}
 		c := p.m.Get(ring.ID)
 		if err := c.Answer(voice(CodecAMRWB, CodecOpus)); err != nil {

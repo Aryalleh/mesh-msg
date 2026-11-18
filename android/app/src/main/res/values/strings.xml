@@ -236,6 +236,7 @@
     <!-- Calls -->
     <string name="call_start">Voice call</string>
     <string name="call_calling">Calling…</string>
+    <string name="call_ringing_out">Ringing…</string>
     <string name="call_incoming">Incoming voice call</string>
     <string name="call_connecting">Connecting…</string>
     <string name="call_answer">Answer</string>

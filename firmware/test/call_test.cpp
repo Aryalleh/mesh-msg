@@ -115,6 +115,13 @@ void signal_vectors() {
   Bytes u = hexv("signal_end");
   u[16] = 99;
   CHECK(mc::decode_signal(u.data(), u.size(), s) == mc::Decoded::UnknownOp);
+  // RINGING (op 8): call id and op only, as core/call encodes it.
+  Bytes r = hexv("signal_end");
+  r.resize(17);
+  r[16] = 8;
+  CHECK(mc::decode_signal(r.data(), r.size(), s) == mc::Decoded::Ok && s.op == mc::Op::Ringing);
+  uint8_t rb[mc::kMaxSignal];
+  CHECK(mc::encode_signal(s, rb, sizeof rb) == 17 && Bytes(rb, rb + 17) == r);
   Bytes e = hexv("signal_end");
   CHECK(mc::decode_signal(e.data(), 17, s) == mc::Decoded::Short);
   e.push_back(0x77);

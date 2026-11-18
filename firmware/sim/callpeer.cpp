@@ -4,7 +4,7 @@
 // media over loopback UDP). Lines, one per message:
 //
 //   in:  peer <pub hex> | call | answer | hangup | mute 0|1 | sig <hex>
-//   out: id <pub hex> | sig <hex> | state|<state>|<reason>|<code>|<codec>|<class>|<video codec>
+//   out: id <pub hex> | sig <hex> | state|<state>|<reason>|<code>|<codec>|<class>|<video codec>|<peer ringing 0/1>
 //        | rx <frames> (audio from the other side, every 25 frames)
 //        | video <bytes> <fnv-1a 32 hex> (each video frame taken in, MJPEG receive-only)
 //
@@ -117,8 +117,8 @@ mc::Caps voice(std::initializer_list<uint8_t> codecs) {
 void on_event(void*) {
   const mc::Info& in = g->m->info();
   char line[160];
-  std::snprintf(line, sizeof line, "state|%s|%s|%s|%u|%d|%u", mc::state_name(in.state), in.reason, in.code,
-                unsigned(in.codec), in.path.cls, unsigned(in.video ? in.video_codec : 0));
+  std::snprintf(line, sizeof line, "state|%s|%s|%s|%u|%d|%u|%d", mc::state_name(in.state), in.reason, in.code,
+                unsigned(in.codec), in.path.cls, unsigned(in.video ? in.video_codec : 0), in.peer_ringing ? 1 : 0);
   say(line);
   if (in.peer_muted) say("muted");
 }

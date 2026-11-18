@@ -341,6 +341,11 @@ void Manager::on_signal(const PublicKey& from, const uint8_t* b, size_t n, uint3
       return;
     }
     info_.state = State::Ringing;
+    {
+      Signal r;  // the caller shows "Ringing" from now on
+      r.op = Op::Ringing;
+      send_signal(r);
+    }
     notify();
     return;
   }
@@ -377,6 +382,12 @@ void Manager::on_signal(const PublicKey& from, const uint8_t* b, size_t n, uint3
           : s.reason == kEndError   ? "error"
                                     : "ended",
           false, now);
+      return;
+    case Op::Ringing:
+      if (!info_.incoming && info_.state == State::Outgoing && !info_.peer_ringing) {
+        info_.peer_ringing = true;
+        notify();
+      }
       return;
     case Op::Control:
       if (s.stream == 0 && s.kind == 2 && s.body_n > 0) {

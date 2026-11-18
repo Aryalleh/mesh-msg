@@ -127,9 +127,22 @@ private fun CallControls(
             delay(1_000)
         }
     }
+    // The ringback tone while the other side's device rings (as on any phone).
+    val ringingOut = call.state == "outgoing" && call.peerRinging
+    androidx.compose.runtime.DisposableEffect(ringingOut) {
+        val tone = if (ringingOut) runCatching {
+            android.media.ToneGenerator(android.media.AudioManager.STREAM_VOICE_CALL, 70).apply {
+                startTone(android.media.ToneGenerator.TONE_SUP_RINGTONE)
+            }
+        }.getOrNull() else null
+        onDispose {
+            runCatching { tone?.stopTone() }
+            tone?.release()
+        }
+    }
     val name = contact?.displayName ?: call.peer.take(8)
     val status = when (call.state) {
-        "outgoing" -> stringResource(R.string.call_calling)
+        "outgoing" -> stringResource(if (call.peerRinging) R.string.call_ringing_out else R.string.call_calling)
         "ringing" -> stringResource(R.string.call_incoming)
         "connecting" -> stringResource(R.string.call_connecting)
         "active" -> duration(((now - call.started) / 1000).coerceAtLeast(0))

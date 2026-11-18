@@ -199,7 +199,13 @@ void ring_answer_talk_hangup() {
   Dev a(1), b(2);
   lab.add(a, mc::Addr::v4(192, 168, 1, 10, 0));
   lab.add(b, mc::Addr::v4(192, 168, 1, 11, 0));
-  CHECK(connect(lab, a, b));
+  // The caller hears that the callee rings (RINGING) before the answer.
+  CHECK(a.m->start(b.id.pub(), voice({mc::kCodecOpus, mc::kCodecAmrWb}), lab.w.now));
+  CHECK(!a.info().peer_ringing);
+  CHECK(lab.until([&] { return a.info().peer_ringing; }, 3000));
+  CHECK(b.info().state == mc::State::Ringing && a.info().state == mc::State::Outgoing);
+  CHECK(b.m->answer(voice({mc::kCodecAmrWb}), lab.w.now));
+  CHECK(lab.until([&] { return active(a) && active(b); }, 15000));
   CHECK(a.saw("outgoing") && b.saw("ringing") && a.saw("connecting") && b.saw("connecting"));
   CHECK(a.info().codec == mc::kCodecAmrWb && b.info().codec == mc::kCodecAmrWb);  // the caller's first that b has
   CHECK(a.info().code[0] && std::strcmp(a.info().code, b.info().code) == 0);

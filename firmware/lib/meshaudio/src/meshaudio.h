@@ -18,8 +18,9 @@ constexpr size_t kFrame = 160;  // samples per frame
 constexpr uint32_t kFrameMs = 10;
 
 // Ring: an incoming call (played again every 3 s while it rings); Busy: the
-// call ended (three short low notes).
-enum class Sound : uint8_t { None = 0, Message = 1, Key = 2, Test = 3, Ring = 4, Busy = 5 };
+// call ended (short low notes); Ringback: calling out, their phone rings
+// (425 Hz for 1 s, played every 4 s).
+enum class Sound : uint8_t { None = 0, Message = 1, Key = 2, Test = 3, Ring = 4, Busy = 5, Ringback = 6 };
 
 class Synth {
  public:

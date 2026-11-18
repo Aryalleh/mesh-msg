@@ -2005,3 +2005,9 @@ links. Chose: quick items in beta3; calls follow in later betas.
   code in `android/flasher/.../screen`, strings prefixed `scr_`, RECORD_AUDIO in the manifest;
   `android/screen` removed. Release asset `mava-board-<ver>-android.apk` (no more
   mava-board-flasher-…-android.apk / mava-screen-…). Docs updated.
+- "Calling" vs "Ringing" (owner, 2026-11-18): new signal op 8 RINGING (no body), sent by the
+  callee when an OFFER starts ringing (not for missed / refused / busy); the caller's
+  `Info.peer_ringing` (Go JSON `peer_ringing`, C++ `Info::peer_ringing`). Phones: "Ringing…"
+  and the ringback tone (ToneGenerator TONE_SUP_RINGTONE); board: "Ringing…" and a 425 Hz
+  ringback every 4 s (Sound::Ringback). Older versions ignore op 8. Tests: Go
+  TestCallerSeesRinging, C++ codec + manager, TestBoardPeer both directions.

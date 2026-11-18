@@ -228,6 +228,7 @@
     <!-- Calls -->
     <string name="call_start">تماس صوتی</string>
     <string name="call_calling">در حال تماس…</string>
+    <string name="call_ringing_out">در حال زنگ خوردن…</string>
     <string name="call_incoming">تماس صوتی ورودی</string>
     <string name="call_connecting">در حال اتصال…</string>
     <string name="call_answer">پاسخ</string>

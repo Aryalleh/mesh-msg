@@ -123,6 +123,7 @@ class ClientMessenger final : public Messenger {
     c.peer_muted = v.peer_muted;
     c.video_offered = v.video_offered;
     c.video = v.video;
+    c.peer_ringing = v.peer_ringing;
     c.path = v.path_cls;
     if (v.state == mesh::call::State::Active) c.seconds = (millis() - v.active_ms) / 1000;
     for (const auto& k : g_client->contacts())

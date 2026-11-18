@@ -26,6 +26,7 @@ struct View {
   char reason[32] = {};
   bool missed = false, peer_muted = false, muted = false, video_offered = false;
   bool video = false;        // the call can carry the other side's camera
+  bool peer_ringing = false; // outgoing, and the other side's device rings
   uint32_t video_frames = 0;
   uint32_t active_ms = 0;  // millis() when it became active
 };

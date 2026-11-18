@@ -287,6 +287,7 @@ size_t encode_signal(const Signal& s, uint8_t* out, size_t cap) {
       w.u8(s.reason);
       break;
     case Op::Cancel:
+    case Op::Ringing:
       break;
     case Op::Update:
       write_caps(w, s.caps);
@@ -306,7 +307,7 @@ Decoded decode_signal(const uint8_t* b, size_t n, Signal& s) {
   std::memcpy(s.call_id, b, 16);
   uint8_t op = b[16];
   b += 17, n -= 17;
-  if (op > uint8_t(Op::Control)) return Decoded::UnknownOp;
+  if (op > uint8_t(Op::Ringing)) return Decoded::UnknownOp;
   s.op = Op(op);
   switch (s.op) {
     case Op::Offer:
@@ -328,6 +329,7 @@ Decoded decode_signal(const uint8_t* b, size_t n, Signal& s) {
       s.reason = b[0];
       return Decoded::Ok;
     case Op::Cancel:
+    case Op::Ringing:
       return Decoded::Ok;
     case Op::Update:
       return read_caps(b, n, s.caps) ? Decoded::Ok : Decoded::Short;

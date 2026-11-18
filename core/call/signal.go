@@ -24,6 +24,9 @@ const (
 	OpCancel     Op = 5
 	OpUpdate     Op = 6
 	OpControl    Op = 7
+	// OpRinging: the callee's device got the OFFER and rings (the caller shows
+	// "Ringing" in place of "Calling"). No body; older versions ignore it.
+	OpRinging Op = 8
 )
 
 // Reject reasons.
@@ -230,7 +233,7 @@ func Decode(b []byte) (Signal, error) {
 			return s, errShort
 		}
 		s.Reason = b[0]
-	case OpCancel:
+	case OpCancel, OpRinging:
 	case OpUpdate:
 		s.Caps, _, err = decodeCaps(b)
 	case OpControl:

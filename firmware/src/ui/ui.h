@@ -39,7 +39,7 @@ struct Status {
 };
 
 // Sounds (board_audio.h): kSoundKey on every key, kSoundTest from Settings.
-constexpr uint8_t kSoundMessage = 1, kSoundKey = 2, kSoundTest = 3, kSoundRing = 4, kSoundBusy = 5;
+constexpr uint8_t kSoundMessage = 1, kSoundKey = 2, kSoundTest = 3, kSoundRing = 4, kSoundBusy = 5, kSoundRingback = 6;
 using SoundFn = void (*)(uint8_t sound);
 void on_sound(SoundFn fn);
 // Settings → echo test: the microphone back to the speaker.

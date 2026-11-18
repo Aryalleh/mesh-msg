@@ -63,6 +63,9 @@ type Info struct {
 	Missed    bool   `json:"missed,omitempty"`
 	Started   int64  `json:"started,omitempty"` // unix ms when it became active
 	Muted     bool   `json:"peer_muted,omitempty"`
+	// PeerRinging: outgoing, and the other side's device rings (it got the
+	// OFFER); before that the call is only on its way ("Calling").
+	PeerRinging bool `json:"peer_ringing,omitempty"`
 	// Video: both sides can send video (camera on or off); VideoCall: the
 	// caller started it with the camera on.
 	Video      bool `json:"video,omitempty"`
@@ -120,6 +123,7 @@ type Call struct {
 	lastRx  time.Time
 	jitter  *Jitter
 	peerMut bool
+	ringing bool // the callee said it rings (OpRinging)
 	// video, when both sides offered it with a common codec
 	video      *video
 	videoCodec int
@@ -235,6 +239,11 @@ func (m *Manager) OnSignal(from identity.Public, b []byte) {
 		default:
 			c.state = StateRinging
 			go c.ringTimeout()
+			m.mu.Unlock()
+			// The caller shows "Ringing" from now on.
+			m.send(c, Signal{CallID: s.CallID, Op: OpRinging})
+			m.env.Event(c.Info())
+			return
 		}
 		m.mu.Unlock()
 		m.env.Event(c.Info())
@@ -264,6 +273,16 @@ func (m *Manager) OnSignal(from identity.Public, b []byte) {
 	case OpEnd:
 		why := map[byte]string{EndHangup: "hung up", EndNoPath: "no direct path", EndTimeout: "timed out", EndError: "error"}[s.Reason]
 		c.end(orDefault(why, "ended"), false)
+	case OpRinging:
+		c.mu.Lock()
+		changed := !c.incoming && c.state == StateOutgoing && !c.ringing
+		if changed {
+			c.ringing = true
+		}
+		c.mu.Unlock()
+		if changed {
+			m.env.Event(c.Info())
+		}
 	case OpControl:
 		if s.Stream == 0 && s.Kind == 2 && len(s.Body) > 0 { // mute state
 			c.mu.Lock()
@@ -317,7 +336,7 @@ func (c *Call) Info() Info {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	in := Info{ID: hex.EncodeToString(c.id[:]), Peer: c.peer.Hash().String(), Incoming: c.incoming, State: c.state,
-		Codec: c.codec, Reason: c.reason, Missed: c.missed, Muted: c.peerMut,
+		Codec: c.codec, Reason: c.reason, Missed: c.missed, Muted: c.peerMut, PeerRinging: c.ringing && c.state == StateOutgoing,
 		Video: c.video != nil, VideoCodec: c.videoCodec}
 	// A "video call": the caller starts with the camera on.
 	if c.incoming {

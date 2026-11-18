@@ -88,6 +88,7 @@ struct Info {
   const char* reason = "";
   bool missed = false;
   bool peer_muted = false;
+  bool peer_ringing = false;   // outgoing, and the callee's device rings (RINGING came)
   bool video_offered = false;  // the caller offered video
   bool video_call = false;     // the caller starts with the camera on
   bool video = false;          // the call carries video (we take it in; see Manager::set_video)

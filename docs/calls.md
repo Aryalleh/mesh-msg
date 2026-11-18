@@ -38,6 +38,8 @@ op 6 UPDATE     caps                                during a call: add / remove 
                                                     (camera on/off); answered by UPDATE
 op 7 CONTROL    stream_id(1) | kind(1) | body       0 keyframe request, 1 bitrate hint,
                                                     2 mute state, 3 stream paused
+op 8 RINGING                                        callee → caller: the OFFER arrived and
+                                                    rings ("Calling…" becomes "Ringing…")
 caps       = version(1) | n(1) | n × stream_cap
 stream_cap = stream_id(1) | media(1) | dir(1) | codecs | max_kbps(2) | params_len(1) | params
              media: 0 audio, 1 video, 2 screen, 3 data; dir: send / receive / both
@@ -55,6 +57,9 @@ candidates = n(1) | n × (kind(1) | family(1) | addr | port(2) | priority(4))
   runs as voice, the caller's UI says "video not supported by the other app".
 - Stream ids are chosen by the offerer; 0 is always the main audio stream.
 
+- The callee sends RINGING when an OFFER starts ringing (not for a missed, refused or busy
+  one); the caller's `Info.peer_ringing` turns on, and its screen says "Ringing" instead of
+  "Calling" (phones and the board). Older versions ignore op 8.
 - An OFFER rings only until `expires` (45 s after sending). One that arrives later (the
   callee was offline and got it from a relay) is shown as a **missed call**, never rings.
 - Calls are accepted only from contacts by default (setting: "calls from anyone").

@@ -173,5 +173,8 @@ class JsonTest {
         assertEquals(true, v.video)
         assertEquals(CallVideo.MJPEG_CODEC, v.videoCodec)
         assertEquals(0, c.videoCodec)
+        // The callee's device rings: the caller shows "Ringing" (op 8 RINGING).
+        assertEquals(true, Json.call(JSONObject("""{"id":"c4","state":"outgoing","peer_ringing":true}""")).peerRinging)
+        assertEquals(false, c.peerRinging)
     }
 }

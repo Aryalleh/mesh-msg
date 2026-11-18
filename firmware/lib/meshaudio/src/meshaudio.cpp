@@ -49,6 +49,9 @@ void Synth::play(Sound s) {
       notes_[count_++] = {480, 150, 9000};
       notes_[count_++] = {0, 100, 0};
       break;
+    case Sound::Ringback:
+      notes_[count_++] = {425, 1000, 6000};
+      break;
     case Sound::None:
       break;
   }
