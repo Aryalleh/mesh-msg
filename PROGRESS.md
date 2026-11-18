@@ -1875,4 +1875,6 @@ links. Chose: quick items in beta3; calls follow in later betas.
   20 s as keep-alive; AUDIO ack checked ("update the firmware"). `AudioLink` + JVM test with
   the firmware test's bytes. Docs: screen.md §Pre-release hardware simulators, firmware.md,
   firmware/README.md. Host tests: `audio_test.cpp` (synth, meter, mix, frames).
-- Next: release (beta32), owner tests picture off, sound test, message chime, echo test.
+- On main (`d270256`; CI: both firmware envs, Mava Screen lint/tests/APK green). Release notes
+  v0.1.1-beta32 ready; release waits for the owner's go. Then the owner tests picture off,
+  sound test, message chime, echo test.
