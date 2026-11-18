@@ -46,30 +46,32 @@ framework (§8), touch keyboard (§8) and browser access (§10) are described th
 |---|---|---|---|
 | 0 | BOOT button | button to GND | strap; free for nothing else |
 | 1 | LoRa DIO1 | SX1262 | RTC pin: a packet wakes the chip |
-| 2 | LCD DC | ILI9341 | |
-| 3 | — | free | strap (JTAG source) |
+| 2 | — | free | |
+| 3 | LCD SCK | ILI9341, XPT2046 T_CLK, microSD | strap (JTAG source, only with the eFuse set); the display's own SPI bus |
 | 4 | LoRa BUSY | SX1262 | |
 | 5 | Touch CS | XPT2046 T_CS | 10 k pull-up |
 | 6 | Touch IRQ | XPT2046 T_IRQ | RTC pin: a touch wakes the chip |
 | 7 | SD CS | display module's microSD | 10 k pull-up; media and backups |
 | 8 | LoRa RESET | SX1262 NRESET | |
-| 9 | Keyboard INT | keyboard module GP2 | RTC pin, pull-up; low while keys / motion are pending, wakes the chip |
+| 9 | LCD MISO | ILI9341 SDO, XPT2046 T_DO, microSD | display bus |
 | 10 / 11 / 12 / 13 | LoRa CS / MOSI / SCK / MISO | SX1262 | FSPI pins; the radio's own bus |
 | 14 | Setup switch | latching switch to GND | board.md §2 |
-| 15 / 16 / 17 | I2S MCLK / BCLK / LRCK | WM8960 | MCLK = 256 × fs |
-| 18 | I2S DIN | WM8960 ADCDAT (microphone) | |
+| 15 / 16 / 17 | LCD CS / RESET / DC | ILI9341 | CS: 10 k pull-up |
+| 18 | LCD MOSI | ILI9341 SDI, XPT2046 T_DIN, microSD | display bus (40 MHz LCD, 2 MHz touch, 20 MHz SD) |
 | 19 / 20 | USB D− / D+ | USB-C | host link to PCs and phones, flashing, log |
-| 21 | LCD CS | ILI9341 | 10 k pull-up |
+| 21 | Keyboard INT | keyboard module GP2 | RTC pin, pull-up; low while keys / motion are pending, wakes the chip |
 | 38 | Vibration motor | AO3400 gate | 100 k to GND |
-| 39 / 40 / 41 | LCD SCK / MOSI / MISO | ILI9341, XPT2046, microSD | the display's own SPI bus (40 MHz LCD, 2 MHz touch, 20 MHz SD) |
-| 42 | LCD RESET | ILI9341 RESET | |
+| 39 / 40 / 41 | I2S MCLK / BCLK / LRCK | WM8960 | MCLK = 256 × fs |
+| 42 | I2S DIN | WM8960 ADCDAT (microphone) | |
 | 43 / 44 | — | free (UART0) | debug console or an extension |
-| 45 | LCD backlight PWM | backlight switch (§4) | strap: low at reset — 100 k to GND |
-| 46 | I2S DOUT | WM8960 DACDAT (speaker / earpiece) | strap: low at reset — 100 k to GND |
+| 45 | I2S DOUT | WM8960 DACDAT (speaker / earpiece) | strap: low at reset — 100 k to GND |
+| 46 | LCD backlight PWM | display LED / backlight switch (§4) | strap: low at reset — 100 k to GND |
 | 47 / 48 | I2C SDA / SCL | WM8960 0x1A, MAX17048 0x36, keyboard module 0x1F | 3.3 k pull-ups. On a DevKitC with its RGB LED on 48, remove the LED. |
 
 The radio and the display have separate SPI buses, so a screen redraw never delays a LoRa
-interrupt and the display can use DMA at full speed.
+interrupt and the display can use DMA at full speed. The display, the radio, touch, SD card
+and the setup switch all sit on the DevKitC's left header (3V3 … 14, 5V, GND), so a prototype
+can be wired from one side; audio, keyboard INT, vibration and I2C are on the right header.
 
 ## 3. Keyboard module (RP2040)
 
@@ -108,18 +110,21 @@ DIO2 drives the RF switch. Antenna on before transmitting.
 | Module pin | To |
 |---|---|
 | VCC / GND | 3.3 V (J1 shorted) / GND |
-| CS / RESET / DC | GPIO 21 / 42 / 2 |
-| SDI (MOSI) / SCK / SDO (MISO) | GPIO 40 / 39 / 41 |
-| LED | backlight switch below |
-| T_CLK / T_DIN / T_DO | GPIO 39 / 40 / 41 (same bus) |
+| CS / RESET / DC | GPIO 15 / 16 / 17 |
+| SDI (MOSI) / SCK / SDO (MISO) | GPIO 18 / 3 / 9 |
+| LED | GPIO 46 (see below) |
+| T_CLK / T_DIN / T_DO | GPIO 3 / 18 / 9 (same bus) |
 | T_CS / T_IRQ | GPIO 5 / 6 |
-| SD_CS / SD_MOSI / SD_MISO / SD_SCK | GPIO 7 / 40 / 41 / 39 |
+| SD_CS / SD_MOSI / SD_MISO / SD_SCK | GPIO 7 / 18 / 9 / 3 |
 
-Backlight (~40–60 mA): LED ← drain of an AO3401 P-FET, source 3.3 V, gate 100 k to 3.3 V and
-pulled down by a 2N7002 driven by GPIO 45 (100 k to GND): off at reset, PWM dims it.
+Backlight: the red 2.8" "TFT SPI 240x320 V1.2" module switches its backlight with its own
+transistor (Q1): LED is a logic input, GPIO 46 drives it directly (off at reset, PWM dims
+it). A module whose LED pin is the backlight supply (~40–60 mA) needs a switch instead: LED ←
+drain of an AO3401 P-FET, source 3.3 V, gate 100 k to 3.3 V and pulled down by a 2N7002 driven
+by GPIO 46 (100 k to GND).
 
-**WM8960 Audio Board** — 3V3, GND; SDA/SCL → 47/48; CLK (BCLK) → 16; WS (LRCLK) → 17; DAC
-data in → 46; ADC data out → 18; MCLK → 15 (set the module's MCLK pads so MCLK comes from the
+**WM8960 Audio Board** — 3V3, GND; SDA/SCL → 47/48; CLK (BCLK) → 40; WS (LRCLK) → 41; DAC
+data in → 45; ADC data out → 42; MCLK → 39 (set the module's MCLK pads so MCLK comes from the
 header: Waveshare's manual shorts MCLK to the TX pad); SPK left → 8 Ω speaker, SPK right →
 32 Ω earpiece; headphone jack → headset; on-board mic → calls. **Check the header names on
 the silkscreen**: www.waveshare.com was not reachable from the build environment. Modes:

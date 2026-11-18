@@ -62,7 +62,7 @@ void init() {
 #ifdef SD_CS
   deselect(SD_CS);
 #endif
-  // Strapping pins 45 (backlight) and 46 (I2S DOUT) stay low: off, no pop.
+  // Strapping pins 46 (backlight) and 45 (I2S DOUT) stay low: off, no pop.
 #ifdef LCD_BL
   hold_low(LCD_BL);
 #endif

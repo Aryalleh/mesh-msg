@@ -1836,3 +1836,16 @@ links. Chose: quick items in beta3; calls follow in later betas.
   ignores chunks for a peer that is no longer the current one; `lastDrop` keeps the first
   reason per peer.
 - Released **v0.1.1-beta30** (manual `build` run #44303209898 with `release_tag`, tag on `644a5cd`).
+
+### 2026-11-18 — Display moved to the DevKitC's left header
+
+- Owner can wire only the left header of the ESP32-S3 DevKitC (3V3, 3V3, RST, 4, 5, 6, 7,
+  15, 16, 17, 18, 8, 3, 46, 9, 10 … 14, 5V, GND); new display: red 2.8" "TFT SPI 240x320
+  V1.2" (ILI9341 + XPT2046 + microSD, backlight transistor on board, J1 = 3.3 V bypass).
+  Display pins now in the module header's order: CS 15, RESET 16, DC 17, SDI 18, SCK 3,
+  LED 46, SDO 9 (touch T_CS 5, T_IRQ 6, SD CS 7 unchanged; T_CLK/T_DIN/T_DO on the bus).
+  The audio pins (not used by code yet) and keyboard INT moved to the freed right header:
+  I2S MCLK/BCLK/LRCK/DIN/DOUT 39/40/41/42/45, KB_INT 21 (RTC pin). Radio pins unchanged
+  (DIO1 stays on GPIO 1, right header). docs/handheld-proto.md §2/§4 updated.
+- Next: owner wires it and sends the boot log (`screen: ok`); needs a release with this
+  firmware.
