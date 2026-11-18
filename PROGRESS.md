@@ -2040,3 +2040,5 @@ links. Chose: quick items in beta3; calls follow in later betas.
   under it (the status text hides while frames come). Ringing keeps Answer / Decline in the
   middle of the screen.
   Commit 24e1d09 (CI green); release notes for v0.1.1-beta38 ready, release waits for the owner.
+- Board UI (owner): in a chat, the call key moved from the name row into the top bar next to
+  Home (shown while connected and no call is live).

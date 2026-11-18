@@ -184,6 +184,8 @@ lv_obj_t* button(lv_obj_t* parent, const std::string& text, lv_event_cb_t cb, vo
   return b;
 }
 
+void call_contact(const std::string& id);
+
 void toast(const char* text, uint32_t ms = 2500) {
   lv_obj_t* m = lv_msgbox_create(nullptr);
   lv_msgbox_add_text(m, text);
@@ -344,6 +346,11 @@ void clear() {
       lv_obj_t* c = bar_button(bar, LV_SYMBOL_CALL, [](lv_event_t*) { show(Screen::Call); });
       lv_obj_set_style_bg_color(c, lv_color_hex(0x15803D), 0);
     }
+  }
+  // In a chat, calling that contact is a key here too (📞 on a keyboard).
+  if (g_screen == Screen::Chat && !live && g_msg && g_msg->connected()) {
+    lv_obj_t* c = bar_button(bar, LV_SYMBOL_CALL, [](lv_event_t*) { call_contact(g_chat); });
+    lv_obj_set_style_bg_color(c, lv_color_hex(0x15803D), 0);
   }
   if (on_call && cv.state != CS::Ringing) {
     if (cv.state == CS::Active) {
@@ -550,7 +557,7 @@ void show(Screen s) {
     case Screen::Chat: {
       lv_obj_set_style_pad_all(g_body, 2, 0);
       {
-        // Who, and a call button (touch; 📞 on a keyboard does the same).
+        // Who (the call key is in the top bar).
         lv_obj_t* row = lv_obj_create(g_body);
         lv_obj_remove_style_all(row);
         lv_obj_set_size(row, lv_pct(100), LV_SIZE_CONTENT);
@@ -564,11 +571,6 @@ void show(Screen s) {
         lv_obj_set_width(name, LV_SIZE_CONTENT);
         lv_obj_set_flex_grow(name, 1);
         lv_obj_set_style_text_color(name, col::primary_hi(), 0);
-        if (g_msg->connected()) {
-          lv_obj_t* b = button(row, LV_SYMBOL_CALL "  تماس / Call", [](lv_event_t*) { call_contact(g_chat); });
-          lv_obj_set_width(b, LV_SIZE_CONTENT);
-          lv_obj_set_style_bg_color(b, lv_color_hex(0x15803D), 0);
-        }
       }
       g_messages = lv_obj_create(g_body);
       lv_obj_set_width(g_messages, lv_pct(100));
