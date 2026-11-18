@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -111,12 +112,17 @@ func TestReceiveAcrossNotificationsAndBadFrames(t *testing.T) {
 func TestWriteFailureDropsPeer(t *testing.T) {
 	h := &fakeHost{}
 	l := New(h)
-	closed := false
+	var closed atomic.Bool
 	w := &writes{fail: true}
-	l.Up("cc", 100, Hello([4]byte{}), w.write, func() { closed = true })
-	waitFor(t, "drop", func() bool { return !l.Has("cc") })
-	if !closed || len(h.down) != 1 {
-		t.Fatalf("closed %v down %v", closed, h.down)
-	}
+	l.Up("cc", 100, Hello([4]byte{}), w.write, func() { closed.Store(true) })
+	// Down removes the peer before it closes it and tells the host: wait for all three.
+	waitFor(t, "drop", func() bool {
+		if l.Has("cc") || !closed.Load() {
+			return false
+		}
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return len(h.down) == 1
+	})
 	l.Send("cc", []byte{1}) // gone: ignored
 }

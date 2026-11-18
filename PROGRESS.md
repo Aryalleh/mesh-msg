@@ -1806,3 +1806,7 @@ links. Chose: quick items in beta3; calls follow in later betas.
 - Next: owner flashes beta29, sets "No LoRa module", sends the log with the new Bluetooth /
   store / account lines after sending one message from the phone, plus the phone's
   "Last disconnect".
+- CI "Go" was red since beta27 on a test-only race: `desktop/blemesh`
+  `TestWriteFailureDropsPeer` read `closed` / `h.down` while `Link.Down` (writer goroutine)
+  still set them (it removes the peer before closing it). Test now waits for all three
+  (atomic flag, host mutex).
