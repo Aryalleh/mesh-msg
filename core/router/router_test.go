@@ -339,3 +339,53 @@ func TestResendAfterBrokenLink(t *testing.T) {
 		t.Fatalf("C inbox after reconnect: %+v", c.inbox)
 	}
 }
+
+// A trip-style shared inbox: a member's message reaches both holders through
+// a carrier, nobody sends a receipt, every copy stays, and a short
+// destination TTL applies on the carrier.
+func TestSharedInbox(t *testing.T) {
+	n := newNet(t)
+	m, c, l1, l2 := n.add("M"), n.add("C"), n.add("L1"), n.add("L2")
+	n.bleLinks("M", "C", "L1", "L2")
+	trip, _ := identity.Generate()
+	l1.r.AddInbox(trip)
+	l2.r.AddInbox(trip)
+	c.r.SetDestTTL(trip.Hash(), time.Hour)
+	n.connect("M", "C")
+	n.connect("C", "L1")
+	n.connect("C", "L2")
+	id, err := m.r.SendContentWith(m.id, trip.Public, 10, []byte{1, 2, 3}, message.Options{NoLoRa: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.run()
+	for _, l := range []*node{l1, l2} {
+		if len(l.inbox) != 1 || l.inbox[0].PacketID != id || !l.inbox[0].FirstContact || l.inbox[0].From.Hash() != m.id.Hash() {
+			t.Fatalf("%s inbox %+v", l.name, l.inbox)
+		}
+	}
+	if len(m.acks) != 0 {
+		t.Fatal("a shared inbox sent a receipt")
+	}
+	for _, x := range []*node{m, c, l1, l2} {
+		if dataCount(t, x.store) != 1 {
+			t.Fatalf("%s holds %d data packets", x.name, dataCount(t, x.store))
+		}
+	}
+	items, _ := c.store.Since(0, 0, store.Filter{Types: []packet.Type{packet.TypeData}})
+	if ttl := items[0].Expires.Sub(items[0].Received); ttl != time.Hour {
+		t.Fatalf("carrier TTL %v", ttl)
+	}
+	// A holder writing to its own inbox gets it at once, and so does the other.
+	if _, err := l1.r.SendContentWith(l1.id, trip.Public, 10, []byte{9}, message.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	n.run()
+	if len(l1.inbox) != 2 || len(l2.inbox) != 2 {
+		t.Fatalf("own message: L1 %d L2 %d", len(l1.inbox), len(l2.inbox))
+	}
+	m.r.Forget(id)
+	if ok, _ := m.store.Has(packet.Key{ID: id}); ok {
+		t.Fatal("Forget kept the packet")
+	}
+}

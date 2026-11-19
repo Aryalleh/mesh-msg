@@ -137,7 +137,17 @@ const (
 	DomainMediaQuota  = "MESHMSG-MEDIA-QUOTA"
 	// DomainTurnCredentials: POST /v1/turn/credentials (admins only).
 	DomainTurnCredentials = "MESHMSG-TURN-CRED"
+	// DomainTripPut / DomainTripDelete: PUT / DELETE /v1/trip (the relay's
+	// admins who lead the trip, docs/trip.md).
+	DomainTripPut    = "MESHMSG-TRIP-PUT"
+	DomainTripDelete = "MESHMSG-TRIP-DEL"
 )
+
+// TripSigBody is what a trip upload or delete signature covers: the day and
+// the SHA-256 of the signed card (upload) or the trip's hash (delete).
+func TripSigBody(day uint32, what []byte) []byte {
+	return append(binary.BigEndian.AppendUint32(nil, day), what...)
+}
 
 // Day is the UTC day number of t.
 func Day(t time.Time) uint32 { return uint32(t.Unix() / 86400) }

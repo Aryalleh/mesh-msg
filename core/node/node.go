@@ -107,7 +107,8 @@ type Node struct {
 	loras   map[string]*hostLinkLink
 	disc    *discovery // nil when relay discovery is off
 	mw      *mediaWorker
-	av      *avatars // profile pictures
+	av      *avatars   // profile pictures
+	tr      *tripBook  // trip location sharing (trips.go)
 }
 
 // Open loads or creates the node's identity and databases in cfg.DataDir.
@@ -164,6 +165,7 @@ func Open(cfg Config) (*Node, error) {
 	}
 	n.router.AddLocal(id)
 	n.loadGroups()
+	n.loadTrips()
 	for _, k := range n.contactKeys() {
 		n.router.AddKnown(k)
 	}
@@ -251,7 +253,14 @@ func (n *Node) setLinkStatus(name, status string) {
 	}
 }
 
-func (n *Node) onMessage(_ *identity.Identity, m *message.Received) {
+func (n *Node) onMessage(local *identity.Identity, m *message.Received) {
+	if m.ContentType == e2e.ContentTrip {
+		n.onTripContent(local, m)
+		return
+	}
+	if local != nil && local.Hash() != n.id.Hash() {
+		return // a trip's identity (we lead it) takes nothing but trip content
+	}
 	if m.ContentType == e2e.ContentGroup {
 		// Private-group traffic: the sender is a member, not a new contact.
 		n.onPrivateGroup(m)

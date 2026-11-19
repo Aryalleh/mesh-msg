@@ -2050,3 +2050,16 @@ links. Chose: quick items in beta3; calls follow in later betas.
   Bitmap → JPEG) is RGB too, so the likely cause is the panel's red/blue order (we create it
   BGR). Added Settings → red/green/blue swatches + "Swap red and blue" (saved in /colors,
   LV_LCD_FLAG_BGR or not, switched live with lv_lcd_generic_mipi_set_address_mode).
+- **Trip location sharing (owner, 2026-11-19)** — for a group trip without roaming (e.g. an
+  Arbaeen walk): members' phones send their position every few minutes, encrypted to the
+  trip's leaders (the relay's admins who lead it), over Bluetooth, LoRa and relays, like
+  AirTag reports; leaders see members in the app and on a map in the relay's admin panel.
+  Owner's choices: every few minutes (faster on "I'm lost" or a leader's request); relay
+  owner + admins see; app + web map. Step 1 (this commit): `core/trip` (signed trip card,
+  report/locate/lead content, content type 10), router shared inboxes (no receipts, kept
+  for co-holders, announced) + per-destination TTL + NO_LORA option, `core/node/trips.go`
+  (offer/consent/report/stop/SOS, create/add leader/end, members, locate, relay polling,
+  trip mailbox fetch), relay `server/trips` (GET/PUT/DELETE /v1/trip, admins only, every
+  leader an admin), panel `/admin/trip` map (reports opened in the browser:
+  `server/admin/tripcrypto.js`, checked against Go by `TestTripMapCrypto` with node),
+  mobile binding. Next: Android screens and location reports, docs/trip.md.

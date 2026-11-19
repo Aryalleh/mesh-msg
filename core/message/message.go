@@ -18,6 +18,7 @@ type Options struct {
 	KnownContact bool  // recipient has our key → Noise K; else Noise X
 	Priority     bool  // PRIORITY ctx flag (preferred on LoRa)
 	MaxHops      uint8 // 0 → packet.DefaultMaxHops
+	NoLoRa       bool  // NO_LORA ctx flag: stays off LoRa
 	Now          time.Time
 }
 
@@ -58,6 +59,9 @@ func BuildContent(sender *identity.Identity, recipient identity.Public, ct uint8
 	p := &packet.Packet{Type: packet.TypeData, MaxHops: o.MaxHops, ID: id, Dest: recipient.Hash(), Body: body}
 	if o.Priority {
 		p.Ctx |= packet.CtxPriority
+	}
+	if o.NoLoRa {
+		p.Ctx |= packet.CtxNoLoRa
 	}
 	return packet.Fragment(p, packet.LoRaMTU)
 }

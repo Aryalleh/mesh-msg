@@ -8,6 +8,7 @@
 package router
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -128,6 +129,11 @@ type Router struct {
 	peers  map[string]map[PeerID]bool
 	locals map[packet.Hash]*identity.Identity
 	groups map[packet.Hash]*group.Group
+	// inboxes are identities shared by several devices (a trip held by its
+	// leaders, core/trip): messages are opened and delivered but never
+	// acknowledged, and still stored and carried for the other holders.
+	inboxes map[packet.Hash]*identity.Identity
+	destTTL map[packet.Hash]time.Duration // shorter store life for these destinations
 	known  map[packet.Hash]identity.Public
 	routes map[packet.Hash]Route
 	seen   map[packet.Key]time.Time
@@ -163,6 +169,8 @@ func New(cfg Config) *Router {
 		peers:  map[string]map[PeerID]bool{},
 		locals: map[packet.Hash]*identity.Identity{},
 		groups: map[packet.Hash]*group.Group{},
+		inboxes: map[packet.Hash]*identity.Identity{},
+		destTTL: map[packet.Hash]time.Duration{},
 		known:  map[packet.Hash]identity.Public{},
 		routes: map[packet.Hash]Route{},
 		seen:   map[packet.Key]time.Time{},
@@ -186,6 +194,50 @@ func (r *Router) AddLocal(id *identity.Identity) {
 	defer r.mu.Unlock()
 	r.locals[id.Hash()] = id
 	r.known[id.Hash()] = id.Public
+}
+
+// AddInbox hosts an identity this device shares with others (a trip's
+// leaders): its messages are delivered through OnMessage without a receipt
+// (a receipt would purge the copies the other holders still need) and kept
+// and forwarded like anyone else's; it is announced so relays let holders
+// fetch its mailbox.
+func (r *Router) AddInbox(id *identity.Identity) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.inboxes[id.Hash()] = id
+	r.known[id.Hash()] = id.Public
+}
+
+// RemoveInbox stops hosting a shared identity.
+func (r *Router) RemoveInbox(h packet.Hash) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.inboxes, h)
+}
+
+// SetDestTTL keeps DATA for dest only ttl in the store (0: the default).
+// Trip members use it so the reports they carry for others don't pile up.
+func (r *Router) SetDestTTL(dest packet.Hash, ttl time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if ttl <= 0 {
+		delete(r.destTTL, dest)
+	} else {
+		r.destTTL[dest] = ttl
+	}
+}
+
+// Forget drops a DATA packet this node holds (all fragments), e.g. its own
+// previous location report once a newer one is out.
+func (r *Router) Forget(id packet.ID) {
+	r.cfg.Store.DeleteData(id)
+}
+
+func (r *Router) dataTTL(dest packet.Hash) time.Duration {
+	if t, ok := r.destTTL[dest]; ok {
+		return t
+	}
+	return r.cfg.DataTTL
 }
 
 // AddGroup joins a group: its messages are delivered (and still forwarded,
@@ -432,7 +484,10 @@ func (r *Router) inbound(acts *actions, link string, from PeerID, raw []byte) {
 		if g, ok := r.groups[p.Dest]; ok {
 			r.deliverGroup(acts, g, p) // and keep carrying it for the other members
 		}
-		r.storeItem(p, raw, origin, r.cfg.DataTTL)
+		if in, ok := r.inboxes[p.Dest]; ok {
+			r.deliverInbox(acts, in, p) // and keep carrying it for the other holders
+		}
+		r.storeItem(p, raw, origin, r.dataTTL(p.Dest))
 		r.forward(acts, k, raw, p.NoLoRa(), link, from, false)
 
 	default:
@@ -465,6 +520,27 @@ func (r *Router) deliver(acts *actions, local *identity.Identity, p *packet.Pack
 	r.originate(acts, rc)
 	if cb := r.cfg.OnMessage; cb != nil {
 		acts.add(func() { cb(local, m) })
+	}
+}
+
+// deliverInbox opens a message to a shared identity; no receipt.
+func (r *Router) deliverInbox(acts *actions, in *identity.Identity, p *packet.Packet) {
+	full, err := r.reasm.Add(p, r.cfg.Now())
+	if err != nil || full == nil {
+		return
+	}
+	var contacts []identity.Public
+	if r.cfg.Contacts != nil {
+		contacts = r.cfg.Contacts(in.Hash())
+	}
+	m, err := message.Open(in, contacts, full)
+	if err != nil {
+		r.cfg.Logf("router: cannot open message %s for inbox %s: %v", full.ID, in.Hash(), err)
+		return
+	}
+	r.stats.Delivered++
+	if cb := r.cfg.OnMessage; cb != nil {
+		acts.add(func() { cb(in, m) })
 	}
 }
 
@@ -512,7 +588,11 @@ func (r *Router) originate(acts *actions, p *packet.Packet) {
 	raw := p.MustEncode()
 	k := p.Key()
 	r.seen[k] = r.cfg.Now()
-	r.storeItem(p, raw, "local", r.cfg.DataTTL)
+	ttl := r.cfg.DataTTL
+	if p.Type == packet.TypeData {
+		ttl = r.dataTTL(p.Dest)
+	}
+	r.storeItem(p, raw, "local", ttl)
 	r.forward(acts, k, raw, p.NoLoRa(), "", "", true)
 }
 
@@ -547,16 +627,27 @@ func (r *Router) SendText(from *identity.Identity, to identity.Public, text stri
 // SendText; private groups use it. It returns the packet ID, whose receipt
 // arrives through OnReceipt.
 func (r *Router) SendContent(from *identity.Identity, to identity.Public, ct uint8, content []byte, known, priority bool) (packet.ID, error) {
-	pkts, err := message.BuildContent(from, to, ct, content, message.Options{
-		KnownContact: known, Priority: priority, MaxHops: r.cfg.MaxHops, Now: r.cfg.Now(),
-	})
+	return r.SendContentWith(from, to, ct, content, message.Options{KnownContact: known, Priority: priority})
+}
+
+// SendContentWith is SendContent with all message options (MaxHops and Now
+// come from the router). A message to an inbox this node also holds is
+// delivered here too, and still sent for the other holders.
+func (r *Router) SendContentWith(from *identity.Identity, to identity.Public, ct uint8, content []byte, o message.Options) (packet.ID, error) {
+	o.MaxHops, o.Now = r.cfg.MaxHops, r.cfg.Now()
+	pkts, err := message.BuildContent(from, to, ct, content, o)
 	if err != nil {
 		return packet.ID{}, err
 	}
 	var acts actions
 	r.mu.Lock()
 	r.known[to.Hash()] = to
+	in := r.inboxes[to.Hash()]
 	for _, p := range pkts {
+		if in != nil {
+			q, _ := packet.Decode(p.MustEncode())
+			r.deliverInbox(&acts, in, q)
+		}
 		r.originate(&acts, p)
 	}
 	r.mu.Unlock()
@@ -589,8 +680,21 @@ func (r *Router) Announce() {
 	for _, g := range r.sortedGroups() {
 		r.originate(&acts, announce.Build(g.Identity(), r.cfg.Now(), announce.AppData{Flags: r.cfg.AppData.Flags}, r.cfg.MaxHops))
 	}
+	// Shared inboxes (trips) likewise, so their holders can fetch them.
+	for _, h := range sortedHashes(r.inboxes) {
+		r.originate(&acts, announce.Build(r.inboxes[h], r.cfg.Now(), announce.AppData{Flags: r.cfg.AppData.Flags}, r.cfg.MaxHops))
+	}
 	r.mu.Unlock()
 	acts.run()
+}
+
+func sortedHashes[V any](m map[packet.Hash]V) []packet.Hash {
+	out := make([]packet.Hash, 0, len(m))
+	for h := range m {
+		out = append(out, h)
+	}
+	sort.Slice(out, func(i, j int) bool { return bytes.Compare(out[i][:], out[j][:]) < 0 })
+	return out
 }
 
 func (r *Router) sortedGroups() []*group.Group {

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trip map — Mava relay</title>
+<style>
+  :root { --bg:#0b0a14; --card:#15122a; --line:#3b2a6b; --fg:#ece8ff; --muted:#a9a2cf; --accent:#a78bfa; --sos:#dc2626; --ok:#16a34a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:10px 14px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; }
+  header a { color:var(--accent); }
+  .muted { color:var(--muted); }
+  main { display:grid; grid-template-columns: minmax(260px, 340px) 1fr; height: calc(100vh - 52px); }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; grid-template-rows: auto 60vh; height:auto; } }
+  aside { overflow:auto; border-right:1px solid var(--line); padding:10px; }
+  #map { position:relative; overflow:hidden; background:#1e1a3a; touch-action:none; cursor:grab; }
+  #tiles, #overlay { position:absolute; inset:0; }
+  #tiles img { position:absolute; width:256px; height:256px; user-select:none; -webkit-user-drag:none; }
+  #overlay svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .pin { position:absolute; transform:translate(-50%,-100%); background:var(--accent); color:#000; border-radius:10px; padding:1px 6px; font-size:12px; white-space:nowrap; pointer-events:auto; cursor:pointer; }
+  .pin.sos { background:var(--sos); color:#fff; font-weight:600; animation: blink 1s infinite; }
+  .pin.old { background:#6b7280; color:#fff; }
+  .pin.me { background:#38bdf8; }
+  @keyframes blink { 50% { opacity:.55; } }
+  .zoom { position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:4px; z-index:5; }
+  .zoom button { width:32px; height:32px; font-size:18px; }
+  .attr { position:absolute; right:4px; bottom:2px; font-size:11px; background:rgba(255,255,255,.75); color:#000; padding:0 4px; z-index:5; }
+  .attr a { color:#000; }
+  button, input { font:inherit; }
+  button { background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; }
+  input { background:#0f0d1f; color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:6px; width:100%; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin-bottom:8px; }
+  .m { cursor:pointer; }
+  .m.sos { border-color:var(--sos); }
+  .badge { display:inline-block; border-radius:4px; padding:0 5px; font-size:11px; margin-left:4px; }
+  .badge.sos { background:var(--sos); color:#fff; }
+  .badge.stop { background:#6b7280; color:#fff; }
+  .err { color:#fca5a5; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Trip map</h1>
+  <span class="muted" id="sub"></span>
+  <a href="/admin">← admin panel</a>
+</header>
+<main>
+  <aside>
+    <div class="card" id="keybox">
+      <div>Map key (from the leader's app: <i>Trip → Key for the web map</i>). It stays in this browser tab; the relay never sees it.</div>
+      <input id="key" placeholder="64 hex characters" autocomplete="off" spellcheck="false">
+      <div style="margin-top:6px; display:flex; gap:6px;"><button id="open">Open reports</button><button id="forget">Forget key</button></div>
+      <div class="err" id="keyerr"></div>
+    </div>
+    <div id="status" class="muted"></div>
+    <div id="members"></div>
+  </aside>
+  <div id="map">
+    <div id="tiles"></div>
+    <div id="overlay"><svg id="svg"></svg></div>
+    <div class="zoom"><button id="zin">+</button><button id="zout">−</button><button id="fit" title="Fit everyone">⤢</button></div>
+    <div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
+  </div>
+</main>
+<script>
+/*TRIPCRYPTO*/
+</script>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+let card = null, pub = null, priv = null, cursor = 0, timer = null;
+const members = new Map(); // member hash → {latest, track: [{lat, lon, t}]}
+const seen = new Set();
+
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
+function ago(t) {
+  const s = Math.max(0, Math.round(Date.now() / 1000 - t));
+  if (s < 90) return s + ' s ago';
+  if (s < 5400) return Math.round(s / 60) + ' min ago';
+  if (s < 172800) return Math.round(s / 3600) + ' h ago';
+  return Math.round(s / 86400) + ' days ago';
+}
+
+async function api(path) {
+  const r = await fetch(path, { credentials: 'same-origin' });
+  if (r.status === 401) { throw new Error('login'); }
+  if (!r.ok) throw new Error((await r.text()) || r.statusText);
+  return r.json();
+}
+
+async function load() {
+  try {
+    const st = await api('/admin/api/trip');
+    if (!st.card) { $('status').textContent = 'No trip is running on this relay. A leader starts one from the app.'; $('keybox').hidden = true; return; }
+    card = st.card;
+    pub = TripCrypto.unhex(card.key.slice(0, 64));
+    $('title').textContent = card.name;
+    $('sub').textContent = 'until ' + new Date(card.ends * 1000).toLocaleString() + ' · leaders: ' + card.leaders.map((l) => l.name || l.id.slice(0, 8)).join(', ');
+    const k = sessionStorage.getItem('tripkey:' + st.hash);
+    if (k) { $('key').value = k; useKey(k, st.hash); }
+  } catch (e) {
+    $('status').innerHTML = e.message === 'login' ? 'Log in to the <a href="/admin">admin panel</a> first.' : esc(e.message);
+  }
+}
+
+function useKey(k, hash) {
+  $('keyerr').textContent = '';
+  k = k.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(k)) { $('keyerr').textContent = 'The key is 64 hex characters.'; return; }
+  const p = TripCrypto.unhex(k);
+  if (TripCrypto.hex(TripCrypto.x25519(p, TripCrypto.BASE)) !== card.key.slice(0, 64)) { $('keyerr').textContent = 'This key does not belong to this trip.'; return; }
+  priv = p;
+  sessionStorage.setItem('tripkey:' + hash, k);
+  $('keybox').hidden = true;
+  poll();
+}
+
+async function poll() {
+  clearTimeout(timer);
+  try {
+    for (;;) {
+      const r = await api('/admin/api/trip/reports?after=' + cursor);
+      for (const b64 of r.packets) {
+        const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const rep = await TripCrypto.openReport(priv, pub, raw);
+        if (rep && !seen.has(rep.id)) { seen.add(rep.id); add(rep); }
+      }
+      cursor = r.cursor;
+      if (!r.more) break;
+    }
+    $('status').textContent = members.size + ' member(s) · updated ' + new Date().toLocaleTimeString();
+    render(true);
+  } catch (e) {
+    $('status').textContent = e.message === 'login' ? 'Session ended: log in again in the admin panel.' : 'Error: ' + e.message;
+  }
+  timer = setTimeout(poll, 30000);
+}
+
+function add(r) {
+  let m = members.get(r.member);
+  if (!m) { m = { latest: null, track: [], name: r.name, key: r.key }; members.set(r.member, m); }
+  const fix = r.sent - r.fixAge;
+  if (!m.latest || r.sent >= m.latest.sent) {
+    m.latest = r;
+    if (r.name) m.name = r.name;
+    if (!(r.flags & 8)) m.pos = { lat: r.lat, lon: r.lon, t: fix, acc: r.accuracy };
+  }
+  if (!(r.flags & 8)) { m.track.push({ lat: r.lat, lon: r.lon, t: fix }); m.track.sort((a, b) => a.t - b.t); if (m.track.length > 500) m.track.shift(); }
+}
+
+function list() {
+  const arr = [...members.entries()].map(([id, m]) => ({ id, ...m }));
+  arr.sort((a, b) => ((b.latest.flags & 1) - (a.latest.flags & 1)) || a.name.localeCompare(b.name));
+  return arr;
+}
+
+// ---- the map: OpenStreetMap tiles, Web Mercator ----
+const view = { lat: 32.3, lon: 44.2, z: 9 };
+const TS = 256;
+const wx = (lon, z) => (lon + 180) / 360 * TS * 2 ** z;
+const wy = (lat, z) => { const s = Math.sin(lat * Math.PI / 180); return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * TS * 2 ** z; };
+const lonOf = (x, z) => x / (TS * 2 ** z) * 360 - 180;
+const latOf = (y, z) => { const n = Math.PI - 2 * Math.PI * y / (TS * 2 ** z); return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))); };
+let fitted = false;
+
+function fit() {
+  const pts = list().filter((m) => m.pos).map((m) => m.pos);
+  if (!pts.length) return;
+  const el = $('map'), W = el.clientWidth, H = el.clientHeight;
+  let z = 17;
+  for (; z > 2; z--) {
+    const xs = pts.map((p) => wx(p.lon, z)), ys = pts.map((p) => wy(p.lat, z));
+    if (Math.max(...xs) - Math.min(...xs) < W - 80 && Math.max(...ys) - Math.min(...ys) < H - 80) break;
+  }
+  const xs = pts.map((p) => wx(p.lon, z)), ys = pts.map((p) => wy(p.lat, z));
+  view.z = z;
+  view.lon = lonOf((Math.max(...xs) + Math.min(...xs)) / 2, z);
+  view.lat = latOf((Math.max(...ys) + Math.min(...ys)) / 2, z);
+  fitted = true;
+  draw();
+}
+
+function draw() {
+  const el = $('map'), W = el.clientWidth, H = el.clientHeight, z = view.z;
+  const cx = wx(view.lon, z), cy = wy(view.lat, z);
+  const left = cx - W / 2, top = cy - H / 2, n = 2 ** z;
+  const tiles = $('tiles');
+  const want = new Set();
+  for (let ty = Math.floor(top / TS); ty <= Math.floor((top + H) / TS); ty++) {
+    if (ty < 0 || ty >= n) continue;
+    for (let tx = Math.floor(left / TS); tx <= Math.floor((left + W) / TS); tx++) {
+      const x = ((tx % n) + n) % n;
+      const key = z + '/' + x + '/' + ty;
+      want.add(key + '@' + tx);
+      let img = tiles.querySelector('img[data-k="' + key + '@' + tx + '"]');
+      if (!img) {
+        img = document.createElement('img');
+        img.dataset.k = key + '@' + tx;
+        img.referrerPolicy = 'strict-origin';
+        img.alt = '';
+        img.src = 'https://tile.openstreetmap.org/' + key + '.png';
+        tiles.appendChild(img);
+      }
+      img.style.left = Math.round(tx * TS - left) + 'px';
+      img.style.top = Math.round(ty * TS - top) + 'px';
+    }
+  }
+  for (const img of [...tiles.children]) if (!want.has(img.dataset.k)) img.remove();
+  const svg = $('svg');
+  let paths = '';
+  const ov = $('overlay');
+  for (const p of [...ov.querySelectorAll('.pin')]) p.remove();
+  for (const m of list()) {
+    if (m.track.length > 1) {
+      const d = m.track.map((p, i) => (i ? 'L' : 'M') + (wx(p.lon, z) - left).toFixed(1) + ' ' + (wy(p.lat, z) - top).toFixed(1)).join(' ');
+      paths += '<path d="' + d + '" fill="none" stroke="' + (m.latest.flags & 1 ? '#dc2626' : '#a78bfa') + '" stroke-width="2" stroke-opacity=".7"/>';
+    }
+    if (!m.pos) continue;
+    const x = wx(m.pos.lon, z) - left, y = wy(m.pos.lat, z) - top;
+    const r = m.pos.acc / (156543.03 * Math.cos(m.pos.lat * Math.PI / 180) / n);
+    if (r > 4) paths += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(1) + '" fill="#a78bfa" fill-opacity=".12" stroke="#a78bfa" stroke-opacity=".4"/>';
+    const pin = document.createElement('div');
+    const old = Date.now() / 1000 - m.latest.sent > 3 * (card.every || 300) + 120;
+    pin.className = 'pin' + (m.latest.flags & 1 ? ' sos' : old ? ' old' : '');
+    pin.style.left = x + 'px'; pin.style.top = y + 'px';
+    pin.textContent = (m.latest.flags & 1 ? '⚠ ' : '') + (m.name || m.id.slice(0, 6));
+    pin.title = ago(m.latest.sent);
+    pin.onclick = () => focusMember(m.id);
+    ov.appendChild(pin);
+  }
+  svg.innerHTML = paths;
+}
+
+function render(maybeFit) {
+  const box = $('members');
+  box.innerHTML = '';
+  for (const m of list()) {
+    const r = m.latest;
+    const d = document.createElement('div');
+    d.className = 'card m' + (r.flags & 1 ? ' sos' : '');
+    let html = '<b>' + esc(m.name || m.id.slice(0, 8)) + '</b>';
+    if (r.flags & 1) html += '<span class="badge sos">LOST — SOS</span>';
+    if (r.flags & 2) html += '<span class="badge stop">stopped sharing</span>';
+    html += '<div class="muted">last report ' + ago(r.sent) + (r.battery >= 0 ? ' · battery ' + r.battery + '%' : '') + '</div>';
+    if (m.pos) {
+      html += '<div>' + m.pos.lat.toFixed(5) + ', ' + m.pos.lon.toFixed(5) + ' (±' + m.pos.acc + ' m, ' + ago(m.pos.t) + ')</div>';
+      html += '<div><a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=' + m.pos.lat + '&mlon=' + m.pos.lon + '#map=17/' + m.pos.lat + '/' + m.pos.lon + '">OpenStreetMap</a> · ' +
+              '<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=' + m.pos.lat + ',' + m.pos.lon + '">Google Maps</a></div>';
+    } else {
+      html += '<div class="muted">no position yet</div>';
+    }
+    d.innerHTML = html;
+    d.onclick = (e) => { if (e.target.tagName !== 'A') focusMember(m.id); };
+    box.appendChild(d);
+  }
+  if (maybeFit && !fitted) fit(); else draw();
+}
+
+function focusMember(id) {
+  const m = members.get(id);
+  if (!m || !m.pos) return;
+  view.lat = m.pos.lat; view.lon = m.pos.lon; view.z = Math.max(view.z, 15);
+  draw();
+}
+
+// pan and zoom
+(() => {
+  const el = $('map');
+  let drag = null;
+  el.addEventListener('pointerdown', (e) => { if (e.target.closest('.zoom') || e.target.classList.contains('pin')) return; drag = { x: e.clientX, y: e.clientY, cx: wx(view.lon, view.z), cy: wy(view.lat, view.z) }; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointermove', (e) => { if (!drag) return; const cx = drag.cx - (e.clientX - drag.x), cy = drag.cy - (e.clientY - drag.y); view.lon = lonOf(cx, view.z); view.lat = latOf(cy, view.z); draw(); });
+  el.addEventListener('pointerup', () => { drag = null; });
+  el.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+  $('zin').onclick = () => zoom(1);
+  $('zout').onclick = () => zoom(-1);
+  $('fit').onclick = () => fit();
+  window.addEventListener('resize', draw);
+})();
+function zoom(d) { view.z = Math.min(19, Math.max(2, view.z + d)); draw(); }
+
+$('open').onclick = () => card && api('/admin/api/trip').then((st) => useKey($('key').value, st.hash));
+$('forget').onclick = () => { for (const k of Object.keys(sessionStorage)) if (k.startsWith('tripkey:')) sessionStorage.removeItem(k); $('key').value = ''; };
+setInterval(() => render(false), 30000);
+draw();
+load();
+</script>
+</body>
+</html>

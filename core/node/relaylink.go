@@ -137,6 +137,7 @@ func (l *relayLink) uploader(ctx context.Context) {
 			continue
 		}
 		l.setUp(true)
+		l.n.pollTrip(ctx, l, false) // a trip running on this relay? (every few minutes)
 		for {
 			l.mu.Lock()
 			batch := l.queue[:min(len(l.queue), 200)]
@@ -237,6 +238,19 @@ func (l *relayLink) groupsOnce(ctx context.Context) error {
 			// keep polling the other groups at the normal pace.
 			if ctx.Err() == nil {
 				l.n.cfg.Logf("%s: group %s: %v", l.name, g.Title, err)
+			}
+			continue
+		}
+		l.deliver(raws)
+		l.n.setCursor(key, cur)
+	}
+	// Trips we lead: their members' reports (we fetch as the trip).
+	for _, id := range l.n.leaderTrips() {
+		key := l.name + ":trip:" + id.Hash().String()
+		raws, cur, err := l.c.Mailbox(ctx, id, l.n.cursor(key), 0)
+		if err != nil {
+			if ctx.Err() == nil {
+				l.n.cfg.Logf("%s: trip %s: %v", l.name, id.Hash().String()[:8], err)
 			}
 			continue
 		}

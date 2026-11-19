@@ -9,17 +9,20 @@ package admin
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"crypto/subtle"
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +32,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/core/packet"
 	"github.com/Aryalleh/mesh-msg/server/api"
 	"github.com/Aryalleh/mesh-msg/server/relay"
+	"github.com/Aryalleh/mesh-msg/server/trips"
 	"github.com/Aryalleh/mesh-msg/server/turn"
 )
 
@@ -47,6 +51,12 @@ const (
 
 //go:embed panel.html
 var panelHTML []byte
+
+//go:embed tripmap.html
+var tripMapHTML string
+
+//go:embed tripcrypto.js
+var tripCryptoJS string
 
 // Settings are what the panel (and the admin CLI) may change. They are kept
 // in data_dir/panel.json and override relay.json.
@@ -191,6 +201,8 @@ type Config struct {
 	// TURN settings from relay.json.
 	TURN     *turn.Service
 	BaseTURN turn.Limits
+	// Trips: the relay's trip (nil: none), for the panel's trip map.
+	Trips *trips.Service
 	// Effective returns the settings in use (relay.json + panel.json).
 	Effective func() map[string]any
 	// Restart asks the process to exit so its supervisor restarts it with
@@ -256,6 +268,56 @@ func (p *Panel) Routes(mount func(pattern string, h http.Handler)) {
 	mount("POST /admin/api/admins", h(p.post(true, p.changeAdmins)))
 	mount("POST /admin/api/media/delete", h(p.post(true, p.deleteMedia)))
 	mount("POST /admin/api/restart", h(p.post(true, p.restart)))
+	mount("GET /admin/trip", h(p.tripPage))
+	mount("GET /admin/api/trip", h(p.auth(p.tripState)))
+	mount("GET /admin/api/trip/reports", h(p.auth(p.tripReports)))
+}
+
+// tripPage is the trip map: it opens the members' reports in the browser
+// with the map key the leader pastes (docs/trip.md); map tiles come from
+// OpenStreetMap.
+func (p *Panel) tripPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src data: https://tile.openstreetmap.org; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Referrer-Policy", "strict-origin")
+	w.Header().Set("Cache-Control", "no-store")
+	io.WriteString(w, strings.Replace(tripMapHTML, "/*TRIPCRYPTO*/", tripCryptoJS, 1))
+}
+
+func (p *Panel) tripState(w http.ResponseWriter, _ *http.Request, _ string) {
+	if p.cfg.Trips == nil {
+		jsonOut(w, http.StatusOK, trips.State{})
+		return
+	}
+	jsonOut(w, http.StatusOK, p.cfg.Trips.PanelState())
+}
+
+// tripReports hands the panel the stored packets addressed to the trip
+// (encrypted; the page opens them).
+func (p *Panel) tripReports(w http.ResponseWriter, r *http.Request, _ string) {
+	if p.cfg.Trips == nil {
+		fail(w, http.StatusNotFound, "no trip")
+		return
+	}
+	_, c, ok := p.cfg.Trips.Current()
+	if !ok {
+		fail(w, http.StatusNotFound, "no trip")
+		return
+	}
+	h, err := packet.ParseHash(c.Hash())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "bad trip key")
+		return
+	}
+	after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
+	const limit = 500
+	raws, cur := p.cfg.Relay.Mailbox(h, after, limit)
+	out := make([]string, len(raws))
+	for i, b := range raws {
+		out[i] = base64.StdEncoding.EncodeToString(b)
+	}
+	jsonOut(w, http.StatusOK, map[string]any{"packets": out, "cursor": cur, "more": len(raws) == limit})
 }
 
 func (p *Panel) page(w http.ResponseWriter, r *http.Request) {
@@ -481,7 +543,19 @@ func (p *Panel) state(w http.ResponseWriter, r *http.Request, admin string) {
 		},
 		"ledger": p.cfg.API.Ledger().Stats(),
 		"turn":   p.turnStats(),
+		"trip":   p.tripSummary(),
 	})
+}
+
+func (p *Panel) tripSummary() any {
+	if p.cfg.Trips == nil {
+		return nil
+	}
+	st := p.cfg.Trips.PanelState()
+	if st.Card == nil {
+		return nil
+	}
+	return st
 }
 
 func (p *Panel) turnStats() any {

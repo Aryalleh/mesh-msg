@@ -41,6 +41,7 @@ import (
 	"github.com/Aryalleh/mesh-msg/server/api"
 	"github.com/Aryalleh/mesh-msg/server/ledger"
 	"github.com/Aryalleh/mesh-msg/server/relay"
+	"github.com/Aryalleh/mesh-msg/server/trips"
 	"github.com/Aryalleh/mesh-msg/server/turn"
 )
 
@@ -369,12 +370,18 @@ func run(cfg *Config) error {
 	if udp != nil {
 		h.Handle("POST /v1/turn/credentials", http.HandlerFunc(udp.CredentialsHandler))
 	}
+	// The trip this relay runs, if any (docs/trip.md): set by its admins.
+	tripSvc := trips.New(trips.Config{
+		DataDir: cfg.DataDir,
+		IsAdmin: func(h string) bool { return panel != nil && slices.Contains(panel.Admins(), h) },
+	})
+	tripSvc.Routes(h.Handle)
 	panel = admin.New(admin.Config{
 		Info: admin.Info{
 			Name: cfg.Name, Region: cfg.Region, Version: version, PubKey: hex.EncodeToString(key.Bytes()),
 			Listen: cfg.Listen, Peers: peers, Started: time.Now(),
 		},
-		DataDir: cfg.DataDir, Identity: key, Relay: rl, API: h, BasePolicy: base, TURN: udp, BaseTURN: baseTURN,
+		DataDir: cfg.DataDir, Identity: key, Relay: rl, API: h, BasePolicy: base, TURN: udp, BaseTURN: baseTURN, Trips: tripSvc,
 		Effective: func() map[string]any {
 			p := h.MediaPolicy()
 			return map[string]any{

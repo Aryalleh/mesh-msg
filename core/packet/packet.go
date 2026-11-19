@@ -86,6 +86,17 @@ func NewID() ID {
 	return id
 }
 
+// ParseID parses a 16-char hex packet ID.
+func ParseID(s string) (ID, error) {
+	var id ID
+	b, err := hex.DecodeString(s)
+	if err != nil || len(b) != len(id) {
+		return id, errors.New("packet: invalid packet id")
+	}
+	copy(id[:], b)
+	return id, nil
+}
+
 // Hash is a 16-byte destination hash.
 type Hash [16]byte
 

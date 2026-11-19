@@ -862,3 +862,86 @@ func (c *Core) CurrentCall() string {
 	s, _ := toJSON(in, nil)
 	return s
 }
+
+// ---- trip location sharing (docs/trip.md) ----
+
+// Trips lists the trips this phone knows as JSON [node.Trip]: offered ones
+// (consent ""), shared or declined, and those it leads.
+func (c *Core) Trips() (string, error) {
+	ts := c.n.Trips()
+	if ts == nil {
+		ts = []node.Trip{}
+	}
+	return toJSON(ts, nil)
+}
+
+// RefreshTrips asks the connected relays for their trip now.
+func (c *Core) RefreshTrips() {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	c.n.RefreshTrips(ctx)
+}
+
+// JoinTrip takes a meshtrip: link; the trip then waits for the user's answer.
+func (c *Core) JoinTrip(link string) (string, error) { return toJSON(c.n.JoinTrip(link)) }
+
+// TripConsent records the user's answer: yes starts sharing their location.
+func (c *Core) TripConsent(trip string, yes bool) error { return c.n.TripConsent(trip, yes) }
+
+// TripStop stops sharing (the leaders are told).
+func (c *Core) TripStop(trip string) error { return c.n.TripStop(trip) }
+
+// TripSOS turns "I'm lost" on or off.
+func (c *Core) TripSOS(trip string, on bool) error { return c.n.TripSOS(trip, on) }
+
+// TripReport sends a report with this position if one is due (force: now).
+// battery -1 = unknown; hasFix false = no position yet. It returns whether
+// a report went out.
+func (c *Core) TripReport(trip string, lat, lon float64, accuracy, fixAgeSec, battery int, hasFix, force bool) (bool, error) {
+	return c.n.TripReport(trip, lat, lon, accuracy, fixAgeSec, battery, hasFix, force)
+}
+
+// TripRelays lists the relays a trip can run on, as JSON [{name,url,up}].
+func (c *Core) TripRelays() (string, error) {
+	rs := c.n.TripRelays()
+	if rs == nil {
+		rs = []node.TripRelay{}
+	}
+	return toJSON(rs, nil)
+}
+
+// CreateTrip starts a trip on relay (this account must be its admin):
+// reports every everySec seconds until endsUnix.
+func (c *Core) CreateTrip(relay, name string, everySec int, endsUnix int64) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return toJSON(c.n.CreateTrip(ctx, relay, name, time.Duration(everySec)*time.Second, time.Unix(endsUnix, 0)))
+}
+
+// AddTripLeader makes a contact (an admin of the trip's relay) a leader.
+func (c *Core) AddTripLeader(trip, contact string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return toJSON(c.n.AddTripLeader(ctx, trip, contact))
+}
+
+// EndTrip ends a trip this account leads (it leaves the relay) or forgets
+// one it is in.
+func (c *Core) EndTrip(trip string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return c.n.EndTrip(ctx, trip)
+}
+
+// TripMembers lists members' positions (leaders) as JSON [node.TripMember].
+func (c *Core) TripMembers(trip string) (string, error) {
+	ms, err := c.n.TripMembers(trip)
+	if ms == nil {
+		ms = []node.TripMember{}
+	}
+	return toJSON(ms, err)
+}
+
+// LocateTripMember asks a member to report now and every minute for half
+// an hour (leaders).
+func (c *Core) LocateTripMember(trip, member string) error { return c.n.LocateTripMember(trip, member) }
