@@ -80,6 +80,9 @@ interface SettingsActions {
     /** Opens the storage screen (files on this phone). */
     fun openStorage() {}
 
+    /** Opens the trips screen (location sharing on a group trip). */
+    fun openTrips() {}
+
     /** Checks for a newer release now (roadmap B7); the result shows on the chat list. */
     fun checkUpdate() {}
 
@@ -132,6 +135,11 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                 modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s),
             )
             HideRunningNotification()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.trips_entry)) },
+                supportingContent = { Text(stringResource(R.string.trips_entry_help)) },
+                modifier = Modifier.clickable(onClick = actions::openTrips),
+            )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.storage_title)) },
                 supportingContent = { Text(stringResource(R.string.storage_entry_help)) },

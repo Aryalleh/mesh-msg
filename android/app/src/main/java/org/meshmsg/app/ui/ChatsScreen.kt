@@ -1,5 +1,6 @@
 package org.meshmsg.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.size
@@ -72,6 +73,8 @@ fun ChatsScreen(
     update: UpdateBannerState? = null,
     folders: List<ChatFolder> = emptyList(),
     onSaveFolders: (List<ChatFolder>) -> Unit = {},
+    /** A trip that needs attention (an offer, sharing, a lost member) and what tapping it does. */
+    tripBanner: Pair<String, () -> Unit>? = null,
 ) {
     var folder by rememberSaveable { mutableStateOf(FOLDER_ALL) }
     var editing by rememberSaveable { mutableStateOf(false) }
@@ -95,6 +98,7 @@ fun ChatsScreen(
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             update?.let { UpdateBanner(it) }
+            tripBanner?.let { (text, open) -> InfoBanner(text, Modifier.clickable(onClick = open)) }
             if (!anyPathUp && chats.isNotEmpty()) InfoBanner(stringResource(R.string.no_path_banner))
             if (chats.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

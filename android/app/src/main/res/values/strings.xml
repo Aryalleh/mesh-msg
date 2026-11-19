@@ -354,4 +354,86 @@
     <string name="settings_full_screen">Full-screen incoming calls</string>
     <string name="settings_full_screen_off">Not allowed: calls only appear as a notification. Tap to allow.</string>
     <string name="nearby_last_drop">Last disconnect: %1$s</string>
+    <!-- Trip location sharing (docs/trip.md) -->
+    <string name="trips_title">Trips</string>
+    <string name="trips_entry">Trips: location sharing</string>
+    <string name="trips_entry_help">For a group trip: share your position with the trip\'s leaders so they can find you if you get lost.</string>
+    <string name="trips_intro">On a group trip, your phone can send your position to the trip\'s leaders every few minutes, encrypted so only they can read it: over Bluetooth to nearby phones, over LoRa and through the trip\'s relay, even without internet on your phone. Nothing is sent until you agree, and you can stop at any time.</string>
+    <string name="trip_until_leaders">Until %1$s · leaders: %2$s</string>
+    <string name="trip_ended">This trip has ended. Nothing is sent any more.</string>
+    <string name="trip_consent_body">This trip asks to see where you are. If you agree, your phone sends your position every %2$d minutes to the trip\'s leaders (%1$s) until %3$s, so they can find you if you get lost. Only they can read it: not other members, not the relay. You can stop whenever you want, and the leaders will see that you stopped.</string>
+    <string name="trip_share">Share my location</string>
+    <string name="trip_decline">No thanks</string>
+    <string name="trip_sharing_first">You are sharing your location with the leaders. The first position goes out as soon as the phone has a fix.</string>
+    <string name="trip_sharing_last">You are sharing your location with the leaders, every %1$d min. Last sent %2$s.</string>
+    <string name="trip_leader_asked">A leader asked where you are: your position goes out every minute for a while.</string>
+    <string name="trip_sos">I\'m lost</string>
+    <string name="trip_sos_off">I\'m safe now</string>
+    <string name="trip_sos_on">The leaders have been alerted that you are lost. Your position goes out every minute. Stay where you are if you can.</string>
+    <string name="trip_stop">Stop sharing</string>
+    <string name="trip_not_sharing">You are not sharing your location with this trip.</string>
+    <string name="trip_need_location">Sharing needs the location permission.</string>
+    <string name="trip_forget">Leave this trip</string>
+    <string name="trip_forget_body">Stops sharing (the leaders are told) and removes the trip from this phone.</string>
+    <string name="trip_end">End the trip</string>
+    <string name="trip_end_body">Takes the trip off its relay and removes it from this phone. Members\' phones stop sharing when the trip\'s end time comes.</string>
+    <string name="trip_members">Members (%1$d)</string>
+    <string name="trip_no_members">No positions yet. Members appear here once they agree to share.</string>
+    <string name="trip_seen">last report %1$s</string>
+    <string name="trip_battery">battery %1$d%%</string>
+    <string name="trip_no_position">no position yet</string>
+    <string name="trip_badge_sos">LOST</string>
+    <string name="trip_badge_stopped">stopped sharing</string>
+    <string name="trip_open_map">Open in map</string>
+    <string name="trip_locate">Ask for position</string>
+    <string name="trip_show_qr">QR code for members</string>
+    <string name="trip_qr_help">Members scan this with their phone camera (or open the link) to see the trip and decide.</string>
+    <string name="trip_share_link">Share link</string>
+    <string name="trip_add_leader">Add a leader</string>
+    <string name="trip_add_leader_help">The new leader sees every member\'s position. They must be an admin of the trip\'s relay (add them in its admin panel first).</string>
+    <string name="trip_add_leader_none">No other contacts to choose from.</string>
+    <string name="trip_map_key">Key for the web map</string>
+    <string name="trip_map_key_help">Open %1$s, log in with your account, and paste this key. It opens the members\' positions on a map in your browser; keep it private.</string>
+    <string name="trip_copy">Copy</string>
+    <string name="trip_join_title">Join a trip</string>
+    <string name="trip_join_help">Trips on your relays show up here by themselves. You can also paste a trip link from a leader.</string>
+    <string name="trip_link">Trip link (meshtrip:…)</string>
+    <string name="trip_join">Show the trip</string>
+    <string name="trip_lead_title">Lead a trip</string>
+    <string name="trip_lead_help">Leaders start a trip on a relay they are an admin of. Members of that relay are asked whether to share.</string>
+    <string name="trip_create">Start a trip</string>
+    <string name="trip_create_ok">Start</string>
+    <string name="trip_create_help">Only an admin of the chosen relay can start a trip on it.</string>
+    <string name="trip_name">Trip name</string>
+    <string name="trip_relay">Relay</string>
+    <string name="trip_no_relays">Add your trip\'s relay in Settings first.</string>
+    <string name="trip_every">Send a position every</string>
+    <string name="trip_minutes">%1$d min</string>
+    <string name="trip_days">For</string>
+    <string name="trip_n_days">%1$d days</string>
+    <string name="trip_ago_s">%1$d s ago</string>
+    <string name="trip_ago_min">%1$d min ago</string>
+    <string name="trip_ago_h">%1$d h ago</string>
+    <string name="trip_ago_d">%1$d days ago</string>
+    <string name="trip_channel_sharing">Trip location sharing</string>
+    <string name="trip_channel_alerts">Trip alerts</string>
+    <string name="trip_notif_title">Sharing your location with your trip\'s leaders</string>
+    <string name="trip_notif_sos_title">I\'m lost: sharing your location every minute</string>
+    <string name="trip_notif_body">%1$s · tap to manage</string>
+    <string name="trip_notif_starting">Starting…</string>
+    <string name="trip_alert_title">%1$s is lost</string>
+    <string name="trip_alert_body">%1$s: tap to see their position</string>
+    <string name="trip_banner_pending">A trip asks to see your location. Tap to decide.</string>
+    <string name="trip_banner_sharing">Sharing your location with %1$s. Tap to manage.</string>
+    <string name="trip_banner_sos">A member of %1$s is lost. Tap to see where.</string>
+    <string-array name="trip_compass">
+        <item>N</item>
+        <item>NE</item>
+        <item>E</item>
+        <item>SE</item>
+        <item>S</item>
+        <item>SW</item>
+        <item>W</item>
+        <item>NW</item>
+    </string-array>
 </resources>

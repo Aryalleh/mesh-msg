@@ -77,6 +77,53 @@ class MainActivity : ComponentActivity() {
     private val pendingChat = mutableStateOf<String?>(null)
     /** A call to answer: the Answer button of the ringing notification. */
     private val pendingAnswer = mutableStateOf<String?>(null)
+    /** A meshtrip: link to show, or the trips screen to open (notifications). */
+    private val pendingTripLink = mutableStateOf<String?>(null)
+    private val pendingTrips = mutableStateOf(false)
+    private var afterLocation: ((Boolean) -> Unit)? = null
+    private val askLocation = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        afterLocation?.invoke(org.meshmsg.app.service.TripService.hasPermission(this))
+        afterLocation = null
+    }
+
+    /** Asks for the location permission (trip sharing) if needed, then calls done. */
+    private fun withLocation(done: (Boolean) -> Unit) {
+        if (org.meshmsg.app.service.TripService.hasPermission(this)) done(true)
+        else { afterLocation = done; askLocation.launch(org.meshmsg.app.service.TripService.PERMISSIONS) }
+    }
+
+    @android.annotation.SuppressLint("MissingPermission") // checked first
+    private fun lastLocation(): Pair<Double, Double>? {
+        if (!org.meshmsg.app.service.TripService.hasPermission(this)) return null
+        val lm = getSystemService(android.location.LocationManager::class.java) ?: return null
+        return listOf(android.location.LocationManager.GPS_PROVIDER, android.location.LocationManager.NETWORK_PROVIDER)
+            .mapNotNull { p -> runCatching { lm.getLastKnownLocation(p) }.getOrNull() }
+            .maxByOrNull { it.elapsedRealtimeNanos }
+            ?.let { it.latitude to it.longitude }
+    }
+
+    private fun tripActions() = org.meshmsg.app.ui.TripsActions(
+        requestLocation = ::withLocation,
+        sharingChanged = { syncTripService() },
+        openMap = { lat, lon, label ->
+            val geo = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("geo:$lat,$lon?q=$lat,$lon(" + android.net.Uri.encode(label) + ")"))
+            runCatching { startActivity(geo) }.onFailure {
+                runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=17/$lat/$lon"))) }
+            }
+        },
+        share = { text -> startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), null)) },
+        copy = { text -> getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("mava-trip", text)) },
+        myLocation = ::lastLocation,
+    )
+
+    /** Keeps the trip location service running while a trip is shared. */
+    private fun syncTripService() {
+        val b = vm.backend.value ?: return
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            org.meshmsg.app.service.TripService.sync(this@MainActivity, b.trips.trips().any { it.sharing })
+        }
+    }
+
     /** The call screen is hidden behind the ongoing-call bar (voice calls). */
     private val callMinimized = mutableStateOf(false)
     /** Android 14+ refused full-screen incoming calls and the user hasn't been asked yet. */
@@ -135,6 +182,7 @@ class MainActivity : ComponentActivity() {
         askFullScreen.value = !org.meshmsg.app.service.CallService.canFullScreen(this) && !prefs.getBoolean("asked_full_screen", false)
         val app = application as MeshApp
         app.updates.checkIfStale({ app.backend.value?.core }, lifecycleScope)
+        syncTripService() // e.g. after the phone restarted while sharing
     }
 
     private fun handle(intent: Intent?) {
@@ -143,8 +191,10 @@ class MainActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_VIEW && data != null) {
             val web = data.scheme in setOf("https", "http") && data.host == org.meshmsg.app.data.ContactLink.HOST
             if (data.scheme in setOf("meshmsg", "meshgroup") || web) pendingLink.value = org.meshmsg.app.data.ContactLink.toUri(intent.dataString.orEmpty())
+            if (data.scheme == "meshtrip") pendingTripLink.value = intent.dataString
         }
         intent.getStringExtra(EXTRA_CHAT)?.let { pendingChat.value = it }
+        if (intent.getBooleanExtra(EXTRA_TRIPS, false)) pendingTrips.value = true
         if (intent.action == org.meshmsg.app.service.CallService.ACTION_ANSWER) {
             pendingAnswer.value = intent.getStringExtra(org.meshmsg.app.service.CallService.EXTRA_CALL)
             callMinimized.value = false
@@ -296,6 +346,14 @@ class MainActivity : ComponentActivity() {
         val link by pendingLink
         val chat by pendingChat
         LaunchedEffect(link) { if (link != null) nav.navigate(Routes.ADD) { launchSingleTop = true } }
+        val tripLink by pendingTripLink
+        val openTrips by pendingTrips
+        LaunchedEffect(tripLink, openTrips) {
+            if (tripLink != null || openTrips) {
+                pendingTrips.value = false
+                nav.navigate(Routes.TRIPS) { launchSingleTop = true }
+            }
+        }
         LaunchedEffect(chat) {
             chat?.let {
                 pendingChat.value = null
@@ -339,6 +397,7 @@ class MainActivity : ComponentActivity() {
                     ChatsScreen(
                         chats, status.anyPathUp, onOpen = { nav.navigate(Routes.chat(it.contact.hash)) }, onAdd = { nav.navigate(Routes.ADD) },
                         update = banner, folders = folders, onSaveFolders = vm::setFolders,
+                        tripBanner = tripBanner()?.let { it to { nav.navigate(Routes.TRIPS) { launchSingleTop = true } } },
                     )
                 }
                 composable(Routes.NETWORK) {
@@ -372,7 +431,21 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(Unit) { vm.refreshSettings() }
                     SettingsScreen(state, object : org.meshmsg.app.ui.SettingsActions by vm {
                         override fun openStorage() { nav.navigate(Routes.STORAGE) }
+                        override fun openTrips() { nav.navigate(Routes.TRIPS) }
                     })
+                }
+                composable(Routes.TRIPS) {
+                    val backend by vm.backend.collectAsStateWithLifecycle()
+                    val chats by vm.chats.collectAsStateWithLifecycle()
+                    val b = backend
+                    org.meshmsg.app.ui.TripsScreen(
+                        api = b?.trips,
+                        changes = b?.tripChanges ?: kotlinx.coroutines.flow.emptyFlow(),
+                        contacts = chats.map { it.contact },
+                        actions = remember { tripActions() },
+                        onBack = { nav.popBackStack() },
+                        initialLink = remember { pendingTripLink.value.orEmpty().also { pendingTripLink.value = null } },
+                    )
                 }
                 composable(Routes.STORAGE) {
                     val chats by vm.chats.collectAsStateWithLifecycle()
@@ -479,6 +552,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** The chats screen's trip line: a lost member, an offer to decide, or sharing in progress. */
+    @Composable
+    private fun tripBanner(): String? {
+        val backend by vm.backend.collectAsStateWithLifecycle()
+        val b = backend ?: return null
+        var state by remember(b) { mutableStateOf<Triple<String?, Boolean, String?>>(Triple(null, false, null)) }
+        LaunchedEffect(b) {
+            suspend fun load() {
+                state = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val ts = b.trips.trips()
+                    val lost = ts.firstOrNull { t -> t.leader && b.trips.members(t.hash).any { it.sos } }?.name
+                    Triple(lost, ts.any { it.pending }, ts.filter { it.sharing }.joinToString(", ") { it.name }.ifEmpty { null })
+                }
+            }
+            load()
+            b.tripChanges.collect { load() }
+        }
+        val (lost, pending, sharing) = state
+        return when {
+            lost != null -> stringResource(R.string.trip_banner_sos, lost)
+            pending -> stringResource(R.string.trip_banner_pending)
+            sharing != null -> stringResource(R.string.trip_banner_sharing, sharing)
+            else -> null
+        }
+    }
+
     @Composable
     private fun animationsEnabled(): Boolean {
         val resolver = LocalContext.current.contentResolver
@@ -517,11 +616,14 @@ class MainActivity : ComponentActivity() {
         const val CHAT = "chat/{hash}"
         const val ADD = "add"
         const val STORAGE = "storage"
+        const val TRIPS = "trips"
         val TOP = setOf(CHATS, NETWORK, SETTINGS)
         fun chat(hash: String) = "chat/$hash"
     }
 
     companion object {
         const val EXTRA_CHAT = "chat"
+        /** Opens the trips screen (trip notifications). */
+        const val EXTRA_TRIPS = "trips"
     }
 }

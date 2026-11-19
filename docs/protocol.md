@@ -70,7 +70,7 @@ Inner plaintext:
 
 ```
 0  1  content_type   0=text, 1=text-compressed, 2=contact-card, 3=(reserved), 4=e2e-ack, 5=group, 6=media,
-                     7=call, 8=direct, 9=read receipt (§3a)
+                     7=call, 8=direct, 9=read receipt (§3a), 10=trip location sharing (trip.md)
 1  4  timestamp      unix seconds
 5  1  sender_ed_hint first byte of sender ed25519 key (fast path; optional)
 6  .. content

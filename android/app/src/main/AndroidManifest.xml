@@ -14,7 +14,11 @@
     <!-- Android 8–11 tie BLE scanning to the location permission. -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <!-- …and trip location sharing asks for it on every version, only when the user
+         agrees to share with a trip's leaders (docs/trip.md). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
@@ -75,6 +79,8 @@
                 <data android:scheme="meshmsg" />
                 <!-- Group invite links: meshgroup:… -->
                 <data android:scheme="meshgroup" />
+                <!-- Trip links: meshtrip:… (docs/trip.md) -->
+                <data android:scheme="meshtrip" />
             </intent-filter>
             <!-- Contact links shared as text: https://eu-1.mfadem.ir/add#… (verified
                  through the relay's /.well-known/assetlinks.json). -->
@@ -103,6 +109,11 @@
             android:name=".service.CallService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+        <!-- Trip location sharing: runs only while the user shares with a trip. -->
+        <service
+            android:name=".service.TripService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
         <receiver
             android:name=".service.CallActionReceiver"
             android:exported="false" />

@@ -346,4 +346,86 @@
     <string name="settings_full_screen">تماس ورودی تمام‌صفحه</string>
     <string name="settings_full_screen_off">مجاز نیست: تماس‌ها فقط به صورت اعلان دیده می‌شوند. برای اجازه بزنید.</string>
     <string name="nearby_last_drop">آخرین قطع: %1$s</string>
+    <!-- Trip location sharing (docs/trip.md) -->
+    <string name="trips_title">سفرها</string>
+    <string name="trips_entry">سفرها: اشتراک موقعیت</string>
+    <string name="trips_entry_help">برای سفر گروهی: موقعیتتان را با سرپرستان سفر به اشتراک بگذارید تا اگر گم شدید پیدایتان کنند.</string>
+    <string name="trips_intro">در سفر گروهی، گوشی شما می‌تواند هر چند دقیقه موقعیتتان را برای سرپرستان سفر بفرستد، رمزنگاری‌شده تا فقط آن‌ها بتوانند بخوانند: با بلوتوث به گوشی‌های نزدیک، با LoRa و از طریق رله‌ی سفر، حتی بدون اینترنت روی گوشی شما. تا موافقت نکنید چیزی فرستاده نمی‌شود و هر وقت بخواهید می‌توانید قطعش کنید.</string>
+    <string name="trip_until_leaders">تا %1$s · سرپرستان: %2$s</string>
+    <string name="trip_ended">این سفر تمام شده است. دیگر چیزی فرستاده نمی‌شود.</string>
+    <string name="trip_consent_body">این سفر می‌خواهد بداند کجا هستید. اگر موافقت کنید، گوشی شما هر %2$d دقیقه موقعیتتان را تا %3$s برای سرپرستان سفر (%1$s) می‌فرستد تا اگر گم شدید پیدایتان کنند. فقط آن‌ها می‌توانند بخوانند: نه اعضای دیگر، نه رله. هر وقت بخواهید می‌توانید قطعش کنید و سرپرستان می‌بینند که قطع کرده‌اید.</string>
+    <string name="trip_share">موقعیتم را بفرست</string>
+    <string name="trip_decline">نه، ممنون</string>
+    <string name="trip_sharing_first">موقعیت شما برای سرپرستان فرستاده می‌شود. اولین موقعیت به محض پیدا شدن مکان گوشی می‌رود.</string>
+    <string name="trip_sharing_last">موقعیت شما هر %1$d دقیقه برای سرپرستان فرستاده می‌شود. آخرین ارسال: %2$s.</string>
+    <string name="trip_leader_asked">یکی از سرپرستان پرسیده کجا هستید: تا مدتی هر دقیقه موقعیتتان فرستاده می‌شود.</string>
+    <string name="trip_sos">گم شده‌ام</string>
+    <string name="trip_sos_off">الان در امانم</string>
+    <string name="trip_sos_on">به سرپرستان خبر داده شد که گم شده‌اید. موقعیتتان هر دقیقه فرستاده می‌شود. اگر می‌توانید همان‌جا بمانید.</string>
+    <string name="trip_stop">قطع اشتراک موقعیت</string>
+    <string name="trip_not_sharing">موقعیت شما برای این سفر فرستاده نمی‌شود.</string>
+    <string name="trip_need_location">برای اشتراک، اجازه‌ی دسترسی به موقعیت لازم است.</string>
+    <string name="trip_forget">ترک این سفر</string>
+    <string name="trip_forget_body">اشتراک قطع می‌شود (به سرپرستان خبر داده می‌شود) و سفر از این گوشی حذف می‌شود.</string>
+    <string name="trip_end">پایان سفر</string>
+    <string name="trip_end_body">سفر از رله‌اش برداشته و از این گوشی حذف می‌شود. گوشی اعضا در زمان پایان سفر خودشان اشتراک را قطع می‌کنند.</string>
+    <string name="trip_members">اعضا (%1$d)</string>
+    <string name="trip_no_members">هنوز موقعیتی نرسیده. اعضا بعد از موافقت اینجا دیده می‌شوند.</string>
+    <string name="trip_seen">آخرین گزارش %1$s</string>
+    <string name="trip_battery">باتری %1$d%%</string>
+    <string name="trip_no_position">هنوز موقعیتی نیست</string>
+    <string name="trip_badge_sos">گم شده</string>
+    <string name="trip_badge_stopped">اشتراک را قطع کرده</string>
+    <string name="trip_open_map">باز کردن روی نقشه</string>
+    <string name="trip_locate">درخواست موقعیت</string>
+    <string name="trip_show_qr">کد QR برای اعضا</string>
+    <string name="trip_qr_help">اعضا این را با دوربین گوشی اسکن می‌کنند (یا پیوند را باز می‌کنند) تا سفر را ببینند و تصمیم بگیرند.</string>
+    <string name="trip_share_link">فرستادن پیوند</string>
+    <string name="trip_add_leader">افزودن سرپرست</string>
+    <string name="trip_add_leader_help">سرپرست جدید موقعیت همه‌ی اعضا را می‌بیند. او باید مدیر رله‌ی سفر باشد (اول در پنل مدیریت رله اضافه‌اش کنید).</string>
+    <string name="trip_add_leader_none">مخاطب دیگری برای انتخاب نیست.</string>
+    <string name="trip_map_key">کلید نقشه‌ی وب</string>
+    <string name="trip_map_key_help">%1$s را باز کنید، با حسابتان وارد شوید و این کلید را بچسبانید. موقعیت اعضا روی نقشه در مرورگر شما باز می‌شود؛ کلید را خصوصی نگه دارید.</string>
+    <string name="trip_copy">کپی</string>
+    <string name="trip_join_title">پیوستن به سفر</string>
+    <string name="trip_join_help">سفرهای رله‌های شما خودشان اینجا دیده می‌شوند. پیوند سفر را هم می‌توانید از سرپرست بگیرید و اینجا بچسبانید.</string>
+    <string name="trip_link">پیوند سفر (meshtrip:…)</string>
+    <string name="trip_join">نمایش سفر</string>
+    <string name="trip_lead_title">سرپرستی سفر</string>
+    <string name="trip_lead_help">سرپرستان سفر را روی رله‌ای شروع می‌کنند که مدیرش هستند. از اعضای آن رله پرسیده می‌شود که موقعیتشان را بفرستند یا نه.</string>
+    <string name="trip_create">شروع سفر</string>
+    <string name="trip_create_ok">شروع</string>
+    <string name="trip_create_help">فقط مدیر رله‌ی انتخاب‌شده می‌تواند روی آن سفر شروع کند.</string>
+    <string name="trip_name">نام سفر</string>
+    <string name="trip_relay">رله</string>
+    <string name="trip_no_relays">اول رله‌ی سفرتان را در تنظیمات اضافه کنید.</string>
+    <string name="trip_every">ارسال موقعیت هر</string>
+    <string name="trip_minutes">%1$d دقیقه</string>
+    <string name="trip_days">به مدت</string>
+    <string name="trip_n_days">%1$d روز</string>
+    <string name="trip_ago_s">%1$d ثانیه پیش</string>
+    <string name="trip_ago_min">%1$d دقیقه پیش</string>
+    <string name="trip_ago_h">%1$d ساعت پیش</string>
+    <string name="trip_ago_d">%1$d روز پیش</string>
+    <string name="trip_channel_sharing">اشتراک موقعیت سفر</string>
+    <string name="trip_channel_alerts">هشدارهای سفر</string>
+    <string name="trip_notif_title">موقعیت شما برای سرپرستان سفر فرستاده می‌شود</string>
+    <string name="trip_notif_sos_title">گم شده‌ام: موقعیت هر دقیقه فرستاده می‌شود</string>
+    <string name="trip_notif_body">%1$s · برای مدیریت بزنید</string>
+    <string name="trip_notif_starting">در حال شروع…</string>
+    <string name="trip_alert_title">%1$s گم شده</string>
+    <string name="trip_alert_body">%1$s: برای دیدن موقعیتش بزنید</string>
+    <string name="trip_banner_pending">یک سفر می‌خواهد موقعیت شما را ببیند. برای تصمیم بزنید.</string>
+    <string name="trip_banner_sharing">موقعیت شما برای %1$s فرستاده می‌شود. برای مدیریت بزنید.</string>
+    <string name="trip_banner_sos">یکی از اعضای %1$s گم شده. برای دیدن موقعیت بزنید.</string>
+    <string-array name="trip_compass">
+        <item>شمال</item>
+        <item>شمال‌شرق</item>
+        <item>شرق</item>
+        <item>جنوب‌شرق</item>
+        <item>جنوب</item>
+        <item>جنوب‌غرب</item>
+        <item>غرب</item>
+        <item>شمال‌غرب</item>
+    </string-array>
 </resources>

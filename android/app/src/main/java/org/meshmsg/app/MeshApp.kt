@@ -78,7 +78,7 @@ class MeshApp : Application() {
         scope.launch {
             lock.withLock {
                 if (_backend.value == null) {
-                    _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig(), NetBinder(this@MeshApp)).also(::watchCalls)
+                    _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig(), NetBinder(this@MeshApp)).also(::watchCalls).also(::watchTrips)
                     restartBle()
                     usb = UsbLoRa(this@MeshApp).also { it.attachIfPresent(_backend.value!!.core) }
                     attachBoardBle()
@@ -123,6 +123,22 @@ class MeshApp : Application() {
         }
     }
 
+    /**
+     * Trips (docs/trip.md): keeps [org.meshmsg.app.service.TripService] running
+     * while a trip is shared, and alerts leaders when a member taps "I'm lost".
+     */
+    private fun watchTrips(b: CoreBackend) {
+        scope.launch {
+            org.meshmsg.app.service.TripService.sync(this@MeshApp, b.trips.trips().any { it.sharing })
+            b.tripChanges.collect {
+                org.meshmsg.app.service.TripService.sync(this@MeshApp, b.trips.trips().any { it.sharing })
+            }
+        }
+        scope.launch {
+            for (info in b.tripAlerts) org.meshmsg.app.service.TripAlerts.show(this@MeshApp, info)
+        }
+    }
+
     /** Applies changed settings (relays, gateway, name, battery): reopens the core. */
     fun restartSoon() {
         restartJob?.cancel()
@@ -130,7 +146,7 @@ class MeshApp : Application() {
             delay(1_500) // the user may still be typing
             lock.withLock {
                 stopLocked()
-                _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig(), NetBinder(this@MeshApp)).also(::watchCalls)
+                _backend.value = CoreBackend(meshDir.absolutePath, settings.coreConfig(), NetBinder(this@MeshApp)).also(::watchCalls).also(::watchTrips)
                 restartBle()
                 usb = UsbLoRa(this@MeshApp).also { it.attachIfPresent(_backend.value!!.core) }
                 attachBoardBle()

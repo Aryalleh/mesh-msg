@@ -68,6 +68,9 @@ interface lives inside the Go core, identical to desktop.
 
 - `MeshService` = foreground service (`connectedDevice` type) with a persistent notification;
   user is prompted to exempt the app from battery optimisation.
+- Location (`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, foreground service type
+  `location`): asked only when the user agrees to share with a trip's leaders
+  ([trip.md](trip.md)); the service runs only while sharing.
 - Android 12+: `BLUETOOTH_SCAN` (with `neverForLocation`), `BLUETOOTH_CONNECT`,
   `BLUETOOTH_ADVERTISE`; Android 13+: `NEARBY_WIFI_DEVICES`.
 - Battery mode is fixed to *Active* (full meshing, foreground service) since v0.1.1-beta2 (owner's decision); *Saver*/*Off* remain in code but are not selectable. Sharing internet with the mesh (gateway) and automatic relay discovery are likewise always on, with no switch in Settings.

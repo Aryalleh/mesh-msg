@@ -290,6 +290,13 @@ relay.json after a restart. The important-media settings (`media_important_per_d
 `media_pow_max_bits`, `media_pow_age_tiers`, §6a) are set in the panel and take
 effect immediately; the panel also shows the ledger's state and relays sending invalid entries.
 
+## 6b2. Trips (location sharing on a group trip)
+
+A relay can run one trip at a time: its admins who lead it publish a signed trip card
+(`GET/PUT/DELETE /v1/trip`, `data_dir/trip.json`); members' phones send encrypted
+positions to the trip's leaders, and the panel's `/admin/trip` map opens them in the leader's
+browser. The relay never holds the trip's key. Details: [trip.md](trip.md).
+
 ## 6c. TURN for the relay's admins (optional)
 
 Off by default; available on every relay, origin relays included. When on, only the relay's

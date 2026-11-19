@@ -2063,3 +2063,13 @@ links. Chose: quick items in beta3; calls follow in later betas.
   leader an admin), panel `/admin/trip` map (reports opened in the browser:
   `server/admin/tripcrypto.js`, checked against Go by `TestTripMapCrypto` with node),
   mobile binding. Next: Android screens and location reports, docs/trip.md.
+- Trip step 2: Android — `data/Trips.kt` (JSON, `TripsApi`/`CoreTrips`, distance/bearing),
+  `service/TripService.kt` (foreground service type location while sharing: LocationManager
+  GPS + network fixes, the core decides when a report is due, waits up to a minute for a first
+  fix, notification with Stop), `service/TripAlerts.kt` (leaders' alarm on "I'm lost"),
+  `ui/TripsScreen.kt` (consent card in plain words, sharing state, I'm lost / I'm safe, stop,
+  leave; leaders: members with distance/direction, open in map, ask for position, QR code,
+  add leader, web map key, end; join by link; start a trip), Settings entry, chats banner
+  (lost member / offer / sharing), `meshtrip:` links, location permissions (asked only on
+  "Share my location"); strings en + fa. docs/trip.md written; protocol.md content type 10;
+  server.md §6b2; android.md permissions.

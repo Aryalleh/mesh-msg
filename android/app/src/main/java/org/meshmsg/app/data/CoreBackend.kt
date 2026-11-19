@@ -38,6 +38,12 @@ class CoreBackend(dataDir: String, configJson: String, binder: NetworkBinder? = 
     /** Incoming messages, for notifications: (contact hash, text). */
     val incoming = Channel<Message>(Channel.BUFFERED)
 
+    /** Trip changes (docs/trip.md): a card offered, consent, a leader's request, members' reports. */
+    val tripChanges = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 16)
+    /** A member tapped "I'm lost" in a trip we lead: the event's JSON (trip, name, member, who). */
+    val tripAlerts = Channel<String>(Channel.BUFFERED)
+    val trips: TripsApi by lazy { CoreTrips(core) }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val refresh = Channel<Unit>(Channel.CONFLATED)
     @Volatile private var open: String? = null
@@ -83,6 +89,10 @@ class CoreBackend(dataDir: String, configJson: String, binder: NetworkBinder? = 
             if (o.optString("type") == "call") {
                 o.optJSONObject("call")?.let { onCall(Json.call(it)) }
                 return
+            }
+            when (o.optString("type")) {
+                "trip" -> { tripChanges.tryEmit(o.optString("info")); return }
+                "trip_sos" -> { tripAlerts.trySend(o.optString("info")); tripChanges.tryEmit(""); return }
             }
             if (o.optString("type") == "message") {
                 o.optJSONObject("message")?.let { m ->
