@@ -2086,3 +2086,20 @@ links. Chose: quick items in beta3; calls follow in later betas.
   checked on the host), restarted `meshmsg-relay`. Pubkey unchanged, `https://eu-1.mfadem.ir/v1/info`
   answers, `/v1/release?channel=beta` = 200 (beta39). Old binary kept as
   `/usr/local/bin/meshmsg-relay.bak-beta9`.
+
+### 2026-11-19 — Edge relays
+- **Edge relays (owner, 2026-11-19)**: the relay also runs on Cloudflare Workers (D1) and
+  ArvanCloud Edge Computing (Arvan Object Storage bucket), owner's choice: full relay only;
+  messages/mailboxes/receipts/announces/relay list + admin panel + trips + gateways +
+  federation (no media, no UDP). `edge/src` (JavaScript, no deps) → `node edge/build.mjs` →
+  `edge/dist/{cloudflare,arvan}.js` (committed; CI checks). Stores: D1 (same table as Go) and
+  S3 (metadata in object names, time-based seq with a 4 s settle). One installer:
+  `server/deploy/install-relay.sh` (this server → install.sh; Cloudflare → wrangler: D1, toml,
+  deploy, secrets; Arvan → arvan CLI from git.arvancloud.ir, config written into the bundle,
+  `arvan ec deploy`). Tests: `node --test edge/test` (crypto vs Node), `edge/edgetest` (Go
+  clients against the bundles in Node: chat D1/S3/Arvan bundle, relay list, admin login code,
+  trip, federation both ways with a Go relay). Checked locally with relayclient against all three
+  (upload with PoW, signed mailbox, receipts purge, sync, trip, admin code opened in Go).
+  Also: phones no longer ask relays for receipts of trip reports (never acknowledged), and the
+  admin panel shows the trip with a link to its map. docs/edge-relay.md. Not yet run on the real
+  platforms (Cloudflare, Arvan); Arvan's runtime details (WebCrypto, waitUntil, limits) unverified.

@@ -24,6 +24,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # Node 22.5+ runs the edge relay (edge/, docs/edge-relay.md) for its tests.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Edge relay (bundle up to date, crypto against Node's)
+        run: node edge/build.mjs --check && node --test edge/test/*.test.mjs
       - run: go build ./...
       - run: go vet ./...
       - run: go test -race ./...

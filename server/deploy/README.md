@@ -101,3 +101,10 @@ sudo systemctl enable --now meshmsg-relay
 Each entry in `peers` is synced every `every_secs` (default 15 s) in both
 directions. Configure a peer on **one** side only (or both — duplicates are
 dropped, it just costs bandwidth). Cursors are persisted in `data_dir`.
+
+## One installer for every kind of relay
+
+`install-relay.sh` asks where the relay runs: this server (it runs `install.sh`), Cloudflare
+Workers or ArvanCloud Edge Computing (an edge relay, docs/edge-relay.md):
+
+    curl -fsSL https://raw.githubusercontent.com/Aryalleh/mesh-msg/main/server/deploy/install-relay.sh | bash

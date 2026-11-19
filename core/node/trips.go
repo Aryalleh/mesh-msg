@@ -851,3 +851,12 @@ func (n *Node) TripRelays() []TripRelay {
 	}
 	return out
 }
+
+// isTripDest reports whether dest is a trip this device knows (its packets
+// get no receipts).
+func (n *Node) isTripDest(dest packet.Hash) bool {
+	n.tr.mu.Lock()
+	defer n.tr.mu.Unlock()
+	_, ok := n.tr.m[dest.String()]
+	return ok
+}

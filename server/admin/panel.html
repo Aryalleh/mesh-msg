@@ -73,6 +73,12 @@
       <p class="hint mono" id="relayKey"></p>
     </section>
 
+    <section id="tripBox" hidden>
+      <h2>Trip</h2>
+      <p id="tripInfo"></p>
+      <p><a href="/admin/trip">Open the trip map</a> (paste the map key from the leader's app: Trips → Key for the web map).</p>
+    </section>
+
     <section>
       <h2>Settings</h2>
       <p class="hint">Saved settings override relay.json and apply after a restart (the important-file rules apply at once). Empty fields keep relay.json's value. Relays carry only files the sender marked important; normal files go phone to phone.</p>
@@ -230,6 +236,12 @@ async function load() {
   $("turnSummary").textContent = !tu ? "The UDP reflector isn't running on this relay (port 3478/3479 busy, or \"reflector\": false)."
     : !tu.available ? "Address reflector on UDP 3478/3479 is on. TURN needs a public IPv4 address (set public_ip in relay.json)."
     : `Reflector on. TURN ${tu.enabled ? "on" : "off"} — ${tu.sessions} live session(s), ${size(tu.month_bytes)} relayed in ${tu.month} (relayed from ${tu.public_ip}). Ordinary users never get TURN.`;
+  const tr = state.trip;
+  $("tripBox").hidden = !(tr && tr.card);
+  if (tr && tr.card) {
+    $("tripInfo").textContent = `${tr.card.name} · until ${new Date(tr.card.ends * 1000).toLocaleString()} · leaders: ` +
+      tr.leaders.map((l) => (l.name || l.id.slice(0, 8)) + (l.admin ? "" : " (no longer an admin)")).join(", ");
+  }
   renderAdmins(state.admins);
   $("mediaSummary").textContent = m.on
     ? `${m.count} files, ${size(m.used)} of ${size(m.cap)}. Each is deleted when all its readers downloaded it, or at the time shown.`

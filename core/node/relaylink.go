@@ -270,7 +270,8 @@ func (l *relayLink) receiptsOnce(ctx context.Context) error {
 	seen := map[packet.ID]bool{}
 	var ids []packet.ID
 	for _, it := range items {
-		if it.Origin == "local" && !seen[it.Key.ID] {
+		// Trip reports are never acknowledged (shared inbox): don't ask.
+		if it.Origin == "local" && !seen[it.Key.ID] && !l.n.isTripDest(it.Dest) {
 			seen[it.Key.ID] = true
 			ids = append(ids, it.Key.ID)
 		}

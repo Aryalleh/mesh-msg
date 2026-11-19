@@ -6,6 +6,10 @@ A **dumb, untrusted, replaceable** store-and-forward relay. It never sees plaint
 identities and has no accounts. Relays are grouped by **region** and federate with each other;
 **gateways** connect meshes to them and **bridges** connect relays that can't reach each other.
 
+**Where it runs**: on a Linux server (`meshmsg-relay`, this document), or without a server
+on Cloudflare Workers or ArvanCloud Edge Computing ([edge-relay.md](edge-relay.md)). One
+installer covers all three: `server/deploy/install-relay.sh`.
+
 ## 2. Regional design
 
 ```
