@@ -2116,3 +2116,5 @@ links. Chose: quick items in beta3; calls follow in later betas.
   line; drawn as a card whose Navigate button asks which navigation app), attach → Location in
   every chat, members' Navigate uses the app chooser. Tests: TestTripLocationSharing (message to
   the leaders), LocationShareTest (JVM).
+  CI green on 0fd9262 (Go incl. edgetest; Android lint + unit tests + build). beta40 notes ready
+  (edge relays, installer, trip map, lost chat, location messages); release waits for the owner.
