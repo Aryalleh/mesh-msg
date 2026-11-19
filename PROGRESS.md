@@ -2080,3 +2080,9 @@ links. Chose: quick items in beta3; calls follow in later betas.
   web map against a live relay.
 - Released **v0.1.1-beta39** (tag on 86a7106, pre-release, signed release.json): trip location
   sharing (app, relay, web map) and the board's red/blue swap setting.
+
+### 2026-11-19 — eu-1 relay upgraded to 0.1.1-beta39
+- eu-1 was running 0.1.1-beta9; installed the official v0.1.1-beta39 release tarball (SHA256SUMS
+  checked on the host), restarted `meshmsg-relay`. Pubkey unchanged, `https://eu-1.mfadem.ir/v1/info`
+  answers, `/v1/release?channel=beta` = 200 (beta39). Old binary kept as
+  `/usr/local/bin/meshmsg-relay.bak-beta9`.
