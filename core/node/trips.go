@@ -468,7 +468,7 @@ func (n *Node) CreateTrip(ctx context.Context, relay, name string, every time.Du
 	now := time.Now()
 	c := trip.Card{
 		V: 1, Name: strings.TrimSpace(name), Key: hex.EncodeToString(id.Bytes()),
-		Leaders: []trip.Leader{{ID: n.id.Hash().String(), Name: n.cfg.Name}},
+		Leaders: []trip.Leader{{ID: n.id.Hash().String(), Name: n.cfg.Name, Key: hex.EncodeToString(n.id.Public.Bytes())}},
 		Every:   int(every / time.Second), Ends: ends.Unix(), Relay: rc.URL(), Made: now.Unix(),
 	}
 	s, err := trip.Sign(id, c)
@@ -513,7 +513,7 @@ func (n *Node) AddTripLeader(ctx context.Context, ref, contact string) (Trip, er
 	}
 	card := t.card
 	if !card.IsLeader(c.Hash) {
-		card.Leaders = append(append([]trip.Leader(nil), card.Leaders...), trip.Leader{ID: c.Hash, Name: c.Name})
+		card.Leaders = append(append([]trip.Leader(nil), card.Leaders...), trip.Leader{ID: c.Hash, Name: c.Name, Key: hex.EncodeToString(c.pub.Bytes())})
 	}
 	card.Made = max(time.Now().Unix(), card.Made+1)
 	id := t.id
@@ -859,4 +859,63 @@ func (n *Node) isTripDest(dest packet.Hash) bool {
 	defer n.tr.mu.Unlock()
 	_, ok := n.tr.m[dest.String()]
 	return ok
+}
+
+// TripMessageLeaders sends text (a lost member's location) to every leader of
+// the trip whose key the card carries, saving them as contacts so the chat
+// stays open. It returns the first leader's hash (the chat to open).
+func (n *Node) TripMessageLeaders(ref, text string) (string, error) {
+	n.tr.mu.Lock()
+	_, t, err := n.findTrip(ref)
+	var card trip.Card
+	if err == nil {
+		card = t.card
+	}
+	n.tr.mu.Unlock()
+	if err != nil {
+		return "", err
+	}
+	me := n.id.Hash().String()
+	first := ""
+	var errs []error
+	for _, l := range card.Leaders {
+		if l.Key == "" || strings.EqualFold(l.ID, me) {
+			continue
+		}
+		b, err := hex.DecodeString(l.Key)
+		if err != nil {
+			continue
+		}
+		pub, err := identity.PublicFromBytes(b)
+		if err != nil || !strings.EqualFold(pub.Hash().String(), l.ID) {
+			continue
+		}
+		h := pub.Hash().String()
+		if _, err := n.findContact(h); err != nil {
+			name := l.Name
+			if name == "" {
+				name = h[:8]
+			}
+			if err := n.db.putContact(pub, name+" · "+card.Name, time.Now()); err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			n.router.AddKnown(pub)
+			n.emit(Event{Type: "contact", Info: h})
+		}
+		if _, err := n.Send(h, text); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if first == "" {
+			first = h
+		}
+	}
+	if first == "" {
+		if len(errs) > 0 {
+			return "", errors.Join(errs...)
+		}
+		return "", errors.New("this trip's card names no leader this phone can write to (the leaders' app needs an update)")
+	}
+	return first, nil
 }

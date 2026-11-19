@@ -76,7 +76,10 @@ class TripsActions(
     val requestLocation: (done: (Boolean) -> Unit) -> Unit,
     /** Sharing may have started or stopped: start the location service. */
     val sharingChanged: () -> Unit,
+    /** Navigates to a point: the user picks the app (Google Maps, Neshan, Balad…). */
     val openMap: (lat: Double, lon: Double, label: String) -> Unit,
+    /** "I'm lost": sends this phone's location to the trip's leaders and opens that chat. */
+    val lost: (Trip) -> Unit = {},
     val share: (text: String) -> Unit,
     val copy: (text: String) -> Unit,
     /** This phone's last known position, if location is allowed. */
@@ -177,7 +180,10 @@ fun TripsScreen(
                     },
                     onDecline = { act { api.consent(t.hash, false) } },
                     onStop = { act { api.stop(t.hash) } },
-                    onSos = { on -> act { api.sos(t.hash, on) } },
+                    onSos = { on ->
+                        act { api.sos(t.hash, on) }
+                        if (on) actions.lost(t)
+                    },
                     onForget = { act { api.end(t.hash) } },
                     onLocate = { m -> act { api.locate(t.hash, m.hash) } },
                     onAddLeader = { c -> act { api.addLeader(t.hash, c.hash) } },
@@ -227,6 +233,7 @@ private fun TripCard(
     var showQr by remember { mutableStateOf(false) }
     var showKey by remember { mutableStateOf(false) }
     var addingLeader by remember { mutableStateOf(false) }
+    var showMap by remember { mutableStateOf(false) }
     val sosColors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)
     Card(
         Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s),
@@ -283,6 +290,7 @@ private fun TripCard(
                 val me = remember(now) { actions.myLocation() }
                 members.forEach { m -> MemberRow(m, me, now, actions, onLocate) }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.s), verticalArrangement = Arrangement.spacedBy(Space.s)) {
+                    Button(onClick = { showMap = true }) { Text(stringResource(R.string.trip_map)) }
                     OutlinedButton(onClick = { showQr = true }) { Text(stringResource(R.string.trip_show_qr)) }
                     OutlinedButton(onClick = { addingLeader = true }) { Text(stringResource(R.string.trip_add_leader)) }
                     OutlinedButton(onClick = { showKey = true }) { Text(stringResource(R.string.trip_map_key)) }
@@ -293,6 +301,7 @@ private fun TripCard(
             }
         }
     }
+    if (showMap) TripMapDialog(t, members, actions, onLocate, onClose = { showMap = false })
     if (forgetting) {
         AlertDialog(
             onDismissRequest = { forgetting = false },
@@ -382,7 +391,7 @@ private fun MemberRow(m: TripMember, me: Pair<Double, Double>?, now: Long, actio
             Text(stringResource(R.string.trip_no_position), style = MaterialTheme.typography.bodySmall)
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-            if (m.hasPosition) TextButton(onClick = { actions.openMap(m.lat, m.lon, m.displayName) }) { Text(stringResource(R.string.trip_open_map)) }
+            if (m.hasPosition) TextButton(onClick = { actions.openMap(m.lat, m.lon, m.displayName) }) { Text(stringResource(R.string.trip_navigate)) }
             if (!m.stopped) TextButton(onClick = { onLocate(m) }) { Text(stringResource(R.string.trip_locate)) }
         }
     }
@@ -467,5 +476,42 @@ private fun ago(seconds: Long): String {
         s < 5400 -> stringResource(R.string.trip_ago_min, (s / 60).toInt())
         s < 172800 -> stringResource(R.string.trip_ago_h, (s / 3600).toInt())
         else -> stringResource(R.string.trip_ago_d, (s / 86400).toInt())
+    }
+}
+
+/** The trip's members on a map, full screen (leaders). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TripMapDialog(t: Trip, members: List<TripMember>, actions: TripsActions, onLocate: (TripMember) -> Unit, onClose: () -> Unit) {
+    var selected by remember { mutableStateOf<String?>(null) }
+    val me = remember(members) { actions.myLocation() }
+    val now = System.currentTimeMillis() / 1000
+    androidx.compose.ui.window.Dialog(onDismissRequest = onClose, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) {
+                TopAppBar(
+                    title = { Text(t.name) },
+                    navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
+                )
+                TripMapView(
+                    members, me, staleAfterSec = 3L * t.every + 120, selected = selected,
+                    onSelect = { selected = it?.hash },
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+                val m = members.firstOrNull { it.hash == selected }
+                if (m != null) {
+                    Column(Modifier.padding(Space.l), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+                        MemberRow(m, me, now, actions, onLocate)
+                    }
+                } else {
+                    Text(
+                        stringResource(R.string.trip_map_help, members.count { it.hasPosition }),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(Space.l),
+                    )
+                }
+            }
+        }
     }
 }

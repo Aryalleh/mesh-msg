@@ -94,6 +94,28 @@ can read reports, not sign cards or fetch the mailbox). The page (`server/admin/
 `tripcrypto.js`) implements X25519, ChaCha20-Poly1305 and Noise X; `TestTripMapCrypto`
 checks it against the Go core. Map tiles come from OpenStreetMap, so the page needs internet.
 
+### "I'm lost" also opens a chat with the leaders
+
+Besides the SOS reports, the member's phone sends its position to every leader as an ordinary
+message and opens that chat, so the member can keep writing (`node.TripMessageLeaders`). The
+card lists each leader's public key (`leaders[].key`, hex X||Ed, checked against the id), so a
+member can write to leaders they never added; they are saved as contacts named "leader · trip".
+The message is plain text any Mava shows (a board, the desktop):
+
+```
+📍 گم شده‌ام / I'm lost
+32.616057, 44.024879 (±12 m)
+Google Maps: https://www.google.com/maps/search/?api=1&query=32.616057,44.024879
+Neshan: https://nshn.ir/?lat=32.616057&lng=44.024879
+Balad: https://balad.ir/location?latitude=32.616057&longitude=44.024879&zoom=17
+geo:32.616057,44.024879
+```
+
+The Android app draws such a message as a location card: **Navigate** asks which navigation
+app to use (any app that opens `geo:` links: Google Maps, Neshan, Balad, OsmAnd…), and the
+Google Maps / Neshan / Balad buttons open those links. Any chat can send one: attach →
+Location (`LocationShare.kt`).
+
 ## 6. Leaders
 
 - **Start a trip** (app → Trips): name, relay (one this account administers), interval
@@ -105,8 +127,12 @@ checks it against the Go core. Map tiles come from OpenStreetMap, so the page ne
   re-published, and the new leader gets the trip's secret in an end-to-end encrypted message
   (kind 3); their phone accepts it only from a listed leader, naming them as one.
 - **Members**: last position, accuracy, time, battery, SOS/stopped, distance and direction from
-  the leader's phone, "Open in map" (a `geo:` link, so offline map apps work), "Ask for
-  position". The core keeps the last 200 points per member.
+  the leader's phone, "Navigate" (the user picks the navigation app), "Ask for position". The
+  core keeps the last 200 points per member.
+- **Map** in the app (`TripMap.kt`): every member's last position (red when lost, grey when
+  old or stopped), their tracks, accuracy circles and the leader's own position; drag, pinch,
+  tap a member for its details. Tiles come from OpenStreetMap and stay on the phone once seen;
+  without them the map still draws members and tracks on a grid.
 - **Key for the web map**: shown with the relay's map address.
 - **End the trip**: deletes the card from the relay.
 

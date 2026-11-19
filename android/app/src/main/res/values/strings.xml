@@ -384,7 +384,6 @@
     <string name="trip_no_position">no position yet</string>
     <string name="trip_badge_sos">LOST</string>
     <string name="trip_badge_stopped">stopped sharing</string>
-    <string name="trip_open_map">Open in map</string>
     <string name="trip_locate">Ask for position</string>
     <string name="trip_show_qr">QR code for members</string>
     <string name="trip_qr_help">Members scan this with their phone camera (or open the link) to see the trip and decide.</string>
@@ -436,4 +435,15 @@
         <item>W</item>
         <item>NW</item>
     </string-array>
+    <string name="trip_navigate">Navigate</string>
+    <string name="trip_map">Map</string>
+    <string name="trip_map_help">%1$d member(s) on the map. Tap one to see who it is, navigate there or ask for a new position. Map tiles need internet (once seen, they stay on the phone).</string>
+    <string name="trip_lost_no_leaders">Could not write to the leaders: %1$s</string>
+    <string name="attach_location">Location</string>
+    <string name="location_navigate">Navigate</string>
+    <string name="location_navigate_with">Navigate with</string>
+    <string name="location_neshan">Neshan</string>
+    <string name="location_balad">Balad</string>
+    <string name="location_finding">Finding your location…</string>
+    <string name="location_none">The phone has no position yet. Try again outdoors.</string>
 </resources>

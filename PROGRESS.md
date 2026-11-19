@@ -2104,3 +2104,15 @@ links. Chose: quick items in beta3; calls follow in later betas.
   admin panel shows the trip with a link to its map. docs/edge-relay.md. Not yet run on the real
   platforms (Cloudflare, Arvan); Arvan's runtime details (WebCrypto, waitUntil, limits) unverified.
   Fix: `edge/dist/` was hidden by the `dist/` ignore rule; now committed (`!edge/dist/`).
+- Edge relay CI green (62f2d49): bundles + crypto checks, edgetest (chat on D1/S3/Arvan bundle,
+  relay list, admin login code, trip, federation with a Go relay). Fix: the admins list answered
+  from a stale cache after a change.
+- **Trips in the app (owner, 2026-11-19)**: an in-app trip map for leaders (`ui/TripMap.kt`:
+  OSM tiles cached on disk, grid without them, members, tracks, accuracy, me; pinch/drag/tap),
+  "I'm lost" also sends the position to every leader as a message and opens that chat
+  (`node.TripMessageLeaders`; trip cards now carry leaders' keys, `Leader.Key`, checked against
+  the id), location messages like Telegram (`LocationShare.kt`: plain text with Google Maps,
+  Neshan `nshn.ir/?lat=&lng=`, Balad `balad.ir/location?latitude=&longitude=` links and a geo:
+  line; drawn as a card whose Navigate button asks which navigation app), attach → Location in
+  every chat, members' Navigate uses the app chooser. Tests: TestTripLocationSharing (message to
+  the leaders), LocationShareTest (JVM).

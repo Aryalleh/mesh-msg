@@ -376,7 +376,6 @@
     <string name="trip_no_position">هنوز موقعیتی نیست</string>
     <string name="trip_badge_sos">گم شده</string>
     <string name="trip_badge_stopped">اشتراک را قطع کرده</string>
-    <string name="trip_open_map">باز کردن روی نقشه</string>
     <string name="trip_locate">درخواست موقعیت</string>
     <string name="trip_show_qr">کد QR برای اعضا</string>
     <string name="trip_qr_help">اعضا این را با دوربین گوشی اسکن می‌کنند (یا پیوند را باز می‌کنند) تا سفر را ببینند و تصمیم بگیرند.</string>
@@ -428,4 +427,15 @@
         <item>غرب</item>
         <item>شمال‌غرب</item>
     </string-array>
+    <string name="trip_navigate">مسیریابی</string>
+    <string name="trip_map">نقشه</string>
+    <string name="trip_map_help">%1$d عضو روی نقشه. روی هر کدام بزنید تا ببینید کیست، به سمتش مسیریابی کنید یا موقعیت تازه بخواهید. کاشی‌های نقشه اینترنت می‌خواهند (هر چه یک بار دیده شود روی گوشی می‌ماند).</string>
+    <string name="trip_lost_no_leaders">نوشتن برای سرپرستان ممکن نشد: %1$s</string>
+    <string name="attach_location">موقعیت مکانی</string>
+    <string name="location_navigate">مسیریابی</string>
+    <string name="location_navigate_with">مسیریابی با</string>
+    <string name="location_neshan">نشان</string>
+    <string name="location_balad">بلد</string>
+    <string name="location_finding">در حال پیدا کردن موقعیت شما…</string>
+    <string name="location_none">گوشی هنوز موقعیتی ندارد. در فضای باز دوباره امتحان کنید.</string>
 </resources>

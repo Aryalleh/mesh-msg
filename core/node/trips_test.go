@@ -128,6 +128,17 @@ func TestTripLocationSharing(t *testing.T) {
 		t.Fatal("SOS report not sent")
 	}
 	waitEvent(t, aliEv, "trip_sos", 30*time.Second)
+	// …and her phone writes to the leaders with her position (a chat she can continue).
+	first, err := sara.TripMessageLeaders(tr.Hash, "📍 lost: 32.62, 44.03")
+	if err != nil || first != ali.Identity().Hash().String() {
+		t.Fatalf("message leaders: %q %v", first, err)
+	}
+	for {
+		e := waitEvent(t, aliEv, "message", 30*time.Second)
+		if e.Message.Text == "📍 lost: 32.62, 44.03" && e.Message.Peer == sara.Identity().Hash().String() {
+			break
+		}
+	}
 
 	// A second leader (an admin too) gets the key and sees members.
 	if _, err := ali.AddTripLeader(ctx, tr.Hash, "reza"); err == nil {

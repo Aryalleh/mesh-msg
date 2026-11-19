@@ -67,6 +67,8 @@ class MediaActions(
     val fetch: (String) -> Unit = {},
     val path: suspend (String) -> String? = { null },
     val error: (String) -> Unit = {},
+    /** Sends this phone's location as a message (null: no Location item). */
+    val shareLocation: (() -> Unit)? = null,
 )
 
 /** The camera app records a short, small video. */

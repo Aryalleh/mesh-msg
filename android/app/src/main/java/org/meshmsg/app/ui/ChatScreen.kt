@@ -366,7 +366,12 @@ private fun Bubble(m: Message, showSender: Boolean = false, media: MediaActions 
                 Text(m.fromName, style = MaterialTheme.typography.labelLarge, color = scheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             m.media?.let { MediaContent(it, m.outgoing, fg, media) }
-            if (m.text.isNotEmpty() || m.media == null) Text(m.text, style = MaterialTheme.typography.bodyLarge, color = fg)
+            val place = remember(m.text) { org.meshmsg.app.data.LocationShare.parse(m.text) }
+            if (place != null) {
+                LocationCard(place, fg)
+            } else if (m.text.isNotEmpty() || m.media == null) {
+                Text(m.text, style = MaterialTheme.typography.bodyLarge, color = fg)
+            }
             Row(
                 Modifier.align(Alignment.End).padding(top = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(Space.xs),
@@ -533,6 +538,12 @@ private fun Composer(
                                 attachMenu = false
                                 pickFile.launch(arrayOf("*/*"))
                             })
+                            media.shareLocation?.let { share ->
+                                DropdownMenuItem(text = { Text(stringResource(R.string.attach_location)) }, onClick = {
+                                    attachMenu = false
+                                    share()
+                                })
+                            }
                             HorizontalDivider()
                             DropdownMenuItem(
                                 text = {
@@ -582,6 +593,36 @@ private fun Composer(
                         modifier = Modifier.size(48.dp),
                     ) { Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send)) }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * A location message: where, and buttons to navigate (the user picks the
+ * app: Google Maps, Neshan, Balad…) or open it in one of them.
+ */
+@Composable
+private fun LocationCard(place: org.meshmsg.app.data.SharedLocation, fg: Color) {
+    val ctx = LocalContext.current
+    val chooser = stringResource(R.string.location_navigate_with)
+    Column(verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+        Text("📍 " + place.title, style = MaterialTheme.typography.titleSmall, color = fg)
+        Text(
+            place.coords + if (place.accuracy > 0) " (±${place.accuracy} m)" else "",
+            style = MaterialTheme.typography.bodyMedium, color = fg,
+        )
+        androidx.compose.material3.Button(
+            onClick = { org.meshmsg.app.data.LocationShare.navigate(ctx, place.lat, place.lon, place.title, chooser) },
+            modifier = Modifier.heightIn(min = 40.dp),
+        ) { Text(stringResource(R.string.location_navigate)) }
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
+            for ((label, url) in listOf("Google Maps" to place.googleMaps, stringResource(R.string.location_neshan) to place.neshan,
+                stringResource(R.string.location_balad) to place.balad)) {
+                androidx.compose.material3.TextButton(
+                    onClick = { org.meshmsg.app.data.LocationShare.openLink(ctx, url) },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Space.s),
+                ) { Text(label, style = MaterialTheme.typography.labelMedium) }
             }
         }
     }

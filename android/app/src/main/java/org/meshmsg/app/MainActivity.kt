@@ -93,24 +93,72 @@ class MainActivity : ComponentActivity() {
     }
 
     @android.annotation.SuppressLint("MissingPermission") // checked first
-    private fun lastLocation(): Pair<Double, Double>? {
+    private fun lastFix(): android.location.Location? {
         if (!org.meshmsg.app.service.TripService.hasPermission(this)) return null
         val lm = getSystemService(android.location.LocationManager::class.java) ?: return null
         return listOf(android.location.LocationManager.GPS_PROVIDER, android.location.LocationManager.NETWORK_PROVIDER)
             .mapNotNull { p -> runCatching { lm.getLastKnownLocation(p) }.getOrNull() }
             .maxByOrNull { it.elapsedRealtimeNanos }
-            ?.let { it.latitude to it.longitude }
+    }
+
+    private fun lastLocation(): Pair<Double, Double>? = lastFix()?.let { it.latitude to it.longitude }
+
+    /** A fresh position if the phone can get one soon (else the last known one, or null). */
+    @android.annotation.SuppressLint("MissingPermission") // checked first
+    private fun currentFix(done: (android.location.Location?) -> Unit) {
+        val last = lastFix()
+        val lm = getSystemService(android.location.LocationManager::class.java)
+        val fresh = last != null && android.os.SystemClock.elapsedRealtimeNanos() - last.elapsedRealtimeNanos < 120_000_000_000L
+        if (fresh || lm == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !org.meshmsg.app.service.TripService.hasPermission(this)) {
+            done(last)
+            return
+        }
+        val provider = if (runCatching { lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) }.getOrDefault(false))
+            android.location.LocationManager.GPS_PROVIDER else android.location.LocationManager.NETWORK_PROVIDER
+        val cancel = android.os.CancellationSignal()
+        var answered = false
+        val answer = { l: android.location.Location? -> if (!answered) { answered = true; done(l ?: last) } }
+        runCatching { lm.getCurrentLocation(provider, cancel, mainExecutor) { answer(it) } }.onFailure { answer(null) }
+        window.decorView.postDelayed({ cancel.cancel(); answer(null) }, 20_000)
+    }
+
+    /** Sends this phone's location in a chat (the Location item of the attach menu). */
+    private fun shareLocation(hash: String) {
+        withLocation { ok ->
+            if (!ok) { vm.notice(getString(R.string.trip_need_location)); return@withLocation }
+            vm.notice(getString(R.string.location_finding))
+            currentFix { l ->
+                if (l == null) vm.notice(getString(R.string.location_none))
+                else vm.send(hash, org.meshmsg.app.data.LocationShare.text(l.latitude, l.longitude, l.accuracy.toInt(), lost = false))
+            }
+        }
+    }
+
+    /** "I'm lost": the location goes to the trip's leaders as a message, and their chat opens. */
+    private fun lostToLeaders(t: org.meshmsg.app.data.Trip) {
+        val b = vm.backend.value ?: return
+        withLocation { _ ->
+            currentFix { l ->
+                val text = if (l != null) org.meshmsg.app.data.LocationShare.text(l.latitude, l.longitude, l.accuracy.toInt(), lost = true)
+                else org.meshmsg.app.data.LocationShare.lostWithoutFix()
+                lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    val r = b.trips.messageLeaders(t.hash, text)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        r.onSuccess { first -> pendingChat.value = first }
+                            .onFailure { vm.notice(getString(R.string.trip_lost_no_leaders, it.message ?: "")) }
+                    }
+                }
+            }
+        }
     }
 
     private fun tripActions() = org.meshmsg.app.ui.TripsActions(
         requestLocation = ::withLocation,
         sharingChanged = { syncTripService() },
         openMap = { lat, lon, label ->
-            val geo = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("geo:$lat,$lon?q=$lat,$lon(" + android.net.Uri.encode(label) + ")"))
-            runCatching { startActivity(geo) }.onFailure {
-                runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=17/$lat/$lon"))) }
-            }
+            org.meshmsg.app.data.LocationShare.navigate(this, lat, lon, label, getString(R.string.location_navigate_with))
         },
+        lost = ::lostToLeaders,
         share = { text -> startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), null)) },
         copy = { text -> getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("mava-trip", text)) },
         myLocation = ::lastLocation,
@@ -488,6 +536,7 @@ class MainActivity : ComponentActivity() {
                                     fetch = { vm.fetchMedia(it) },
                                     path = { vm.mediaPath(it) },
                                     error = { vm.error(it) },
+                                    shareLocation = { shareLocation(hash) },
                                 )
                             },
                             onBack = { nav.popBackStack() },

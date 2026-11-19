@@ -945,3 +945,7 @@ func (c *Core) TripMembers(trip string) (string, error) {
 // LocateTripMember asks a member to report now and every minute for half
 // an hour (leaders).
 func (c *Core) LocateTripMember(trip, member string) error { return c.n.LocateTripMember(trip, member) }
+
+// TripMessageLeaders sends text to the trip's leaders (a lost member's
+// location); it returns the first leader's hash, the chat to open.
+func (c *Core) TripMessageLeaders(trip, text string) (string, error) { return c.n.TripMessageLeaders(trip, text) }

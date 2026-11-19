@@ -51,11 +51,15 @@ data class TripMember(
     val sos: Boolean,
     val stopped: Boolean,
     val answer: Boolean,
-    val points: Int,
+    /** Positions over time, oldest first. */
+    val track: List<TrackPoint> = emptyList(),
 ) {
+    val points: Int get() = track.size
     val hasPosition: Boolean get() = fix > 0
     val displayName: String get() = name.ifBlank { hash.take(8) }
 }
+
+data class TrackPoint(val lat: Double, val lon: Double, val time: Long)
 
 data class TripRelay(val name: String, val url: String, val up: Boolean)
 
@@ -85,7 +89,12 @@ object TripJson {
                 hash = o.optString("hash"), key = o.optString("key"), name = o.optString("name"),
                 lat = o.optDouble("lat"), lon = o.optDouble("lon"), accuracy = o.optInt("accuracy"), battery = o.optInt("battery", -1),
                 fix = o.optLong("fix"), seen = o.optLong("seen"), noFix = o.optBoolean("no_fix"), sos = o.optBoolean("sos"),
-                stopped = o.optBoolean("stopped"), answer = o.optBoolean("answer"), points = o.optJSONArray("track")?.length() ?: 0,
+                stopped = o.optBoolean("stopped"), answer = o.optBoolean("answer"),
+                track = o.optJSONArray("track")?.let { t ->
+                    (0 until t.length()).mapNotNull { i ->
+                        t.optJSONArray(i)?.let { p -> TrackPoint(p.optDouble(0), p.optDouble(1), p.optDouble(2).toLong()) }
+                    }
+                } ?: emptyList(),
             )
         }
     }
@@ -110,6 +119,8 @@ interface TripsApi {
     fun end(hash: String): Result<Unit>
     fun members(hash: String): List<TripMember>
     fun locate(hash: String, member: String): Result<Unit>
+    /** Sends text to the trip's leaders (a lost member's location); the first leader's chat to open. */
+    fun messageLeaders(hash: String, text: String): Result<String> = Result.failure(UnsupportedOperationException())
 }
 
 class CoreTrips(private val core: Core) : TripsApi {
@@ -126,6 +137,7 @@ class CoreTrips(private val core: Core) : TripsApi {
     override fun end(hash: String): Result<Unit> = runCatching { core.endTrip(hash) }
     override fun members(hash: String): List<TripMember> = runCatching { TripJson.members(core.tripMembers(hash)) }.getOrDefault(emptyList())
     override fun locate(hash: String, member: String): Result<Unit> = runCatching { core.locateTripMember(hash, member) }
+    override fun messageLeaders(hash: String, text: String): Result<String> = runCatching { core.tripMessageLeaders(hash, text) }
 
     /** Sends a report with this position if one is due (force: now); true if one went out. */
     fun report(hash: String, lat: Double, lon: Double, accuracy: Int, fixAgeSec: Int, battery: Int, hasFix: Boolean, force: Boolean): Boolean =

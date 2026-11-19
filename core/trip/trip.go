@@ -74,6 +74,9 @@ const (
 type Leader struct {
 	ID   string `json:"id"` // account hash (hex)
 	Name string `json:"name,omitempty"`
+	// Key is the leader's public key (hex X||Ed): members' phones can write
+	// to the leaders (a lost member's location message). Optional.
+	Key string `json:"key,omitempty"`
 }
 
 // Card describes a trip: what a member agrees to.
@@ -143,6 +146,13 @@ func (c Card) Check() error {
 		}
 		if len(l.Name) > 64 {
 			return errors.New("trip: leader name too long")
+		}
+		if l.Key != "" {
+			b, err := hex.DecodeString(l.Key)
+			pub, err2 := identity.PublicFromBytes(b)
+			if err != nil || err2 != nil || !strings.EqualFold(pub.Hash().String(), l.ID) {
+				return errors.New("trip: a leader's key does not match their id")
+			}
 		}
 		seen[strings.ToLower(l.ID)] = true
 	}
