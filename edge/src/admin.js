@@ -158,6 +158,7 @@ async function saveSettings(ctx, body) {
     saved[k] = v;
   }
   await ctx.store.kvPut('settings', JSON.stringify(saved));
+  ctx._settings = null;
   return adminJSON(200, { info: 'Saved; it applies at once. (Media and TURN are not available on an edge relay.)' });
 }
 
@@ -176,6 +177,7 @@ async function changeAdmins(ctx, body) {
   }
   list = [...new Set(list)].filter((a) => a !== OWNER_ID);
   await ctx.store.kvPut('admins', JSON.stringify(list));
+  ctx._admins = null; // re-read
   return adminJSON(200, { admins: await ctx.admins() });
 }
 
