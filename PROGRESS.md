@@ -2103,3 +2103,4 @@ links. Chose: quick items in beta3; calls follow in later betas.
   Also: phones no longer ask relays for receipts of trip reports (never acknowledged), and the
   admin panel shows the trip with a link to its map. docs/edge-relay.md. Not yet run on the real
   platforms (Cloudflare, Arvan); Arvan's runtime details (WebCrypto, waitUntil, limits) unverified.
+  Fix: `edge/dist/` was hidden by the `dist/` ignore rule; now committed (`!edge/dist/`).
