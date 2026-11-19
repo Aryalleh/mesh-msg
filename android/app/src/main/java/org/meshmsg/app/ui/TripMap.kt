@@ -59,7 +59,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import org.meshmsg.app.BuildConfig
 import org.meshmsg.app.data.TripMember
 
 /**
@@ -84,7 +83,7 @@ private object TileCache {
                     val c = URL("https://tile.openstreetmap.org/$key.png").openConnection() as HttpURLConnection
                     c.connectTimeout = 10_000
                     c.readTimeout = 15_000
-                    c.setRequestProperty("User-Agent", "Mava/${BuildConfig.VERSION_NAME} (mesh messenger, trip map)")
+                    c.setRequestProperty("User-Agent", "Mava/${appVersion(ctx)} (mesh messenger, trip map)")
                     if (c.responseCode == 200) {
                         f.parentFile?.mkdirs()
                         c.inputStream.use { inp -> f.outputStream().use { inp.copyTo(it) } }
@@ -107,6 +106,9 @@ private object TileCache {
         return null
     }
 }
+
+private fun appVersion(ctx: Context): String =
+    runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "?"
 
 // Web Mercator, as unit square coordinates (0…1).
 private fun mx(lon: Double) = (lon + 180.0) / 360.0
