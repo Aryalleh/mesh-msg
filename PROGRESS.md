@@ -2118,3 +2118,8 @@ links. Chose: quick items in beta3; calls follow in later betas.
   the leaders), LocationShareTest (JVM).
   CI green on 0fd9262 (Go incl. edgetest; Android lint + unit tests + build). beta40 notes ready
   (edge relays, installer, trip map, lost chat, location messages); release waits for the owner.
+- Released **v0.1.1-beta40** (tag on 6697011, pre-release, signed release.json; run 44545562741
+  green: version, desktop, android, board, flasher-android): edge relays (Cloudflare D1 / Arvan),
+  one installer for local / Cloudflare / Arvan, in-app trip map, "I'm lost" chat to the leaders,
+  location messages. Next: owner tries trips on real phones; backend write-up of trips for the
+  owner (Persian) was handed over as a doc.
