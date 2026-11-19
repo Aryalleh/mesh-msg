@@ -50,11 +50,11 @@ const [priv, pub, raw, otherPriv, otherPub] = process.argv.slice(2).map(T.unhex)
 	var got struct {
 		Derived string
 		R       *struct {
-			Member, Key, Name     string
-			Sent                  int64
-			Flags, Accuracy       int
-			FixAge, Battery       int
-			Lat, Lon              float64
+			Member, Key, Name string
+			Sent              int64
+			Flags, Accuracy   int
+			FixAge, Battery   int
+			Lat, Lon          float64
 		}
 		Wrong any
 	}

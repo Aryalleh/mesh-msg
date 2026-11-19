@@ -107,8 +107,8 @@ type Node struct {
 	loras   map[string]*hostLinkLink
 	disc    *discovery // nil when relay discovery is off
 	mw      *mediaWorker
-	av      *avatars   // profile pictures
-	tr      *tripBook  // trip location sharing (trips.go)
+	av      *avatars  // profile pictures
+	tr      *tripBook // trip location sharing (trips.go)
 }
 
 // Open loads or creates the node's identity and databases in cfg.DataDir.

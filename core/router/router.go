@@ -134,13 +134,13 @@ type Router struct {
 	// acknowledged, and still stored and carried for the other holders.
 	inboxes map[packet.Hash]*identity.Identity
 	destTTL map[packet.Hash]time.Duration // shorter store life for these destinations
-	known  map[packet.Hash]identity.Public
-	routes map[packet.Hash]Route
-	seen   map[packet.Key]time.Time
-	has    map[packet.Key]map[string]bool // "link|peer" already holding the packet
-	reasm  *message.Reassembler
-	lastAn time.Time
-	stats  Stats
+	known   map[packet.Hash]identity.Public
+	routes  map[packet.Hash]Route
+	seen    map[packet.Key]time.Time
+	has     map[packet.Key]map[string]bool // "link|peer" already holding the packet
+	reasm   *message.Reassembler
+	lastAn  time.Time
+	stats   Stats
 }
 
 // New creates a router.
@@ -164,18 +164,18 @@ func New(cfg Config) *Router {
 		cfg.Logf = func(string, ...any) {}
 	}
 	return &Router{
-		cfg:    cfg,
-		links:  map[string]Link{},
-		peers:  map[string]map[PeerID]bool{},
-		locals: map[packet.Hash]*identity.Identity{},
-		groups: map[packet.Hash]*group.Group{},
+		cfg:     cfg,
+		links:   map[string]Link{},
+		peers:   map[string]map[PeerID]bool{},
+		locals:  map[packet.Hash]*identity.Identity{},
+		groups:  map[packet.Hash]*group.Group{},
 		inboxes: map[packet.Hash]*identity.Identity{},
 		destTTL: map[packet.Hash]time.Duration{},
-		known:  map[packet.Hash]identity.Public{},
-		routes: map[packet.Hash]Route{},
-		seen:   map[packet.Key]time.Time{},
-		has:    map[packet.Key]map[string]bool{},
-		reasm:  message.NewReassembler(24 * time.Hour),
+		known:   map[packet.Hash]identity.Public{},
+		routes:  map[packet.Hash]Route{},
+		seen:    map[packet.Key]time.Time{},
+		has:     map[packet.Key]map[string]bool{},
+		reasm:   message.NewReassembler(24 * time.Hour),
 	}
 }
 

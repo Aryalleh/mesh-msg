@@ -30,12 +30,12 @@ const (
 	ContentTextCompact uint8 = 1
 	ContentContactCard uint8 = 2
 	ContentMediaChunk  uint8 = 3
-	ContentAck         uint8 = 4 // reserved (protocol.md §3)
-	ContentGroup       uint8 = 5 // private group traffic (core/group: text, roster, leave, removed, media)
-	ContentMedia       uint8 = 6 // a file: core/media reference (the file itself travels outside the mesh)
-	ContentCall        uint8 = 7 // call signaling (docs/calls.md §2)
-	ContentDirect      uint8 = 8 // direct-link signaling (docs/connectivity.md §2)
-	ContentRead        uint8 = 9 // read receipt: packet id(8) of the newest message read (relays only, protocol.md §3a)
+	ContentAck         uint8 = 4  // reserved (protocol.md §3)
+	ContentGroup       uint8 = 5  // private group traffic (core/group: text, roster, leave, removed, media)
+	ContentMedia       uint8 = 6  // a file: core/media reference (the file itself travels outside the mesh)
+	ContentCall        uint8 = 7  // call signaling (docs/calls.md §2)
+	ContentDirect      uint8 = 8  // direct-link signaling (docs/connectivity.md §2)
+	ContentRead        uint8 = 9  // read receipt: packet id(8) of the newest message read (relays only, protocol.md §3a)
 	ContentTrip        uint8 = 10 // trip location sharing: report, locate request, leader hand-over (core/trip, docs/trip.md)
 	// 7 is reserved for call signaling (docs/calls.md), not implemented yet.
 )
