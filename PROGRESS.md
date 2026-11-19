@@ -2073,3 +2073,8 @@ links. Chose: quick items in beta3; calls follow in later betas.
   (lost member / offer / sharing), `meshtrip:` links, location permissions (asked only on
   "Share my location"); strings en + fa. docs/trip.md written; protocol.md content type 10;
   server.md §6b2; android.md permissions.
+- Trip step 3: `relayFor` also takes a configured relay before its link runs (TestJoinTripLink).
+  CI green on 0665a5d (Go incl. TestTripLocationSharing end to end through a relay; Android
+  lint + unit tests + build). beta39 notes now cover trips + the board's red/blue swap; release
+  waits for the owner. Not yet tried on phones: location fixes, the foreground service, the
+  web map against a live relay.
