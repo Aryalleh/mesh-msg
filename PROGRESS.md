@@ -2078,3 +2078,5 @@ links. Chose: quick items in beta3; calls follow in later betas.
   lint + unit tests + build). beta39 notes now cover trips + the board's red/blue swap; release
   waits for the owner. Not yet tried on phones: location fixes, the foreground service, the
   web map against a live relay.
+- Released **v0.1.1-beta39** (tag on 86a7106, pre-release, signed release.json): trip location
+  sharing (app, relay, web map) and the board's red/blue swap setting.
