@@ -421,12 +421,19 @@ func (n *Node) sendTripReport(h string, r trip.Report, final bool) bool {
 
 // ---- leaders ----
 
-// relayFor finds a relay link by name (with or without "relay:") or URL.
-func (n *Node) relayFor(ref string) (*relayLink, error) {
+// relayFor finds a relay client by link name (with or without "relay:"),
+// configured name or URL; links may not be running yet right after start.
+func (n *Node) relayFor(ref string) (*relayclient.Client, error) {
 	ref = strings.TrimSpace(ref)
+	same := func(u string) bool { return strings.TrimRight(u, "/") == strings.TrimRight(ref, "/") }
 	for _, l := range n.allRelayLinks() {
-		if l.name == ref || l.name == "relay:"+ref || strings.TrimRight(l.c.URL(), "/") == strings.TrimRight(ref, "/") {
-			return l, nil
+		if l.name == ref || l.name == "relay:"+ref || same(l.c.URL()) {
+			return l.c, nil
+		}
+	}
+	for _, rc := range n.cfg.Relays {
+		if rc.Name == ref || "relay:"+rc.Name == ref || same(rc.URL) {
+			return relayclient.New(rc.URL, relayclient.Options{Via: rc.Via, Origin: "node-" + n.id.Hash().String()[:12]})
 		}
 	}
 	return nil, fmt.Errorf("no relay %q", ref)
@@ -450,7 +457,7 @@ func explainTripRelayError(err error) error {
 // a new trip key, this account as its first leader. Nothing is saved unless
 // the relay takes the card.
 func (n *Node) CreateTrip(ctx context.Context, relay, name string, every time.Duration, ends time.Time) (Trip, error) {
-	l, err := n.relayFor(relay)
+	rc, err := n.relayFor(relay)
 	if err != nil {
 		return Trip{}, err
 	}
@@ -462,13 +469,13 @@ func (n *Node) CreateTrip(ctx context.Context, relay, name string, every time.Du
 	c := trip.Card{
 		V: 1, Name: strings.TrimSpace(name), Key: hex.EncodeToString(id.Bytes()),
 		Leaders: []trip.Leader{{ID: n.id.Hash().String(), Name: n.cfg.Name}},
-		Every:   int(every / time.Second), Ends: ends.Unix(), Relay: l.c.URL(), Made: now.Unix(),
+		Every:   int(every / time.Second), Ends: ends.Unix(), Relay: rc.URL(), Made: now.Unix(),
 	}
 	s, err := trip.Sign(id, c)
 	if err != nil {
 		return Trip{}, err
 	}
-	if err := l.c.PutTrip(ctx, n.id, s); err != nil {
+	if err := rc.PutTrip(ctx, n.id, s); err != nil {
 		return Trip{}, explainTripRelayError(err)
 	}
 	t := &tripState{Signed: s, Seed: hex.EncodeToString(id.Seed())}
@@ -531,11 +538,11 @@ func (n *Node) AddTripLeader(ctx context.Context, ref, contact string) (Trip, er
 }
 
 func (n *Node) publishTrip(ctx context.Context, relay string, s trip.Signed) error {
-	l, err := n.relayFor(relay)
+	rc, err := n.relayFor(relay)
 	if err != nil {
 		return err
 	}
-	return explainTripRelayError(l.c.PutTrip(ctx, n.id, s))
+	return explainTripRelayError(rc.PutTrip(ctx, n.id, s))
 }
 
 // EndTrip takes the trip off its relay (leaders) and forgets it here. A
@@ -548,8 +555,8 @@ func (n *Node) EndTrip(ctx context.Context, ref string) error {
 		return err
 	}
 	if t.id != nil {
-		if l, err := n.relayFor(t.card.Relay); err == nil {
-			if err := l.c.DeleteTrip(ctx, n.id, t.pub.Hash()); err != nil {
+		if rc, err := n.relayFor(t.card.Relay); err == nil {
+			if err := rc.DeleteTrip(ctx, n.id, t.pub.Hash()); err != nil {
 				var se *relayclient.StatusError
 				if !errors.As(err, &se) || se.Code != 404 {
 					return explainTripRelayError(err)
