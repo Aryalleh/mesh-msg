@@ -2123,3 +2123,13 @@ links. Chose: quick items in beta3; calls follow in later betas.
   one installer for local / Cloudflare / Arvan, in-app trip map, "I'm lost" chat to the leaders,
   location messages. Next: owner tries trips on real phones; backend write-up of trips for the
   owner (Persian) was handed over as a doc.
+
+### 2026-11-22 — Hamyar integration design (docs/hamyar-app.md)
+
+Hamyar (university platform) now runs this repo's edge relay unchanged, one per university
+(`<slug>-mava.hamyared.ir`, Durable Object + alarm instead of cron), links Hamyar users to Mava
+accounts with a code sent as a Noise X message from the relay (like admin login codes), makes
+the university's Hamyar admins the relay admins, attaches relay trip cards to Hamyar trips, and
+serves a signed API (`HAMYAR-API-V1`, same scheme as trip requests) plus
+`/.well-known/hamyar.json` on the relay host. docs/hamyar-app.md describes it and proposes the
+Android "Hamyar" screen (not built). No code change in this repo.
