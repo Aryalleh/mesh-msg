@@ -83,3 +83,42 @@ func FromBackup(text, passphrase string) (*Identity, error) {
 	defer clear(seed)
 	return FromSeed(seed)
 }
+
+// SealWithPassphrase seals data with the same key derivation as Backup
+// (Argon2id t=3, m=64 MiB, p=4; XChaCha20-Poly1305), bound to prefix:
+// prefix || salt[16] || nonce[24] || ciphertext. Used for chat-history backups.
+func SealWithPassphrase(prefix, passphrase string, data []byte) ([]byte, error) {
+	if utf8.RuneCountInString(passphrase) < MinPassphraseLength {
+		return nil, ErrShortPassphrase
+	}
+	head := make([]byte, backupSaltLen+chacha20poly1305.NonceSizeX)
+	if _, err := rand.Read(head); err != nil {
+		return nil, err
+	}
+	aead, err := chacha20poly1305.NewX(backupKey(passphrase, head[:backupSaltLen]))
+	if err != nil {
+		return nil, err
+	}
+	out := append([]byte(prefix), head...)
+	return aead.Seal(out, head[backupSaltLen:], data, []byte(prefix)), nil
+}
+
+// OpenWithPassphrase opens what SealWithPassphrase made with the same prefix.
+func OpenWithPassphrase(prefix, passphrase string, sealed []byte) ([]byte, error) {
+	if !strings.HasPrefix(string(sealed[:min(len(sealed), len(prefix))]), prefix) {
+		return nil, ErrNotBackup
+	}
+	raw := sealed[len(prefix):]
+	if len(raw) < backupSaltLen+chacha20poly1305.NonceSizeX+chacha20poly1305.Overhead {
+		return nil, ErrNotBackup
+	}
+	aead, err := chacha20poly1305.NewX(backupKey(passphrase, raw[:backupSaltLen]))
+	if err != nil {
+		return nil, err
+	}
+	data, err := aead.Open(nil, raw[backupSaltLen:backupSaltLen+chacha20poly1305.NonceSizeX], raw[backupSaltLen+chacha20poly1305.NonceSizeX:], []byte(prefix))
+	if err != nil {
+		return nil, ErrBadPassphrase
+	}
+	return data, nil
+}

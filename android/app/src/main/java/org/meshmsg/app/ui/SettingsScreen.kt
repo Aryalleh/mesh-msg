@@ -83,6 +83,9 @@ interface SettingsActions {
     /** Opens the trips screen (location sharing on a group trip). */
     fun openTrips() {}
 
+    /** Opens Hamyar (university login and presence). */
+    fun openHamyar() {}
+
     /** Checks for a newer release now (roadmap B7); the result shows on the chat list. */
     fun checkUpdate() {}
 
@@ -135,6 +138,11 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                 modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s),
             )
             HideRunningNotification()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.hamyar_entry)) },
+                supportingContent = { Text(stringResource(R.string.hamyar_entry_help)) },
+                modifier = Modifier.clickable(onClick = actions::openHamyar),
+            )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.trips_entry)) },
                 supportingContent = { Text(stringResource(R.string.trips_entry_help)) },

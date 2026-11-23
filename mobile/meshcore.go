@@ -238,6 +238,34 @@ func (c *Core) ExportIdentity(passphrase string) (string, error) {
 	return c.n.BackupIdentity(passphrase)
 }
 
+// SignHamyar signs a request to a Hamyar API as this account (node.SignHamyar).
+// Returns JSON {"X-Account","X-Day","X-Signature"} to send as headers. Hamyar uses
+// it to link the account to a Hamyar login without a code (POST /v1/mava/account).
+func (c *Core) SignHamyar(method, path string) (string, error) {
+	return toJSON(c.n.SignHamyar(method, path, time.Now()), nil)
+}
+
+// ExportHistory writes this account's key and chat history (contacts,
+// messages, settings; not media files) to path, sealed with passphrase
+// (node.HistoryPrefix). Slow (~1 s plus the copy): call it off the main thread.
+func (c *Core) ExportHistory(passphrase, path string) error {
+	return c.n.ExportHistory(passphrase, path)
+}
+
+// RestoreHistory installs a backup made by ExportHistory into dataDir, before
+// Open (see RestoreIdentity for replace). Errors start with "passphrase:" or
+// "format:" like RestoreIdentity's.
+func RestoreHistory(dataDir, path, passphrase string, replace bool) (string, error) {
+	h, err := node.RestoreHistory(dataDir, path, passphrase, replace)
+	switch {
+	case errors.Is(err, identity.ErrBadPassphrase):
+		return "", fmt.Errorf("passphrase: %w", err)
+	case errors.Is(err, node.ErrNotHistory):
+		return "", fmt.Errorf("format: %w", err)
+	}
+	return h, err
+}
+
 // MinPassphraseLength is the shortest passphrase ExportIdentity accepts.
 const MinPassphraseLength = identity.MinPassphraseLength
 
@@ -948,4 +976,6 @@ func (c *Core) LocateTripMember(trip, member string) error { return c.n.LocateTr
 
 // TripMessageLeaders sends text to the trip's leaders (a lost member's
 // location); it returns the first leader's hash, the chat to open.
-func (c *Core) TripMessageLeaders(trip, text string) (string, error) { return c.n.TripMessageLeaders(trip, text) }
+func (c *Core) TripMessageLeaders(trip, text string) (string, error) {
+	return c.n.TripMessageLeaders(trip, text)
+}

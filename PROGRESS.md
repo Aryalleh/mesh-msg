@@ -22,8 +22,10 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 **Hamyar presence nodes (owner, 2026-11-23)**: Mava nodes in dorms, buildings and classrooms tell Hamyar whether a
 student is in the university, in the dorm or outside (place status, no coordinates); protocol [docs/presence.md](docs/presence.md).
 Step 1 done: `firmware/lib/meshpresence` (tokens, 16-byte advert, collector, signed report), host-tested against
-vectors from the Hamyar server. Step 2 done (board layer, builds; not run on hardware). Next: step 3, the Hamyar app side (presence screen,
-background scan + advertise), designs on the UX Pilot page hamyared.ir row y=10290.
+vectors from the Hamyar server. Step 2 done (board layer, builds; not run on hardware). Step 3 done (Android: Settings → Hamyar,
+login, presence screens, background scan + advertise; not run on phones). Trip "together / separated" done in the app
+(2026-11-23: "MT" adverts, offline queue, trip group page; not run on phones). Next: hardware test, class attendance,
+then the virtual student card; designs on the UX Pilot page hamyared.ir row y=10290.
 
 **Board voice and video calls (owner, 2026-11-18)**: voice first, then video with MJPEG; calls
 on the same LAN and across NATs like the phones. Protocol core in C++ done and tested
@@ -2159,3 +2161,15 @@ Android "Hamyar" screen (not built). No code change in this repo.
   from the panel. `main.cpp`: begin/loop, status line in the periodic log.
 - `pio run -e mava_handheld_s3_v1` SUCCESS (RAM 36.9 %, flash 49.0 %). Host tests green. Not run on a board.
 
+
+### 2026-11-23 — Hamyar trip group ("are we all together?") in the app
+- `PresenceCodec`: kind 'T' + `tripToken` ("trip|w"); vectors `trip` and `trip_server` (member key as the Hamyar API
+  gives it) in spec/test-vectors/presence.json, pinned in PresenceCodecTest.
+- `HamyarApi`: /v1/groups (cached), /v1/trips/<id>/group get/join, sightings queued per trip in prefs (12 h, max 2000)
+  and flushed each window; 403/404 drop the queue.
+- `PresenceRadio`: advertises "MP" and/or "MT"+gid (two advertising sets, or alternating per 15 s tick on phones
+  without multiple advertising), scan filters MV and/or MT; one trip group at a time.
+- Screens: "Trip groups" card on My presence, trip group page (my state, join switch, leaders, separation rule;
+  leaders: counts + members separated first with a call button).
+- Status: Go build + tests green; Android `lintDebug testDebugUnitTest assembleDebug` green locally 2026-11-23 (92 unit
+  tests, SDK in ~/android-sdk, existing meshcore.aar). Not run on phones yet.

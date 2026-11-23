@@ -4,5 +4,15 @@
   "beacon": "1d50077d00f91f27",
   "phone": "604335470604075b",
   "body": "{\"w\":15000000,\"heard\":[{\"t\":\"0011223344556677\",\"r\":-61}]}",
-  "report_sig": "926c217400d84deea2d1450ec8e37aab41c3e9a6fb6e98f52552aa98c6c0c31f"
+  "report_sig": "926c217400d84deea2d1450ec8e37aab41c3e9a6fb6e98f52552aa98c6c0c31f",
+  "trip": "b67fc2856512297e",
+  "trip_server": {
+    "secret": "vector-secret",
+    "slug": "iribu",
+    "gid": 7,
+    "user": 42,
+    "key": "8188d5c1ece945a9dc567ade7b79fef6d2c6fe1c4732ba03c9b9612464cf4689",
+    "w": 15000000,
+    "token": "6cf5de1f2bcd5089"
+  }
 }

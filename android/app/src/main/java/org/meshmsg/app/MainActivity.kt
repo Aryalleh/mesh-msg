@@ -480,7 +480,11 @@ class MainActivity : ComponentActivity() {
                     SettingsScreen(state, object : org.meshmsg.app.ui.SettingsActions by vm {
                         override fun openStorage() { nav.navigate(Routes.STORAGE) }
                         override fun openTrips() { nav.navigate(Routes.TRIPS) }
+                        override fun openHamyar() { nav.navigate(Routes.HAMYAR) }
                     })
+                }
+                composable(Routes.HAMYAR) {
+                    org.meshmsg.app.hamyar.HamyarScreen(onBack = { nav.popBackStack() })
                 }
                 composable(Routes.TRIPS) {
                     val backend by vm.backend.collectAsStateWithLifecycle()
@@ -666,6 +670,7 @@ class MainActivity : ComponentActivity() {
         const val ADD = "add"
         const val STORAGE = "storage"
         const val TRIPS = "trips"
+        const val HAMYAR = "hamyar"
         val TOP = setOf(CHATS, NETWORK, SETTINGS)
         fun chat(hash: String) = "chat/$hash"
     }

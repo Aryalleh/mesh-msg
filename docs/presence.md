@@ -57,8 +57,27 @@ Settings live in `/presence.bin` (not in the main settings block, so older board
     GET  /v1/presence            -> {opt_in, required_dorm, counted, window_sec, key, status: uni|dorm|outside, place}
     POST /v1/presence {"opt_in": true|false, "rekey": true?}   (off also forgets the current non-dorm state)
 
+## Android app
+`android/app/src/main/java/org/meshmsg/app/hamyar/`, reached from Settings → Hamyar:
+- `HamyarApi`: login on api.hamyared.ir (phone → SMS code → pick an account when there are several), bearer token kept
+  in private prefs, refreshed when under a week is left; `/v1/presence` get/set and `/v1/presence/seen`.
+- `PresenceRadio`, run by `MeshService` (so it works in the background): only while logged in, through the setup
+  screen and counted (the server gives a key). Advertises "MP" + the phone token (non-connectable, low power, new
+  token per window) and scans with a filter on 0xFFFF "MV" (allowed with the screen off); once per window posts the
+  heard nodes, strongest first, at most 20.
+- Screens: login, presence setup (once), "my presence" (status, zones, dorm rule, campus switch, what is recorded,
+  radio state). Designs: UX Pilot page hamyared.ir, row y=10290.
+- Risk to check on phones: the app declares `BLUETOOTH_SCAN` with `neverForLocation`, and Android may filter some
+  beacon adverts out of scan results with that flag. If "MV" beacons never arrive, the Hamyar build needs the
+  location form of the permission (node-hears-phone keeps working either way).
+
+## Trip group (phone hears phone)
+Same 16-byte layout with "MT", the trip group id in the id field and `HMAC(member key, "trip|<w>")[:8]`; the member
+key comes from Hamyar `GET /v1/groups` once the student joins. Full protocol: Hamyar docs/presence.md, section 3.
+The app queues heard tokens per trip (the server accepts windows up to 12 h old) and posts them to
+`/v1/trips/<id>/group/heard`. Boards don't take part (yet).
+
 ## Next
-- mesh-msg firmware: beacon mode + scanner mode with the layout above (ESP32 NimBLE), node id/key provisioning.
-- Hamyar app (mesh-msg android flavor 'hamyar'): presence screen (on/off, status), background scan + advertise.
-- Trips: "together / separated" from phone-to-phone sightings inside a trip group (step 3).
+- Hardware test: a board + two phones (dorm resident and opted-in), and 3 phones in one trip group.
+- Hamyar branding as its own build (flavor), the Mava-side Hamyar features of docs/hamyar-app.md.
 - Class attendance from classroom places + timetable (step 4).

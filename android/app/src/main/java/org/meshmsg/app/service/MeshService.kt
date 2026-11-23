@@ -58,6 +58,8 @@ class MeshService : LifecycleService() {
             return
         }
         val app = application as MeshApp
+        // Hamyar presence: idles by itself unless the student is logged in, set up and counted.
+        org.meshmsg.app.hamyar.PresenceRadio.start(this, lifecycleScope)
         lifecycleScope.launch {
             app.backend.filterNotNull().collectLatest { b ->
                 launch {
@@ -68,6 +70,11 @@ class MeshService : LifecycleService() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        org.meshmsg.app.hamyar.PresenceRadio.stop(this)
+        super.onDestroy()
     }
 
     private fun foreground(n: Notification): Boolean = runCatching {

@@ -42,5 +42,6 @@ firmware/data/web/
 
 # Release bundles built locally (scripts/build-flasher.sh)
 dist/
+mava-board-flasher-*
 # The edge relay bundles are committed (edge/build.mjs --check in CI).
 !edge/dist/
