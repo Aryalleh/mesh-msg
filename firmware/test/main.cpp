@@ -20,6 +20,7 @@ void run_audio();
 void run_call(const std::string& dir);
 void run_direct(const std::string& dir);
 void run_callmgr();
+void run_presence();
 
 int main(int argc, char** argv) {
   const char* vectors = argc > 1 ? argv[1] : "../spec/test-vectors/vectors.json";
@@ -37,6 +38,7 @@ int main(int argc, char** argv) {
   run_mirror();
   run_client();
   run_audio();
+  run_presence();
   {
     std::string v = vectors;
     size_t slash = v.find_last_of('/');

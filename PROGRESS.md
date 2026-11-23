@@ -19,6 +19,12 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 
 ## Next step
 
+**Hamyar presence nodes (owner, 2026-11-23)**: Mava nodes in dorms, buildings and classrooms tell Hamyar whether a
+student is in the university, in the dorm or outside (place status, no coordinates); protocol [docs/presence.md](docs/presence.md).
+Step 1 done: `firmware/lib/meshpresence` (tokens, 16-byte advert, collector, signed report), host-tested against
+vectors from the Hamyar server. Next: step 2, board layer (advertise the beacon next to the mesh advert, scan for
+phone tokens, POST the report each window over Wi-Fi, node id/key/url in the setup panel); then the Hamyar app side.
+
 **Board voice and video calls (owner, 2026-11-18)**: voice first, then video with MJPEG; calls
 on the same LAN and across NATs like the phones. Protocol core in C++ done and tested
 (`firmware/lib/meshcall`: crypto pinned to Go vectors, signals, direct agent with STUN and
@@ -2133,3 +2139,13 @@ the university's Hamyar admins the relay admins, attaches relay trip cards to Ha
 serves a signed API (`HAMYAR-API-V1`, same scheme as trip requests) plus
 `/.well-known/hamyar.json` on the relay host. docs/hamyar-app.md describes it and proposes the
 Android "Hamyar" screen (not built). No code change in this repo.
+
+### 2026-11-23 — Hamyar presence, step 1: firmware library
+- New `firmware/lib/meshpresence` (pure C++, no heap): beacon/phone tokens = first 8 bytes of HMAC-SHA256(key,
+  "beacon|w" / "phone|w"), w = unix/120; advert "MV"/"MP" | v1 | flags | id u32 BE | token (16 bytes; the tests caught
+  a 14 in the first draft); Collector (128 distinct phones per window, strongest RSSI); report body + hex signature
+  HMAC(node key, "report|" + body). Test vectors `spec/test-vectors/presence.json` come from the Hamyar server code.
+- `test/presence_test.cpp`; Makefile includes the library. Host tests and Go suite green. Note: on this machine's
+  gcc 11.4, `meshclient/src/client.cpp` Client::on_packet measures 4400 B stack (> 4096, -Werror); tests were run
+  with `-Wno-error=stack-usage=`. Not changed here; check on CI's compiler.
+
