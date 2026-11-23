@@ -1,4 +1,6 @@
 #include "net.h"
+#include "presence.h"
+#include "presence_node.h"
 
 #include <Arduino.h>
 #include <DNSServer.h>
@@ -234,6 +236,7 @@ void page_panel(const char* msg) {
   b += html_escape(cfg.name);
   b += "</p>";
   if (msg && *msg) b += String("<p><b>") + msg + "</b></p>";
+  b += "<p><a href=/presence>حضور همیار (نود دانشگاه / خوابگاه)</a></p>";
   b += "<fieldset><legend>وضعیت</legend><table>";
   b += row("شناسه", hex(pk.ed, 8));
   b += row("Meshtastic", nid);
@@ -939,6 +942,45 @@ void relay_task(void*) {
   }
 }
 
+
+// Hamyar presence (presence_node.h): node id, key and report URL from the university's Hamyar admin.
+void page_presence(const char* msg) {
+  const presence_node::Config& c = presence_node::config();
+  char line[200];
+  presence_node::status(line, sizeof line);
+  String b = "<h1>MAVA</h1><p class=n>حضور همیار</p>";
+  if (msg && *msg) b += String("<p><b>") + msg + "</b></p>";
+  b += "<p class=n>این برد در یک مکان دانشگاه (کلاس، ساختمان، خوابگاه) نصب می‌شود: اپ همیار آن را می‌شنود و برد گوشی‌ها را گزارش می‌کند."
+       " شناسه، کلید و نشانی را از پنل مدیریت دانشگاه (حضور و نودها ← مکان‌ها و نودها) بردارید.</p>";
+  b += "<form method=post action=/presence><fieldset><legend>تنظیم</legend>";
+  b += String("<label><input type=checkbox name=on") + (c.on ? " checked" : "") + "> روشن</label>";
+  b += "<label>شناسه نود<input name=id inputmode=numeric dir=ltr value=\"" + String(c.node_id ? String(c.node_id) : String("")) + "\"></label>";
+  b += "<label>کلید نود (۶۴ حرف؛ خالی = بدون تغییر)<input name=key dir=ltr autocomplete=off></label>";
+  b += "<label>نشانی گزارش<input name=url dir=ltr placeholder=\"https://<uni>.hamyared.ir/presence/node\" value=\"" + html_escape(c.url) + "\"></label>";
+  b += "</fieldset><button>ذخیره</button></form>";
+  b += String("<p class=n dir=ltr>") + html_escape(line) + "</p><p><a href=/>بازگشت</a></p>";
+  send_page(b);
+}
+
+void handle_presence() {
+  if (!authed()) return page_login(nullptr);
+  if (g_web.method() != HTTP_POST) return page_presence(nullptr);
+  presence_node::Config c = presence_node::config();
+  c.on = g_web.hasArg("on");
+  c.node_id = uint32_t(g_web.arg("id").toInt());
+  String key = g_web.arg("key");
+  key.trim();
+  if (key.length() && !mesh::presence::key_from_hex(key.c_str(), c.key)) return page_presence("کلید باید ۶۴ حرف هگز باشد.");
+  String url = g_web.arg("url");
+  url.trim();
+  if (url.length() && !url.startsWith("https://") && !url.startsWith("http://")) return page_presence("نشانی باید با https:// شروع شود.");
+  copy(c.url, sizeof c.url, url);
+  if (c.on && (!c.node_id || !c.url[0])) return page_presence("برای روشن کردن، شناسه و نشانی لازم است.");
+  bool zero = true;
+  for (uint8_t k : c.key) zero &= k == 0;
+  if (c.on && zero) return page_presence("کلید نود را وارد کنید.");
+  page_presence(presence_node::set(c) ? "ذخیره شد." : "ذخیره در حافظه ناموفق بود.");
+}
 }  // namespace
 
 bool load(Settings& s) {
@@ -977,6 +1019,7 @@ bool begin(Settings& s, mesh::node::Node& node, void* node_lock, const Hooks& ho
   g_web.on("/", HTTP_GET, handle_root);
   g_web.on("/login", HTTP_POST, handle_login);
   g_web.on("/save", HTTP_POST, handle_save);
+  g_web.on("/presence", HTTP_ANY, handle_presence);
   // Captive-portal probes of Android, iOS/macOS and Windows: send them to the panel.
   g_web.on("/generate_204", redirect_portal);
   g_web.on("/gen_204", redirect_portal);
@@ -1102,6 +1145,22 @@ const char* web_url() {
     url[0] = 0;
   }
   return url;
+}
+
+int post_presence(const char* url, uint32_t node_id, const char* sig, const char* body, size_t n) {
+  String u(url);
+  if (u.startsWith("https://")) ensure_clock(host_of(u));
+  HTTPClient http;
+  WiFiClientSecure tls;
+  WiFiClient plain;
+  if (!begin_http(http, tls, plain, u)) return -100;
+  http.setTimeout(15000);
+  http.addHeader("content-type", "application/json");
+  http.addHeader("x-node", String(node_id));
+  http.addHeader("x-node-sig", sig);
+  int code = http.POST(reinterpret_cast<uint8_t*>(const_cast<char*>(body)), n);
+  http.end();
+  return code;
 }
 
 }  // namespace net

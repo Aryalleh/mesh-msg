@@ -28,6 +28,11 @@ int mesh_peers();  // phones in the Bluetooth mesh right now
 // One line for the board log: address, advertising, links, connects, hellos,
 // drops and the last drop's reason.
 void status(char* out, size_t cap);
+// Hamyar presence: the 16-byte beacon payload to advertise (alternating with the mesh advert every second),
+// nullptr = off. Main loop only.
+void presence_beacon(const uint8_t* adv);
+// Next phone presence token the scan heard (main loop). False when none.
+bool presence_pop(uint8_t token[8], int8_t* rssi);
 
 constexpr size_t kPort = 1;
 

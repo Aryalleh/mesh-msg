@@ -24,6 +24,7 @@
 
 #include "board_audio.h"
 #include "ble.h"
+#include "presence_node.h"
 #include "hwsim/hwsim.h"
 #include "board.h"
 #include "wallclock.h"
@@ -391,6 +392,7 @@ void setup() {
   logf("boot: BLE");
   bool ble_ok = ble::begin(name, pk.ed);
   node.set_port_trusted(ble::kPort, false);  // no pairing over Bluetooth: packets and status only
+  presence_node::begin();  // Hamyar presence (off until set in the panel's /presence)
   {
     char bt[448];
     ble::status(bt, sizeof bt);
@@ -537,6 +539,7 @@ void loop() {
 
   // ---- BLE host (port 1) ----
   ble::loop(node, now);
+  presence_node::loop();
 
   // ---- keyboard, trackpad ----
   if (!g_ui) input_loop(now);  // with a screen, the UI reads the keyboard module
@@ -607,6 +610,10 @@ void loop() {
     char bt[448];
     ble::status(bt, sizeof bt);
     logf("Bluetooth %s", bt);
+    if (presence_node::config().on) {
+      presence_node::status(bt, sizeof bt);
+      logf("%s", bt);
+    }
   }
   if (g_led_off && now >= g_led_off) {
     board::led(false);

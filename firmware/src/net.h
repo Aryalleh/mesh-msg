@@ -59,6 +59,9 @@ void init_secrets(Settings& s);
 // node_lock: a FreeRTOS mutex; the main loop holds it while it runs the
 // node, the relay worker takes it for each node call.
 bool begin(Settings& s, mesh::node::Node& node, void* node_lock, const Hooks& hooks);
+// Hamyar presence report (presence_node): POST body to url with x-node / x-node-sig. HTTP status, < 0 on errors.
+// Blocking: call from a worker task, Wi-Fi up.
+int post_presence(const char* url, uint32_t node_id, const char* sig, const char* body, size_t n);
 // Switch, hotspot, portal and web panel. Main loop, node lock held.
 void loop(mesh::route::Millis now);
 

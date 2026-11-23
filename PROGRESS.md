@@ -22,8 +22,8 @@ Plan of record: [docs/roadmap.md](docs/roadmap.md).
 **Hamyar presence nodes (owner, 2026-11-23)**: Mava nodes in dorms, buildings and classrooms tell Hamyar whether a
 student is in the university, in the dorm or outside (place status, no coordinates); protocol [docs/presence.md](docs/presence.md).
 Step 1 done: `firmware/lib/meshpresence` (tokens, 16-byte advert, collector, signed report), host-tested against
-vectors from the Hamyar server. Next: step 2, board layer (advertise the beacon next to the mesh advert, scan for
-phone tokens, POST the report each window over Wi-Fi, node id/key/url in the setup panel); then the Hamyar app side.
+vectors from the Hamyar server. Step 2 done (board layer, builds; not run on hardware). Next: step 3, the Hamyar app side (presence screen,
+background scan + advertise), designs on the UX Pilot page hamyared.ir row y=10290.
 
 **Board voice and video calls (owner, 2026-11-18)**: voice first, then video with MJPEG; calls
 on the same LAN and across NATs like the phones. Protocol core in C++ done and tested
@@ -2148,4 +2148,14 @@ Android "Hamyar" screen (not built). No code change in this repo.
 - `test/presence_test.cpp`; Makefile includes the library. Host tests and Go suite green. Note: on this machine's
   gcc 11.4, `meshclient/src/client.cpp` Client::on_packet measures 4400 B stack (> 4096, -Werror); tests were run
   with `-Wno-error=stack-usage=`. Not changed here; check on CI's compiler.
+
+### 2026-11-23 — Hamyar presence, step 2: board layer
+- `src/presence_node.{h,cpp}`: config in `/presence.bin` (own file, so net::Settings keeps its layout), per-window
+  beacon, phone tokens from the scan into the collector, one signed report per 120 s window (also empty: the
+  admin sees the node alive) posted by a small uploader task; needs a trusted clock.
+- `ble.cpp`: beacon advert alternates with the mesh advert every second (the mesh advert is 29/31 bytes, extended
+  advertising off); the scan also takes "MP" phone adverts (0xFFFF + 16 bytes) before the mesh filter.
+- `net.cpp`: `post_presence()` (HTTPS via begin_http), setup panel page `/presence` (on, node id, key, URL) linked
+  from the panel. `main.cpp`: begin/loop, status line in the periodic log.
+- `pio run -e mava_handheld_s3_v1` SUCCESS (RAM 36.9 %, flash 49.0 %). Host tests green. Not run on a board.
 

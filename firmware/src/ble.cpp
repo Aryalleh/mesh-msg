@@ -13,6 +13,7 @@
 #include <cstring>
 
 #include "blemesh.h"
+#include "presence.h"
 
 // The host's buffer pool (msys mbufs): notifications waiting for the radio and
 // the replies to the phones' writes come from the same few blocks.
@@ -58,6 +59,17 @@ uint8_t g_session[4] = {};
 // The one link this board opens itself (GATT client): candidates from the
 // scan, bytes to write to the peer, its connection handle.
 QueueHandle_t g_cand = nullptr;
+
+// Hamyar presence (presence_node.h): phone tokens heard by the scan -> main loop, and the beacon advert that
+// alternates with the mesh advert every second while presence is on.
+struct PhoneSeen {
+  uint8_t token[mesh::presence::kTokenLen];
+  int8_t rssi;
+};
+QueueHandle_t g_pres_q = nullptr;
+NimBLEAdvertisementData g_mesh_adv, g_pres_adv;
+bool g_pres_on = false, g_pres_phase = false;
+uint32_t g_pres_flip = 0;
 StreamBufferHandle_t g_out = nullptr;
 volatile uint16_t g_client_conn = 0xFFFF;
 volatile bool g_client_kill = false;
@@ -166,8 +178,22 @@ Tx g_tx_cb(Ev::HostSub), g_mesh_tx_cb(Ev::MeshSub);
 
 class ScanCb : public NimBLEScanCallbacks {
   void onResult(const NimBLEAdvertisedDevice* d) override {
-    if (!d->haveManufacturerData() || !d->isAdvertisingService(NimBLEUUID(kMeshService))) return;
+    if (!d->haveManufacturerData()) return;
     std::string m = d->getManufacturerData();
+    // a phone with the Hamyar app advertising its presence token ("MP")
+    if (g_pres_q && m.size() == 2 + mesh::presence::kAdvLen && uint8_t(m[0]) == uint8_t(kManufacturer) &&
+        uint8_t(m[1]) == uint8_t(kManufacturer >> 8)) {
+      mesh::presence::Adv a;
+      if (mesh::presence::parse_adv(reinterpret_cast<const uint8_t*>(m.data()) + 2, m.size() - 2, &a) && a.kind == 'P') {
+        PhoneSeen ps;
+        memcpy(ps.token, a.token, sizeof ps.token);
+        int r = d->getRSSI();
+        ps.rssi = int8_t(r < -127 ? -127 : r > 0 ? 0 : r);
+        xQueueSend(g_pres_q, &ps, 0);
+      }
+      return;
+    }
+    if (!d->isAdvertisingService(NimBLEUUID(kMeshService))) return;
     if (m.size() != 2 + 4 || uint8_t(m[0]) != uint8_t(kManufacturer) || uint8_t(m[1]) != uint8_t(kManufacturer >> 8)) return;
     if (memcmp(g_session, m.data() + 2, 4) <= 0) return;  // theirs is larger: they connect to us
     ble_addr_t a = *d->getAddress().getBase();
@@ -418,6 +444,7 @@ bool begin(const char* name, const uint8_t id[6]) {
   g_q = xQueueCreateWithCaps(256, sizeof(Msg), MALLOC_CAP_SPIRAM);
   if (!g_q) g_q = xQueueCreate(32, sizeof(Msg));
   g_cand = xQueueCreate(4, sizeof(ble_addr_t));
+  g_pres_q = xQueueCreate(64, sizeof(PhoneSeen));
   g_out = xStreamBufferCreate(2048, 1);
   if (!g_q || !g_cand || !g_out) return false;
   uint32_t r = esp_random();
@@ -461,7 +488,7 @@ bool begin(const char* name, const uint8_t id[6]) {
   // session ID (g_session: phones connect to the board; boards between
   // themselves: the larger ID connects, central_task). The host-link service and the name go in the
   // scan response (3 + 18 + 8 = 29 of 31 bytes in the advert).
-  NimBLEAdvertisementData adv;
+  NimBLEAdvertisementData& adv = g_mesh_adv;
   adv.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
   adv.addServiceUUID(NimBLEUUID(kMeshService));
   const uint8_t manu[] = {uint8_t(kManufacturer), uint8_t(kManufacturer >> 8), g_session[0], g_session[1], g_session[2],
@@ -527,7 +554,36 @@ int mesh_peers() {
   return n;
 }
 
+void presence_beacon(const uint8_t* adv) {
+  if (!adv) {
+    if (g_pres_on && g_pres_phase) NimBLEDevice::getAdvertising()->setAdvertisementData(g_mesh_adv);
+    g_pres_on = g_pres_phase = false;
+    return;
+  }
+  uint8_t manu[2 + mesh::presence::kAdvLen] = {uint8_t(kManufacturer), uint8_t(kManufacturer >> 8)};
+  memcpy(manu + 2, adv, mesh::presence::kAdvLen);
+  g_pres_adv = NimBLEAdvertisementData();
+  g_pres_adv.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+  g_pres_adv.setManufacturerData(manu, sizeof manu);
+  g_pres_on = true;
+  if (g_pres_phase) NimBLEDevice::getAdvertising()->setAdvertisementData(g_pres_adv);
+}
+
+bool presence_pop(uint8_t token[8], int8_t* rssi) {
+  PhoneSeen ps;
+  if (!g_pres_q || xQueueReceive(g_pres_q, &ps, 0) != pdTRUE) return false;
+  memcpy(token, ps.token, sizeof ps.token);
+  *rssi = ps.rssi;
+  return true;
+}
+
 void loop(mesh::node::Node& node, mesh::route::Millis now) {
+  // presence beacon: one second mesh advert, one second beacon (the data changes while advertising goes on)
+  if (g_pres_on && uint32_t(now) - g_pres_flip >= 1000) {
+    g_pres_flip = uint32_t(now);
+    g_pres_phase = !g_pres_phase;
+    NimBLEDevice::getAdvertising()->setAdvertisementData(g_pres_phase ? g_pres_adv : g_mesh_adv);
+  }
   Msg m;
   while (g_q && xQueueReceive(g_q, &m, 0) == pdTRUE) {
     handle(node, m, now);

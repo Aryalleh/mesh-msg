@@ -24,6 +24,8 @@ outside / unknown. No coordinates are stored. Module `presence`, per university.
 ## 1. Phone hears node (node = beacon)
 Node advertises BLE manufacturer data (company id 0xFFFF until Mava has its own), payload 16 bytes:
 `"MV" | version 0x01 | flags 0x00 | node id (uint32 BE) | beacon token (8 bytes)` and changes the token every window.
+The Mava board's mesh advert is full (29 of 31 bytes) and extended advertising is off, so the board alternates every
+second: mesh advert, then this beacon (flags + manufacturer data, 23 bytes). Phones still find both.
 The Hamyar app (presence on, or dorm resident) scans, and every ~60 s posts what it heard:
 
     POST https://api.<base>/v1/presence/seen        Authorization: Bearer <hamyar token>
@@ -44,6 +46,12 @@ The node collects tokens for one window and posts:
 
 Nodes without internet hand the signed report to the mesh (LoRa / a gateway phone) in v2; the signature stays valid
 while the window is fresh, so v2 must widen the accepted window for relayed reports.
+
+## Setting up a board
+Hamyar admin → حضور و نودها → مکان‌ها و نودها → «افزودن نود» shows node id, key (once) and the report URL. On the
+board: setup switch on → hotspot `Mava-XXXX` → setup panel → «حضور همیار» (`/presence`): on, node id, key, URL → save.
+The board needs Wi-Fi and a trusted clock; its log shows `presence node <id> … reports sent / failed (last HTTP …)`.
+Settings live in `/presence.bin` (not in the main settings block, so older boards keep theirs).
 
 ## App settings
     GET  /v1/presence            -> {opt_in, required_dorm, counted, window_sec, key, status: uni|dorm|outside, place}
