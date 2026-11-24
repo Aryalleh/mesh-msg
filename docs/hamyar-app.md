@@ -100,3 +100,37 @@ Nothing below is built yet.
    private to the university? Hamyar can set peers per university.
 2. Should the Hamyar screen appear for every Mava user who adds such a relay, or only after
    `/me` answers (linked users)?
+
+## 4. The Hamyar app (built 2026-11-24): flavor `hamyar`
+
+One code base, two apps: `./gradlew assembleMavaDebug` (Mava, `org.meshmsg.app`) and
+`assembleHamyarDebug` (Hamyar, `ir.hamyared.app`). `BuildConfig.HAMYAR` picks the shell;
+`android/app/src/hamyar` holds only the name, launcher icon (the Hamyar logo), Vazirmatn (OFL)
+and the NFC card service declaration. Releases carry `hamyar-<ver>-<abi>.apk` next to Mava's,
+but not in Mava's signed update manifest; Mava's updater only takes `meshmsg-*` files, and the
+Hamyar build has no self-update yet.
+
+- **Look**: the Hamyar website's (and its UX Pilot designs'): dark brand green header, sand
+  background, white rounded cards, Vazirmatn, Persian only (the activity forces `fa`). Mava's own
+  screens inside it take the same colours (`HamyarTheme`).
+- **Start**: Hamyar login (phone + code) → if the user has a chat-history backup, offer to
+  restore it with its passphrase (`Meshcore.restoreHistory` before the core opens) → the usual
+  Bluetooth/notification permissions.
+- **Tabs**: Home (open trips with the user's price and state, next payment, surveys) · Trips
+  (my registrations, instalments, trip groups, the trip's Mava card) · Mava (the chats) ·
+  Presence (setup once, my presence, my classes) · Card (virtual student card). The profile
+  (avatar on Home) links the website pages the app doesn't have yet (profile edit, payments,
+  clinic, clubs, tickets, FAQ) through `GET /v1/web-link` (one-time login), and the Mava account,
+  network and Mava settings.
+- **Automatic Mava account**: once the core runs, the app adds the university's relay
+  (`GET /v1/mava`), names the account after the student and links it with
+  `POST /v1/mava/account` signed by `Core.signHamyar` (the key never leaves the phone).
+- **Private history**: profile → Mava account: back up now with a passphrase (≥ 8 characters):
+  `Core.exportHistory` → `PUT /v1/mava/backup` (sealed; Hamyar can't open it).
+- **Virtual student card** (Hamyar repo docs/student-card.md): the phone makes the 30-second
+  code `HYC1.<slug>.<uid>.<w>.<token>` itself (`hamyar/CardCodes.kt`, vector pinned in
+  `CardCodesTest`), shows it as a QR code and answers NFC readers as a HCE card
+  (AID `F0484D59415231`, phone unlocked). Admins with the `card_check` page get "check cards":
+  NFC reader mode or the camera, `POST /v1/card/check`, photo shown to compare.
+- **Classes**: `GET /v1/classes`: each class's times and attendance (present / partial /
+  absent / unknown when presence is off), from the classroom's Mava nodes.

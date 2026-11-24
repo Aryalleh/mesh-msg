@@ -27,6 +27,17 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import org.meshmsg.app.hamyar.card
+import org.meshmsg.app.hamyar.mava
+import org.meshmsg.app.hamyar.cachedMe
+import org.meshmsg.app.hamyar.me
+import org.meshmsg.app.hamyar.linkedMava
+import org.meshmsg.app.hamyar.linkMava
+import org.meshmsg.app.hamyar.webLink
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -71,6 +82,58 @@ import org.meshmsg.app.ui.theme.MeshMsgTheme
 
 class MainActivity : ComponentActivity() {
     private val vm: MeshViewModel by viewModels()
+
+    // ---- the Hamyar build (BuildConfig.HAMYAR): Hamyar's login, tabs and screens around Mava ----
+    private val hamyar by lazy { org.meshmsg.app.hamyar.HamyarApi(applicationContext) }
+    private val hamyarLoggedIn = mutableStateOf(false)
+
+    /** The Hamyar app is Persian only, like the website. */
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(if (BuildConfig.HAMYAR) persian(base) else base)
+    }
+
+    /** Opens a page of the university's site, already logged in (one-time link from the API), in the browser. */
+    private fun openHamyarWeb(path: String) {
+        lifecycleScope.launch {
+            runCatching { hamyar.webLink(path) }
+                .onSuccess { url -> runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) } }
+                .onFailure { vm.notice(if ((it as? org.meshmsg.app.hamyar.HamyarError)?.code == "unauthorized") "دوباره وارد همیار شوید." else "اینترنت در دسترس نیست.") }
+        }
+    }
+
+    /** Links this phone's Mava account to the Hamyar login, signed with the account key (it never leaves the phone). */
+    private suspend fun linkMava(): Result<String> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching {
+            val b = vm.backend.value ?: error("Mava is starting")
+            val js = org.json.JSONObject(b.core.signHamyar("POST", "/v1/mava/account"))
+            val headers = js.keys().asSequence().associateWith { js.getString(it) }
+            hamyar.linkMava(headers).also { hamyar.linkedMava = b.myHash }
+        }
+    }
+
+    private val mavaHooks by lazy {
+        org.meshmsg.app.hamyar.MavaHooks(
+            myAccount = { vm.backend.value?.myHash },
+            link = { linkMava() },
+            exportHistory = { pass, f ->
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching { (vm.backend.value ?: error("Mava is starting")).core.exportHistory(pass, f.absolutePath) }
+                }
+            },
+            restoreHistory = { f, pass ->
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching { org.meshmsg.meshcore.Meshcore.restoreHistory((application as MeshApp).meshDirPath, f.absolutePath, pass, true); Unit }
+                }
+            },
+            cacheDir = cacheDir,
+        )
+    }
+
+    private fun hamyarLogout() {
+        hamyar.logout()
+        hamyarLoggedIn.value = false
+        org.meshmsg.app.hamyar.PresenceRadio.poke()
+    }
 
     /** A meshmsg: link or a chat to open, from the launching intent. */
     private val pendingLink = mutableStateOf<String?>(null)
@@ -198,12 +261,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handle(intent)
+        hamyarLoggedIn.value = hamyar.loggedIn
         setContent {
             MeshMsgTheme {
                 val onboarded by vm.onboarded.collectAsStateWithLifecycle()
                 val avatars by vm.avatars.collectAsStateWithLifecycle()
                 androidx.compose.runtime.CompositionLocalProvider(org.meshmsg.app.data.LocalAvatars provides avatars) {
-                    if (!onboarded) Onboarding() else androidx.compose.foundation.layout.Box {
+                    val hamyarIn by hamyarLoggedIn
+                    if (BuildConfig.HAMYAR && !onboarded) {
+                        HamyarOnboarding()
+                    } else if (BuildConfig.HAMYAR && !hamyarIn) {
+                        org.meshmsg.app.hamyar.HamyarLogin(hamyar, onBack = { finish() }) { hamyarLoggedIn.value = true; org.meshmsg.app.hamyar.PresenceRadio.poke() }
+                    } else if (!onboarded) Onboarding() else androidx.compose.foundation.layout.Box {
                         androidx.compose.foundation.layout.Column {
                             val bar = CallBar()
                             // The bar takes the status bar's space: the app below doesn't pad for it again.
@@ -257,6 +326,19 @@ class MainActivity : ComponentActivity() {
             vm.onBluetoothPermission()
         }
         OnboardingScreen(onStart = { ask.launch(startPermissions()) }, onRestore = vm::restoreIdentity)
+    }
+
+    /** The Hamyar build's first start: Hamyar login, the offer to restore Mava chats, then the usual permissions. */
+    @Composable
+    private fun HamyarOnboarding() {
+        val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            vm.onBluetoothPermission()
+        }
+        org.meshmsg.app.hamyar.HamyarStart(hamyar, mavaHooks, onQuit = { finish() }) {
+            hamyarLoggedIn.value = true
+            vm.finishOnboarding()
+            ask.launch(startPermissions())
+        }
     }
 
     private fun startPermissions(): Array<String> =
@@ -409,9 +491,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        if (BuildConfig.HAMYAR) HamyarSync()
         Scaffold(
             snackbarHost = { SnackbarHost(snackbar) },
-            bottomBar = { if (route in Routes.TOP) BottomBar(nav, route) },
+            bottomBar = { if (route in Routes.TOP || (BuildConfig.HAMYAR && route in Routes.H_TOP)) BottomBar(nav, route) },
         ) { pad ->
             // The inner screens draw their own bars; only the bottom bar inset applies here.
             val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -419,7 +502,7 @@ class MainActivity : ComponentActivity() {
             val animate = animationsEnabled()
             NavHost(
                 navController = nav,
-                startDestination = Routes.CHATS,
+                startDestination = if (BuildConfig.HAMYAR) Routes.H_HOME else Routes.CHATS,
                 modifier = Modifier.padding(bottom = pad.calculateBottomPadding()),
                 enterTransition = { if (animate) fadeIn(tween(200)) + slideInHorizontally(tween(200)) { dir * it / 12 } else EnterTransition.None },
                 exitTransition = { if (animate) fadeOut(tween(140)) else ExitTransition.None },
@@ -484,8 +567,11 @@ class MainActivity : ComponentActivity() {
                     })
                 }
                 composable(Routes.HAMYAR) {
-                    org.meshmsg.app.hamyar.HamyarScreen(onBack = { nav.popBackStack() })
+                    if (BuildConfig.HAMYAR) {
+                        LaunchedEffect(Unit) { nav.navigate(Routes.H_PRESENCE) { popUpTo(Routes.HAMYAR) { inclusive = true } } }
+                    } else org.meshmsg.app.hamyar.HamyarScreen(onBack = { nav.popBackStack() })
                 }
+                if (BuildConfig.HAMYAR) hamyarRoutes(nav)
                 composable(Routes.TRIPS) {
                     val backend by vm.backend.collectAsStateWithLifecycle()
                     val chats by vm.chats.collectAsStateWithLifecycle()
@@ -639,11 +725,13 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun BottomBar(nav: NavHostController, route: String?) {
-        NavigationBar {
-            val items = listOf(
-                Triple(Routes.CHATS, MeshIcons.Chat, R.string.nav_chats),
-                Triple(Routes.NETWORK, MeshIcons.Hub, R.string.nav_network),
-                Triple(Routes.SETTINGS, Icons.Filled.Settings, R.string.nav_settings),
+        NavigationBar(
+            containerColor = if (BuildConfig.HAMYAR) androidx.compose.ui.graphics.Color.White else androidx.compose.material3.NavigationBarDefaults.containerColor,
+        ) {
+            val items = if (BuildConfig.HAMYAR) hamyarTabs() else listOf(
+                Triple(Routes.CHATS, MeshIcons.Chat, stringResource(R.string.nav_chats)),
+                Triple(Routes.NETWORK, MeshIcons.Hub, stringResource(R.string.nav_network)),
+                Triple(Routes.SETTINGS, Icons.Filled.Settings, stringResource(R.string.nav_settings)),
             )
             items.forEach { (r, icon, label) ->
                 NavigationBarItem(
@@ -656,10 +744,94 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     icon = { Icon(icon, contentDescription = null) },
-                    label = { Text(stringResource(label)) },
+                    label = { Text(label) },
+                    colors = if (BuildConfig.HAMYAR) androidx.compose.material3.NavigationBarItemDefaults.colors(
+                        selectedIconColor = org.meshmsg.app.ui.theme.HamyarColors.brand700,
+                        selectedTextColor = org.meshmsg.app.ui.theme.HamyarColors.brand700,
+                        indicatorColor = org.meshmsg.app.ui.theme.HamyarColors.brand50,
+                        unselectedIconColor = org.meshmsg.app.ui.theme.HamyarColors.ink400,
+                        unselectedTextColor = org.meshmsg.app.ui.theme.HamyarColors.ink400,
+                    ) else androidx.compose.material3.NavigationBarItemDefaults.colors(),
                 )
             }
         }
+    }
+
+    // ------------------------------------------------------------------ the Hamyar build
+
+    private fun persian(base: android.content.Context): android.content.Context {
+        val c = android.content.res.Configuration(base.resources.configuration)
+        c.setLocale(java.util.Locale.forLanguageTag("fa"))
+        return base.createConfigurationContext(c)
+    }
+
+    @Composable
+    private fun hamyarTabs(): List<Triple<String, androidx.compose.ui.graphics.vector.ImageVector, String>> {
+        val me = remember { hamyar.cachedMe }
+        return listOfNotNull(
+            Triple(Routes.H_HOME, Icons.Filled.Home, "خانه"),
+            Triple(Routes.H_TRIPS, Icons.Filled.DateRange, "سفرها"),
+            Triple(Routes.CHATS, MeshIcons.Chat, "ماوا"),
+            Triple(Routes.H_PRESENCE, Icons.Filled.LocationOn, "حضور").takeIf { me?.has("presence") != false },
+            Triple(Routes.H_CARD, Icons.Filled.AccountBox, "کارت").takeIf { me?.has("card") != false },
+        )
+    }
+
+    private fun hamyarNav(nav: NavHostController) = org.meshmsg.app.hamyar.HamyarNav(
+        web = ::openHamyarWeb,
+        openProfile = { nav.navigate(Routes.H_PROFILE) { launchSingleTop = true } },
+        openGroup = { nav.navigate(Routes.group(it)) },
+        openClasses = { nav.navigate(Routes.H_CLASSES) { launchSingleTop = true } },
+        openCheck = { nav.navigate(Routes.H_CHECK) { launchSingleTop = true } },
+        openTrips = { nav.navigate(Routes.H_HOME) { popUpTo(Routes.H_HOME); launchSingleTop = true } },
+        openMavaTrip = { link -> pendingTripLink.value = link; pendingTrips.value = true },
+        openMavaSettings = { nav.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+        openNetwork = { nav.navigate(Routes.NETWORK) { launchSingleTop = true } },
+        openMavaAccount = { nav.navigate(Routes.H_MAVA) { launchSingleTop = true } },
+        logout = ::hamyarLogout,
+    )
+
+    private fun androidx.navigation.NavGraphBuilder.hamyarRoutes(nav: NavHostController) {
+        val hn = hamyarNav(nav)
+        val back: () -> Unit = { nav.popBackStack() }
+        composable(Routes.H_HOME) { org.meshmsg.app.hamyar.HamyarHome(hamyar, hn) }
+        composable(Routes.H_TRIPS) { org.meshmsg.app.hamyar.HamyarTrips(hamyar, hn) }
+        composable(Routes.H_PRESENCE) { org.meshmsg.app.hamyar.PresenceTab(hamyar, hn.openGroup, hn.openClasses, hn.logout) }
+        composable(Routes.H_CARD) { org.meshmsg.app.hamyar.StudentCardScreen(hamyar, hn) }
+        composable(Routes.H_PROFILE) { org.meshmsg.app.hamyar.HamyarProfile(hamyar, hn, back) }
+        composable(Routes.H_CLASSES) { org.meshmsg.app.hamyar.ClassesScreen(hamyar, back) }
+        composable(Routes.H_CHECK) { org.meshmsg.app.hamyar.CardCheckScreen(hamyar, back) }
+        composable(Routes.H_MAVA) { org.meshmsg.app.hamyar.MavaAccountScreen(hamyar, mavaHooks, back) }
+        composable(Routes.H_GROUP) { e ->
+            org.meshmsg.app.hamyar.TripGroupScreen(hamyar, android.net.Uri.decode(e.arguments?.getString("trip").orEmpty()), back)
+        }
+    }
+
+    /**
+     * Once Mava runs: adds the university's relay, names the Mava account after the student, and links it to the
+     * Hamyar login (Hamyar users get a Mava account automatically; the key is made and kept on this phone).
+     */
+    @Composable
+    private fun HamyarSync() {
+        val backend by vm.backend.collectAsStateWithLifecycle()
+        val loggedIn by hamyarLoggedIn
+        LaunchedEffect(backend, loggedIn) {
+            val b = backend ?: return@LaunchedEffect
+            if (!loggedIn) return@LaunchedEffect
+            val me = runCatching { hamyar.me() }.getOrNull() ?: hamyar.cachedMe
+            val settings = (application as MeshApp).settings
+            if (me != null && settings.displayName.isBlank() && me.name.isNotBlank()) vm.setName(me.name)
+            if (me != null && !me.has("mava")) return@LaunchedEffect
+            val info = runCatching { hamyar.mava() }.getOrNull() ?: return@LaunchedEffect
+            val relay = info.relay
+            if (relay != null && settings.relays.none { it.url.trimEnd('/') == relay.trimEnd('/') }) {
+                vm.addRelay(org.meshmsg.app.data.Relay((me?.slug ?: "uni") + "-mava", relay)) // restarts the core; this runs again
+                return@LaunchedEffect
+            }
+            if (info.account != b.myHash) linkMava()
+        }
+        // the card's key is kept fresh for NFC (it answers from the cached card)
+        LaunchedEffect(loggedIn) { if (loggedIn && hamyar.cachedMe?.has("card") != false) runCatching { hamyar.card() } }
     }
 
     private object Routes {
@@ -672,6 +844,18 @@ class MainActivity : ComponentActivity() {
         const val TRIPS = "trips"
         const val HAMYAR = "hamyar"
         val TOP = setOf(CHATS, NETWORK, SETTINGS)
+        const val H_HOME = "h_home"
+        const val H_TRIPS = "h_trips"
+        const val H_PRESENCE = "h_presence"
+        const val H_CARD = "h_card"
+        const val H_PROFILE = "h_profile"
+        const val H_GROUP = "h_group/{trip}"
+        const val H_CLASSES = "h_classes"
+        const val H_CHECK = "h_check"
+        const val H_MAVA = "h_mava"
+        /** The Hamyar build's tabs: home, trips, Mava (the chats), presence, card. */
+        val H_TOP = setOf(H_HOME, H_TRIPS, CHATS, H_PRESENCE, H_CARD)
+        fun group(trip: String) = "h_group/" + android.net.Uri.encode(trip)
         fun chat(hash: String) = "chat/$hash"
     }
 

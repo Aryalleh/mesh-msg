@@ -168,6 +168,38 @@ class HamyarApi(context: Context, private val base: String = BASE) {
         if (token != null && p.getLong("expires", 0) - now() < 7 * 86400) runCatching { keep(call("POST", "/v1/auth/refresh")) }
     }
 
+    /** Uploads or downloads raw bytes (the chat history backup). */
+    internal suspend fun bytes(method: String, path: String, upload: java.io.File? = null, download: java.io.File? = null, headers: Map<String, String> = emptyMap()) = withContext(Dispatchers.IO) {
+        val c = URL(base + path).openConnection() as HttpURLConnection
+        try {
+            c.requestMethod = method
+            c.connectTimeout = 15_000
+            c.readTimeout = 120_000
+            c.setRequestProperty("Authorization", "Bearer " + (token ?: throw HamyarError("unauthorized", 401)))
+            headers.forEach { (k, v) -> c.setRequestProperty(k, v) }
+            if (upload != null) {
+                c.doOutput = true
+                c.setFixedLengthStreamingMode(upload.length())
+                c.setRequestProperty("Content-Type", "application/octet-stream")
+                c.outputStream.use { o -> upload.inputStream().use { it.copyTo(o) } }
+            }
+            val code = c.responseCode
+            if (code >= 400) {
+                val json = runCatching { JSONObject(c.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()) }.getOrElse { JSONObject() }
+                if (code == 401) logout()
+                throw HamyarError(json.optString("error").ifEmpty { "http_$code" }, code)
+            }
+            if (download != null) download.outputStream().use { o -> c.inputStream.use { it.copyTo(o) } }
+            else c.inputStream.use { it.readBytes() }
+            Unit
+        } finally {
+            c.disconnect()
+        }
+    }
+
+    /** Small values the Hamyar screens keep between starts (last home, card key...). */
+    internal val store get() = p
+
     private fun keep(r: JSONObject) = p.edit {
         putString("token", r.getString("token"))
         putLong("expires", r.getLong("expires_at"))
@@ -175,7 +207,7 @@ class HamyarApi(context: Context, private val base: String = BASE) {
         r.optJSONObject("user")?.let { putString("user_name", it.optString("name")) }
     }
 
-    private suspend fun call(method: String, path: String, body: JSONObject? = null, auth: Boolean = true): JSONObject = withContext(Dispatchers.IO) {
+    internal suspend fun call(method: String, path: String, body: JSONObject? = null, auth: Boolean = true, headers: Map<String, String> = emptyMap()): JSONObject = withContext(Dispatchers.IO) {
         val c = URL(base + path).openConnection() as HttpURLConnection
         try {
             c.requestMethod = method
@@ -183,6 +215,7 @@ class HamyarApi(context: Context, private val base: String = BASE) {
             c.readTimeout = 20_000
             c.setRequestProperty("Accept", "application/json")
             if (auth) c.setRequestProperty("Authorization", "Bearer " + (token ?: throw HamyarError("unauthorized", 401)))
+            headers.forEach { (k, v) -> c.setRequestProperty(k, v) }
             if (body != null) {
                 c.doOutput = true
                 c.setRequestProperty("Content-Type", "application/json")

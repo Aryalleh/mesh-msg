@@ -114,10 +114,23 @@ fun HamyarScreen(onBack: () -> Unit) {
     }
 }
 
+/** The Hamyar app's presence tab: the setup screen once, then "my presence" (no back button: it is a tab). */
+@Composable
+fun PresenceTab(api: HamyarApi, openTrip: (String) -> Unit, openClasses: () -> Unit, logout: () -> Unit) {
+    var setupDone by remember { mutableStateOf(api.presenceSetupDone) }
+    Box(Modifier.fillMaxSize().background(HC.sand100)) {
+        if (!setupDone) {
+            PresenceSetup(api, onLater = { api.presenceSetupDone = true; setupDone = true }) {
+                api.presenceSetupDone = true; setupDone = true; PresenceRadio.poke()
+            }
+        } else MyPresence(api, onBack = null, openTrip = openTrip, openClasses = openClasses, logout = logout)
+    }
+}
+
 // ------------------------------------------------------------------ login
 
 @Composable
-private fun HamyarLogin(api: HamyarApi, onBack: () -> Unit, done: () -> Unit) {
+internal fun HamyarLogin(api: HamyarApi, onBack: () -> Unit, done: () -> Unit) {
     val scope = rememberCoroutineScope()
     var phone by rememberSaveable { mutableStateOf("") }
     var code by rememberSaveable { mutableStateOf("") }
@@ -279,7 +292,7 @@ private fun PresenceSetup(api: HamyarApi, onLater: () -> Unit, done: () -> Unit)
 // ------------------------------------------------------------------ my presence
 
 @Composable
-private fun MyPresence(api: HamyarApi, onBack: () -> Unit, openTrip: (String) -> Unit, logout: () -> Unit) {
+private fun MyPresence(api: HamyarApi, onBack: (() -> Unit)?, openTrip: (String) -> Unit, openClasses: (() -> Unit)? = null, logout: () -> Unit) {
     val scope = rememberCoroutineScope()
     var info by remember { mutableStateOf(api.cachedPresence) }
     var groups by remember { mutableStateOf(api.cachedGroups) }
@@ -302,7 +315,8 @@ private fun MyPresence(api: HamyarApi, onBack: () -> Unit, openTrip: (String) ->
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = Color.White) }
+                if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = Color.White) }
+                else Spacer(Modifier.size(48.dp))
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(stringResource(R.string.presence_title), color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp)
                     Text(api.university, color = Color.White.copy(alpha = .6f), fontSize = 12.sp)
@@ -359,6 +373,19 @@ private fun MyPresence(api: HamyarApi, onBack: () -> Unit, openTrip: (String) ->
                     }
                 }
             }
+            if (openClasses != null) {
+                Row(
+                    Modifier.fillMaxWidth().background(Color.White, Card).border(1.dp, HC.sand200, Card).clickable(onClick = openClasses).padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(Modifier.size(40.dp).background(HC.brand50, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Filled.Person, null, tint = HC.brand700) }
+                    Column(Modifier.weight(1f)) {
+                        Text("کلاس‌های من", fontWeight = FontWeight.Bold, color = HC.ink900)
+                        Text("حضور سر کلاس، از نود کلاس", fontSize = 12.sp, color = HC.ink600)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = HC.ink600)
+                }
+            }
             if (groups.isNotEmpty()) {
                 WhiteCard {
                     Text(stringResource(R.string.trip_groups_title), fontWeight = FontWeight.Black, color = HC.ink900)
@@ -404,7 +431,7 @@ private fun MyPresence(api: HamyarApi, onBack: () -> Unit, openTrip: (String) ->
 
 /** One trip's group: my state and the join switch; leaders also see every member, separated first. */
 @Composable
-private fun TripGroupScreen(api: HamyarApi, tripId: String, onBack: () -> Unit) {
+internal fun TripGroupScreen(api: HamyarApi, tripId: String, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     var view by remember { mutableStateOf<GroupView?>(null) }
