@@ -17,7 +17,8 @@ class AppUpdateTest {
     private val status = """{"current":"0.1.1-beta1","channel":"beta","checked":"2026-11-13T10:00:00Z","source":"http://87.106.5.192",
       "latest":{"version":"0.1.1-beta2","channel":"beta","date":"2026-11-14T10:00:00Z","min_supported":"0.1.1-beta1",
         "notes":{"en":"Fixes.","fa":"اصلاحات."},"page":"https://github.com/Aryalleh/mesh-msg/releases/tag/v0.1.1-beta2",
-        "files":[{"name":"meshmsg-0.1.1-beta2-arm64-v8a.apk","url":"https://x/a.apk","sha256":"${"ab".repeat(32)}","size":123},
+        "files":[{"name":"hamyar-0.1.1-beta2-arm64-v8a.apk","url":"https://x/h.apk","sha256":"${"ef".repeat(32)}","size":9},
+                 {"name":"meshmsg-0.1.1-beta2-arm64-v8a.apk","url":"https://x/a.apk","sha256":"${"ab".repeat(32)}","size":123},
                  {"name":"meshmsg-0.1.1-beta2-universal.apk","url":"https://x/u.apk","sha256":"${"cd".repeat(32)}","size":456}]},
       "available":true,"required":false}"""
 

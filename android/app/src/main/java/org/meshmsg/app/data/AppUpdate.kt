@@ -22,9 +22,12 @@ data class AppUpdate(
     fun notesFor(lang: String): String = notes[lang] ?: notes["en"] ?: notes.values.firstOrNull().orEmpty()
 
     /** The APK for the first ABI this phone supports, else the universal one. */
-    fun apkFor(abis: List<String>): UpdateFile? =
-        abis.firstNotNullOfOrNull { abi -> files.firstOrNull { it.name.endsWith("-$abi.apk") } }
-            ?: files.firstOrNull { it.name.endsWith("-universal.apk") }
+    fun apkFor(abis: List<String>): UpdateFile? {
+        // Only Mava's own APKs (a release may also carry the Hamyar app's).
+        val mine = files.filter { it.name.startsWith("meshmsg-") || it.name.startsWith("mesh-msg-") }
+        return abis.firstNotNullOfOrNull { abi -> mine.firstOrNull { it.name.endsWith("-$abi.apk") } }
+            ?: mine.firstOrNull { it.name.endsWith("-universal.apk") }
+    }
 
     companion object {
         /** Parses Core.checkUpdate's JSON; null when no release was found. */

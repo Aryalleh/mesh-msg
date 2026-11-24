@@ -83,6 +83,8 @@ class UpdateManager(private val context: Context, private val scope: CoroutineSc
     /** Checks now; returns whether a release manifest was found. */
     suspend fun check(core: () -> Core?): Boolean = withContext(Dispatchers.IO) {
         checking.withLock {
+            // The Hamyar build is another app: Mava's release manifest only has Mava APKs.
+            if (org.meshmsg.app.BuildConfig.HAMYAR) return@withLock false
             val c = core() ?: return@withLock false
             lastCheck = System.currentTimeMillis()
             val u = AppUpdate.parse(runCatching { c.checkUpdate(currentVersion) }.getOrDefault("")) ?: return@withLock false
