@@ -92,11 +92,14 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(if (BuildConfig.HAMYAR) persian(base) else base)
     }
 
-    /** Opens a page of the university's site, already logged in (one-time link from the API), in the browser. */
+    /** Opens a page of the university's site inside the app (in-app WebView), already logged in (one-time link). */
     private fun openHamyarWeb(path: String) {
         lifecycleScope.launch {
             runCatching { hamyar.webLink(path) }
-                .onSuccess { url -> runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) } }
+                .onSuccess { url ->
+                    runCatching { org.meshmsg.app.hamyar.HamyarWebActivity.open(this@MainActivity, url) }
+                        .onFailure { runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) } }
+                }
                 .onFailure { vm.notice(if ((it as? org.meshmsg.app.hamyar.HamyarError)?.code == "unauthorized") "دوباره وارد همیار شوید." else "اینترنت در دسترس نیست.") }
         }
     }

@@ -117,5 +117,11 @@
         <receiver
             android:name=".service.CallActionReceiver"
             android:exported="false" />
+        <!-- Hamyar website inside the app (hybrid parity): trip registration, payment, documents, surveys, tickets. -->
+        <activity
+            android:name=".hamyar.HamyarWebActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 </manifest>
