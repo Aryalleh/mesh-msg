@@ -93,7 +93,8 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew --no-daemon -PversionName='${{ needs.version.outputs.name }}' -PversionCode='${{ needs.version.outputs.code }}' \
-            :app:lintDebug :app:testDebugUnitTest :app:assembleDebug 2>&1 | tee ../gradle.log
+            :app:lintMavaDebug :app:testMavaDebugUnitTest :app:assembleMavaDebug \
+            :app:lintHamyarDebug :app:assembleHamyarDebug 2>&1 | tee ../gradle.log
 
       - name: Report build errors
         if: failure()
@@ -102,7 +103,7 @@ jobs:
           grep -E '^e: |Error: |FAILED|Exception|What went wrong' -A2 gradle.log | head -40 | while IFS= read -r l; do
             echo "::error::${l//%/%25}"
           done
-          for f in android/app/build/reports/lint-results-debug.txt; do
+          for f in android/app/build/reports/lint-results-*Debug.txt; do
             [ -f "$f" ] && grep -E 'Error:' -A1 "$f" | head -20 | while IFS= read -r l; do echo "::error::lint ${l//%/%25}"; done
           done
 
@@ -110,9 +111,14 @@ jobs:
         run: |
           ver='${{ needs.version.outputs.name }}'
           mkdir -p dist
-          for f in android/app/build/outputs/apk/debug/app-*-debug.apk; do
-            abi=$(basename "$f" | sed -e 's/^app-//' -e 's/-debug\.apk$//')
+          # Mava keeps its file names (the in-app updater picks meshmsg-<ver>-<abi>.apk); Hamyar is another app.
+          for f in android/app/build/outputs/apk/mava/debug/app-mava-*-debug.apk; do
+            abi=$(basename "$f" | sed -e 's/^app-mava-//' -e 's/-debug\.apk$//')
             cp "$f" "dist/meshmsg-$ver-$abi.apk"
+          done
+          for f in android/app/build/outputs/apk/hamyar/debug/app-hamyar-*-debug.apk; do
+            abi=$(basename "$f" | sed -e 's/^app-hamyar-//' -e 's/-debug\.apk$//')
+            cp "$f" "dist/hamyar-$ver-$abi.apk"
           done
           ls -la dist
 
@@ -301,6 +307,8 @@ jobs:
             [ -s "docs/release-notes/$tag.$l.md" ] || { echo "::error::docs/release-notes/$tag.$l.md is missing"; exit 1; }
           done
           min=$(grep -v '^#' docs/release-notes/min-supported 2>/dev/null | grep . | tail -1 || true)
+          # Hamyar's APKs go in the release but not in Mava's update manifest (another app, other updates).
+          mkdir -p hamyar-apks && mv dist/hamyar-*.apk hamyar-apks/ 2>/dev/null || true
           go run ./tools/release-manifest sign -version "$ver" -dir dist \
             -base-url "https://github.com/${{ github.repository }}/releases/download/$tag" \
             -page "https://github.com/${{ github.repository }}/releases/tag/$tag" \
@@ -308,6 +316,7 @@ jobs:
             -min-supported "$min" > release.json
           go run ./tools/release-manifest verify release.json
           mv release.json dist/
+          mv hamyar-apks/*.apk dist/ 2>/dev/null || true
           {
             echo "Mava $ver (Android versionCode ${{ needs.version.outputs.code }})."
             echo

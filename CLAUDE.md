@@ -24,4 +24,5 @@
   `<tag>.fa.md` (the release job signs them into `release.json` and fails without them;
   it also needs the GitHub secret `RELEASE_SIGNING_KEY`, see docs/release-notes/README.md).
 - If `android/` or `mobile/` changed: `scripts/build-android-core.sh` then
-  `cd android && ./gradlew lintDebug testDebugUnitTest assembleDebug` (see PROGRESS.md for the toolchain).
+  `cd android && ./gradlew lintMavaDebug lintHamyarDebug testMavaDebugUnitTest assembleMavaDebug assembleHamyarDebug`
+  (two apps: flavor `mava` and flavor `hamyar`, docs/hamyar-app.md; see PROGRESS.md for the toolchain).

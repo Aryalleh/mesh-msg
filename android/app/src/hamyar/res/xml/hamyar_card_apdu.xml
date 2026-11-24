@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The virtual student card's AID (CardCodes.AID_HEX). Only answers while the phone is unlocked. -->
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/app_name"
+    android:requireDeviceUnlock="true">
+    <aid-group android:category="other" android:description="@string/app_name">
+        <aid-filter android:name="F0484D59415231" />
+    </aid-group>
+</host-apdu-service>

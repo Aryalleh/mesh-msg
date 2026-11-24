@@ -150,7 +150,104 @@ object Space {
 /** Dark is the default (android/DESIGN.md); [dark] follows the system unless the user chose. */
 @Composable
 fun MeshMsgTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    if (org.meshmsg.app.BuildConfig.HAMYAR) return HamyarTheme(content)
     CompositionLocalProvider(LocalExtra provides if (dark) DarkExtra else LightExtra) {
         MaterialTheme(colorScheme = if (dark) Dark else Light, typography = Type, shapes = MeshShapes, content = content)
+    }
+}
+
+/**
+ * The Hamyar build's look, from the Hamyar website and its UX Pilot designs: dark brand green, sand background, ink
+ * text, Vazirmatn. Light only, like the website. Mava's screens inside the Hamyar app take these colours too.
+ */
+object HamyarColors {
+    val brand900 = Color(0xFF0A2E28)
+    val brand700 = Color(0xFF0B5549)
+    val brand600 = Color(0xFF0E6B5C)
+    val brand500 = Color(0xFF14866F)
+    val brand100 = Color(0xFFCFE7E1)
+    val brand50 = Color(0xFFE8F3F0)
+    val sand50 = Color(0xFFFBF9F5)
+    val sand100 = Color(0xFFF5F2EC)
+    val sand200 = Color(0xFFEAE4D8)
+    val ink900 = Color(0xFF14211F)
+    val ink600 = Color(0xFF4B5A57)
+    val ink400 = Color(0xFF8A9693)
+    val amber300 = Color(0xFFFCD34D)
+    val amber400 = Color(0xFFFBBF24)
+    val amber50 = Color(0xFFFFFBEB)
+    val amber700 = Color(0xFFB45309)
+    val violet50 = Color(0xFFF5F3FF)
+    val violet600 = Color(0xFF7C3AED)
+    val violet800 = Color(0xFF5B21B6)
+    val sky50 = Color(0xFFF0F9FF)
+    val sky600 = Color(0xFF0284C7)
+    val sky900 = Color(0xFF0C4A6E)
+    val rose50 = Color(0xFFFFF1F2)
+    val rose600 = Color(0xFFE11D48)
+    val rose700 = Color(0xFFBE123C)
+    val emerald50 = Color(0xFFECFDF5)
+    val emerald700 = Color(0xFF047857)
+}
+
+private val HamyarScheme = lightColorScheme(
+    background = HamyarColors.sand100,
+    onBackground = HamyarColors.ink900,
+    surface = Color.White,
+    onSurface = HamyarColors.ink900,
+    surfaceVariant = HamyarColors.sand100,
+    onSurfaceVariant = HamyarColors.ink600,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = HamyarColors.sand50,
+    surfaceContainer = HamyarColors.sand100,
+    surfaceContainerHigh = HamyarColors.sand200,
+    surfaceContainerHighest = Color(0xFFE0D9CB),
+    outline = Color(0xFFD6CFC0),
+    outlineVariant = HamyarColors.sand200,
+    primary = HamyarColors.brand600,
+    onPrimary = Color.White,
+    primaryContainer = HamyarColors.brand50,
+    onPrimaryContainer = HamyarColors.brand900,
+    secondary = HamyarColors.brand700,
+    onSecondary = Color.White,
+    secondaryContainer = HamyarColors.brand50,
+    onSecondaryContainer = HamyarColors.brand900,
+    tertiary = HamyarColors.amber700,
+    onTertiary = Color.White,
+    error = HamyarColors.rose600,
+    onError = Color.White,
+    errorContainer = HamyarColors.rose50,
+    onErrorContainer = HamyarColors.rose700,
+    scrim = Color(0xFF000000),
+)
+
+private val HamyarExtra = LightExtra.copy(success = HamyarColors.emerald700, read = HamyarColors.brand500)
+
+private val HamyarType = Type.run {
+    fun TextStyle.v() = copy(fontFamily = BrandFont)
+    copy(
+        displayLarge = displayLarge.v(), displayMedium = displayMedium.v(), displaySmall = displaySmall.v(),
+        headlineLarge = headlineLarge.v(), headlineMedium = headlineMedium.v(), headlineSmall = headlineSmall.v(),
+        titleLarge = titleLarge.v().copy(fontWeight = FontWeight.ExtraBold), titleMedium = titleMedium.v().copy(fontWeight = FontWeight.Bold),
+        titleSmall = titleSmall.v(), bodyLarge = bodyLarge.v(), bodyMedium = bodyMedium.v(), bodySmall = bodySmall.v(),
+        labelLarge = labelLarge.v().copy(fontWeight = FontWeight.Bold), labelMedium = labelMedium.v(), labelSmall = labelSmall.v(),
+    )
+}
+
+private val HamyarShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(28.dp),
+)
+
+@Composable
+fun HamyarTheme(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalExtra provides HamyarExtra) {
+        MaterialTheme(colorScheme = HamyarScheme, typography = HamyarType, shapes = HamyarShapes) {
+            // Text outside a Text style (e.g. a bare BasicText) still gets the brand font.
+            androidx.compose.material3.ProvideTextStyle(MaterialTheme.typography.bodyLarge, content)
+        }
     }
 }

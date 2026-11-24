@@ -70,7 +70,25 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+    // Two apps from one code base: Mava (the messenger) and Hamyar (the university app: Mava + Hamyar's student
+    // features, Hamyar's look; src/hamyar holds its name, icon and fonts). BuildConfig.HAMYAR picks the shell.
+    flavorDimensions += "app"
+    productFlavors {
+        create("mava") {
+            dimension = "app"
+            isDefault = true
+            buildConfigField("boolean", "HAMYAR", "false")
+        }
+        create("hamyar") {
+            dimension = "app"
+            applicationId = "ir.hamyared.app"
+            buildConfigField("boolean", "HAMYAR", "true")
+        }
+    }
     packaging {
         resources.excludes += setOf("META-INF/{AL2.0,LGPL2.1}", "META-INF/*.kotlin_module")
     }
